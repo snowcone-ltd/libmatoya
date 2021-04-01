@@ -1,0 +1,19 @@
+// Copyright (c) Christopher D. Dickson <cdd@matoya.group>
+//
+// This Source Code Form is subject to the terms of the MIT License.
+// If a copy of the MIT License was not distributed with this file,
+// You can obtain one at https://spdx.org/licenses/MIT.html.
+
+struct PS_INPUT {
+	float4 pos : SV_POSITION;
+	float4 col : COLOR0;
+	float2 uv  : TEXCOORD0;
+};
+
+sampler sampler0;
+Texture2D texture0;
+
+float4 main(PS_INPUT input) : SV_Target
+{
+	return input.col * texture0.Sample(sampler0, input.uv);
+}
