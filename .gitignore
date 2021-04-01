@@ -1,0 +1,12 @@
+*.o
+*.so
+*.obj
+*.dll
+*.pdb
+
+/obj
+/bin
+
+**/gfx/shaders/*/*.h
+
+.DS_Store
