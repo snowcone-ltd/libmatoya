@@ -87,6 +87,7 @@ static PFNGLUNIFORMMATRIX4FVPROC        glUniformMatrix4fv;
 static PFNGLBLENDEQUATIONSEPARATEPROC   glBlendEquationSeparate;
 static PFNGLBLENDFUNCSEPARATEPROC       glBlendFuncSeparate;
 static PFNGLGETPROGRAMIVPROC            glGetProgramiv;
+static PFNGLPIXELSTOREIPROC             glPixelStorei;
 
 
 // Runtime open
@@ -159,6 +160,7 @@ static bool glproc_global_init(void)
 		GLPROC_LOAD_SYM(glBlendEquationSeparate);
 		GLPROC_LOAD_SYM(glBlendFuncSeparate);
 		GLPROC_LOAD_SYM(glGetProgramiv);
+		GLPROC_LOAD_SYM(glPixelStorei);
 
 		except:
 

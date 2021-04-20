@@ -61,7 +61,7 @@ char *MTY_JSONSerialize(const MTY_JSON *json)
 
 bool MTY_JSONWriteFile(const char *path, const MTY_JSON *json)
 {
-	char *jstr = MTY_JSONSerialize(json);
+	char *jstr = (char *) print((const cJSON *) json, true);
 
 	bool r = MTY_WriteFile(path, jstr, strlen(jstr));
 	MTY_Free(jstr);

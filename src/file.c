@@ -141,6 +141,16 @@ const char *MTY_GetFileName(const char *path, bool extension)
 	return local;
 }
 
+const char *MTY_GetFileExtension(const char *path)
+{
+	const char *ext = strrchr(path, '.');
+
+	if (ext)
+		return mty_tlocal_strcpy(ext + 1);
+
+	return "";
+}
+
 const char *MTY_GetPathPrefix(const char *path)
 {
 	char *local = mty_tlocal_strcpy(path);

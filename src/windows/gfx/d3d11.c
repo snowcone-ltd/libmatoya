@@ -276,21 +276,18 @@ static HRESULT d3d11_reload_textures(struct d3d11 *ctx, ID3D11Device *device, ID
 	const void *image, const MTY_RenderDesc *desc)
 {
 	switch (desc->format) {
-		case MTY_COLOR_FORMAT_RGBA: {
-			// RGBA
-			HRESULT e = d3d11_refresh_resource(&ctx->staging[0], device, DXGI_FORMAT_R8G8B8A8_UNORM, desc->cropWidth, desc->cropHeight);
+		case MTY_COLOR_FORMAT_BGRA:
+		case MTY_COLOR_FORMAT_BGR565:
+		case MTY_COLOR_FORMAT_BGRA5551: {
+			DXGI_FORMAT format = desc->format == MTY_COLOR_FORMAT_BGR565 ? DXGI_FORMAT_B5G6R5_UNORM :
+				desc->format == MTY_COLOR_FORMAT_BGRA5551 ? DXGI_FORMAT_B5G5R5A1_UNORM : DXGI_FORMAT_B8G8R8A8_UNORM;
+			uint8_t bpp = desc->format == MTY_COLOR_FORMAT_BGRA ? 4 : 2;
+
+			// BGRA
+			HRESULT e = d3d11_refresh_resource(&ctx->staging[0], device, format, desc->cropWidth, desc->cropHeight);
 			if (e != S_OK) return e;
 
-			e = d3d11_crop_copy(context, ctx->staging[0].resource, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, 4);
-			if (e != S_OK) return e;
-			break;
-		}
-		case MTY_COLOR_FORMAT_RGB565: {
-			// RGBA
-			HRESULT e = d3d11_refresh_resource(&ctx->staging[0], device, DXGI_FORMAT_B5G6R5_UNORM, desc->cropWidth, desc->cropHeight);
-			if (e != S_OK) return e;
-
-			e = d3d11_crop_copy(context, ctx->staging[0].resource, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, 2);
+			e = d3d11_crop_copy(context, ctx->staging[0].resource, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, bpp);
 			if (e != S_OK) return e;
 			break;
 		}

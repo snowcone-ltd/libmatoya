@@ -148,7 +148,7 @@ static bool queue_pop(MTY_Queue *ctx, int32_t timeout, bool last, void **buffer,
 
 		return true;
 
-	} else {
+	} else if (timeout != 0) {
 		// Because of the lock free check, this may already be signaled when
 		// there is no data. Worst case the loop spins one extra time
 		if (MTY_WaitableWait(ctx->pop_sync, timeout))

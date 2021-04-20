@@ -26,7 +26,6 @@ DEFINE_GUID(IID_IMMNotificationClient, 0x7991EEC9, 0x7E89, 0x4D85, 0x83, 0x90, 0
 #define AUDIO_BUFFER_SIZE ((1 * 1000 * 1000 * 1000) / 100) // 1 second
 
 struct MTY_Audio {
-	bool coinit;
 	bool playing;
 	bool notification_init;
 	uint32_t sample_rate;
@@ -37,6 +36,9 @@ struct MTY_Audio {
 	IMMNotificationClient notification;
 	IAudioClient *client;
 	IAudioRenderClient *render;
+
+	bool com;
+	DWORD com_thread;
 };
 
 static bool AUDIO_DEVICE_CHANGED;
@@ -193,13 +195,14 @@ MTY_Audio *MTY_AudioCreate(uint32_t sampleRate, uint32_t minBuffer, uint32_t max
 	ctx->min_buffer = minBuffer * frames_per_ms;
 	ctx->max_buffer = maxBuffer * frames_per_ms;
 
-	ctx->coinit = true;
-	HRESULT e = CoInitialize(NULL);
-	if (e != S_OK) {
-		MTY_Log("'CoInitialize' failed with HRESULT 0x%X", e);
+	HRESULT e = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+	if (e != S_FALSE && e != S_OK) {
+		MTY_Log("'CoInitializeEx' failed with HRESULT 0x%X", e);
 		goto except;
-
 	}
+
+	ctx->com = true;
+	ctx->com_thread = GetCurrentThreadId();
 
 	e = CoCreateInstance(&CLSID_MMDeviceEnumerator, NULL, CLSCTX_ALL,
 		&IID_IMMDeviceEnumerator, &ctx->enumerator);
@@ -243,8 +246,15 @@ void MTY_AudioDestroy(MTY_Audio **audio)
 	if (ctx->enumerator)
 		IMMDeviceEnumerator_Release(ctx->enumerator);
 
-	if (ctx->coinit)
-		CoUninitialize();
+	if (ctx->com) {
+		if (GetCurrentThreadId() == ctx->com_thread) {
+			CoUninitialize();
+
+		} else {
+			MTY_Log("MTY_Audio context should not be destroyed on a "
+				"different thread from where it was created");
+		}
+	}
 
 	MTY_Free(ctx);
 	*audio = NULL;

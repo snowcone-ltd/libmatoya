@@ -76,6 +76,15 @@ static void app_apply_relative(App *ctx)
 	bool rel = ctx.relative && ctx.detach != MTY_DETACH_STATE_FULL;
 
 	CGAssociateMouseAndMouseCursorPosition(!rel);
+
+	if (rel) {
+		// This function is globally stateful, so call it once upfront to make sure
+		// there isn't a large diff from the last time it was called while in relative
+		int32_t x = 0;
+		int32_t y = 0;
+		CGGetLastMouseDelta(&x, &y);
+	}
+
 	app_show_cursor(ctx, !rel);
 }
 

@@ -10,6 +10,7 @@
 #include <stdlib.h>
 
 #include <winsock2.h>
+#include <shlwapi.h>
 
 void *MTY_AllocAligned(size_t size, size_t align)
 {
@@ -31,6 +32,14 @@ void MTY_FreeAligned(void *mem)
 int32_t MTY_Strcasecmp(const char *s0, const char *s1)
 {
 	return _stricmp(s0, s1);
+}
+
+char *MTY_Strcasestr(const char *s0, const char *s1)
+{
+	// Even though this is the ASCII variant of the function, strstr
+	// will work as expected with UTF-8 strings
+
+	return StrStrIA(s0, s1);
 }
 
 char *MTY_Strtok(char *str, const char *delim, char **saveptr)

@@ -95,6 +95,21 @@ char *MTY_SprintfD(const char *fmt, ...)
 	return str;
 }
 
+const char *MTY_SprintfDL(const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+
+	char *str = MTY_VsprintfD(fmt, args);
+
+	va_end(args);
+
+	char *local = mty_tlocal_strcpy(str);
+	MTY_Free(str);
+
+	return local;
+}
+
 
 // Stable qsort
 

@@ -39,7 +39,6 @@ struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
 	struct gl_ctx *ctx = MTY_Alloc(1, sizeof(struct gl_ctx));
 	ctx->window = (__bridge NSWindow *) native_window;
 	ctx->renderer = MTY_RendererCreate();
-	ctx->interval = 1;
 
 	NSOpenGLPixelFormatAttribute attrs[] = {
 		NSOpenGLPFAColorSize, 24,

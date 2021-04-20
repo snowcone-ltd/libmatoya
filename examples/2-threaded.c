@@ -34,7 +34,7 @@ static void *render_thread(void *opaque)
 
 	while (!ctx->quit) {
 		MTY_RenderDesc desc = {
-			.format = MTY_COLOR_FORMAT_RGBA,
+			.format = MTY_COLOR_FORMAT_BGRA,
 			.effect = MTY_EFFECT_SCANLINES,
 			.imageWidth = ctx->image_w,
 			.imageHeight = ctx->image_h,

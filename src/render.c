@@ -163,6 +163,11 @@ uint32_t MTY_GetAvailableGFX(MTY_GFX *apis)
 	return r;
 }
 
+MTY_GFX MTY_GetDefaultGFX(void)
+{
+	return GFX_API_DEFAULT;
+}
+
 MTY_RenderState *MTY_GetRenderState(MTY_GFX api, MTY_Device *device, MTY_Context *context)
 {
 	MTY_RenderState *state = MTY_Alloc(1, sizeof(MTY_RenderState));

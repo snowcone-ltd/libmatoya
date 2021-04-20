@@ -1327,7 +1327,7 @@ static cJSON_bool print_object(const cJSON *const item, printbuffer *const outpu
 		}
 		*output_pointer++ = ':';
 		if (output_buffer->format) {
-			*output_pointer++ = '\t';
+			*output_pointer++ = ' ';
 		}
 		output_buffer->offset += length;
 

@@ -14,7 +14,7 @@ uniform sampler2D tex0;
 uniform sampler2D tex1;
 uniform sampler2D tex2;
 
-// scale, width, height, vp_height
+// width, height, vp_height
 uniform vec4 fcb;
 
 // filter, effect, format
@@ -64,44 +64,18 @@ void scanline(int effect, float y, float h, inout vec4 rgba)
 		rgba *= 0.7;
 }
 
-void calc_uv(int rotation, float scale, vec2 texcoord, out vec2 uv)
-{
-	float x = 0.0;
-	float y = 0.0;
-	float xscale = scale;
-	float yscale = 1.0;
-
-	if (rotation == 2)
-		x = xscale - 1.0;
-
-	if (rotation == 3)
-		y = xscale - 1.0;
-
-	if (rotation == 1 || rotation == 3) {
-		yscale = xscale;
-		xscale = 1.0;
-	}
-
-	uv = vec2(
-		(vs_texcoord[0] - x) * xscale,
-		(vs_texcoord[1] - y) * yscale
-	);
-}
-
 void main(void)
 {
-	float scale = fcb[0];
-	float width = fcb[1];
-	float height = fcb[2];
-	float vp_height = fcb[3];
+	float width = fcb[0];
+	float height = fcb[1];
+	float vp_height = fcb[2];
 
 	int filter = icb[0];
 	int effect = icb[1];
 	int format = icb[2];
 	int rotation = icb[3];
 
-	vec2 uv;
-	calc_uv(rotation, scale, vs_texcoord, uv);
+	vec2 uv = vs_texcoord;
 
 	// Rotation
 	if (rotation == 1 || rotation == 3) {
@@ -138,7 +112,7 @@ void main(void)
 
 		yuv_to_rgba(y, u, v, gl_FragColor);
 
-	// RGBA, BGRA
+	// BGRA
 	} else {
 		gl_FragColor = texture2D(tex0, uv);
 	}

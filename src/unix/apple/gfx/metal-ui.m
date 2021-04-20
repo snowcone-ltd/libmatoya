@@ -100,7 +100,7 @@ bool mty_metal_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context 
 	int32_t fb_height = lrint(dd->displaySize.y);
 
 	// Prevent rendering under invalid scenarios
-	if ((fb_width <= 0 || fb_height <= 0 || dd->cmdListLength == 0) && !dd->clear)
+	if (fb_width <= 0 || fb_height <= 0 || dd->cmdListLength == 0)
 		return false;
 
 	// Resize vertex and index buffers if necessary

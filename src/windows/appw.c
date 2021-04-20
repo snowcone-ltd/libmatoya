@@ -1757,6 +1757,29 @@ float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
 	return app_hwnd_get_scale(app, ctx->hwnd);
 }
 
+uint32_t MTY_WindowGetRefreshRate(MTY_App *app, MTY_Window window)
+{
+	struct window *ctx = app_get_window(app, window);
+	if (!ctx)
+		return 60;
+
+	HMONITOR mon = MonitorFromWindow(ctx->hwnd, MONITOR_DEFAULTTONEAREST);
+	if (mon) {
+		MONITORINFOEX info = {0};
+		info.cbSize = sizeof(MONITORINFOEX);
+
+		if (GetMonitorInfo(mon, (LPMONITORINFO) &info))  {
+			DEVMODE mode = {0};
+			mode.dmSize = sizeof(DEVMODE);
+
+			if (EnumDisplaySettings(info.szDevice, ENUM_CURRENT_SETTINGS, &mode))
+				return mode.dmDisplayFrequency;
+		}
+	}
+
+	return 60;
+}
+
 void MTY_WindowSetTitle(MTY_App *app, MTY_Window window, const char *title)
 {
 	struct window *ctx = app_get_window(app, window);

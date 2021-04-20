@@ -156,11 +156,18 @@ static void metal_refresh_resource(struct metal_res *res, id<MTLDevice> device,
 static void metal_reload_textures(struct metal *ctx, id<MTLDevice> device, const void *image, const MTY_RenderDesc *desc)
 {
 	switch (desc->format) {
-		case MTY_COLOR_FORMAT_RGBA: {
-			metal_refresh_resource(&ctx->staging[0], device, MTLPixelFormatRGBA8Unorm, desc->cropWidth, desc->cropHeight);
+		case MTY_COLOR_FORMAT_BGRA:
+		case MTY_COLOR_FORMAT_BGR565:
+		case MTY_COLOR_FORMAT_BGRA5551: {
+			MTLPixelFormat format = desc->format == MTY_COLOR_FORMAT_BGR565 ? MTLPixelFormatB5G6R5Unorm :
+				desc->format == MTY_COLOR_FORMAT_BGRA5551 ? MTLPixelFormatBGR5A1Unorm : MTLPixelFormatBGRA8Unorm;
+			uint8_t bpp = desc->format == MTY_COLOR_FORMAT_BGRA ? 4 : 2;
+
+			// BGRA
+			metal_refresh_resource(&ctx->staging[0], device, format, desc->cropWidth, desc->cropHeight);
 
 			MTLRegion region = MTLRegionMake2D(0, 0, desc->cropWidth, desc->cropHeight);
-			[ctx->staging[0].texture replaceRegion:region mipmapLevel:0 withBytes:image bytesPerRow:4 * desc->imageWidth];
+			[ctx->staging[0].texture replaceRegion:region mipmapLevel:0 withBytes:image bytesPerRow:bpp * desc->imageWidth];
 			break;
 		}
 		case MTY_COLOR_FORMAT_NV12:

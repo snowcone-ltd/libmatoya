@@ -6,6 +6,7 @@
 
 #define _DEFAULT_SOURCE  // htobe64, be64toh
 #define _DARWIN_C_SOURCE // htonll, ntohll
+#define _GNU_SOURCE      // strcasestr
 
 #include <stdlib.h>
 #include <string.h>
@@ -35,6 +36,11 @@ void MTY_FreeAligned(void *mem)
 int32_t MTY_Strcasecmp(const char *s0, const char *s1)
 {
 	return strcasecmp(s0, s1);
+}
+
+char *MTY_Strcasestr(const char *s0, const char *s1)
+{
+	return strcasestr(s0, s1);
 }
 
 char *MTY_Strtok(char *str, const char *delim, char **saveptr)

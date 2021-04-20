@@ -24,7 +24,7 @@ static bool app_func(void *opaque)
 
 	// Set up a render description for the PNG
 	MTY_RenderDesc desc = {
-		.format = MTY_COLOR_FORMAT_RGBA,
+		.format = MTY_COLOR_FORMAT_BGRA,
 		.effect = MTY_EFFECT_SCANLINES,
 		.imageWidth = ctx->image_w,
 		.imageHeight = ctx->image_h,

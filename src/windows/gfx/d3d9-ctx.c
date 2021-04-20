@@ -250,7 +250,7 @@ void mty_d3d9_ctx_present(struct gfx_ctx *gfx_ctx, uint32_t interval)
 		HRESULT e = IDirect3DDevice9Ex_EndScene(ctx->device);
 
 		if (e == S_OK) {
-			for (uint32_t x = 0; interval > 1 && x < interval; x++)
+			for (uint32_t x = 0; x < interval; x++)
 				IDirect3DDevice9Ex_WaitForVBlank(ctx->device, 0);
 
 			e = IDirect3DDevice9Ex_PresentEx(ctx->device, NULL, NULL, NULL, NULL, 0);

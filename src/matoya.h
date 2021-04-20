@@ -51,16 +51,17 @@ typedef enum {
 
 /// @brief Raw image color formats.
 typedef enum {
-	MTY_COLOR_FORMAT_UNKNOWN = 0, ///< Unknown color format.
-	MTY_COLOR_FORMAT_RGBA    = 1, ///< 8-bits per channel RGBA.
-	MTY_COLOR_FORMAT_NV12    = 2, ///< 4:2:0 full W/H Y plane followed by an interleaved half
-	                              ///<   W/H UV plane.
-	MTY_COLOR_FORMAT_I420    = 3, ///< 4:2:0 full W/H Y plane followed by a half W/H U plane
-	                              ///<   followed by a half W/H V plane.
-	MTY_COLOR_FORMAT_I444    = 4, ///< 4:4:4 full W/H consecutive Y, U, V planes.
-	MTY_COLOR_FORMAT_NV16    = 5, ///< 4:2:2 full W/H Y plane followed by an interleaved half W
-	                              ///<   full H UV plane.
-	MTY_COLOR_FORMAT_RGB565  = 6, ///< 5-bits red, 6-bits green, 5-bits blue RGBA.
+	MTY_COLOR_FORMAT_UNKNOWN  = 0, ///< Unknown color format.
+	MTY_COLOR_FORMAT_BGRA     = 1, ///< 8-bits per channel BGRA.
+	MTY_COLOR_FORMAT_NV12     = 2, ///< 4:2:0 full W/H Y plane followed by an interleaved half
+	                               ///<   W/H UV plane.
+	MTY_COLOR_FORMAT_I420     = 3, ///< 4:2:0 full W/H Y plane followed by a half W/H U plane
+	                               ///<   followed by a half W/H V plane.
+	MTY_COLOR_FORMAT_I444     = 4, ///< 4:4:4 full W/H consecutive Y, U, V planes.
+	MTY_COLOR_FORMAT_NV16     = 5, ///< 4:2:2 full W/H Y plane followed by an interleaved half W
+	                               ///<   full H UV plane.
+	MTY_COLOR_FORMAT_BGR565   = 6, ///< 5-bits blue, 6-bits green, 5-bits red.
+	MTY_COLOR_FORMAT_BGRA5551 = 7, ///< 5-bits per BGR channels, 1-bit alpha.
 	MTY_COLOR_FORMAT_MAKE_32 = INT32_MAX,
 } MTY_ColorFormat;
 
@@ -68,8 +69,8 @@ typedef enum {
 typedef enum {
 	MTY_FILTER_NEAREST        = 0, ///< Nearest neighbor filter by the GPU, can cause shimmering.
 	MTY_FILTER_LINEAR         = 1, ///< Bilinear filter by the GPU, can cause noticeable blurring.
-	MTY_FILTER_GAUSSIAN_SHARP = 2, ///< A softer nearest neighbor filter applied via shader.
-	MTY_FILTER_GAUSSIAN_SOFT  = 3, ///< A sharper bilinear filter applied via shader.
+	MTY_FILTER_GAUSSIAN_SOFT  = 2, ///< A softer nearest neighbor filter applied via shader.
+	MTY_FILTER_GAUSSIAN_SHARP = 3, ///< A sharper bilinear filter applied via shader.
 	MTY_FILTER_MAKE_32        = INT32_MAX,
 } MTY_Filter;
 
@@ -227,6 +228,10 @@ MTY_RendererHasUITexture(MTY_Renderer *ctx, uint32_t id);
 /// @returns The number of graphics APIs set in `apis`.
 MTY_EXPORT uint32_t
 MTY_GetAvailableGFX(MTY_GFX *apis);
+
+/// @brief Get the default graphics API for the current OS.
+MTY_EXPORT MTY_GFX
+MTY_GetDefaultGFX(void);
 
 /// @brief Get the current rendering context state.
 /// @details This function can be used to snapshot the current context state before
@@ -1067,6 +1072,12 @@ MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window, uint32_t *width,
 MTY_EXPORT float
 MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window);
 
+/// @brief Get the refresh rate of the display where the window currently resides.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+MTY_EXPORT uint32_t
+MTY_WindowGetRefreshRate(MTY_App *app, MTY_Window window);
+
 /// @brief Set the window's title.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
@@ -1611,6 +1622,12 @@ MTY_GetDir(MTY_Dir dir);
 /// @returns This buffer is allocated in thread local storage and must not be freed.
 MTY_EXPORT const char *
 MTY_GetFileName(const char *path, bool extension);
+
+/// @brief Parse a path and extract the file extension.
+/// @param path Path to a file.
+/// @returns This buffer is allocated in thread local storage and must not be freed.
+MTY_EXPORT const char *
+MTY_GetFileExtension(const char *path);
 
 /// @brief Get all but the final component of a path.
 /// @param path Path to a file or directory.
@@ -2230,6 +2247,17 @@ MTY_VsprintfD(const char *fmt, va_list args);
 MTY_EXPORT char *
 MTY_SprintfD(const char *fmt, ...);
 
+/// @brief Dynamically format a string and put the result in thread local storage.
+/// @details For more information, see `snprintf` from the C standard library.\n\n
+///   Warning: Be careful with your format string, if it is incorrect this
+///   function will have undefined behavior.
+/// @param fmt Format string.
+/// @param ... Variable arguments as specified by `fmt`.
+/// @returns This function can not return NULL. It will call `abort()` on failure.\n\n
+///   This buffer is allocated in thread local storage and must not be freed.
+MTY_EXPORT const char *
+MTY_SprintfDL(const char *fmt, ...);
+
 /// @brief Case insensitive string comparison.
 /// @details For more information, see `strcasecmp` from the C standard library.
 /// @param s0 First string to compare.
@@ -2237,6 +2265,15 @@ MTY_SprintfD(const char *fmt, ...);
 /// @returns If the strings match, returns 0, otherwise a non-zero value.
 MTY_EXPORT int32_t
 MTY_Strcasecmp(const char *s0, const char *s1);
+
+/// @brief Case insensitive substring search.
+/// @details For more information, see `strcasestr` from the C standard library.
+/// @param s0 String to be scanned.
+/// @param s1 String containing the sequence of characters to match.
+/// @returns A pointer to the first occurrence in `s1` of the entire sequence of
+///   characters specified in `s0`, or NULL if the sequence is not present in `s0`.
+MTY_EXPORT char *
+MTY_Strcasestr(const char *s0, const char *s1);
 
 /// @brief Reentrant string tokenization.
 /// @details For more information, see `strtok_r` from the C standard library.
@@ -3167,6 +3204,11 @@ MTY_HandleProtocol(const char *uri, void *token);
 /// @returns This buffer is allocated in thread local storage and must not be freed.
 MTY_EXPORT const char *
 MTY_GetProcessPath(void);
+
+/// @brief Get the full base directory path to the current process executable.
+/// @returns This buffer is allocated in thread local storage and must not be freed.
+MTY_EXPORT const char *
+MTY_GetProcessDir(void);
 
 /// @brief Restart the current process.
 /// @details For more information, see `execv` from the C standard library.

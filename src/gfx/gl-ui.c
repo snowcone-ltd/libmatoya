@@ -135,7 +135,7 @@ bool mty_gl_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context *co
 	int32_t fb_height = lrint(dd->displaySize.y);
 
 	// Prevent rendering under invalid scenarios
-	if ((fb_width <= 0 || fb_height <= 0 || dd->cmdListLength == 0) && !dd->clear)
+	if (fb_width <= 0 || fb_height <= 0 || dd->cmdListLength == 0)
 		return false;
 
 	// Update the vertex shader's proj data based on the current display size
@@ -246,6 +246,8 @@ void *mty_gl_ui_create_texture(MTY_Device *device, const void *rgba, uint32_t wi
 
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);

@@ -109,12 +109,9 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 
 		rgba = yuv_to_rgba(y, u, v);
 
-	// RGBA, BGRA
+	// BGRA
 	} else {
 		rgba = tex2D(tex0, uv);
-		float b = rgba.b;
-		rgba.b = rgba.r;
-		rgba.r = b;
 	}
 
 	// Scanlines

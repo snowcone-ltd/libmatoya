@@ -41,7 +41,7 @@ bool mty_d3d9_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context *
 	IDirect3DSurface9 *_dest = (IDirect3DSurface9 *) dest;
 
 	// Prevent rendering under invalid scenarios
-	if ((dd->displaySize.x <= 0 || dd->displaySize.y <= 0 || dd->cmdListLength == 0) && !dd->clear)
+	if (dd->displaySize.x <= 0 || dd->displaySize.y <= 0 || dd->cmdListLength == 0)
 		return false;
 
 	// Resize vertex and index buffers if necessary

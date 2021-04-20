@@ -10,23 +10,6 @@
 
 #include "tlocal.h"
 
-const char *MTY_GetPlatformString(uint32_t platform)
-{
-	uint8_t major = (platform & 0xFF00) >> 8;
-	uint8_t minor = platform & 0xFF;
-
-	char *ver = mty_tlocal(16);
-
-	if (minor > 0) {
-		snprintf(ver, 16, "%u.%u", major, minor);
-
-	} else {
-		snprintf(ver, 16, "%u", major);
-	}
-
-	return ver;
-}
-
 bool MTY_IsSupported(void)
 {
 	uint32_t platform = MTY_GetPlatform();
@@ -50,4 +33,26 @@ bool MTY_IsSupported(void)
 		default:
 			return false;
 	}
+}
+
+const char *MTY_GetPlatformString(uint32_t platform)
+{
+	uint8_t major = (platform & 0xFF00) >> 8;
+	uint8_t minor = platform & 0xFF;
+
+	char *ver = mty_tlocal(16);
+
+	if (minor > 0) {
+		snprintf(ver, 16, "%u.%u", major, minor);
+
+	} else {
+		snprintf(ver, 16, "%u", major);
+	}
+
+	return ver;
+}
+
+const char *MTY_GetProcessDir(void)
+{
+	return MTY_GetPathPrefix(MTY_GetProcessPath());
 }

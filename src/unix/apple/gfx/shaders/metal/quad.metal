@@ -127,7 +127,7 @@ fragment float4 fs(
 
 		rgba = yuv_to_rgba(y, u, v);
 
-	// RGBA, BGRA
+	// BGRA
 	} else {
 		rgba = tex0.sample(s, uv);
 	}

@@ -6,6 +6,8 @@
 
 #pragma once
 
+#define GFX_API_DEFAULT MTY_GFX_D3D11
+
 #define GFX_API_SUPPORTED(api) \
 	((api) == MTY_GFX_GL || (api) == MTY_GFX_D3D9 || (api) == MTY_GFX_D3D11)
 

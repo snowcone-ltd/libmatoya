@@ -195,7 +195,6 @@ static bool gl_ctx_check(struct gl_ctx *ctx)
 
 	gl_ctx_create_context(ctx);
 	ctx->renderer = MTY_RendererCreate();
-	ctx->interval = 1;
 
 	ctx->init = true;
 

@@ -46,7 +46,6 @@ struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
 	ctx->vis = info->vis;
 	ctx->window = info->window;
 	ctx->renderer = MTY_RendererCreate();
-	ctx->interval = 1;
 
 	ctx->gl = glXCreateContext(ctx->display, ctx->vis, NULL, GL_TRUE);
 	if (!ctx->gl) {

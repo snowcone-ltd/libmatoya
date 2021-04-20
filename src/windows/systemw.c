@@ -214,6 +214,8 @@ void MTY_OpenConsole(const char *title)
 	} else {
 		AllocConsole();
 		AttachConsole(ATTACH_PARENT_PROCESS);
+		SetConsoleOutputCP(CP_UTF8);
+		// SetCurrentConsoleFontEx for asain characters
 
 		// This will cause the Application Verifier leak check to complain
 		FILE *f = NULL;
