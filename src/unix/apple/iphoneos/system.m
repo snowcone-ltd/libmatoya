@@ -6,6 +6,11 @@
 
 #include "matoya.h"
 
+const char *MTY_GetSOExtension(void)
+{
+	return "dylib";
+}
+
 uint32_t MTY_GetPlatform(void)
 {
 	return MTY_OS_UNKNOWN;

@@ -53,6 +53,11 @@ void MTY_SOUnload(MTY_SO **so)
 	*so = NULL;
 }
 
+const char *MTY_GetSOExtension(void)
+{
+	return "dll";
+}
+
 const char *MTY_GetHostname(void)
 {
 	DWORD lenw = MAX_COMPUTERNAME_LENGTH + 1;

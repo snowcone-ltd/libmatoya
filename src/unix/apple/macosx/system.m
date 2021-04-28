@@ -11,6 +11,11 @@
 
 #include "tlocal.h"
 
+const char *MTY_GetSOExtension(void)
+{
+	return "dylib";
+}
+
 uint32_t MTY_GetPlatform(void)
 {
 	uint32_t v = MTY_OS_MACOS;

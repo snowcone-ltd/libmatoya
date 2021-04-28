@@ -35,6 +35,7 @@ const MTY = {
 
 	// GL
 	gl: null,
+	glver: 'webgl',
 	glIndex: 0,
 	glObj: {},
 
@@ -401,6 +402,13 @@ const MTY_GL_API = {
 	},
 	glGetProgramiv: function (program, pname, params) {
 		MTY_SetUint32(params, MTY.gl.getProgramParameter(mty_gl_obj(program), pname));
+	},
+	glPixelStorei: function (pname, param) {
+		// GL_UNPACK_ROW_LENGTH is not compatible with WebGL 1
+		if (MTY.glver == 'webgl' && pname == 0x0CF2)
+			return;
+
+		MTY.gl.pixelStorei(pname, param);
 	},
 	web_gl_flush: function () {
 		MTY.gl.flush();
@@ -1327,7 +1335,7 @@ function mty_supports_web_gl() {
 	return false;
 }
 
-async function MTY_Start(bin, userEnv, endFunc) {
+async function MTY_Start(bin, userEnv, endFunc, glver) {
 	MTY.arg0 = bin;
 
 	if (!mty_supports_wasm() || !mty_supports_web_gl())
@@ -1357,7 +1365,10 @@ async function MTY_Start(bin, userEnv, endFunc) {
 	canvas.style.height = '100%';
 	document.body.appendChild(canvas);
 
-	MTY.gl = canvas.getContext('webgl', {
+	if (glver)
+		MTY.glver = glver;
+
+	MTY.gl = canvas.getContext(MTY.glver, {
 		depth: false,
 		antialias: false,
 		premultipliedAlpha: true,

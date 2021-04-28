@@ -14,6 +14,11 @@ static JavaVM *SYSTEM_JVM;
 
 // System
 
+const char *MTY_GetSOExtension(void)
+{
+	return "so";
+}
+
 uint32_t MTY_GetPlatform(void)
 {
 	uint32_t v = MTY_OS_ANDROID;

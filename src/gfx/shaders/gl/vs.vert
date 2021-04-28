@@ -4,10 +4,6 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
-#ifdef GL_ES
-	precision mediump float;
-#endif
-
 attribute vec4 position;
 attribute vec2 texcoord;
 

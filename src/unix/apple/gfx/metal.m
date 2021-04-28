@@ -63,7 +63,7 @@ struct gfx *mty_metal_create(MTY_Device *device)
 	ctx->library = [_device newLibraryWithSource:[NSString stringWithUTF8String:MTL_LIBRARY] options:nil error:&nse];
 	if (nse) {
 		r = false;
-		MTY_Log([[nse localizedDescription] UTF8String]);
+		MTY_Log("%s", [[nse localizedDescription] UTF8String]);
 		goto except;
 	}
 
@@ -107,7 +107,7 @@ struct gfx *mty_metal_create(MTY_Device *device)
 	ctx->pipeline = [_device newRenderPipelineStateWithDescriptor:pdesc error:&nse];
 	if (nse) {
 		r = false;
-		MTY_Log([[nse localizedDescription] UTF8String]);
+		MTY_Log("%s", [[nse localizedDescription] UTF8String]);
 		goto except;
 	}
 
@@ -159,9 +159,26 @@ static void metal_reload_textures(struct metal *ctx, id<MTLDevice> device, const
 		case MTY_COLOR_FORMAT_BGRA:
 		case MTY_COLOR_FORMAT_BGR565:
 		case MTY_COLOR_FORMAT_BGRA5551: {
-			MTLPixelFormat format = desc->format == MTY_COLOR_FORMAT_BGR565 ? MTLPixelFormatB5G6R5Unorm :
-				desc->format == MTY_COLOR_FORMAT_BGRA5551 ? MTLPixelFormatBGR5A1Unorm : MTLPixelFormatBGRA8Unorm;
+			MTLPixelFormat format = MTLPixelFormatBGRA8Unorm;
 			uint8_t bpp = desc->format == MTY_COLOR_FORMAT_BGRA ? 4 : 2;
+
+			// 16-bit packed pixel formats were not available until Big Sur
+			if (bpp == 2) {
+				if (@available(iOS 8.0, tvOS 9.0, macOS 11.0, *)) {
+					if (desc->format == MTY_COLOR_FORMAT_BGR565) {
+						format = MTLPixelFormatB5G6R5Unorm;
+
+					} else if (desc->format == MTY_COLOR_FORMAT_BGRA5551) {
+						format = MTLPixelFormatBGR5A1Unorm;
+
+					} else {
+						break;
+					}
+
+				} else {
+					break;
+				}
+			}
 
 			// BGRA
 			metal_refresh_resource(&ctx->staging[0], device, format, desc->cropWidth, desc->cropHeight);

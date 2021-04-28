@@ -18,6 +18,12 @@
 	#define MTY_EXPORT
 #endif
 
+#if defined(__GNUC__)
+	#define MTY_FMT(a, b) __attribute__((format(printf, a, b)))
+#else
+	#define MTY_FMT(a, b)
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -1481,7 +1487,7 @@ MTY_HasDialogs(void);
 /// @param ... Variable arguments as specified by `fmt`.
 //- #support Windows macOS
 MTY_EXPORT void
-MTY_ShowMessageBox(const char *title, const char *fmt, ...);
+MTY_ShowMessageBox(const char *title, const char *fmt, ...) MTY_FMT(2, 3);
 
 
 //- #module File
@@ -1556,7 +1562,7 @@ MTY_WriteFile(const char *path, const void *buf, size_t size);
 /// @param ... Variable arguments as specified by `fmt`.
 /// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
 MTY_EXPORT bool
-MTY_WriteTextFile(const char *path, const char *fmt, ...);
+MTY_WriteTextFile(const char *path, const char *fmt, ...) MTY_FMT(2, 3);
 
 /// @brief Append formatted text to a file.
 /// @details This function appends to the file in text mode.\n\n
@@ -1567,7 +1573,7 @@ MTY_WriteTextFile(const char *path, const char *fmt, ...);
 /// @param ... Variable arguments as specified by `fmt`.
 /// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
 MTY_EXPORT bool
-MTY_AppendTextToFile(const char *path, const char *fmt, ...);
+MTY_AppendTextToFile(const char *path, const char *fmt, ...) MTY_FMT(2, 3);
 
 /// @brief Delete a file.
 /// @param path Path to the file.
@@ -2122,7 +2128,7 @@ MTY_DisableLog(bool disabled);
 /// @param fmt Format string.
 /// @param ... Variable arguments as specified by `fmt`.
 MTY_EXPORT void
-MTY_LogParams(const char *func, const char *fmt, ...);
+MTY_LogParams(const char *func, const char *fmt, ...) MTY_FMT(2, 3);
 
 /// @brief Log a formatted string then abort.
 /// @details This function is intended to be called internally via the
@@ -2132,7 +2138,7 @@ MTY_LogParams(const char *func, const char *fmt, ...);
 /// @param fmt Format string.
 /// @param ... Variable arguments as specified by `fmt`.
 MTY_EXPORT void
-MTY_LogFatalParams(const char *func, const char *fmt, ...);
+MTY_LogFatalParams(const char *func, const char *fmt, ...) MTY_FMT(2, 3);
 
 
 //- #module Memory
@@ -2245,7 +2251,7 @@ MTY_VsprintfD(const char *fmt, va_list args);
 /// @returns This function can not return NULL. It will call `abort()` on failure.\n\n
 ///   The returned buffer must be destroyed with MTY_Free.
 MTY_EXPORT char *
-MTY_SprintfD(const char *fmt, ...);
+MTY_SprintfD(const char *fmt, ...) MTY_FMT(1, 2);
 
 /// @brief Dynamically format a string and put the result in thread local storage.
 /// @details For more information, see `snprintf` from the C standard library.\n\n
@@ -2256,7 +2262,7 @@ MTY_SprintfD(const char *fmt, ...);
 /// @returns This function can not return NULL. It will call `abort()` on failure.\n\n
 ///   This buffer is allocated in thread local storage and must not be freed.
 MTY_EXPORT const char *
-MTY_SprintfDL(const char *fmt, ...);
+MTY_SprintfDL(const char *fmt, ...) MTY_FMT(1, 2);
 
 /// @brief Case insensitive string comparison.
 /// @details For more information, see `strcasecmp` from the C standard library.
@@ -3161,6 +3167,11 @@ MTY_SOGetSymbol(MTY_SO *so, const char *name);
 //- #support Windows macOS Android Linux
 MTY_EXPORT void
 MTY_SOUnload(MTY_SO **so);
+
+/// @brief Get the platform's shared object file extension.
+/// @returns This buffer is allocated in thread local storage and must not be freed.
+MTY_EXPORT const char *
+MTY_GetSOExtension(void);
 
 /// @brief Get the computer's hostname.
 /// @returns This buffer is allocated in thread local storage and must not be freed.

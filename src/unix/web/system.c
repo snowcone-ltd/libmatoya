@@ -10,6 +10,11 @@
 
 #include "web.h"
 
+const char *MTY_GetSOExtension(void)
+{
+	return "so";
+}
+
 uint32_t MTY_GetPlatform(void)
 {
 	return MTY_OS_WEB;

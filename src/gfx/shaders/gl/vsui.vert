@@ -4,10 +4,6 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
-#ifdef GL_ES
-	precision mediump float;
-#endif
-
 uniform mat4 proj;
 
 attribute vec2 pos;
