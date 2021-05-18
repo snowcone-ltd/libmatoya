@@ -560,7 +560,7 @@ static void window_mouse_motion_event(Window *window, NSEvent *event, bool pen_i
 			} else {
 				MTY_Event evt = window_event(cur, MTY_EVENT_MOTION);
 
-				CGFloat scale = window.screen.backingScaleFactor > 0.0f ? window.screen.backingScaleFactor : 1.0f;
+				CGFloat scale = cur.screen.backingScaleFactor > 0.0f ? cur.screen.backingScaleFactor : 1.0f;
 				evt.motion.relative = false;
 				evt.motion.x = lrint(scale * p.x);
 				evt.motion.y = lrint(scale * p.y);
