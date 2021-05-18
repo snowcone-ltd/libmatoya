@@ -414,7 +414,7 @@ static void window_pen_event(Window *window, NSEvent *event)
 	if (!cur)
 		return;
 
-	CGFloat scale = ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1;
+	CGFloat scale = ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1.0f;
 	MTY_Event evt = window_event(cur, MTY_EVENT_PEN);
 	evt.pen.pressure = (uint16_t) lrint(event.pressure * 1024.0f);
 	evt.pen.rotation = (uint16_t) lrint(event.rotation * 359.0f);
@@ -467,7 +467,7 @@ static void window_mouse_button_event(Window *window, NSUInteger index, bool pre
 	if (index >= APP_MOUSE_MAX)
 		return;
 
-	CGFloat scale = ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1;
+	CGFloat scale = ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1.0f;
 
 	MTY_Event evt = window_event(cur, MTY_EVENT_BUTTON);
 	evt.button.button = APP_MOUSE_MAP[index];
@@ -499,7 +499,7 @@ static void window_warp_cursor(NSWindow *ctx, uint32_t x, int32_t y)
 {
 	CGDirectDisplayID display = ((NSNumber *) [ctx.screen deviceDescription][@"NSScreenNumber"]).intValue;
 
-	CGFloat scale = ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1;
+	CGFloat scale = ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1.0f;
 	CGFloat client_top = ctx.screen.frame.size.height - ctx.frame.origin.y +
 		ctx.screen.frame.origin.y - ctx.contentView.frame.size.height;
 	CGFloat client_left = ctx.frame.origin.x - ctx.screen.frame.origin.x;
@@ -520,7 +520,7 @@ static void window_confine_cursor(void)
 
 	NSPoint wp = [window mouseLocationOutsideOfEventStream];
 	NSSize size = window.contentView.frame.size;
-	CGFloat scale = ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1;
+	CGFloat scale = ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1.0f;
 
 	wp.y = size.height - wp.y;
 
@@ -560,7 +560,7 @@ static void window_mouse_motion_event(Window *window, NSEvent *event, bool pen_i
 			} else {
 				MTY_Event evt = window_event(cur, MTY_EVENT_MOTION);
 
-				CGFloat scale = ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1;
+				CGFloat scale = ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1.0f;
 				evt.motion.relative = false;
 				evt.motion.x = lrint(scale * p.x);
 				evt.motion.y = lrint(scale * p.y);
@@ -588,7 +588,7 @@ static void window_motion_event(Window *window, NSEvent *event)
 
 static void window_scroll_event(Window *window, NSEvent *event)
 {
-	CGFloat scale = ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1;
+	CGFloat scale = ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1.0f;
 	int32_t delta = event.hasPreciseScrollingDeltas ? scale : scale * 80.0f;
 
 	MTY_Event evt = window_event(window, MTY_EVENT_SCROLL);
@@ -1350,7 +1350,7 @@ bool MTY_WindowGetSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_
 		return false;
 
 	CGSize size = ctx.contentView.frame.size;
-	CGFloat scale = ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1;
+	CGFloat scale = ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1.0f;
 
 	*width = lrint(size.width * scale);
 	*height = lrint(size.height * scale);
@@ -1377,7 +1377,7 @@ bool MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window, uint32_t *width, u
 		return false;
 
 	CGSize size = ctx.screen.frame.size;
-	CGFloat scale = ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1;
+	CGFloat scale = ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1.0f;
 
 	*width = lrint(size.width * scale);
 	*height = lrint(size.height * scale);
@@ -1394,7 +1394,7 @@ float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
 	// macOS scales the display as though it switches resolutions,
 	// so all we need to report is the high DPI device multiplier
 
-	return ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1;
+	return ctx.screen.backingScaleFactor > 0.0f ? ctx.screen.backingScaleFactor : 1.0f;
 }
 
 void MTY_WindowSetTitle(MTY_App *app, MTY_Window window, const char *title)
