@@ -150,8 +150,6 @@ MTY_TLS *MTY_TLSCreate(MTY_TLSProtocol proto, MTY_Cert *cert, const char *host, 
 	} else {
 		sc.grbitEnabledProtocols = SP_PROT_TLS1_2_CLIENT;
 		ctx->flags |= ISC_REQ_STREAM;
-
-		sc.dwFlags |= SCH_CRED_REVOCATION_CHECK_CHAIN;
 	}
 
 	// Set self signed client cert if provided

@@ -61,9 +61,14 @@ bool MTY_RestartProcess(char * const *argv)
 
 // JNIEnv
 
-JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_system_1set_1jvm(JNIEnv *env, jobject obj)
+JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 {
-	(*env)->GetJavaVM(env, &SYSTEM_JVM);
+	// FIXME This assumes libmatoya is the arbiter of all JNI
+	// which may not be a great assumption
+
+	SYSTEM_JVM = vm;
+
+	return JNI_VERSION_1_6;
 }
 
 void *MTY_GetJNIEnv(void)

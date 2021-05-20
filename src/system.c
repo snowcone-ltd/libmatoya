@@ -35,21 +35,46 @@ bool MTY_IsSupported(void)
 	}
 }
 
+static const char *system_get_os_string(uint32_t platform)
+{
+	switch (platform & 0xFF000000) {
+		case MTY_OS_WINDOWS: return "Windows";
+		case MTY_OS_MACOS:   return "macOS";
+		case MTY_OS_ANDROID: return "Android";
+		case MTY_OS_LINUX:   return "Linux";
+		case MTY_OS_WEB:     return "Web";
+		case MTY_OS_IOS:     return "iOS";
+		case MTY_OS_TVOS:    return "tvOS";
+	}
+
+	return "Unknown";
+}
+
 const char *MTY_GetPlatformString(uint32_t platform)
 {
+	MTY_OS os = platform & 0xFF000000;
+
 	uint8_t major = (platform & 0xFF00) >> 8;
 	uint8_t minor = platform & 0xFF;
 
-	char *ver = mty_tlocal(16);
+	char *final = mty_tlocal(64);
 
-	if (minor > 0) {
-		snprintf(ver, 16, "%u.%u", major, minor);
+	if (os != MTY_OS_UNKNOWN)
+		MTY_Strcat(final, 64, system_get_os_string(platform));
 
-	} else {
-		snprintf(ver, 16, "%u", major);
+	if (major > 0 || minor > 0) {
+		if (os != MTY_OS_UNKNOWN)
+			MTY_Strcat(final, 64, " ");
+
+		if (minor > 0) {
+			MTY_Strcat(final, 64, MTY_SprintfDL("%u.%u", major, minor));
+
+		} else {
+			MTY_Strcat(final, 64, MTY_SprintfDL("%u", major));
+		}
 	}
 
-	return ver;
+	return final;
 }
 
 const char *MTY_GetProcessDir(void)

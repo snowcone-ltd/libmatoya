@@ -85,29 +85,26 @@ void mty_hid_driver_init(struct hid_dev *device)
 	}
 }
 
-void mty_hid_driver_state(struct hid_dev *device, const void *buf, size_t size, MTY_ControllerEvent *c)
+bool mty_hid_driver_state(struct hid_dev *device, const void *buf, size_t size, MTY_ControllerEvent *c)
 {
 	switch (hid_driver(device)) {
 		case MTY_CTYPE_SWITCH:
-			nx_state(device, buf, size, c);
-			break;
+			return nx_state(device, buf, size, c);
 		case MTY_CTYPE_PS4:
-			ps4_state(device, buf, size, c);
-			break;
+			return ps4_state(device, buf, size, c);
 		case MTY_CTYPE_PS5:
-			ps5_state(device, buf, size, c);
-			break;
+			return ps5_state(device, buf, size, c);
 		case MTY_CTYPE_XBOX:
-			xbox_state(device, buf, size, c);
-			break;
+			return xbox_state(device, buf, size, c);
 		case MTY_CTYPE_XBOXW:
-			xboxw_state(device, buf, size, c);
-			break;
+			return xboxw_state(device, buf, size, c);
 		case MTY_CTYPE_DEFAULT:
 			mty_hid_default_state(device, buf, size, c);
 			mty_hid_map_axes(c);
-			break;
+			return true;
 	}
+
+	return false;
 }
 
 void mty_hid_driver_rumble(struct hid *hid, uint32_t id, uint16_t low, uint16_t high)

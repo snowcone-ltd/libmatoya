@@ -103,10 +103,6 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 		goto except;
 	}
 
-	// Enable certificate revocation
-	opt = WINHTTP_ENABLE_SSL_REVOCATION;
-	WinHttpSetOption(request, WINHTTP_OPTION_ENABLE_FEATURE, &opt, sizeof(DWORD));
-
 	// Write headers and body
 	r = WinHttpSendRequest(request, wheaders, pargs.headers ? -1L : 0,
 		(void *) body, (DWORD) bodySize, (DWORD) bodySize, 0);

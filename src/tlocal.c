@@ -17,10 +17,15 @@ static TLOCAL size_t TLOCAL_OFFSET;
 
 void *mty_tlocal(size_t size)
 {
+	if (size > TLOCAL_MAX)
+		MTY_LogFatal("Thread local storage heap overflow");
+
 	if (TLOCAL_OFFSET + size > TLOCAL_MAX)
 		TLOCAL_OFFSET = 0;
 
 	void *ptr = TLOCAL_HEAP + TLOCAL_OFFSET;
+	memset(ptr, 0, size);
+
 	TLOCAL_OFFSET += size;
 
 	return ptr;

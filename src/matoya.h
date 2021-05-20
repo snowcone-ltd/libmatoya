@@ -3198,7 +3198,10 @@ MTY_GetPlatformNoWeb(void);
 
 /// @brief Turn a platform integer into a readable string.
 /// @param platform Platform integer returned by MTY_GetPlatform or
-///   MTY_GetPlatformNoWeb.
+///   MTY_GetPlatformNoWeb. Bytes in the platform integer may be masked out to
+///   omit components of the string, i.e. a mask of 0xFFFF will create a string
+///   only with the version and not the OS, and a mask of 0xFF000000 will
+///   create a string only with the OS.
 /// @returns Example format would be `Windows 10.0`.\n\n
 ///   This buffer is allocated in thread local storage and must not be freed.
 MTY_EXPORT const char *

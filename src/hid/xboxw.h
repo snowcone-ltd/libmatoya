@@ -6,7 +6,7 @@
 
 #pragma once
 
-static void xboxw_state(struct hid_dev *device, const void *data, size_t size, MTY_ControllerEvent *c)
+static bool xboxw_state(struct hid_dev *device, const void *data, size_t size, MTY_ControllerEvent *c)
 {
 	const uint8_t *d = data;
 
@@ -74,4 +74,6 @@ static void xboxw_state(struct hid_dev *device, const void *data, size_t size, M
 	c->axes[MTY_CAXIS_DPAD].usage = 0x39;
 	c->axes[MTY_CAXIS_DPAD].min = 0;
 	c->axes[MTY_CAXIS_DPAD].max = 7;
+
+	return true;
 }

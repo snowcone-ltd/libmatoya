@@ -66,7 +66,7 @@ static void ps4_init(struct hid_dev *device)
 	ps4_rumble(device, 0, 0);
 }
 
-static void ps4_state(struct hid_dev *device, const void *data, size_t dsize, MTY_ControllerEvent *c)
+static bool ps4_state(struct hid_dev *device, const void *data, size_t dsize, MTY_ControllerEvent *c)
 {
 	const uint8_t *d8 = data;
 
@@ -79,7 +79,7 @@ static void ps4_state(struct hid_dev *device, const void *data, size_t dsize, MT
 		d8 += 3;
 
 	} else {
-		return;
+		return false;
 	}
 
 	c->type = MTY_CTYPE_PS4;
@@ -142,4 +142,6 @@ static void ps4_state(struct hid_dev *device, const void *data, size_t dsize, MT
 	c->axes[MTY_CAXIS_DPAD].usage = 0x39;
 	c->axes[MTY_CAXIS_DPAD].min = 0;
 	c->axes[MTY_CAXIS_DPAD].max = 7;
+
+	return true;
 }

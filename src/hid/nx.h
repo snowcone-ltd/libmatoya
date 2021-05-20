@@ -454,18 +454,21 @@ static void nx_state_machine(struct hid_dev *device)
 	}
 }
 
-static void nx_state(struct hid_dev *device, const void *data, size_t dsize, MTY_ControllerEvent *c)
+static bool nx_state(struct hid_dev *device, const void *data, size_t dsize, MTY_ControllerEvent *c)
 {
+	bool r = false;
 	struct nx_state *ctx = mty_hid_device_get_state(device);
 	const uint8_t *d = data;
 
 	// State (Full)
 	if (d[0] == 0x30 && ctx->calibrated) {
 		nx_full_state(device, d, c);
+		r = true;
 
 	// State (Simple)
 	} else if (d[0] == 0x3F && ctx->calibrated) {
 		nx_simple_state(device, d, c);
+		r = true;
 
 	// USB Handshake Response
 	} else if (d[0] == 0x81 && (d[1] == 0x02 || d[1] == 0x03 || d[2] == 0x04)) {
@@ -491,4 +494,6 @@ static void nx_state(struct hid_dev *device, const void *data, size_t dsize, MTY
 	}
 
 	nx_state_machine(device);
+
+	return r;
 }

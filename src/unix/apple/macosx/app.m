@@ -557,7 +557,7 @@ static void window_mouse_motion_event(Window *window, NSEvent *event, bool pen_i
 			if (window.app.grab_mouse && window.app.detach == MTY_DETACH_STATE_NONE && !cur.isKeyWindow) {
 				window_confine_cursor();
 
-			} else {
+			} else if (cur.occlusionState & NSWindowOcclusionStateVisible) {
 				MTY_Event evt = window_event(cur, MTY_EVENT_MOTION);
 
 				CGFloat scale = cur.screen.backingScaleFactor;
@@ -701,10 +701,14 @@ static void window_mod_event(Window *window, NSEvent *event)
 		if (self.styleMask & NSWindowStyleMaskFullScreen) {
 			[self setLevel:NSNormalWindowLevel];
 
-			NSSize cur = self.contentView.frame.size;
-			cur.height -= 1.0f;
+			// 1px hack for older versions of macOS
+			if (@available(macOS 11.0, *)) {
+			} else {
+				NSSize cur = self.contentView.frame.size;
+				cur.height -= 1.0f;
 
-			[self setContentSize:cur];
+				[self setContentSize:cur];
+			}
 		}
 
 		self.app.event_func(&evt, self.app.opaque);
@@ -915,10 +919,12 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_CONTROLLER;
-	mty_hid_driver_state(device, buf, size, &evt.controller);
 
-	if (evt.type != MTY_EVENT_NONE && MTY_AppIsActive((MTY_App *) opaque))
-		ctx.event_func(&evt, ctx.opaque);
+	if (mty_hid_driver_state(device, buf, size, &evt.controller)) {
+		// Prevent gamepad input while in the background
+		if (evt.type != MTY_EVENT_NONE && MTY_AppIsActive((MTY_App *) opaque))
+			ctx.event_func(&evt, ctx.opaque);
+	}
 }
 
 static void app_pump_events(App *ctx, NSDate *until)

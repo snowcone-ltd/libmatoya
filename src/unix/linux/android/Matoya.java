@@ -58,8 +58,6 @@ public class Matoya extends SurfaceView implements
 	float displayDensity;
 	int scrollY;
 
-	native void system_set_jvm();
-
 	native void gfx_set_surface(Surface surface);
 	native void gfx_unset_surface();
 
@@ -122,7 +120,6 @@ public class Matoya extends SurfaceView implements
 		this.setFocusable(true);
 		this.requestFocus();
 
-		system_set_jvm();
 		app_start();
 	}
 

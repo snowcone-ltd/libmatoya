@@ -949,11 +949,12 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_CONTROLLER;
-	mty_hid_driver_state(device, buf, size, &evt.controller);
 
-	// Prevent gamepad input while in the background
-	if (evt.type == MTY_EVENT_CONTROLLER && MTY_AppIsActive(ctx))
-		ctx->event_func(&evt, ctx->opaque);
+	if (mty_hid_driver_state(device, buf, size, &evt.controller)) {
+		// Prevent gamepad input while in the background
+		if (evt.type == MTY_EVENT_CONTROLLER && MTY_AppIsActive(ctx))
+			ctx->event_func(&evt, ctx->opaque);
+	}
 }
 
 MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
@@ -1567,17 +1568,6 @@ void MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode)
 
 // Window
 
-static void window_client_to_full(int32_t *width, int32_t *height)
-{
-	RECT rect = {0};
-	rect.right = *width;
-	rect.bottom = *height;
-	if (AdjustWindowRectEx(&rect, WS_OVERLAPPEDWINDOW, FALSE, 0)) {
-		*width = rect.right - rect.left;
-		*height = rect.bottom - rect.top;
-	}
-}
-
 MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 {
 	MTY_Window window = -1;
@@ -1609,28 +1599,36 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 	int32_t desktop_width = rect.right - rect.left;
 
 	float scale = app_hwnd_get_scale(app, desktop);
-	int32_t width = desktop_width;
-	int32_t height = desktop_height;
-	int32_t x = lrint((float) desc->x * scale);
-	int32_t y = lrint((float) desc->y * scale);
+	ctx->width = desktop_width;
+	ctx->height = desktop_height;
+	ctx->x = lrint((float) desc->x * scale);
+	ctx->y = lrint((float) desc->y * scale);
 
 	if (desc->fullscreen) {
 		style = WS_POPUP;
-		x = rect.left;
-		y = rect.top;
+		ctx->x = rect.left;
+		ctx->y = rect.top;
 
 	} else {
-		wsize_client(desc, scale, desktop_height, &x, &y, &width, &height);
-		window_client_to_full(&width, &height);
+		wsize_client(desc, scale, desktop_height, &ctx->x, &ctx->y, &ctx->width, &ctx->height);
+
+		RECT arect = {0};
+		arect.right = ctx->width;
+		arect.bottom = ctx->height;
+		if (AdjustWindowRectEx(&arect, WS_OVERLAPPEDWINDOW, FALSE, 0)) {
+			ctx->width = arect.right - arect.left;
+			ctx->height = arect.bottom - arect.top;
+		}
 
 		if (desc->origin == MTY_ORIGIN_CENTER)
-			wsize_center(rect.left, rect.top, desktop_width, desktop_height, &x, &y, &width, &height);
+			wsize_center(rect.left, rect.top, desktop_width, desktop_height,
+				&ctx->x, &ctx->y, &ctx->width, &ctx->height);
 	}
 
 	titlew = MTY_MultiToWideD(desc->title ? desc->title : "MTY_Window");
 
 	ctx->hwnd = CreateWindowEx(0, APP_CLASS_NAME, titlew, style,
-		x, y, width, height, NULL, NULL, app->instance, ctx);
+		ctx->x, ctx->y, ctx->width, ctx->height, NULL, NULL, app->instance, ctx);
 	if (!ctx->hwnd) {
 		r = false;
 		MTY_Log("'CreateWindowEx' failed with error 0x%X", GetLastError());
@@ -1841,18 +1839,15 @@ void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
 	if (fullscreen && !MTY_WindowIsFullscreen(app, window)) {
 		MONITORINFOEX info = {0};
 		if (window_get_monitor_info(ctx->hwnd, &info)) {
-			RECT r = {0};
-			if (GetWindowRect(ctx->hwnd, &r)) {
-				ctx->x = r.left;
-				ctx->y = r.top;
-			}
+			WINDOWPLACEMENT pl = {0};
+			pl.length = sizeof(WINDOWPLACEMENT);
 
-			if (GetClientRect(ctx->hwnd, &r)) {
-				ctx->width = r.right - r.left;
-				ctx->height = r.bottom - r.top;
+			if (GetWindowPlacement(ctx->hwnd, &pl)) {
+				ctx->x = pl.rcNormalPosition.left;
+				ctx->y = pl.rcNormalPosition.top;
+				ctx->width = pl.rcNormalPosition.right - pl.rcNormalPosition.left;
+				ctx->height = pl.rcNormalPosition.bottom - pl.rcNormalPosition.top;
 			}
-
-			window_client_to_full(&ctx->width, &ctx->height);
 
 			uint32_t x = info.rcMonitor.left;
 			uint32_t y = info.rcMonitor.top;

@@ -57,8 +57,9 @@ static void ps5_init(struct hid_dev *device)
 	ps5_rumble(device, 0, 0);
 }
 
-static void ps5_state(struct hid_dev *device, const void *data, size_t dsize, MTY_ControllerEvent *c)
+static bool ps5_state(struct hid_dev *device, const void *data, size_t dsize, MTY_ControllerEvent *c)
 {
+	bool r = false;
 	struct ps5_state *ctx = mty_hid_device_get_state(device);
 
 	// First write must come after reports start coming in
@@ -147,5 +148,9 @@ static void ps5_state(struct hid_dev *device, const void *data, size_t dsize, MT
 		c->axes[MTY_CAXIS_TRIGGER_R].usage = 0x34;
 		c->axes[MTY_CAXIS_TRIGGER_R].min = 0;
 		c->axes[MTY_CAXIS_TRIGGER_R].max = UINT8_MAX;
+
+		r = true;
 	}
+
+	return r;
 }

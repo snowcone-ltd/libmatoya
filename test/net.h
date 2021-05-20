@@ -27,7 +27,7 @@ static bool net_websocket_echo(void)
 	test_cmp("MTY_WebSocketWrite", MTY_WebSocketWrite(ws, buffer));
 	memset(buffer, 0, 5);
 
-	MTY_Async s = MTY_WebSocketRead(ws, 500, buffer, 6);
+	MTY_Async s = MTY_WebSocketRead(ws, 5000, buffer, 6);
 	if (s != MTY_ASYNC_OK)
 		printf("%s\n", MTY_GetLog());
 
@@ -102,7 +102,7 @@ static bool net_badssl(void)
 	badssl_test("wrong.host.badssl.com", true);
 	badssl_test("self-signed.badssl.com", true);
 	badssl_test("untrusted-root.badssl.com", true);
-	#if !defined(__linux__) // FIXME
+	#if !defined(_WIN32) && !defined(__linux__) // FIXME
 		badssl_test("revoked.badssl.com", true);
 	#endif
 	// FIXME badssl_test("pinning-test.badssl.com", true);

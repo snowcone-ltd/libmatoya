@@ -75,8 +75,9 @@ static void xbox_init(struct hid_dev *device)
 	ctx->rumble = true;
 }
 
-static void xbox_state(struct hid_dev *device, const void *data, size_t dsize, MTY_ControllerEvent *c)
+static bool xbox_state(struct hid_dev *device, const void *data, size_t dsize, MTY_ControllerEvent *c)
 {
+	bool r = false;
 	struct xbox_state *ctx = mty_hid_device_get_state(device);
 	const uint8_t *d8 = data;
 
@@ -147,10 +148,14 @@ static void xbox_state(struct hid_dev *device, const void *data, size_t dsize, M
 		c->axes[MTY_CAXIS_DPAD].min = 0;
 		c->axes[MTY_CAXIS_DPAD].max = 7;
 
+		r = true;
+
 	} else if (d8[0] == 0x02) {
 		ctx->proto = XBOX_PROTO_V2;
 		ctx->guide = d8[1] & 0x01;
 	}
 
 	xbox_do_rumble(device);
+
+	return r;
 }
