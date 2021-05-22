@@ -11,6 +11,9 @@
 struct ps5_state {
 	bool init;
 	bool bluetooth;
+	uint8_t gyro[6];
+	uint8_t accel[6];
+	uint8_t touchpad[8];
 };
 
 static void ps5_rumble(struct hid_dev *device, uint16_t low, uint16_t high)
@@ -57,6 +60,25 @@ static void ps5_init(struct hid_dev *device)
 	ps5_rumble(device, 0, 0);
 }
 
+static const void *ps5_get_extra_data(struct hid_dev *device, MTY_ExtraData type, size_t *size)
+{
+	struct ps5_state *ctx = mty_hid_device_get_state(device);
+
+	switch (type) {
+		case MTY_EXTRA_DATA_GYRO:
+			*size = 6;
+			return ctx->gyro;
+		case MTY_EXTRA_DATA_ACCEL:
+			*size = 6;
+			return ctx->accel;
+		case MTY_EXTRA_DATA_TOUCHPAD:
+			*size = 8;
+			return ctx->touchpad;
+	}
+
+	return NULL;
+}
+
 static bool ps5_state(struct hid_dev *device, const void *data, size_t dsize, MTY_ControllerEvent *c)
 {
 	bool r = false;
@@ -80,12 +102,14 @@ static bool ps5_state(struct hid_dev *device, const void *data, size_t dsize, MT
 				b += 4;
 				a += 1;
 				t -= 2;
+				dsize -= 2;
 			}
 
 		// Wired (Full)
 		} else {
 			b += 3;
 			t -= 3;
+			dsize -= 3;
 		}
 
 		c->type = MTY_CTYPE_PS5;
@@ -148,6 +172,27 @@ static bool ps5_state(struct hid_dev *device, const void *data, size_t dsize, MT
 		c->axes[MTY_CAXIS_TRIGGER_R].usage = 0x34;
 		c->axes[MTY_CAXIS_TRIGGER_R].min = 0;
 		c->axes[MTY_CAXIS_TRIGGER_R].max = UINT8_MAX;
+
+		// Gyro
+		if (dsize >= 24) {
+			memcpy(ctx->gyro, t + 18, 6);
+		} else {
+			memset(ctx->gyro, 0, 6);
+		}
+
+		// Accel
+		if (dsize >= 30) {
+			memcpy(ctx->accel, t + 24, 6);
+		} else {
+			memset(ctx->accel, 0, 6);
+		}
+
+		// Touchpad
+		if (dsize >= 43) {
+			memcpy(ctx->touchpad, t + 35, 8);
+		} else {
+			memset(ctx->touchpad, 0, 8);
+		}
 
 		r = true;
 	}

@@ -1233,6 +1233,13 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 	mty_hid_driver_rumble(app.hid, id, low, high);
 }
 
+const void *MTY_AppGetControllerExtraData(MTY_App *ctx, uint32_t id, MTY_ExtraData type, size_t *size)
+{
+	App *app = (__bridge App *) ctx;
+
+	return mty_hid_device_get_extra_data(app.hid, id, type, size);
+}
+
 bool MTY_AppIsPenEnabled(MTY_App *ctx)
 {
 	App *app = (__bridge App *) ctx;

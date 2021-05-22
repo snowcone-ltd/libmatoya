@@ -10,6 +10,9 @@
 
 struct ps4_state {
 	bool bluetooth;
+	uint8_t gyro[6];
+	uint8_t accel[6];
+	uint8_t touchpad[8];
 };
 
 
@@ -66,17 +69,40 @@ static void ps4_init(struct hid_dev *device)
 	ps4_rumble(device, 0, 0);
 }
 
+static const void *ps4_get_extra_data(struct hid_dev *device, MTY_ExtraData type, size_t *size)
+{
+	struct ps4_state *ctx = mty_hid_device_get_state(device);
+
+	switch (type) {
+		case MTY_EXTRA_DATA_GYRO:
+			*size = 6;
+			return ctx->gyro;
+		case MTY_EXTRA_DATA_ACCEL:
+			*size = 6;
+			return ctx->accel;
+		case MTY_EXTRA_DATA_TOUCHPAD:
+			*size = 8;
+			return ctx->touchpad;
+	}
+
+	return NULL;
+}
+
 static bool ps4_state(struct hid_dev *device, const void *data, size_t dsize, MTY_ControllerEvent *c)
 {
+	struct ps4_state *ctx = mty_hid_device_get_state(device);
+
 	const uint8_t *d8 = data;
 
 	// Wired
 	if (d8[0] == 0x01) {
 		d8++;
+		dsize--;
 
 	// Bluetooth
 	} else if (d8[0] == 0x11) {
 		d8 += 3;
+		dsize -= 3;
 
 	} else {
 		return false;
@@ -142,6 +168,27 @@ static bool ps4_state(struct hid_dev *device, const void *data, size_t dsize, MT
 	c->axes[MTY_CAXIS_DPAD].usage = 0x39;
 	c->axes[MTY_CAXIS_DPAD].min = 0;
 	c->axes[MTY_CAXIS_DPAD].max = 7;
+
+	// Gyro
+	if (dsize >= 17) {
+		memcpy(ctx->gyro, d8 + 11, 6);
+	} else {
+		memset(ctx->gyro, 0, 6);
+	}
+
+	// Accel
+	if (dsize >= 23) {
+		memcpy(ctx->accel, d8 + 17, 6);
+	} else {
+		memset(ctx->accel, 0, 6);
+	}
+
+	// Touchpad
+	if (dsize >= 41) {
+		memcpy(ctx->touchpad, d8 + 33, 8);
+	} else {
+		memset(ctx->touchpad, 0, 8);
+	}
 
 	return true;
 }

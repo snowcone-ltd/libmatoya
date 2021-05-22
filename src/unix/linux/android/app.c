@@ -893,6 +893,11 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 {
 }
 
+const void *MTY_AppGetControllerExtraData(MTY_App *ctx, uint32_t id, MTY_ExtraData type, size_t *size)
+{
+	return NULL;
+}
+
 bool MTY_AppIsPenEnabled(MTY_App *ctx)
 {
 	return false;

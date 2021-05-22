@@ -1546,6 +1546,11 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 	}
 }
 
+const void *MTY_AppGetControllerExtraData(MTY_App *ctx, uint32_t id, MTY_ExtraData type, size_t *size)
+{
+	return id >= 4 ? mty_hid_device_get_extra_data(ctx->hid, id, type, size) : NULL;
+}
+
 bool MTY_AppIsPenEnabled(MTY_App *ctx)
 {
 	return ctx->pen_enabled;

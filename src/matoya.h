@@ -615,6 +615,13 @@ typedef enum {
 	MTY_CONTEXT_STATE_MAKE_32 = INT32_MAX,
 } MTY_ContextState;
 
+typedef enum {
+	MTY_EXTRA_DATA_GYRO     = 0,
+	MTY_EXTRA_DATA_ACCEL    = 1,
+	MTY_EXTRA_DATA_TOUCHPAD = 2,
+	MTY_EXTRA_DATA_MAKE_32  = INT32_MAX,
+} MTY_ExtraData;
+
 /// @brief Key event.
 typedef struct {
 	MTY_Key key;  ///< The key that has been pressed or released.
@@ -985,6 +992,9 @@ MTY_AppSetOrientation(MTY_App *ctx, MTY_Orientation orientation);
 /// @param high Strength of the high frequency motor between 0 and UINT16_MAX.
 MTY_EXPORT void
 MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t high);
+
+MTY_EXPORT const void *
+MTY_AppGetControllerExtraData(MTY_App *ctx, uint32_t id, MTY_ExtraData type, size_t *size);
 
 /// @brief Check if pen events are enabled.
 /// @param ctx The MTY_App.

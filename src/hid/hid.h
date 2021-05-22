@@ -35,6 +35,7 @@ void mty_hid_default_rumble(struct hid *ctx, uint32_t id, uint16_t low, uint16_t
 void mty_hid_driver_init(struct hid_dev *device);
 bool mty_hid_driver_state(struct hid_dev *device, const void *buf, size_t size, MTY_ControllerEvent *c);
 void mty_hid_driver_rumble(struct hid *hid, uint32_t id, uint16_t low, uint16_t high);
+const void *mty_hid_device_get_extra_data(struct hid *hid, uint32_t id, MTY_ExtraData type, size_t *size);
 
 // Win32 specific for interop with RAWINPUT
 void mty_hid_win32_listen(void *hwnd);
