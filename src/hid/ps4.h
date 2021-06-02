@@ -171,21 +171,21 @@ static bool ps4_state(struct hid_dev *device, const void *data, size_t dsize, MT
 
 	// Gyro
 	if (dsize >= 17) {
-		memcpy(ctx->gyro, d8 + 11, 6);
+		memcpy(ctx->gyro, d8 + 12, 6);
 	} else {
 		memset(ctx->gyro, 0, 6);
 	}
 
 	// Accel
 	if (dsize >= 23) {
-		memcpy(ctx->accel, d8 + 17, 6);
+		memcpy(ctx->accel, d8 + 18, 6);
 	} else {
 		memset(ctx->accel, 0, 6);
 	}
 
 	// Touchpad
 	if (dsize >= 41) {
-		memcpy(ctx->touchpad, d8 + 33, 8);
+		memcpy(ctx->touchpad, d8 + 34, 8);
 	} else {
 		memset(ctx->touchpad, 0, 8);
 	}

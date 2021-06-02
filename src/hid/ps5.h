@@ -175,21 +175,21 @@ static bool ps5_state(struct hid_dev *device, const void *data, size_t dsize, MT
 
 		// Gyro
 		if (dsize >= 24) {
-			memcpy(ctx->gyro, t + 18, 6);
+			memcpy(ctx->gyro, t + 19, 6);
 		} else {
 			memset(ctx->gyro, 0, 6);
 		}
 
 		// Accel
 		if (dsize >= 30) {
-			memcpy(ctx->accel, t + 24, 6);
+			memcpy(ctx->accel, t + 25, 6);
 		} else {
 			memset(ctx->accel, 0, 6);
 		}
 
 		// Touchpad
 		if (dsize >= 43) {
-			memcpy(ctx->touchpad, t + 35, 8);
+			memcpy(ctx->touchpad, t + 36, 8);
 		} else {
 			memset(ctx->touchpad, 0, 8);
 		}
