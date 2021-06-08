@@ -74,6 +74,7 @@ char *MTY_VsprintfD(const char *fmt, va_list args)
 	va_copy(args_copy, args);
 
 	size_t size = vsnprintf(NULL, 0, fmt, args_copy) + 1;
+	if (size == 0) size = 1;
 
 	va_end(args_copy);
 

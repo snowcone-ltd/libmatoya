@@ -252,6 +252,9 @@ MTY_Surface *mty_d3d11_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	if (!ctx->back_buffer) {
 		d3d11_ctx_refresh(ctx);
 
+		if (!ctx->swap_chain2)
+			return (MTY_Surface *) ctx->back_buffer;
+
 		HRESULT e = IDXGISwapChain2_GetBuffer(ctx->swap_chain2, 0, &IID_ID3D11Texture2D, &ctx->back_buffer);
 		if (e != S_OK)
 			MTY_Log("'IDXGISwapChain2_GetBuffer' failed with HRESULT 0x%X", e);

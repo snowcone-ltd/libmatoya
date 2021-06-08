@@ -216,7 +216,14 @@ MTY_Surface *mty_d3d9_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	if (!ctx->back_buffer) {
 		d3d9_ctx_refresh(ctx);
 
-		HRESULT e = IDirect3DSwapChain9Ex_GetBackBuffer(ctx->swap_chain, 0,
+		HRESULT e = S_OK;
+		if (ctx->swap_chain == NULL) {
+			MTY_Log("'d3d9_ctx_refresh' failed with no swap_chain");
+			e = D3DERR_INVALIDCALL;
+			goto except;
+		}
+
+		e = IDirect3DSwapChain9Ex_GetBackBuffer(ctx->swap_chain, 0,
 			D3DBACKBUFFER_TYPE_MONO, &ctx->back_buffer);
 		if (e != S_OK) {
 			MTY_Log("'IDirect3DSwapChain9Ex_GetBackBuffer' failed with HRESULT 0x%X", e);

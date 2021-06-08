@@ -16,10 +16,11 @@ void *MTY_AllocAligned(size_t size, size_t align)
 {
 	void *mem = _aligned_malloc(size, align);
 
-	if (!mem)
+	if (!mem) {
 		MTY_LogFatal("'_aligned_malloc' failed");
-
-	memset(mem, 0, size);
+	} else {
+		memset(mem, 0, size);
+	}
 
 	return mem;
 }
