@@ -411,7 +411,7 @@ void MTY_HttpEncodeUrl(const char *src, char *dst, size_t size)
 		table[c] = isalnum(c) || c == '*' || c == '-' || c == '.' || c == '_' ? (char) c : (c == ' ') ? '+' : '\0';
 
 	for (size_t x = 0; x < strlen(src); x++) {
-		int32_t c = src[x];
+		int32_t c = (uint8_t)src[x];
 		size_t inc = 1;
 
 		if (table[c]) {
