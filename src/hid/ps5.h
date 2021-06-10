@@ -13,7 +13,8 @@ struct ps5_state {
 	bool bluetooth;
 	uint8_t gyro[6];
 	uint8_t accel[6];
-	uint8_t touchpad[8];
+	uint8_t timestamp[4];
+	uint8_t touchpad[9];
 };
 
 static void ps5_rumble(struct hid_dev *device, uint16_t low, uint16_t high)
@@ -72,8 +73,11 @@ static const void *ps5_get_extra_data(struct hid_dev *device, MTY_ExtraData type
 			*size = 6;
 			return ctx->accel;
 		case MTY_EXTRA_DATA_TOUCHPAD:
-			*size = 8;
+			*size = 9;
 			return ctx->touchpad;
+		case MTY_EXTRA_DATA_TIMESTAMP:
+			*size = 4;
+			return ctx->timestamp;
 	}
 
 	return NULL;
@@ -187,11 +191,18 @@ static bool ps5_state(struct hid_dev *device, const void *data, size_t dsize, MT
 			memset(ctx->accel, 0, 6);
 		}
 
-		// Touchpad
-		if (dsize >= 43) {
-			memcpy(ctx->touchpad, t + 36, 8);
+		// Timestamp
+		if (dsize >= 34) {
+			memcpy(ctx->timestamp, t + 31, 4);
 		} else {
-			memset(ctx->touchpad, 0, 8);
+			memset(ctx->timestamp, 0, 4);
+		}
+
+		// Touchpad
+		if (dsize >= 44) {
+			memcpy(ctx->touchpad, t + 36, 9);
+		} else {
+			memset(ctx->touchpad, 0, 9);
 		}
 
 		r = true;

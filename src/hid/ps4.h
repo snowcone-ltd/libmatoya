@@ -10,9 +10,10 @@
 
 struct ps4_state {
 	bool bluetooth;
+	uint8_t timestamp[2];
 	uint8_t gyro[6];
 	uint8_t accel[6];
-	uint8_t touchpad[8];
+	uint8_t touchpad[10];
 };
 
 
@@ -81,8 +82,11 @@ static const void *ps4_get_extra_data(struct hid_dev *device, MTY_ExtraData type
 			*size = 6;
 			return ctx->accel;
 		case MTY_EXTRA_DATA_TOUCHPAD:
-			*size = 8;
+			*size = 10;
 			return ctx->touchpad;
+		case MTY_EXTRA_DATA_TIMESTAMP:
+			*size = 2;
+			return ctx->timestamp;
 	}
 
 	return NULL;
@@ -169,6 +173,13 @@ static bool ps4_state(struct hid_dev *device, const void *data, size_t dsize, MT
 	c->axes[MTY_CAXIS_DPAD].min = 0;
 	c->axes[MTY_CAXIS_DPAD].max = 7;
 
+	// Timestamp
+	if (dsize >= 10) {
+		memcpy(ctx->timestamp, d8 + 9, 2);
+	} else {
+		memset(ctx->timestamp, 0, 2);
+	}
+
 	// Gyro
 	if (dsize >= 17) {
 		memcpy(ctx->gyro, d8 + 12, 6);
@@ -185,9 +196,9 @@ static bool ps4_state(struct hid_dev *device, const void *data, size_t dsize, MT
 
 	// Touchpad
 	if (dsize >= 41) {
-		memcpy(ctx->touchpad, d8 + 34, 8);
+		memcpy(ctx->touchpad, d8 + 32, 10);
 	} else {
-		memset(ctx->touchpad, 0, 8);
+		memset(ctx->touchpad, 0, 10);
 	}
 
 	return true;
