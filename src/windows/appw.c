@@ -1232,6 +1232,7 @@ void MTY_AppSetClipboard(MTY_App *ctx, const char *text)
 			}
 		}
 
+		free(wtext);
 		CloseClipboard();
 		ctx->cb_seq = GetClipboardSequenceNumber();
 	}
