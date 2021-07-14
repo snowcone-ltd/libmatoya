@@ -272,20 +272,22 @@ static uint32_t audio_get_queued_frames(MTY_Audio *ctx)
 	return ctx->buffer_size;
 }
 
-static void audio_play(MTY_Audio *ctx)
+static uint32_t audio_play(MTY_Audio *ctx)
 {
 	if (!ctx->client)
-		return;
+		return -1;
 
 	if (!ctx->playing) {
 		HRESULT e = IAudioClient_Start(ctx->client);
 		if (e != S_OK) {
 			MTY_Log("'IAudioClient_Start' failed with HRESULT 0x%X", e);
-			return;
+			return e;
 		}
 
 		ctx->playing = true;
+		return e;
 	}
+	return -1;
 }
 
 void MTY_AudioReset(MTY_Audio *ctx)
@@ -333,10 +335,11 @@ uint32_t MTY_AudioGetQueued(MTY_Audio *ctx)
 	return lrint((float) audio_get_queued_frames(ctx) / ((float) ctx->sample_rate / 1000.0f));
 }
 
-void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
+uint32_t MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 {
+	HRESULT e = -1;
 	if (!audio_handle_device_change(ctx))
-		return;
+		return e;
 
 	uint32_t queued = audio_get_queued_frames(ctx);
 
@@ -346,15 +349,16 @@ void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 
 	if (ctx->buffer_size - queued >= count) {
 		BYTE *buffer = NULL;
-		HRESULT e = IAudioRenderClient_GetBuffer(ctx->render, count, &buffer);
+		    e = IAudioRenderClient_GetBuffer(ctx->render, count, &buffer);
 
 		if (e == S_OK) {
 			memcpy(buffer, frames, count * AUDIO_CHANNELS * AUDIO_SAMPLE_SIZE);
-			IAudioRenderClient_ReleaseBuffer(ctx->render, count, 0);
+			e = IAudioRenderClient_ReleaseBuffer(ctx->render, count, 0);
 		}
 
 		// Begin playing again when the minimum buffer has been reached
 		if (!ctx->playing && queued + count >= ctx->min_buffer)
-			audio_play(ctx);
+			e = audio_play(ctx);
 	}
+	return e;
 }
