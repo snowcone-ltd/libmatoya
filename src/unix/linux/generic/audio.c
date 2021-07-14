@@ -103,12 +103,14 @@ static uint32_t audio_get_queued_frames(MTY_Audio *ctx)
 	return queued;
 }
 
-static void audio_play(MTY_Audio *ctx)
+static uint32_t audio_play(MTY_Audio *ctx)
 {
 	if (!ctx->playing) {
-		snd_pcm_prepare(ctx->pcm);
+		uint32_t e = snd_pcm_prepare(ctx->pcm);
 		ctx->playing = true;
+		return e;
 	}
+	return -1;
 }
 
 void MTY_AudioReset(MTY_Audio *ctx)
@@ -122,9 +124,10 @@ uint32_t MTY_AudioGetQueued(MTY_Audio *ctx)
 	return lrint((float) audio_get_queued_frames(ctx) / ((float) ctx->sample_rate / 1000.0f));
 }
 
-void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
+uint32_t MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 {
 	size_t size = count * 4;
+	uint32_t e = -1;
 
 	uint32_t queued = audio_get_queued_frames(ctx);
 
@@ -139,10 +142,10 @@ void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 
 	// Begin playing again when the minimum buffer has been reached
 	if (!ctx->playing && queued + count >= ctx->min_buffer)
-		audio_play(ctx);
+		e = audio_play(ctx);
 
 	if (ctx->playing) {
-		int32_t e = snd_pcm_writei(ctx->pcm, ctx->buf, ctx->pos / 4);
+		e = snd_pcm_writei(ctx->pcm, ctx->buf, ctx->pos / 4);
 
 		if (e >= 0) {
 			ctx->pos = 0;
@@ -151,4 +154,5 @@ void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 			MTY_AudioReset(ctx);
 		}
 	}
+	return e;
 }
