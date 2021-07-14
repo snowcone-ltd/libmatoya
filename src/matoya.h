@@ -1324,7 +1324,8 @@ MTY_AudioGetQueued(MTY_Audio *ctx);
 ///   case, one audio frame is two samples, each sample being one channel.
 /// @param count The number of frames contained in `frames`. The number of frames would
 ///   be the size of `frames` in bytes divided by 4.
-MTY_EXPORT void
+/// @returns On failure, an error code is returned. Otherwise, returns 0.
+MTY_EXPORT uint32_t
 MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count);
 
 
