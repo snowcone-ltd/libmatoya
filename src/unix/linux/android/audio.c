@@ -28,10 +28,14 @@ struct MTY_Audio {
 
 	uint8_t *buffer;
 	size_t size;
+	uint32_t ret;
 };
 
 static void audio_error(AAudioStream *stream, void *userData, aaudio_result_t error)
 {
+	MTY_Audio *ctx = userData;
+	ctx->ret = error;
+
 	MTY_Log("'AAudioStream' error %d", error);
 }
 
@@ -135,10 +139,12 @@ static void audio_start(MTY_Audio *ctx)
 	}
 }
 
-void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
+uint32_t MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 {
 	size_t data_size = count * AUDIO_CHANNELS * 2;
 
+	ctx->ret = 0;
+	
 	audio_start(ctx);
 
 	MTY_MutexLock(ctx->mutex);
@@ -160,4 +166,5 @@ void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 		ctx->playing = true;
 
 	MTY_MutexUnlock(ctx->mutex);
+	return ctx->ret;
 }
