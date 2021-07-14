@@ -106,13 +106,15 @@ static uint32_t audio_get_queued_frames(MTY_Audio *ctx)
 	return queued / (AUDIO_CHANNELS * AUDIO_SAMPLE_SIZE);
 }
 
-static void audio_play(MTY_Audio *ctx)
+static uint32_t audio_play(MTY_Audio *ctx)
 {
 	if (ctx->playing)
-		return;
+		return 0;
 
 	if (AudioQueueStart(ctx->q, NULL) == kAudioServicesNoError)
 		ctx->playing = true;
+		return 0;
+	return -1;
 }
 
 void MTY_AudioReset(MTY_Audio *ctx)
@@ -129,10 +131,11 @@ uint32_t MTY_AudioGetQueued(MTY_Audio *ctx)
 	return lrint((float) audio_get_queued_frames(ctx) / ((float) ctx->sample_rate / 1000.0f));
 }
 
-void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
+uint32_t MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 {
 	size_t size = count * AUDIO_CHANNELS * AUDIO_SAMPLE_SIZE;
 	uint32_t queued = audio_get_queued_frames(ctx);
+	uint32_t ret = -1;
 
 	// Stop playing and flush if we've exceeded the maximum buffer or underrun
 	if (ctx->playing && (queued > ctx->max_buffer || queued == 0))
@@ -154,12 +157,14 @@ void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 				} else {
 					MTY_Log("'AudioQueueEnqueueBuffer' failed with error 0x%X", e);
 				}
+				ret = (uint32_t)e;
 				break;
 			}
 		}
 
 		// Begin playing again when the minimum buffer has been reached
 		if (!ctx->playing && queued + count >= ctx->min_buffer)
-			audio_play(ctx);
+			ret = audio_play(ctx);
 	}
+	return ret;
 }
