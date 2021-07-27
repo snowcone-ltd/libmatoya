@@ -1,5 +1,5 @@
 TARGET = windows
-ARCH = %%Platform%%
+ARCH = $(PROCESSOR_ARCHITECTURE)
 NAME = matoya
 
 .SUFFIXES : .ps4 .vs4 .ps3 .vs3 .vert .frag
@@ -112,6 +112,35 @@ FLAGS = \
 LIB_FLAGS = \
 	/nologo
 
+LIBS = \
+	libvcruntime.lib \
+	libucrt.lib \
+	libcmt.lib \
+	kernel32.lib \
+	windowscodecs.lib \
+	user32.lib \
+	shell32.lib \
+	d3d9.lib \
+	d3d11.lib \
+	dxguid.lib \
+	ole32.lib \
+	uuid.lib \
+	winmm.lib \
+	shcore.lib \
+	bcrypt.lib \
+	userenv.lib \
+	shlwapi.lib \
+	advapi32.lib \
+	opengl32.lib \
+	ws2_32.lib \
+	xinput.lib \
+	gdi32.lib \
+	imm32.lib \
+	winhttp.lib \
+	crypt32.lib \
+	secur32.lib \
+	hid.lib
+
 !IFDEF MTY_NO_WINHTTP
 OBJS = $(OBJS) src\unix\net\request.obj
 !ELSE
@@ -121,14 +150,22 @@ OBJS = $(OBJS) src\windows\net\request.obj
 !IFDEF DEBUG
 FLAGS = $(FLAGS) /Ob0 /Zi
 !ELSE
+DEFS  = $(DEFS) -DMTY_EXPORT=__declspec(dllexport)
 FLAGS = $(FLAGS) /O2 /GS- /Gw
 !ENDIF
 
 CFLAGS = $(INCLUDES) $(DEFS) $(FLAGS)
 
-all: clean-build clear $(SHADERS) $(OBJS)
+all: static
+
+prepare: clean-build clear $(SHADERS) $(OBJS)
 	mkdir bin\$(TARGET)\$(ARCH)
+
+static: prepare
 	lib /out:bin\$(TARGET)\$(ARCH)\$(NAME).lib $(LIB_FLAGS) *.obj
+
+shared: prepare
+	link /dll /out:bin\$(TARGET)\$(ARCH)\$(NAME).dll $(LIB_FLAGS) $(LIBS) *.obj
 
 clean: clean-build
 	@-del /q $(SHADERS) 2>nul
