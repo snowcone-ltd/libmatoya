@@ -12,6 +12,16 @@
 #include <winsock2.h>
 #include <shlwapi.h>
 
+#if __MINGW32__
+#if __BIG_ENDIAN__
+    #define htonll(x)   (x)
+    #define ntohll(x)   (x)
+#else
+    #define htonll(x)   ((((uint64_t)htonl(x&0xFFFFFFFF)) << 32) + htonl(x >> 32))
+    #define ntohll(x)   ((((uint64_t)ntohl(x&0xFFFFFFFF)) << 32) + ntohl(x >> 32))
+#endif
+#endif
+
 void *MTY_AllocAligned(size_t size, size_t align)
 {
 	void *mem = _aligned_malloc(size, align);

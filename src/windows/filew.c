@@ -10,7 +10,12 @@
 
 #include <windows.h>
 #include <shlwapi.h>
+
+#if !__MINGW32__
 #include <shlobj_core.h>
+#else
+#include <shlobj.h>
+#endif
 
 #include "tlocal.h"
 

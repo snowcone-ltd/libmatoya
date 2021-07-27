@@ -32,13 +32,17 @@ OBJS = \
 	src/version.o \
 	src/gfx/gl.o \
 	src/gfx/gl-ui.o \
-	src/hid/utils.o \
+	src/hid/utils.o
+
+ifndef MINGW
+OBJS := $(OBJS) \
 	src/unix/file.o \
 	src/unix/image.o \
 	src/unix/memory.o \
 	src/unix/system.o \
 	src/unix/thread.o \
 	src/unix/time.o
+endif
 
 SHADERS = \
 	src/gfx/shaders/gl/fs.h \
@@ -48,8 +52,13 @@ SHADERS = \
 
 INCLUDES = \
 	-Ideps \
-	-Isrc \
-	-Isrc/unix
+	-Isrc
+
+ifndef MINGW
+INCLUDES := $(INCLUDES) -Isrc/unix
+else
+INCLUDES := $(INCLUDES) -Isrc/windows
+endif
 
 DEFS = \
 	-D_POSIX_C_SOURCE=200112L
@@ -67,6 +76,49 @@ ifdef DEBUG
 FLAGS := $(FLAGS) -O0 -g
 else
 FLAGS := $(FLAGS) -O3 -g0 -fvisibility=hidden
+endif
+
+#############
+### MinGW ###
+#############
+ifdef MINGW
+
+UNAME_S = Windows
+TARGET = windows
+
+ifeq ($(ARCH), x86)
+CC   := i686-w64-mingw32-gcc
+AR   := i686-w64-mingw32-ar
+NAME := libmatoya32
+else
+CC   := x86_64-w64-mingw32-gcc
+AR   := x86_64-w64-mingw32-ar
+NAME := libmatoya
+endif
+
+OBJS := $(OBJS) \
+	src/windows/aes-gcm.o \
+	src/windows/appw.o \
+	src/windows/audio.o \
+	src/windows/cryptow.o \
+	src/windows/dialog.o \
+	src/windows/filew.o \
+	src/windows/hidw.o \
+	src/windows/imagew.o \
+	src/windows/memoryw.o \
+	src/windows/systemw.o \
+	src/windows/threadw.o \
+	src/windows/time.o \
+	src/windows/tlsw.o \
+	src/windows/gfx/gl-ctx.o
+
+FLAGS := $(FLAGS) \
+	-Wno-incompatible-pointer-types \
+	-Wno-attributes \
+	-Wno-format \
+	-Wno-sign-compare \
+	-Wno-missing-braces
+
 endif
 
 ############

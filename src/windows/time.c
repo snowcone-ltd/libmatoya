@@ -7,7 +7,9 @@
 #include "matoya.h"
 
 #include <windows.h>
+#if !__MINGW32__
 #include <timeapi.h>
+#endif
 
 #include "tlocal.h"
 

@@ -8,7 +8,12 @@
 GFX_CTX_PROTOTYPES(_gl_)
 
 #include <windows.h>
+
+#if !__MINGW32__
 #include <gl/gl.h>
+#else
+#include <GL/gl.h>
+#endif
 
 struct gl_ctx {
 	HWND hwnd;
