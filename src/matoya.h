@@ -2702,6 +2702,9 @@ MTY_GlobalLock(MTY_Atomic32 *lock);
 MTY_EXPORT void
 MTY_GlobalUnlock(MTY_Atomic32 *lock);
 
+// TODO: Does this affect documentation?
+typedef struct MTY_Cert MTY_Cert;
+typedef struct MTY_TLS MTY_TLS;
 
 //- #module Net
 //- #mbrief HTTP/HTTPS, WebSocket support.
@@ -2766,6 +2769,11 @@ MTY_HttpSetProxy(const char *proxy);
 ///   MTY_Free.
 MTY_EXPORT bool
 MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *method,
+	const char *path, const char *headers, const void *body, size_t bodySize,
+	uint32_t timeout, void **response, size_t *responseSize, uint16_t *status);
+
+MTY_EXPORT bool
+MTY_HttpRequestTLS(const char *host, uint16_t port, const MTY_TLS *tlsCtx, const char *method,
 	const char *path, const char *headers, const void *body, size_t bodySize,
 	uint32_t timeout, void **response, size_t *responseSize, uint16_t *status);
 
@@ -2864,6 +2872,10 @@ MTY_WebSocketAccept(MTY_WebSocket *ctx, const char * const *origins, uint32_t nu
 ///   The returned MTY_WebSocket must be destroyed with MTY_WebSocketDestroy.
 MTY_EXPORT MTY_WebSocket *
 MTY_WebSocketConnect(const char *host, uint16_t port, bool secure, const char *path,
+	const char *headers, uint32_t timeout, uint16_t *upgradeStatus);
+
+MTY_EXPORT MTY_WebSocket *
+MTY_WebSocketConnectTLS(const char *host, uint16_t port, const MTY_TLS *tlsContext, const char *path,
 	const char *headers, uint32_t timeout, uint16_t *upgradeStatus);
 
 /// @brief Destroy a WebSocket.
@@ -3285,9 +3297,6 @@ MTY_GetJNIEnv(void);
 
 #define MTY_FINGERPRINT_MAX 112 ///< Maximum size of the string set by MTY_CertGetFingerprint.
 
-typedef struct MTY_Cert MTY_Cert;
-typedef struct MTY_TLS MTY_TLS;
-
 /// @brief Function called when TLS handshake data is ready to be sent.
 /// @param buf The outbound TLS message.
 /// @param size Size in bytes of `buf`.
@@ -3331,6 +3340,13 @@ MTY_CertDestroy(MTY_Cert **cert);
 MTY_EXPORT void
 MTY_CertGetFingerprint(MTY_Cert *ctx, char *fingerprint, size_t size);
 
+/// @brief Fingerprint check mode
+typedef enum {
+	MTY_FINGERPRINT_CERT    = 0, ///< Check certificate fingerprint.
+	MTY_FINGERPRINT_PUB_KEY = 1, ///< Check public key fingerprint.
+	MTY_FINGERPRINT_MAKE_32 = INT32_MAX,
+} MTY_FingerpintMode;
+
 /// @brief Create an MTY_TLS context for secure data transfer.
 /// @details Currently this interface only supports the client end of the TLS
 ///   protocol.
@@ -3341,13 +3357,15 @@ MTY_CertGetFingerprint(MTY_Cert *ctx, char *fingerprint, size_t size);
 /// @param host The peer's hostname. This is an important security feature and must
 ///   be set for TLS. For DTLS, it may be NULL.
 /// @param peerFingerprint Fingerprint string to verify the peer's cert. May be NULL
-///   for no cert verification.
+///   for no cert verification. Multiple fingerprints can be provided with a new
+///   line (\\n) delimiter.
+/// @param fingerpintMode How to check the fingerprints (certificate or public key).
 /// @param mtu Specify the UDP maximum transmission unit for DTLS. Ignored for TLS.
 /// @returns On failure, NULL is returned. Call MTY_GetLog for details.\n\n
 ///   The returned MTY_TLS context must be destroyed with MTY_TLSDestroy.
 MTY_EXPORT MTY_TLS *
 MTY_TLSCreate(MTY_TLSProtocol proto, MTY_Cert *cert, const char *host,
-	const char *peerFingerprint, uint32_t mtu);
+	const char *peerFingerprint, MTY_FingerpintMode fingerpintMode, uint32_t mtu);
 
 /// @brief Destroy an MTY_TLS context.
 /// @param tls Passed by reference and set to NULL after being destroyed.

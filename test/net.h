@@ -87,6 +87,14 @@ static bool net_websocket(void)
 	test_print_cmps("MTY_HttpRequest", should_fail ? !ok : ok, ": " host); \
 	result = result && (should_fail ? !ok : ok);
 
+#define badssl_fingerprint_test(host, fingerprint, should_fail) \
+	tls_ctx = MTY_TLSCreate(MTY_TLS_PROTOCOL_TLS, NULL, host, fingerprint, MTY_FINGERPRINT_PUB_KEY, 0); \
+	ok = MTY_HttpRequestTLS(host, 0, tls_ctx, "GET", "/", header_agent, NULL, 0, 10000, &resp, &resp_size, &resp_code); \
+	MTY_TLSDestroy(&tls_ctx); \
+	MTY_Free(resp); \
+	test_print_cmps("MTY_HttpRequest", should_fail ? !ok : ok, ": " host); \
+	result = result && (should_fail ? !ok : ok);
+
 static bool net_badssl(void)
 {
 	//https://rsa4096.badssl.com/
@@ -96,6 +104,7 @@ static bool net_badssl(void)
 	uint16_t resp_code = 0;
 	bool result = true;
 	bool ok = false;
+	MTY_TLS *tls_ctx;
 
 	// Should fail
 	badssl_test("expired.badssl.com", true);
@@ -160,6 +169,14 @@ static bool net_badssl(void)
 	badssl_test("https-everywhere.badssl.com", false);
 	badssl_test("long-extended-subdomain-name-containing-many-letters-and-dashes.badssl.com", false);
 	badssl_test("longextendedsubdomainnamewithoutdashesinordertotestwordwrapping.badssl.com", false);
+
+	// Fingerprint functionality check.
+	badssl_fingerprint_test("rsa2048.badssl.com", "bad-fp", true);
+	badssl_fingerprint_test("rsa2048.badssl.com", "r/mIkG3eEpVdm+u/ko/cwxzOMo1bk4TyHIlByibiA5C=", true); // Incorrect pin.
+	badssl_fingerprint_test("rsa2048.badssl.com", "r/mIkG3eEpVdm+u/ko/cwxzOMo1bk4TyHIlByibiA5E=", false);
+	badssl_fingerprint_test("rsa2048.badssl.com", "r/mIkG3eEpVdm+u/ko/cwxzOMo1bk4TyHIlByibiA5E=\nbad-fp", false);
+	badssl_fingerprint_test("rsa2048.badssl.com", "r/mIkG3eEpVdm+u/ko/cwxzOMo1bk4TyHIlByibiA5E=\n5kJvNEMw0KjrCAu7eXY5HZdvyCS13BbA0VJG1RSP91w=", false);
+	badssl_fingerprint_test("rsa2048.badssl.com", "bad-fp\n5kJvNEMw0KjrCAu7eXY5HZdvyCS13BbA0VJG1RSP91w=", false);
 
 	return result;
 }
