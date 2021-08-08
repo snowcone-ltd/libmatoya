@@ -98,12 +98,27 @@ typedef enum {
 	MTY_ROTATION_MAKE_32 = INT32_MAX,
 } MTY_Rotation;
 
+/// @brief Quad position type.
+typedef enum {
+	MTY_POSITION_AUTO    = 0, ///< Automatic center positioning.
+	MTY_POSITION_FIXED   = 1, ///< Position using pixel values.
+	MTY_POSITION_MAKE_32 = INT32_MAX,
+} MTY_Position;
+
+/// @brief A point with an `x` and `y` coordinate.
+typedef struct {
+	float x; ///< Horizontal position.
+	float y; ///< Vertical position
+} MTY_Point;
+
 /// @brief Description of a render operation.
 typedef struct {
 	MTY_ColorFormat format; ///< The color format of a raw image.
 	MTY_Rotation rotation;  ///< Rotation applied to the image.
 	MTY_Filter filter;      ///< Filter applied to the image.
 	MTY_Effect effect;      ///< Effect applied to the image.
+	MTY_Position type;      ///< Type of positioning configuration.
+	MTY_Point position;     ///< Position of the image in the viewport.
 	uint32_t imageWidth;    ///< The width in pixels of the image.
 	uint32_t imageHeight;   ///< The height in pixels of the image.
 	uint32_t cropWidth;     ///< Desired crop width of the image from the top left corner.
@@ -115,13 +130,10 @@ typedef struct {
 	float scale;            ///< Multiplier applied to the dimensions of the image, producing an
 	                        ///<   minimized or magnified image. This can be set to 0
 	                        ///<   if unnecessary.
+	bool layer;             ///< Should draw the quad on top of already exiting operations. 
+	                        ///<   This is required when drawing multiple quads during the
+                            ///<   same rendering loop to prevent clearing the view.
 } MTY_RenderDesc;
-
-/// @brief A point with an `x` and `y` coordinate.
-typedef struct {
-	float x; ///< Horizontal position.
-	float y; ///< Vertical position
-} MTY_Point;
 
 /// @brief A rectangle with `left`, `top`, `right`, and `bottom` coordinates.
 typedef struct {

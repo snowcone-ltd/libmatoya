@@ -277,9 +277,7 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 
 	// Viewport
 	float vpx, vpy, vpw, vph;
-	mty_viewport(desc->rotation, desc->cropWidth, desc->cropHeight,
-		desc->viewWidth, desc->viewHeight, desc->aspectRatio, desc->scale,
-		&vpx, &vpy, &vpw, &vph);
+	mty_viewport(desc, true, &vpx, &vpy, &vpw, &vph);
 
 	glViewport(lrint(vpx), lrint(vpy) + GL_ORIGIN_Y, lrint(vpw), lrint(vph));
 
@@ -303,8 +301,10 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	glVertexAttribPointer(ctx->loc_uv,  2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *) (2 * sizeof(GLfloat)));
 
 	// Clear
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
+	if (!desc->layer) {
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+	}
 
 	// Fragment shader
 	for (uint8_t x = 0; x < GL_NUM_STAGING; x++) {

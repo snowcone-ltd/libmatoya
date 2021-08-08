@@ -364,9 +364,7 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 
 	// Viewport
 	D3D11_VIEWPORT vp = {0};
-	mty_viewport(desc->rotation, desc->cropWidth, desc->cropHeight,
-		desc->viewWidth, desc->viewHeight, desc->aspectRatio, desc->scale,
-		&vp.TopLeftX, &vp.TopLeftY, &vp.Width, &vp.Height);
+	mty_viewport(desc, false, &vp.TopLeftX, &vp.TopLeftY, &vp.Width, &vp.Height);
 
 	ID3D11DeviceContext_RSSetViewports(_context, 1, &vp);
 
@@ -389,8 +387,10 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 
 		ID3D11DeviceContext_OMSetRenderTargets(_context, 1, &rtv, NULL);
 
-		FLOAT clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-		ID3D11DeviceContext_ClearRenderTargetView(_context, rtv, clear_color);
+		if (!desc->layer) {
+			FLOAT clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+			ID3D11DeviceContext_ClearRenderTargetView(_context, rtv, clear_color);
+		}
 	}
 
 	// Vertex shader
