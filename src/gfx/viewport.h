@@ -8,7 +8,7 @@
 
 #include <math.h>
 
-static void mty_viewport(const MTY_RenderDesc *desc, bool bottomOrigin, float *vp_x, float *vp_y, float *vp_w, float *vp_h)
+static void mty_viewport(const MTY_RenderDesc *desc, float *vp_x, float *vp_y, float *vp_w, float *vp_h)
 {
 	float w      = (float)desc->cropWidth;
 	float h      = (float)desc->cropHeight;
@@ -54,9 +54,6 @@ static void mty_viewport(const MTY_RenderDesc *desc, bool bottomOrigin, float *v
 			*vp_y = desc->position.y;
 			break;
 	}
-
-	if (bottomOrigin)
-		*vp_y = view_h - *vp_h - *vp_y;
 
 	*vp_x = roundf(*vp_x);
 	*vp_y = roundf(*vp_y);
