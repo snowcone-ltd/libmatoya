@@ -1263,9 +1263,11 @@ const MTY_WASI_API = {
 			view.set(slice);
 
 			MTY_SetUint32(nread, len);
+
+			return 0; //OK
 		}
 
-		return 0;
+		return 2; //ENOENT
 	},
 	fd_write: function (fd, iovs, iovs_len, nwritten) {
 		// Calculate full write size
