@@ -181,6 +181,14 @@ function mty_gl_obj(index) {
 	return MTY.glObj[index];
 }
 
+function mty_gl_get_texture(type, data) {
+	if (type == MTY.gl.UNSIGNED_BYTE)
+		return new Uint8Array(mty_mem(), data);
+	if (type == MTY.gl.FLOAT)
+		return new Float32Array(mty_mem(), data);
+	return new Uint16Array(mty_mem(), data);
+}
+
 const MTY_GL_API = {
 	glGenFramebuffers: function (n, ids) {
 		for (let x = 0; x < n; x++)
@@ -271,11 +279,11 @@ const MTY_GL_API = {
 	},
 	glTexImage2D: function (target, level, internalformat, width, height, border, format, type, data) {
 		MTY.gl.texImage2D(target, level, internalformat, width, height, border, format, type,
-			new Uint8Array(mty_mem(), data));
+			mty_gl_get_texture(type, data));
 	},
 	glTexSubImage2D: function (target, level, xoffset, yoffset, width, height, format, type, pixels) {
-		MTY.gl.texSubImage2D(target, level, xoffset, yoffset, width, height, format, type,
-			new Uint8Array(mty_mem(), pixels));
+		MTY.gl.texSubImage2D(target, level, xoffset, yoffset, width, height, format, type, 
+			mty_gl_get_texture(type, pixels));
 	},
 	glDrawElements: function (mode, count, type, indices) {
 		MTY.gl.drawElements(mode, count, type, indices);
