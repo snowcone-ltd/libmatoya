@@ -118,7 +118,9 @@ function MTY_SetFloat(ptr, value) {
 }
 
 function MTY_SetUint64(ptr, value) {
-	mty_mem_view().setBigUint64(ptr, BigInt(value), true);
+	const mem_view = mty_mem_view();
+	mem_view.setUint32(ptr + 0, value % 0x100000000, true);
+    mem_view.setUint32(ptr + 4, value / 0x100000000, true);
 }
 
 function MTY_GetUint32(ptr) {
