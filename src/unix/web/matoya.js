@@ -1201,6 +1201,9 @@ const MTY_WASI_API = {
 			const buf = mty_b64_to_buf(localStorage[path]);
 			MTY_SetUint64(filestat_out + 32, buf.byteLength);
 		}
+		else {
+			MTY_SetUint64(filestat_out + 32, 0);
+		}
 
 		return 0;
 	},
