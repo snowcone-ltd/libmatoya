@@ -15,8 +15,8 @@ typedef void (*WEB_FREE)(void *ptr);
 typedef void (*WEB_CONTROLLER)(MTY_App *ctx, uint32_t id, uint32_t state, uint32_t buttons,
 	float lx, float ly, float rx, float ry, float lt, float rt);
 typedef void (*WEB_MOVE)(MTY_App *ctx);
-typedef void (*WEB_MOTION)(MTY_App *ctx, bool relative, int32_t x, int32_t y);
-typedef void (*WEB_BUTTON)(MTY_App *ctx, bool pressed, int32_t button, int32_t x, int32_t y);
+typedef void (*WEB_MOTION)(MTY_App *ctx, int32_t id, bool relative, int32_t x, int32_t y);
+typedef void (*WEB_BUTTON)(MTY_App *ctx, int32_t id, bool pressed, int32_t button, int32_t x, int32_t y);
 typedef void (*WEB_SCROLL)(MTY_App *ctx, int32_t x, int32_t y);
 typedef bool (*WEB_KEY)(MTY_App *ctx, bool pressed, MTY_Key key, const char *text, uint32_t mods);
 typedef void (*WEB_FOCUS)(MTY_App *ctx, bool focus);
