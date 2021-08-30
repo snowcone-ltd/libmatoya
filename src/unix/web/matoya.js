@@ -726,6 +726,11 @@ function mty_correct_relative() {
 }
 
 function mty_poll_gamepads(app, controller) {
+
+	//Some browsers completely disable the function on non-secure contexts
+	if (!navigator.getGamepads)
+		return; 
+
 	const gps = navigator.getGamepads();
 
 	for (let x = 0; x < 4; x++) {
