@@ -1336,7 +1336,18 @@ const MTY_WASI_API = {
 
 	// Misc
 	clock_time_get: function (id, precision, time_out) {
-		MTY_SetUint64(time_out, Math.round(performance.now() * 1000.0 * 1000.0));
+		let time = 0;
+
+		// CLOCK_REALTIME
+		if (id == 0)
+			time = Date.now();
+
+		// CLOCK_MONOTONIC
+		if (id == 1)
+			time = performance.now()
+
+		MTY_SetUint64(time_out, Math.round(time * 1000.0 * 1000.0));
+		
 		return 0;
 	},
 	poll_oneoff: function (sin, sout, nsubscriptions, nevents) {
