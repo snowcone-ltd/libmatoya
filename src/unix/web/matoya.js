@@ -1274,13 +1274,14 @@ const MTY_WASI_API = {
 
 			let ptr = iovs;
 			let cbuf = MTY_GetUint32(ptr);
-			let cbuf_len = MTY_GetUint32(ptr + 4);
+			let cbuf_len = MTY_GetUint32(ptr + 4) + 1;
 			let len = cbuf_len < full_buf.length ? cbuf_len : full_buf.length;
 
 			let view = new Uint8Array(mty_mem(), cbuf, cbuf_len);
 			let slice = new Uint8Array(full_buf.buffer, 0, len);
 			view.set(slice);
 
+			MTY_SetUint32(ptr + 4, len + 1);
 			MTY_SetUint32(nread, len);
 
 			return 0; //OK
