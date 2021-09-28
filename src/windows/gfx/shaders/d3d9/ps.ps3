@@ -109,6 +109,14 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 
 		rgba = yuv_to_rgba(y, u, v);
 
+	// AYUV
+	} else if (format == 8.0) {
+		float y = tex2D(tex0, uv).r;
+		float u = tex2D(tex0, uv).g;
+		float v = tex2D(tex0, uv).b;
+
+		rgba = yuv_to_rgba(y, u, v);
+
 	// BGRA
 	} else {
 		rgba = tex2D(tex0, uv);

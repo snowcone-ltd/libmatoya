@@ -184,6 +184,7 @@ static void gl_reload_textures(struct gl *ctx, const void *image, const MTY_Rend
 {
 	switch (desc->format) {
 		case MTY_COLOR_FORMAT_BGRA:
+		case MTY_COLOR_FORMAT_AYUV:
 		case MTY_COLOR_FORMAT_BGR565:
 		case MTY_COLOR_FORMAT_BGRA5551: {
 			GLenum internal = GL_RGBA;

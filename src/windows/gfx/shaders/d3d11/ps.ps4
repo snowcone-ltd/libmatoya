@@ -111,6 +111,14 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 
 		rgba = yuv_to_rgba(y, u, v);
 
+	// AYUV
+	} else if (format == 8) {
+		float y = tex0.Sample(ss, uv).r;
+		float u = tex0.Sample(ss, uv).g;
+		float v = tex0.Sample(ss, uv).b;
+
+		rgba = yuv_to_rgba(y, u, v);
+
 	// BGRA
 	} else {
 		rgba = tex0.Sample(ss, uv);

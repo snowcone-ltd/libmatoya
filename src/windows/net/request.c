@@ -138,6 +138,12 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 		if (available == 0)
 			break;
 
+		// Overflow protection
+		if (available > MTY_RES_MAX || *responseSize + available > MTY_RES_MAX) {
+			r = false;
+			goto except;
+		}
+
 		*response = MTY_Realloc(*response, *responseSize + available + 1, 1);
 
 		DWORD read = 0;

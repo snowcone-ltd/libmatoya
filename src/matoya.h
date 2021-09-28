@@ -68,6 +68,7 @@ typedef enum {
 	                               ///<   full H UV plane.
 	MTY_COLOR_FORMAT_BGR565   = 6, ///< 5-bits blue, 6-bits green, 5-bits red.
 	MTY_COLOR_FORMAT_BGRA5551 = 7, ///< 5-bits per BGR channels, 1-bit alpha.
+	MTY_COLOR_FORMAT_AYUV     = 8, ///< 4:4:4 full W/H interleaved Y, U, V.
 	MTY_COLOR_FORMAT_MAKE_32 = INT32_MAX,
 } MTY_ColorFormat;
 
@@ -736,6 +737,8 @@ typedef struct {
 	bool hidden;        ///< Window should be created hidden. If this is set it will not be
 	                    ///<   activated when it is created.
 	bool vsync;         ///< MTY_WindowPresent should wait for monitor's next refresh cycle.
+	MTY_Window index;   ///< Attempt to create the window with the specified index. If the
+	                    ///<   index is already taken, the first available is used.
 } MTY_WindowDesc;
 
 /// @brief Function called for each event sent to the app.
@@ -985,6 +988,14 @@ MTY_AppSetOrientation(MTY_App *ctx, MTY_Orientation orientation);
 /// @param high Strength of the high frequency motor between 0 and UINT16_MAX.
 MTY_EXPORT void
 MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t high);
+
+/// @brief Get the raw touchpad data from a PS4 or PS5 controller.
+/// @details The return value may be NULL and is not parsed or interpreted in any way.
+/// @param ctx The MTY_App.
+/// @param id A controller `id` found via MTY_EVENT_CONTROLLER or MTY_EVENT_CONNECT.
+/// @param size Set to the size in bytes of the returned buffer.
+MTY_EXPORT const void *
+MTY_AppGetControllerTouchpad(MTY_App *ctx, uint32_t id, size_t *size);
 
 /// @brief Check if pen events are enabled.
 /// @param ctx The MTY_App.
@@ -1495,7 +1506,8 @@ MTY_ShowMessageBox(const char *title, const char *fmt, ...) MTY_FMT(2, 3);
 //- #mdetails These functions are not intended for optimized IO or large files, they
 //-   are convenience functions that simplify common filesystem operations.
 
-#define MTY_PATH_MAX 1280 ///< Maximum size of a full path used internally by libmatoya.
+#define MTY_PATH_MAX 1280       ///< Maximum size of a full path used internally by libmatoya.
+#define MTY_FILE_MAX 0x40000000 ///< Maximum size of a file that can be read by libmatoya.
 
 typedef struct MTY_LockFile MTY_LockFile;
 
@@ -2707,7 +2719,8 @@ MTY_GlobalUnlock(MTY_Atomic32 *lock);
 //- #mbrief HTTP/HTTPS, WebSocket support.
 //- #mdetails These functions are capable of making secure connections.
 
-#define MTY_URL_MAX 1024 ///< Maximum size of a URL used internally by libmatoya.
+#define MTY_URL_MAX 1024       ///< Maximum size of a URL used internally by libmatoya.
+#define MTY_RES_MAX 0x40000000 ///< Maximum size of an HTTP response that can be read by libmatoya.
 
 typedef struct MTY_WebSocket MTY_WebSocket;
 

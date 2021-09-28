@@ -6,9 +6,9 @@
 
 #pragma once
 
-static struct passwd {
-	const char *pw_dir;
-} __HOME = {"/"};
+static bool home_get_dir(char *dir, size_t size)
+{
+	snprintf(dir, size, "/");
 
-#define getuid() 0
-#define getpwuid(uid) (&__HOME)
+	return true;
+}

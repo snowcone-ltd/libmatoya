@@ -214,7 +214,7 @@ objs: $(OBJS)
 ### Downloads ###
 # https://developer.android.com/ndk/downloads -> Put in ~/android-ndk-xxx
 
-ANDROID_NDK = $(HOME)/android-ndk-r21e
+ANDROID_NDK = $(HOME)/android-ndk-r23
 
 android: clean clear $(SHADERS)
 	@$(ANDROID_NDK)/ndk-build -j4 \

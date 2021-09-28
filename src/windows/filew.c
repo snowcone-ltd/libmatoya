@@ -132,20 +132,9 @@ const char *MTY_GetDir(MTY_Dir dir)
 
 			break;
 		}
-		case MTY_DIR_HOME: {
-			wchar_t *home = NULL;
-			errno_t e = _wdupenv_s(&home, NULL, L"APPDATA");
-
-			if (e == 0) {
-				local = mty_tlocal_strcpyw(home);
-				free(home);
-
-			} else {
-				MTY_Log("'_wdupenv_s' failed with errno %d", e);
-			}
-
+		case MTY_DIR_HOME:
+			local = file_known_folder(&FOLDERID_RoamingAppData);
 			break;
-		}
 		case MTY_DIR_GLOBAL_HOME:
 			local = file_known_folder(&FOLDERID_ProgramData);
 			break;

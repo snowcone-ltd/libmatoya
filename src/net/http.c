@@ -410,7 +410,9 @@ void MTY_HttpEncodeUrl(const char *src, char *dst, size_t size)
 	for (int32_t c = 0; c < 256; c++)
 		table[c] = isalnum(c) || c == '*' || c == '-' || c == '.' || c == '_' ? (char) c : (c == ' ') ? '+' : '\0';
 
-	for (size_t x = 0; x < strlen(src); x++) {
+	size_t src_len = strlen(src);
+
+	for (size_t x = 0; x < src_len && size > 0; x++) {
 		int32_t c = src[x];
 		size_t inc = 1;
 
@@ -421,6 +423,9 @@ void MTY_HttpEncodeUrl(const char *src, char *dst, size_t size)
 			snprintf(dst, size, "%%%02X", c);
 			inc = 3;
 		}
+
+		if (inc > size)
+			break;
 
 		dst += inc;
 		size -= inc;

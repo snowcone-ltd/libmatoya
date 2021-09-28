@@ -21,7 +21,7 @@
 #include <sys/file.h>
 #include <dirent.h>
 
-#include "fspwd.h"
+#include "home.h"
 #include "tlocal.h"
 
 bool MTY_DeleteFile(const char *path)
@@ -107,18 +107,11 @@ const char *MTY_GetDir(MTY_Dir dir)
 			break;
 		}
 		case MTY_DIR_GLOBAL_HOME:
-		case MTY_DIR_HOME: {
-			const struct passwd *pw = getpwuid(getuid());
-
-			if (pw) {
-				local = mty_tlocal_strcpy(pw->pw_dir);
-
-			} else {
-				MTY_Log("'getpwuid' failed with errno %d", errno);
-			}
+		case MTY_DIR_HOME:
+			if (home_get_dir(tmp, MTY_PATH_MAX))
+				local = mty_tlocal_strcpy(tmp);
 
 			break;
-		}
 		case MTY_DIR_PROGRAMS:
 			return "/user/bin";
 	}

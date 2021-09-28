@@ -11,6 +11,7 @@ GFX_CTX_PROTOTYPES(_gl_)
 #include <OpenGL/gl.h>
 
 #include "display-link.h"
+#include "scale.h"
 
 struct gl_ctx {
 	NSWindow *window;
@@ -26,7 +27,7 @@ struct gl_ctx {
 static CGSize gl_ctx_get_size(struct gl_ctx *ctx)
 {
 	CGSize size = ctx->window.contentView.frame.size;
-	float scale = ctx->window.screen.backingScaleFactor;
+	CGFloat scale = mty_screen_scale(ctx->window.screen);
 
 	size.width *= scale;
 	size.height *= scale;

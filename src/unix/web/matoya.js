@@ -1217,6 +1217,10 @@ const MTY_WASI_API = {
 	},
 	path_readlink: function () {
 	},
+	path_rename: function () {
+		console.log('path_rename', arguments);
+		return 0;
+	},
 
 	// File descriptors
 	fd_close: function (fd) {

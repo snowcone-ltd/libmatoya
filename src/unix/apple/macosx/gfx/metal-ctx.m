@@ -12,6 +12,7 @@ GFX_CTX_PROTOTYPES(_metal_)
 #include <QuartzCore/CAMetalLayer.h>
 
 #include "display-link.h"
+#include "scale.h"
 
 struct metal_ctx {
 	NSWindow *window;
@@ -27,7 +28,7 @@ struct metal_ctx {
 static CGSize metal_ctx_get_size(struct metal_ctx *ctx)
 {
 	CGSize size = ctx->window.contentView.frame.size;
-	float scale = ctx->window.screen.backingScaleFactor;
+	CGFloat scale = mty_screen_scale(ctx->window.screen);
 
 	size.width *= scale;
 	size.height *= scale;

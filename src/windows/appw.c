@@ -147,8 +147,11 @@ static struct window *app_get_focus_window(MTY_App *app)
 	return NULL;
 }
 
-static MTY_Window app_find_open_window(MTY_App *app)
+static MTY_Window app_find_open_window(MTY_App *app, MTY_Window req)
 {
+	if (req >= 0 && req < MTY_WINDOW_MAX && !app->windows[req])
+		return req;
+
 	for (MTY_Window x = 0; x < MTY_WINDOW_MAX; x++)
 		if (!app->windows[x])
 			return x;
@@ -1232,6 +1235,7 @@ void MTY_AppSetClipboard(MTY_App *ctx, const char *text)
 			}
 		}
 
+		MTY_Free(wtext);
 		CloseClipboard();
 		ctx->cb_seq = GetClipboardSequenceNumber();
 	}
@@ -1546,6 +1550,11 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 	}
 }
 
+const void *MTY_AppGetControllerTouchpad(MTY_App *ctx, uint32_t id, size_t *size)
+{
+	return id >= 4 ? mty_hid_device_get_touchpad(ctx->hid, id, size) : NULL;
+}
+
 bool MTY_AppIsPenEnabled(MTY_App *ctx)
 {
 	return ctx->pen_enabled;
@@ -1574,7 +1583,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 	wchar_t *titlew = NULL;
 	bool r = true;
 
-	window = app_find_open_window(app);
+	window = app_find_open_window(app, desc->index);
 	if (window == -1) {
 		r = false;
 		MTY_Log("Maximum windows (MTY_WINDOW_MAX) of %u reached", MTY_WINDOW_MAX);

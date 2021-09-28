@@ -6,4 +6,11 @@
 
 #pragma once
 
-#include <pwd.h>
+static CGFloat mty_screen_scale(NSScreen *screen)
+{
+	// Wrapper to protect against backingScaleFactor of zero
+
+	CGFloat scale = screen.backingScaleFactor;
+
+	return scale == 0.0f ? 1.0f : scale;
+}

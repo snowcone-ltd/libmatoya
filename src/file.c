@@ -19,7 +19,7 @@ void *MTY_ReadFile(const char *path, size_t *size)
 		size = &tmp;
 
 	*size = fsutil_size(path);
-	if (*size == 0)
+	if (*size == 0 || *size > MTY_FILE_MAX)
 		return NULL;
 
 	FILE *f = fsutil_open(path, "rb");

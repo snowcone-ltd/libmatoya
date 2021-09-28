@@ -127,6 +127,14 @@ fragment float4 fs(
 
 		rgba = yuv_to_rgba(y, u, v);
 
+	// AYUV
+	} else if (cb.format == 8) {
+		float y = tex0.sample(s, uv).r;
+		float u = tex0.sample(s, uv).g;
+		float v = tex0.sample(s, uv).b;
+
+		rgba = yuv_to_rgba(y, u, v);
+
 	// BGRA
 	} else {
 		rgba = tex0.sample(s, uv);

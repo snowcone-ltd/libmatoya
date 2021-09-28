@@ -49,6 +49,10 @@ static bool http_read_chunked(struct net *net, void **res, size_t *size, uint32_
 		if (!http_read_chunk_len(net, timeout, &chunk_len))
 			return false;
 
+		// Overflow protection
+		if (chunk_len > MTY_RES_MAX || *size + chunk_len > MTY_RES_MAX)
+			return false;
+
 		// Make room for chunk and "\r\n" after chunk
 		*res = MTY_Realloc(*res, *size + chunk_len + 2, 1);
 
@@ -136,6 +140,13 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 	// Read response body -- either fixed content length or chunked
 	const char *val = NULL;
 	if (mty_http_get_header_int(hdr, "Content-Length", (int32_t *) responseSize) && *responseSize > 0) {
+
+		// Overflow protection
+		if (*responseSize > MTY_RES_MAX) {
+			r = false;
+			goto except;
+		}
+
 		*response = MTY_Alloc(*responseSize + 1, 1);
 
 		r = mty_net_read(net, *response, *responseSize, timeout);

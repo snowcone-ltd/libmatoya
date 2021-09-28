@@ -77,8 +77,11 @@ static struct window *app_get_window(MTY_App *ctx, MTY_Window window)
 	return window < 0 ? NULL : ctx->windows[window];
 }
 
-static MTY_Window app_find_open_window(MTY_App *ctx)
+static MTY_Window app_find_open_window(MTY_App *ctx, MTY_Window req)
 {
+	if (req >= 0 && req < MTY_WINDOW_MAX && !ctx->windows[req])
+		return req;
+
 	for (MTY_Window x = 0; x < MTY_WINDOW_MAX; x++)
 		if (!ctx->windows[x])
 			return x;
@@ -319,6 +322,9 @@ static void app_refresh_scale(MTY_App *ctx)
 
 	const char *dpi = XGetDefault(display, "Xft", "dpi");
 	ctx->scale = dpi ? (float) atoi(dpi) / 96.0f : 1.0f;
+
+	if (ctx->scale == 0.0f)
+		ctx->scale = 1.0f;
 
 	XCloseDisplay(display);
 }
@@ -921,6 +927,11 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 		mty_evdev_rumble(ctx->evdev, id, low, high);
 }
 
+const void *MTY_AppGetControllerTouchpad(MTY_App *ctx, uint32_t id, size_t *size)
+{
+	return NULL;
+}
+
 bool MTY_AppIsPenEnabled(MTY_App *ctx)
 {
 	return false;
@@ -984,7 +995,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 	bool r = true;
 	struct window *ctx = MTY_Alloc(1, sizeof(struct window));
 
-	MTY_Window window = app_find_open_window(app);
+	MTY_Window window = app_find_open_window(app, desc->index);
 	if (window == -1) {
 		r = false;
 		MTY_Log("Maximum windows (MTY_WINDOW_MAX) of %u reached", MTY_WINDOW_MAX);

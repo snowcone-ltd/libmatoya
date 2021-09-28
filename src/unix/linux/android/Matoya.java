@@ -659,6 +659,10 @@ public class Matoya extends SurfaceView implements
 		return this.activity.getExternalFilesDir(null).getAbsolutePath();
 	}
 
+	public String getInternalFilesDir() {
+		return this.activity.getFilesDir().getAbsolutePath();
+	}
+
 	public int getHardwareIds(int id) {
 		int pid = 0;
 		int vid = 0;

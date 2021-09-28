@@ -225,7 +225,7 @@ static bool ws_write(MTY_WebSocket *ctx, const void *buf, size_t size, uint8_t o
 	if (size < 126) {
 		ctx->buf[o++] |= (uint8_t) size;
 
-	} else if (size >= 126 && size <= UINT16_MAX) {
+	} else if (size <= UINT16_MAX) {
 		ctx->buf[o++] |= 0x7E;
 
 		uint16_t l = MTY_SwapToBE16((uint16_t) size);

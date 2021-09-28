@@ -116,6 +116,14 @@ void main(void)
 
 		yuv_to_rgba(y, u, v, gl_FragColor);
 
+	// AYUV
+	} else if (format == 8) {
+		float y = texture2D(tex0, uv).r;
+		float u = texture2D(tex0, uv).g;
+		float v = texture2D(tex0, uv).b;
+
+		yuv_to_rgba(y, u, v, gl_FragColor);
+
 	// BGRA
 	} else {
 		gl_FragColor = texture2D(tex0, uv);
