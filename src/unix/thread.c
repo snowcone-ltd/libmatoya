@@ -44,18 +44,21 @@ static MTY_Thread *thread_create(MTY_ThreadFunc func, void *opaque, bool detach)
 	ctx->opaque = opaque;
 	ctx->detach = detach;
 
-	int32_t e = pthread_create(&ctx->thread, NULL, thread_func, ctx);
+	pthread_t thread = 0;
+	int32_t e = pthread_create(&thread, NULL, thread_func, ctx);
 
 	if (e != 0)
 		MTY_LogFatal("'pthread_create' failed with error %d", e);
 
-	if (ctx->detach) {
-		e = pthread_detach(ctx->thread);
+	if (detach) {
+		e = pthread_detach(thread);
 		if (e != 0)
 			MTY_LogFatal("'pthread_detach' failed with error %d", e);
 
-		ctx->thread = 0;
 		ctx = NULL;
+
+	} else {
+		ctx->thread = thread;
 	}
 
 	return ctx;

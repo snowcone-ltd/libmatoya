@@ -40,17 +40,19 @@ static MTY_Thread *thread_create(MTY_ThreadFunc func, void *opaque, bool detach)
 	ctx->opaque = opaque;
 	ctx->detach = detach;
 
-	ctx->thread = CreateThread(NULL, 0, thread_func, ctx, 0, NULL);
+	HANDLE thread = CreateThread(NULL, 0, thread_func, ctx, 0, NULL);
 
-	if (!ctx->thread)
+	if (!thread)
 		MTY_LogFatal("'CreateThread' failed with error 0x%X", GetLastError());
 
-	if (ctx->detach) {
-		if (!CloseHandle(ctx->thread))
+	if (detach) {
+		if (!CloseHandle(thread))
 			MTY_LogFatal("'CloseHandle' failed with error 0x%X", GetLastError());
 
-		ctx->thread = NULL;
 		ctx = NULL;
+
+	} else {
+		ctx->thread = thread;
 	}
 
 	return ctx;
