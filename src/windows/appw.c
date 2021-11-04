@@ -681,11 +681,18 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 			break;
 		case WM_MOUSEMOVE:
 			if (!app->filter_move && !pen_active && (!app->relative || app_hwnd_active(hwnd))) {
-				evt.type = MTY_EVENT_MOTION;
 				evt.motion.relative = false;
 				evt.motion.synth = false;
 				evt.motion.x = GET_X_LPARAM(lparam);
 				evt.motion.y = GET_Y_LPARAM(lparam);
+
+				// For some reason Stardock's Fences causes MOUSEMOVE events to the same position about every second.
+				if (evt.motion.x == app->last_x && evt.motion.y == app->last_y)
+					break;
+				
+				evt.type = MTY_EVENT_MOTION;
+				app->last_x = evt.motion.x;
+				app->last_y = evt.motion.y;
 			}
 
 			app->filter_move = false;
