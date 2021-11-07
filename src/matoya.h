@@ -634,7 +634,7 @@ typedef struct {
 typedef struct {
 	int32_t id;        ///< A unique identifier representing the pointer used.
 	                   ///<   This is useful to track touch-based events. 
-					   ///<   Mouse events will always have 0. 
+	                   ///<   Mouse events will always have 0. 
 	MTY_Button button; ///< The button that has been pressed or released.
 	int32_t x;         ///< Horizontal position in the client area window.
 	int32_t y;         ///< Vertical position in the client area of the window.
@@ -645,7 +645,7 @@ typedef struct {
 typedef struct {
 	int32_t id;    ///< A unique identifier representing the pointer used.
 	               ///<   This is useful to track touch-based events. 
-				   ///<   Mouse events will always have 0. 
+	               ///<   Mouse events will always have 0. 
 	int32_t x;     ///< If `relative` is true, the horizontal delta since the previous motion
 	               ///<   event, otherwise the horizontal position in the window's client area.
 	int32_t y;     ///< In `relative` is true, the vertical delta since the previous motion event,

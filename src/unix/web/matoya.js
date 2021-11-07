@@ -997,10 +997,10 @@ const MTY_WEB_API = {
 
 		var touch_started = function (ev) {
 			const touches = ev.changedTouches;
-		
+
 			for (var i = 0; i < touches.length; i++) {
 				const touch = touches[i];
-		
+
 				currentTouches.push({
 					identifier: touch.identifier,
 					clientX: touch.clientX,
@@ -1011,40 +1011,40 @@ const MTY_WEB_API = {
 				MTY_CFunc(mouse_button)(app, touch.identifier, true, 0, mty_scaled(touch.clientX), mty_scaled(touch.clientY));
 			}
 		};
-		
+
 		var touch_moved = function (ev) {
 			const touches = ev.changedTouches;
 
 			for (var i = 0; i < touches.length; i++) {
 				const newTouch = touches[i];
-				const touchIndex = currentTouches.findIndex(touch => touch.identifier == newTouch.identifier); 
-		
+				const touchIndex = currentTouches.findIndex(touch => touch.identifier == newTouch.identifier);
+
 				if (touchIndex != -1) {
 					const touch = currentTouches[touchIndex];
-	
+
 					let x = mty_scaled(newTouch.clientX);
 					let y = mty_scaled(newTouch.clientY);
-	
+
 					if (MTY.relative) {
 						x = newTouch.clientX - touch.clientX;
 						y = newTouch.clientY - touch.clientY;
 					}
-	
+
 					touch.clientX = x;
 					touch.clientY = y;
-	
+
 					MTY_CFunc(mouse_motion)(app, touch.identifier, MTY.relative, touch.clientX, touch.clientY);
 				}
 			}
 		};
-		
+
 		var touch_ended = function (ev) {
 			const touches = ev.changedTouches;
-		
+
 			for (var i = 0; i < touches.length; i++) {
 				const newTouch = touches[i];
-				const touchIndex = currentTouches.findIndex(touch => touch.identifier == newTouch.identifier); 
-		
+				const touchIndex = currentTouches.findIndex(touch => touch.identifier == newTouch.identifier);
+
 				if (touchIndex != -1) {
 					const touch = currentTouches[touchIndex];
 
@@ -1054,7 +1054,7 @@ const MTY_WEB_API = {
 				}
 			}
 		};
-		
+
 		MTY.gl.canvas.addEventListener('touchstart', function(ev) {
 			ev.preventDefault();
 			touch_started(ev);
