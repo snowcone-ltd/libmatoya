@@ -130,9 +130,9 @@ typedef struct {
 	float scale;            ///< Multiplier applied to the dimensions of the image, producing an
 	                        ///<   minimized or magnified image. This can be set to 0
 	                        ///<   if unnecessary.
-	bool layer;             ///< Should draw the quad on top of already exiting operations. 
+	bool layer;             ///< Should draw the quad on top of already existing operations.
 	                        ///<   This is required when drawing multiple quads during the
-                            ///<   same rendering loop to prevent clearing the view.
+	                        ///<   same rendering loop to prevent clearing the view.
 } MTY_RenderDesc;
 
 /// @brief A rectangle with `left`, `top`, `right`, and `bottom` coordinates.
