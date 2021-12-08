@@ -166,6 +166,7 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 			goto except;
 		}
 
+		memset(*response, 0, *responseSize);
 		MTY_Free(*response);
 		*response = z;
 		*responseSize = zlen;

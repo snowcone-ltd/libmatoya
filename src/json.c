@@ -44,7 +44,17 @@ void MTY_JSONDestroy(MTY_JSON **json)
 	if (!json || !*json)
 		return;
 
-	cJSON_Delete((cJSON *) *json);
+	cJSON_Delete((cJSON *) *json, false);
+
+	*json = NULL;
+}
+
+void MTY_JSONSafeDestroy(MTY_JSON **json)
+{
+	if (!json || !*json)
+		return;
+
+	cJSON_Delete((cJSON *) *json, true);
 
 	*json = NULL;
 }
@@ -114,7 +124,15 @@ void MTY_JSONObjDeleteItem(MTY_JSON *json, const char *key)
 	if (!json)
 		return;
 
-	cJSON_DeleteItemFromObjectCaseSensitive((cJSON *) json, key);
+	cJSON_DeleteItemFromObjectCaseSensitive((cJSON *) json, key, false);
+}
+
+void MTY_JSONObjSafeDeleteItem(MTY_JSON *json, const char *key)
+{
+	if (!json)
+		return;
+
+	cJSON_DeleteItemFromObjectCaseSensitive((cJSON *) json, key, true);
 }
 
 const MTY_JSON *MTY_JSONObjGetItem(const MTY_JSON *json, const char *key)
@@ -155,7 +173,15 @@ void MTY_JSONArrayDeleteItem(MTY_JSON *json, uint32_t index)
 	if (!json)
 		return;
 
-	cJSON_DeleteItemFromArray((cJSON *) json, index);
+	cJSON_DeleteItemFromArray((cJSON *) json, index, false);
+}
+
+void MTY_JSONArraySafeDeleteItem(MTY_JSON *json, uint32_t index)
+{
+	if (!json)
+		return;
+
+	cJSON_DeleteItemFromArray((cJSON *) json, index, true);
 }
 
 const MTY_JSON *MTY_JSONArrayGetItem(const MTY_JSON *json, uint32_t index)
