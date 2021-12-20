@@ -27,8 +27,10 @@
 	@property MTY_Hash *hotkey;
 	@property MTY_DetachState detach;
 	@property void *opaque;
+	@property void *kb_mode;
 	@property bool relative;
 	@property bool grab_mouse;
+	@property bool grab_kb;
 	@property bool cont;
 	@property bool pen_enabled;
 	@property bool default_cursor;
@@ -97,6 +99,18 @@ static void app_apply_cursor(App *ctx)
 
 	ctx.cursor = new;
 	[ctx.cursor set];
+}
+
+static void app_apply_keyboard_state(App *ctx)
+{
+	if (ctx.grab_kb && ctx.detach == MTY_DETACH_STATE_NONE) {
+		if (!ctx.kb_mode)
+			ctx.kb_mode = PushSymbolicHotKeyMode(kHIHotKeyModeAllDisabled);
+
+	} else if (ctx.kb_mode) {
+		PopSymbolicHotKeyMode(ctx.kb_mode);
+		ctx.kb_mode = NULL;
+	}
 }
 
 static void app_poll_clipboard(App *ctx)
@@ -676,8 +690,10 @@ static void window_mod_event(Window *window, NSEvent *event)
 
 	- (BOOL)performKeyEquivalent:(NSEvent *)event
 	{
-		// macOS swallows Ctrl+Tab, special case
-		if (event.keyCode == kVK_Tab && (event.modifierFlags & NSEventModifierFlagControl)) {
+		NSUInteger mods = NSEventModifierFlagControl | NSEventModifierFlagCommand;
+
+		// macOS swallows Ctrl+Tab and Cmd+Tab, special cases
+		if (event.keyCode == kVK_Tab && (event.modifierFlags & mods)) {
 			window_keyboard_event(self, event.keyCode, event.modifierFlags, true);
 			window_keyboard_event(self, event.keyCode, event.modifierFlags, false);
 		}
@@ -983,6 +999,11 @@ void MTY_AppDestroy(MTY_App **app)
 
 	MTY_AppStayAwake(*app, false);
 
+	if (ctx.kb_mode) {
+		PopSymbolicHotKeyMode(ctx.kb_mode);
+		ctx.kb_mode = NULL;
+	}
+
 	for (MTY_Window x = 0; x < MTY_WINDOW_MAX; x++)
 		MTY_WindowDestroy(*app, x);
 
@@ -1103,6 +1124,7 @@ void MTY_AppSetDetachState(MTY_App *ctx, MTY_DetachState state)
 
 	app_apply_cursor(app);
 	app_apply_relative(app);
+	app_apply_keyboard_state(app);
 }
 
 bool MTY_AppIsMouseGrabbed(MTY_App *ctx)
@@ -1175,11 +1197,17 @@ bool MTY_AppCanWarpCursor(MTY_App *ctx)
 
 bool MTY_AppIsKeyboardGrabbed(MTY_App *ctx)
 {
-	return false;
+	App *app = (__bridge App *) ctx;
+
+	return app.grab_kb;
 }
 
 void MTY_AppGrabKeyboard(MTY_App *ctx, bool grab)
 {
+	App *app = (__bridge App *) ctx;
+
+	app.grab_kb = grab;
+	app_apply_keyboard_state(app);
 }
 
 uint32_t MTY_AppGetHotkey(MTY_App *ctx, MTY_Scope scope, MTY_Mod mod, MTY_Key key)
