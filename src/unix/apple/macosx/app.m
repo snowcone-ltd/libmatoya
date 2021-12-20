@@ -104,6 +104,8 @@ static void app_apply_cursor(App *ctx)
 static void app_apply_keyboard_state(App *ctx)
 {
 	if (ctx.grab_kb && ctx.detach == MTY_DETACH_STATE_NONE) {
+		// Requires "Enable access for assistive devices" checkbox is checked
+		// in the Universal Access preference pane
 		if (!ctx.kb_mode)
 			ctx.kb_mode = PushSymbolicHotKeyMode(kHIHotKeyModeAllDisabled);
 
