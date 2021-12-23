@@ -86,6 +86,12 @@ uint32_t MTY_GetPlatform(void)
 
 			RtlGetVersion(&info);
 
+			// Windows "11"
+			if (info.dwBuildNumber >= 22000) {
+				info.dwMajorVersion = 11;
+				info.dwMinorVersion = 0;
+			}
+
 			v |= (uint32_t) info.dwMajorVersion << 8;
 			v |= (uint32_t) info.dwMinorVersion;
 		}
