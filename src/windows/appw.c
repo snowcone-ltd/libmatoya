@@ -438,16 +438,16 @@ static void app_ri_relative_mouse(MTY_App *app, HWND hwnd, const RAWINPUT *ri, M
 static MTY_Mod app_get_keymod(void)
 {
 	return
-		((GetKeyState(VK_LSHIFT)   & 0x8000) >> 15) |
-		((GetKeyState(VK_RSHIFT)   & 0x8000) >> 14) |
-		((GetKeyState(VK_LCONTROL) & 0x8000) >> 13) |
-		((GetKeyState(VK_RCONTROL) & 0x8000) >> 12) |
-		((GetKeyState(VK_LMENU)    & 0x8000) >> 11) |
-		((GetKeyState(VK_RMENU)    & 0x8000) >> 10) |
-		((GetKeyState(VK_LWIN)     & 0x8000) >> 9)  |
-		((GetKeyState(VK_RWIN)     & 0x8000) >> 8)  |
-		((GetKeyState(VK_CAPITAL)  & 0x0001) << 8)  |
-		((GetKeyState(VK_NUMLOCK)  & 0x0001) << 9);
+		((GetKeyState(VK_LSHIFT)     & 0x8000) >> 15) |
+		((GetKeyState(VK_RSHIFT)     & 0x8000) >> 14) |
+		((GetKeyState(VK_LCONTROL)   & 0x8000) >> 13) |
+		((GetKeyState(VK_RCONTROL)   & 0x8000) >> 12) |
+		((GetAsyncKeyState(VK_LMENU) & 0x8000) >> 11) |
+		((GetAsyncKeyState(VK_RMENU) & 0x8000) >> 10) |
+		((GetAsyncKeyState(VK_LWIN)  & 0x8000) >> 9)  |
+		((GetAsyncKeyState(VK_RWIN)  & 0x8000) >> 8)  |
+		((GetKeyState(VK_CAPITAL)    & 0x0001) << 8)  |
+		((GetKeyState(VK_NUMLOCK)    & 0x0001) << 9);
 }
 
 static LRESULT CALLBACK app_ll_keyboard_proc(int nCode, WPARAM wParam, LPARAM lParam)
