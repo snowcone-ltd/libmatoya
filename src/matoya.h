@@ -1785,13 +1785,6 @@ MTY_JSONDuplicate(const MTY_JSON *json);
 MTY_EXPORT void
 MTY_JSONDestroy(MTY_JSON **json);
 
-/// @brief Safely destroy an MTY_JSON item.
-/// @param json Passed by reference and set to NULL after being destroyed.\n\n
-///   This function destroys all children of the item and making them zero first,
-///   meaning only the root item in the hierarchy should ever be destroyed.
-MTY_EXPORT void
-MTY_JSONSafeDestroy(MTY_JSON **json);
-
 /// @brief Serialize an MTY_JSON item into a string.
 /// @param json An MTY_JSON item to serialize.
 /// @returns The returned string must be destroyed with MTY_Free.
@@ -1846,12 +1839,6 @@ MTY_JSONObjGetKey(const MTY_JSON *json, uint32_t index);
 MTY_EXPORT void
 MTY_JSONObjDeleteItem(MTY_JSON *json, const char *key);
 
-/// @brief Delete an item from a JSON object with nulling it first.
-/// @param json An MTY_JSON object.
-/// @param key Key to delete.
-MTY_EXPORT void
-MTY_JSONObjSafeDeleteItem(MTY_JSON *json, const char *key);
-
 /// @brief Get an item from a JSON object.
 /// @param json An MTY_JSON object.
 /// @param key Key to lookup.
@@ -1880,12 +1867,6 @@ MTY_JSONArrayIndexExists(const MTY_JSON *json, uint32_t index);
 /// @param index Index to delete.
 MTY_EXPORT void
 MTY_JSONArrayDeleteItem(MTY_JSON *json, uint32_t index);
-
-/// @brief Delete an item from a JSON array with nulling it first.
-/// @param json An MTY_JSON array.
-/// @param index Index to delete.
-MTY_EXPORT void
-MTY_JSONArraySafeDeleteItem(MTY_JSON *json, uint32_t index);
 
 /// @brief Get an item from a JSON array.
 /// @param json An MTY_JSON array.

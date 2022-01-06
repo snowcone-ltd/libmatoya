@@ -78,7 +78,7 @@ cJSON_ParseWithLengthOpts(const char *value, size_t buffer_length, const char **
 /* Render a cJSON entity to text for transfer/storage without any formatting. */
 CJSON_PUBLIC(char *) cJSON_PrintUnformatted(const cJSON *item);
 /* Delete a cJSON entity and all subentities. */
-CJSON_PUBLIC(void) cJSON_Delete(cJSON *item, bool clear_free);
+CJSON_PUBLIC(void) cJSON_Delete(cJSON *item);
 
 /* Returns the number of items in an array (or object). */
 CJSON_PUBLIC(int) cJSON_GetArraySize(const cJSON *array);
@@ -111,9 +111,9 @@ CJSON_PUBLIC(cJSON_bool) cJSON_AddItemToObject(cJSON *object, const char *string
 /* Remove/Detach items from Arrays/Objects. */
 CJSON_PUBLIC(cJSON *) cJSON_DetachItemViaPointer(cJSON *parent, cJSON *const item);
 CJSON_PUBLIC(cJSON *) cJSON_DetachItemFromArray(cJSON *array, int which);
-CJSON_PUBLIC(void) cJSON_DeleteItemFromArray(cJSON *array, int which, bool clear_free);
+CJSON_PUBLIC(void) cJSON_DeleteItemFromArray(cJSON *array, int which);
 CJSON_PUBLIC(cJSON *) cJSON_DetachItemFromObjectCaseSensitive(cJSON *object, const char *string);
-CJSON_PUBLIC(void) cJSON_DeleteItemFromObjectCaseSensitive(cJSON *object, const char *string, bool clear_free);
+CJSON_PUBLIC(void) cJSON_DeleteItemFromObjectCaseSensitive(cJSON *object, const char *string);
 
 /* Update array items. */
 CJSON_PUBLIC(cJSON_bool) cJSON_InsertItemInArray(cJSON *array, int which, cJSON *newitem); /* Shifts pre-existing items to the right. */
@@ -153,26 +153,24 @@ static cJSON *cJSON_New_Item(void)
 }
 
 /* Delete a cJSON structure. */
-CJSON_PUBLIC(void) cJSON_Delete(cJSON *item, bool clear_free)
+CJSON_PUBLIC(void) cJSON_Delete(cJSON *item)
 {
 	cJSON *next = NULL;
 	while (item != NULL) {
 		next = item->next;
 		if (!(item->type & cJSON_IsReference) && (item->child != NULL)) {
-			cJSON_Delete(item->child, clear_free);
+			cJSON_Delete(item->child);
 		}
-		if (clear_free) {
-			item->valueint = 0;
-			item->valuedouble = 0;
-		}
+
+		item->valueint = 0;
+		item->valuedouble = 0;
+
 		if (!(item->type & cJSON_IsReference) && (item->valuestring != NULL)) {
-			if (clear_free)
-				memset(item->valuestring, 0, strlen(item->valuestring));
+			memset(item->valuestring, 0, strlen(item->valuestring));
 			CJSON_FREE(item->valuestring);
 		}
 		if (!(item->type & cJSON_StringIsConst) && (item->string != NULL)) {
-			if (clear_free)
-				memset(item->string, 0, strlen(item->string));
+			memset(item->string, 0, strlen(item->string));
 			CJSON_FREE(item->string);
 		}
 		CJSON_FREE(item);
@@ -866,7 +864,7 @@ cJSON_ParseWithLengthOpts(const char *value, size_t buffer_length, const char **
 
 fail:
 	if (item != NULL) {
-		cJSON_Delete(item, true);
+		cJSON_Delete(item);
 	}
 
 	if (value != NULL) {
@@ -1130,7 +1128,7 @@ success:
 
 fail:
 	if (head != NULL) {
-		cJSON_Delete(head, true);
+		cJSON_Delete(head);
 	}
 
 	return false;
@@ -1278,7 +1276,7 @@ success:
 
 fail:
 	if (head != NULL) {
-		cJSON_Delete(head, true);
+		cJSON_Delete(head);
 	}
 
 	return false;
@@ -1572,9 +1570,9 @@ CJSON_PUBLIC(cJSON *) cJSON_DetachItemFromArray(cJSON *array, int which)
 	return cJSON_DetachItemViaPointer(array, get_array_item(array, (size_t) which));
 }
 
-CJSON_PUBLIC(void) cJSON_DeleteItemFromArray(cJSON *array, int which, bool clear_free)
+CJSON_PUBLIC(void) cJSON_DeleteItemFromArray(cJSON *array, int which)
 {
-	cJSON_Delete(cJSON_DetachItemFromArray(array, which), clear_free);
+	cJSON_Delete(cJSON_DetachItemFromArray(array, which));
 }
 
 CJSON_PUBLIC(cJSON *) cJSON_DetachItemFromObjectCaseSensitive(cJSON *object, const char *string)
@@ -1584,9 +1582,9 @@ CJSON_PUBLIC(cJSON *) cJSON_DetachItemFromObjectCaseSensitive(cJSON *object, con
 	return cJSON_DetachItemViaPointer(object, to_detach);
 }
 
-CJSON_PUBLIC(void) cJSON_DeleteItemFromObjectCaseSensitive(cJSON *object, const char *string, bool clear_free)
+CJSON_PUBLIC(void) cJSON_DeleteItemFromObjectCaseSensitive(cJSON *object, const char *string)
 {
-	cJSON_Delete(cJSON_DetachItemFromObjectCaseSensitive(object, string), clear_free);
+	cJSON_Delete(cJSON_DetachItemFromObjectCaseSensitive(object, string));
 }
 
 /* Replace array/object items with new ones. */
@@ -1643,7 +1641,7 @@ CJSON_PUBLIC(cJSON_bool) cJSON_ReplaceItemViaPointer(cJSON *const parent, cJSON 
 
 	item->next = NULL;
 	item->prev = NULL;
-	cJSON_Delete(item, true);
+	cJSON_Delete(item);
 
 	return true;
 }
@@ -1717,7 +1715,7 @@ CJSON_PUBLIC(cJSON *) cJSON_CreateString(const char *string)
 		item->type = cJSON_String;
 		item->valuestring = (char *) MTY_Strdup(string);
 		if (!item->valuestring) {
-			cJSON_Delete(item, true);
+			cJSON_Delete(item);
 			return NULL;
 		}
 	}
@@ -1806,7 +1804,7 @@ CJSON_PUBLIC(cJSON *) cJSON_Duplicate(const cJSON *item, cJSON_bool recurse)
 
 fail:
 	if (newitem != NULL) {
-		cJSON_Delete(newitem, true);
+		cJSON_Delete(newitem);
 	}
 
 	return NULL;
