@@ -116,6 +116,7 @@ static const int APP_MOUSE_MAP[] = {
 // Low level keyboard hook needs a global HWND
 
 static HWND APP_KB_HWND;
+static MTY_Mod APP_KB_MODS;
 
 
 // App Static Helpers
@@ -438,16 +439,17 @@ static void app_ri_relative_mouse(MTY_App *app, HWND hwnd, const RAWINPUT *ri, M
 static MTY_Mod app_get_keymod(void)
 {
 	return
-		((GetKeyState(VK_LSHIFT)     & 0x8000) >> 15) |
-		((GetKeyState(VK_RSHIFT)     & 0x8000) >> 14) |
-		((GetKeyState(VK_LCONTROL)   & 0x8000) >> 13) |
-		((GetKeyState(VK_RCONTROL)   & 0x8000) >> 12) |
-		((GetAsyncKeyState(VK_LMENU) & 0x8000) >> 11) |
-		((GetAsyncKeyState(VK_RMENU) & 0x8000) >> 10) |
-		((GetAsyncKeyState(VK_LWIN)  & 0x8000) >> 9)  |
-		((GetAsyncKeyState(VK_RWIN)  & 0x8000) >> 8)  |
-		((GetKeyState(VK_CAPITAL)    & 0x0001) << 8)  |
-		((GetKeyState(VK_NUMLOCK)    & 0x0001) << 9);
+		((GetKeyState(VK_LSHIFT)   & 0x8000) >> 15) |
+		((GetKeyState(VK_RSHIFT)   & 0x8000) >> 14) |
+		((GetKeyState(VK_LCONTROL) & 0x8000) >> 13) |
+		((GetKeyState(VK_RCONTROL) & 0x8000) >> 12) |
+		((GetKeyState(VK_LMENU)    & 0x8000) >> 11) |
+		((GetKeyState(VK_RMENU)    & 0x8000) >> 10) |
+		((GetKeyState(VK_LWIN)     & 0x8000) >> 9)  |
+		((GetKeyState(VK_RWIN)     & 0x8000) >> 8)  |
+		((GetKeyState(VK_CAPITAL)  & 0x0001) << 8)  |
+		((GetKeyState(VK_NUMLOCK)  & 0x0001) << 9)  |
+		APP_KB_MODS;
 }
 
 static LRESULT CALLBACK app_ll_keyboard_proc(int nCode, WPARAM wParam, LPARAM lParam)
@@ -461,6 +463,13 @@ static LRESULT CALLBACK app_ll_keyboard_proc(int nCode, WPARAM wParam, LPARAM lP
 			(p->vkCode == VK_ESCAPE); // ESC
 
 		if (intercept) {
+			// Windows low level keyboard hook interferes with the Win key modifier state, track globally
+			if (p->vkCode == VK_LWIN)
+				APP_KB_MODS ^= MTY_MOD_LWIN;
+
+			if (p->vkCode == VK_RWIN)
+				APP_KB_MODS ^= MTY_MOD_RWIN;
+
 			LPARAM wproc_lparam = 0;
 			wproc_lparam |= (p->scanCode & 0xFF) << 16;
 			wproc_lparam |= (p->flags & LLKHF_EXTENDED) ? (1 << 24) : 0;
@@ -554,6 +563,8 @@ static void app_apply_keyboard_state(MTY_App *app, bool focus)
 
 			APP_KB_HWND = NULL;
 			app->kbhook = NULL;
+
+			APP_KB_MODS = MTY_MOD_NONE;
 		}
 	}
 }
@@ -1044,6 +1055,7 @@ void MTY_AppDestroy(MTY_App **app)
 	xip_destroy(&ctx->xip);
 
 	APP_KB_HWND = NULL;
+	APP_KB_MODS = MTY_MOD_NONE;
 
 	MTY_Free(ctx);
 	*app = NULL;
