@@ -14,7 +14,9 @@
 
 #include "tlocal.h"
 
-static volatile void *(*MEMORY_MEMSET)(void *s, int c, size_t n) = memset;
+typedef volatile void *(*MEMORY_MEMSET_T)(void *s, int c, size_t n);
+
+static MEMORY_MEMSET_T MEMORY_MEMSET = (MEMORY_MEMSET_T) memset;
 
 void MTY_SecureZero(void *mem, size_t size)
 {
