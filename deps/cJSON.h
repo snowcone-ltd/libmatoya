@@ -162,12 +162,12 @@ CJSON_PUBLIC(void) cJSON_Delete(cJSON *item)
 			cJSON_Delete(item->child);
 		}
 		if (!(item->type & cJSON_IsReference) && (item->valuestring != NULL)) {
-			CJSON_FREE(item->valuestring);
+			MTY_SecureFree(item->valuestring, strlen(item->valuestring));
 		}
 		if (!(item->type & cJSON_StringIsConst) && (item->string != NULL)) {
-			CJSON_FREE(item->string);
+			MTY_SecureFree(item->string, strlen(item->string));
 		}
-		CJSON_FREE(item);
+		MTY_SecureFree(item, sizeof(cJSON));
 		item = next;
 	}
 }

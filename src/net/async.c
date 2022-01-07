@@ -40,11 +40,19 @@ static void http_async_free_state(void *opaque)
 	struct async_state *s = opaque;
 
 	if (s) {
-		MTY_Free(s->req.host);
+		if (s->req.host)
+			MTY_SecureFree(s->req.host, strlen(s->req.host));
+
+		if (s->req.path)
+			MTY_SecureFree(s->req.path, strlen(s->req.path));
+
+		if (s->req.headers)
+			MTY_SecureFree(s->req.headers, strlen(s->req.headers));
+
+		if (s->req.body && s->req.body_size > 0)
+			MTY_SecureFree(s->req.body, strlen(s->req.body));
+
 		MTY_Free(s->req.method);
-		MTY_Free(s->req.path);
-		MTY_Free(s->req.headers);
-		MTY_Free(s->req.body);
 		MTY_Free(s->res.body);
 		MTY_Free(s);
 	}
