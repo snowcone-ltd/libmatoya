@@ -346,11 +346,11 @@ void mty_d3d12_ctx_destroy(struct gfx_ctx **gfx_ctx)
 
 	d3d12_core_free(&ctx->core);
 
-	if (ctx->d3d12)
-		FreeLibrary(ctx->d3d12);
-
 	if (ctx->dxgi)
 		FreeLibrary(ctx->dxgi);
+
+	if (ctx->d3d12)
+		FreeLibrary(ctx->d3d12);
 
 	MTY_Free(ctx);
 	*gfx_ctx = NULL;

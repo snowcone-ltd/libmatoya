@@ -106,7 +106,7 @@ struct gfx_ui *mty_d3d12_ui_create(MTY_Device *device)
 	}
 
 	ID3DBlob *blob = NULL;
-	e = _D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, NULL);
+	e = _D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_0, &blob, NULL);
 	if (e != S_OK) {
 		MTY_Log("'D3D12SerializeRootSignature' failed with HRESULT 0x%X", e);
 		goto except;
@@ -128,7 +128,6 @@ struct gfx_ui *mty_d3d12_ui_create(MTY_Device *device)
 	psoDesc.VS.BytecodeLength = sizeof(vsui);
 	psoDesc.PS.pShaderBytecode = psui;
 	psoDesc.PS.BytecodeLength = sizeof(psui);
-	psoDesc.NodeMask = 1;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	psoDesc.pRootSignature = ctx->rs;
 	psoDesc.SampleMask = UINT_MAX;
@@ -146,8 +145,7 @@ struct gfx_ui *mty_d3d12_ui_create(MTY_Device *device)
 	psoDesc.InputLayout.NumElements = 3;
 
 	D3D12_BLEND_DESC *bdesc = &psoDesc.BlendState;
-	bdesc->AlphaToCoverageEnable = false;
-	bdesc->RenderTarget[0].BlendEnable = true;
+	bdesc->RenderTarget[0].BlendEnable = TRUE;
 	bdesc->RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
 	bdesc->RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
 	bdesc->RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
@@ -159,21 +157,15 @@ struct gfx_ui *mty_d3d12_ui_create(MTY_Device *device)
 	D3D12_RASTERIZER_DESC *rdesc = &psoDesc.RasterizerState;
 	rdesc->FillMode = D3D12_FILL_MODE_SOLID;
 	rdesc->CullMode = D3D12_CULL_MODE_NONE;
-	rdesc->FrontCounterClockwise = FALSE;
 	rdesc->DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
 	rdesc->DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
 	rdesc->SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-	rdesc->DepthClipEnable = true;
-	rdesc->MultisampleEnable = FALSE;
-	rdesc->AntialiasedLineEnable = FALSE;
-	rdesc->ForcedSampleCount = 0;
+	rdesc->DepthClipEnable = TRUE;
 	rdesc->ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
 	D3D12_DEPTH_STENCIL_DESC *sdesc = &psoDesc.DepthStencilState;
-	sdesc->DepthEnable = false;
 	sdesc->DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	sdesc->DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	sdesc->StencilEnable = false;
 	sdesc->FrontFace.StencilFailOp = sdesc->FrontFace.StencilDepthFailOp =
 		sdesc->FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
 	sdesc->FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
@@ -353,7 +345,7 @@ bool mty_d3d12_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context 
 
 		// Clear render target to black
 		if (dd->clear) {
-			float color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+			const float color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 			ID3D12GraphicsCommandList_ClearRenderTargetView(cl, *_dest, color, 0, NULL);
 		}
 	}
@@ -443,16 +435,16 @@ void *mty_d3d12_ui_create_texture(MTY_Device *device, const void *rgba, uint32_t
 {
 	struct d3d12_ui_texture *tex = MTY_Alloc(1, sizeof(struct d3d12_ui_texture));
 
+	ID3D12Device *_device = (ID3D12Device *) device;
+
 	tex->w = width;
 	tex->h = height;
 
-	ID3D12Device *_device = (ID3D12Device *) device;
+	UINT pitch = D3D12_UI_PITCH(width, 4);
 
 	// Upload buffer
 	D3D12_HEAP_PROPERTIES hp = {0};
 	hp.Type = D3D12_HEAP_TYPE_UPLOAD;
-
-	UINT pitch = D3D12_UI_PITCH(width, 4);
 
 	D3D12_RESOURCE_DESC desc = {0};
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -473,7 +465,6 @@ void *mty_d3d12_ui_create_texture(MTY_Device *device, const void *rgba, uint32_t
 
 	// Copy
 	uint8_t *data = NULL;
-
 	e = ID3D12Resource_Map(tex->buffer, 0, NULL, &data);
 	if (e != S_OK) {
 		MTY_Log("'ID3D12Resource_Map' failed with HRESULT 0x%X", e);
@@ -481,7 +472,7 @@ void *mty_d3d12_ui_create_texture(MTY_Device *device, const void *rgba, uint32_t
 	}
 
 	for (uint32_t y = 0; y < height; y++)
-		memcpy(data + (y * pitch), (uint8_t *) rgba + (y * width * 4), width * 4);
+		memcpy(data + y * pitch, (uint8_t *) rgba + y * width * 4, width * 4);
 
 	ID3D12Resource_Unmap(tex->buffer, 0, NULL);
 
@@ -543,14 +534,14 @@ void mty_d3d12_ui_destroy_texture(void **texture)
 
 	struct d3d12_ui_texture *tex = *texture;
 
+	if (tex->heap)
+		ID3D12DescriptorHeap_Release(tex->heap);
+
 	if (tex->resource)
 		ID3D12Resource_Release(tex->resource);
 
 	if (tex->buffer)
 		ID3D12Resource_Release(tex->buffer);
-
-	if (tex->heap)
-		ID3D12DescriptorHeap_Release(tex->heap);
 
 	MTY_Free(tex);
 	*texture = NULL;

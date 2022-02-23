@@ -36,8 +36,8 @@ struct d3d12_psvars {
 
 struct d3d12_res {
 	DXGI_FORMAT format;
-	ID3D12Resource *resource;
 	ID3D12Resource *buffer;
+	ID3D12Resource *resource;
 	D3D12_CPU_DESCRIPTOR_HANDLE dh;
 	uint32_t width;
 	uint32_t height;
@@ -249,15 +249,28 @@ struct gfx *mty_d3d12_create(MTY_Device *device)
 
 	ID3D12DescriptorHeap_GetGPUDescriptorHandleForHeapStart(ctx->srv_heap, &ctx->srv_dh);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE start = {0};
-	ID3D12DescriptorHeap_GetCPUDescriptorHandleForHeapStart(ctx->srv_heap, &start);
+	D3D12_CPU_DESCRIPTOR_HANDLE cpu_dh = {0};
+	ID3D12DescriptorHeap_GetCPUDescriptorHandleForHeapStart(ctx->srv_heap, &cpu_dh);
 
 	UINT inc = ID3D12Device_GetDescriptorHandleIncrementSize(_device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	for (uint8_t x = 0; x < D3D12_NUM_STAGING; x++) {
-		ctx->staging[x].dh = start;
-		start.ptr += inc;
+		ctx->staging[x].dh = cpu_dh;
+		cpu_dh.ptr += inc;
 	}
+
+	// Constant buffer
+	UINT cbsize = (sizeof(struct d3d12_psvars) + 255) & ~255; // MUST be 256-byte aligned
+
+	e = d3d12_buffer(_device, NULL, cbsize, &ctx->cb);
+	if (e != S_OK)
+		goto except;
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbdesc = {0};
+	cbdesc.BufferLocation = ID3D12Resource_GetGPUVirtualAddress(ctx->cb);
+	cbdesc.SizeInBytes = cbsize;
+
+	ID3D12Device_CreateConstantBufferView(_device, &cbdesc, cpu_dh);
 
 	// Samplers
 	memset(&dhdesc, 0, sizeof(D3D12_DESCRIPTOR_HEAP_DESC));
@@ -297,19 +310,6 @@ struct gfx *mty_d3d12_create(MTY_Device *device)
 	ID3D12Device_CreateSampler(_device, &sd, sampler_dh);
 
 	ctx->point_dh = sampler_dh_gpu;
-
-	// Constant buffer
-	UINT cbsize = (sizeof(struct d3d12_psvars) + 255) & ~255; // MUST be 256-byte aligned
-
-	e = d3d12_buffer(_device, NULL, cbsize, &ctx->cb);
-	if (e != S_OK)
-		goto except;
-
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbdesc = {0};
-	cbdesc.BufferLocation = ID3D12Resource_GetGPUVirtualAddress(ctx->cb);
-	cbdesc.SizeInBytes = cbsize;
-
-	ID3D12Device_CreateConstantBufferView(_device, &cbdesc, start);
 
 	// Vertex buffer
 	e = d3d12_buffer(_device, D3D12_VERTEX_DATA, sizeof(D3D12_VERTEX_DATA), &ctx->vb);
@@ -421,7 +421,6 @@ static HRESULT d3d12_crop_copy(struct d3d12_res *res, ID3D12GraphicsCommandList 
 {
 	// Copy data to upload buffer
 	uint8_t *data = NULL;
-
 	HRESULT e = ID3D12Resource_Map(res->buffer, 0, NULL, &data);
 	if (e != S_OK) {
 		MTY_Log("'ID3D12Resource_Map' failed with HRESULT 0x%X", e);
@@ -431,7 +430,7 @@ static HRESULT d3d12_crop_copy(struct d3d12_res *res, ID3D12GraphicsCommandList 
 	UINT pitch = D3D12_PITCH(w, bpp);
 
 	for (uint32_t y = 0; y < h; y++)
-		memcpy(data + (y * pitch), image + (y * fullWidth * bpp), w * bpp);
+		memcpy(data + y * pitch, image + y * fullWidth * bpp, w * bpp);
 
 	ID3D12Resource_Unmap(res->buffer, 0, NULL);
 
@@ -577,7 +576,7 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	if (_dest) {
 		ID3D12GraphicsCommandList_OMSetRenderTargets(cl, 1, _dest, FALSE, NULL);
 
-		float color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+		const float color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 		ID3D12GraphicsCommandList_ClearRenderTargetView(cl, *_dest, color, 0, NULL);
 	}
 
@@ -649,11 +648,11 @@ void mty_d3d12_destroy(struct gfx **gfx)
 	if (ctx->vb)
 		ID3D12Resource_Release(ctx->vb);
 
-	if (ctx->cb)
-		ID3D12Resource_Release(ctx->cb);
-
 	if (ctx->sampler_heap)
 		ID3D12DescriptorHeap_Release(ctx->sampler_heap);
+
+	if (ctx->cb)
+		ID3D12Resource_Release(ctx->cb);
 
 	if (ctx->srv_heap)
 		ID3D12DescriptorHeap_Release(ctx->srv_heap);
