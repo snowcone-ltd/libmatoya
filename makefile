@@ -63,6 +63,9 @@ OBJS = \
 	src\windows\threadw.obj \
 	src\windows\time.obj \
 	src\windows\tlsw.obj \
+	src\windows\gfx\d3d12.obj \
+	src\windows\gfx\d3d12-ctx.obj \
+	src\windows\gfx\d3d12-ui.obj \
 	src\windows\gfx\d3d11.obj \
 	src\windows\gfx\d3d11-ctx.obj \
 	src\windows\gfx\d3d11-ui.obj \

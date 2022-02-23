@@ -50,8 +50,9 @@ typedef enum {
 	MTY_GFX_GL      = 1, ///< OpenGL/GLES.
 	MTY_GFX_D3D9    = 2, ///< Direct3D 9. Windows only.
 	MTY_GFX_D3D11   = 3, ///< Direct3D 11. Windows only.
-	MTY_GFX_METAL   = 4, ///< Metal. Apple only.
-	MTY_GFX_MAX     = 5, ///< Maximum number of 3D graphics APIs.
+	MTY_GFX_D3D12   = 4, ///< Direct3D 12. Windows only.
+	MTY_GFX_METAL   = 5, ///< Metal. Apple only.
+	MTY_GFX_MAX     = 6, ///< Maximum number of 3D graphics APIs.
 	MTY_GFX_MAKE_32 = INT32_MAX,
 } MTY_GFX;
 
