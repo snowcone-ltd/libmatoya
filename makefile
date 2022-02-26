@@ -109,7 +109,6 @@ FLAGS = \
 	/wd4100 \
 	/wd4152 \
 	/wd4201 \
-	/wd4204 \
 	/nologo
 
 LIB_FLAGS = \
