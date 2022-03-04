@@ -337,6 +337,7 @@ typedef enum {
 	MTY_EVENT_BACK         = 19, ///< The mobile back command has been triggered.
 	MTY_EVENT_SIZE         = 20, ///< The size of a window has changed.
 	MTY_EVENT_MOVE         = 21, ///< The window's top left corner has moved.
+	MTY_EVENT_WINTAB       = 22, ///< Creative tablets extended input has occurred.
 	MTY_EVENT_MAKE_32      = INT32_MAX,
 } MTY_EventType;
 
@@ -617,6 +618,13 @@ typedef enum {
 	MTY_CONTEXT_STATE_MAKE_32 = INT32_MAX,
 } MTY_ContextState;
 
+/// @brief Wintab input type.
+typedef enum {
+	MTY_WINTAB_TYPE_KEY,   ///< The Wintab input comes from an ExpressKey button.
+	MTY_WINTAB_TYPE_STRIP, ///< The Wintab input comes from a TouchStrip manipulation.
+	MTY_WINTAB_TYPE_RING   ///< The Wintab input comes from a TouchRing manipulation.
+} MTY_WintabType;
+
 /// @brief Key event.
 typedef struct {
 	MTY_Key key;  ///< The key that has been pressed or released.
@@ -681,11 +689,21 @@ typedef struct {
 	MTY_PenFlag flags; ///< Pen attributes.
 	uint16_t x;        ///< The horizontal position in the client area of the window.
 	uint16_t y;        ///< The vertical position in the client area of the window.
+	uint16_t z;        ///< The elevation position in the client area of the window.
 	uint16_t pressure; ///< Pressure on the drawing surface between 0 and 1024.
 	uint16_t rotation; ///< Rotation of the pen between 0 and 359.
 	int8_t tiltX;      ///< Horizontal tilt of the pen between -90 and 90.
 	int8_t tiltY;      ///< Vertical tilt of the pen between -90 and 90.
 } MTY_PenEvent;
+
+/// @brief Wintab input event.
+typedef struct {
+	MTY_WintabType type; ///< The Wintab input type.
+	uint16_t position;   ///< The position of the control (when applicable).
+	uint8_t device;      ///< The originating Wintab device.
+	uint8_t control;     ///< The control identifier on the device.
+	uint8_t state;       ///< The state of the control.
+} MTY_WintabEvent;
 
 /// @brief App event encapsulating all event types.
 /// @details First inspect the `type` member to determine what kind of event it is,
@@ -703,6 +721,7 @@ typedef struct MTY_Event {
 		MTY_DropEvent drop;             ///< Valid on MTY_EVENT_DROP.
 		MTY_PenEvent pen;               ///< Valid on MTY_EVENT_PEN.
 		MTY_KeyEvent key;               ///< Valid on MTY_EVENT_KEY.
+		MTY_WintabEvent wintab;         ///< Valid on MTY_EVENT_WINTAB.
 
 		const char *reopenArg; ///< Valid on MTY_EVENT_REOPEN, the argument supplied.
 		uint32_t hotkey;       ///< Valid on MTY_EVENT_HOTKEY, the `id` set via MTY_AppSetHotkey.
@@ -1012,6 +1031,16 @@ MTY_AppIsPenEnabled(MTY_App *ctx);
 //- #support Windows macOS
 MTY_EXPORT void
 MTY_AppEnablePen(MTY_App *ctx, bool enable);
+
+/// @brief Enable or disable extended tablet controls override.
+/// @details When overriden, tablet controls (e.g. ExpressKeys) will be received as
+///   through the MTY_EVENT_WINTAB event, and their configured keystrokes will not
+///   be executed. 
+/// @param ctx The MTY_App.
+/// @param enable Set true to override controls, false to revert the override.
+//- #support Windows
+MTY_EXPORT void
+MTY_AppOverrideTabletControls(MTY_App *ctx, bool override);
 
 /// @brief Get the app's current mobile input mode.
 /// @param ctx The MTY_App.
