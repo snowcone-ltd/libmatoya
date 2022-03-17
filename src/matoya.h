@@ -3501,6 +3501,99 @@ MTY_EXPORT uint32_t
 MTY_GetVersion(void);
 
 
+//- #module Zoom
+//- #mbrief Image scaling and positioning helper.
+
+typedef struct MTY_Zoom MTY_Zoom;
+
+/// @brief Create a scaling context.
+/// @param windowWidth The window width.
+/// @param windowHeight The window height.
+/// @returns The newly created scaling context.
+MTY_EXPORT MTY_Zoom *
+MTY_ZoomCreate(uint32_t windowWidth, uint32_t windowHeight);
+
+/// @brief Update the context with the image size.
+/// @details Process all the data accumulated by MTY_ZoomFeed() to produce
+///   usable scaling factor and image coordinates. This method also resets
+///   this accumulation.
+/// @param ctx The MTY_Zoom.
+/// @param imageWidth The image width.
+/// @param imageHeight The image height.
+MTY_EXPORT void 
+MTY_ZoomProcess(MTY_Zoom *ctx, uint32_t imageWidth, uint32_t imageHeight);
+
+/// @brief Apply a scaling data to the context.
+/// @details Update the context with newly acquired scaling gesture data.
+///   This method accumulate new values when scaling is enabled, and overwrite them 
+///   when scaling is disabled.
+/// @param ctx The MTY_Zoom.
+/// @param scaleFactor The new relative scale factor.
+/// @param focusX The new horizontal coordinate of the focal point.
+/// @param focusY The new vertical coordinate of the focal point.
+MTY_EXPORT void 
+MTY_ZoomFeed(MTY_Zoom *ctx, float scaleFactor, float focusX, float focusY);
+
+/// @brief Set the current window size and reset the context.
+/// @details This is required by the context to know how to correctly scale the image.
+///   This should be called each time the window is resized.
+/// @param ctx The MTY_Zoom.
+/// @param window_w The window width.
+/// @param window_h The window height.
+MTY_EXPORT void 
+MTY_ZoomResizeWindow(MTY_Zoom *ctx, uint32_t windowWidth, uint32_t windowHeight);
+
+/// @brief Tranform an absolute X position to one relative to the zoomed area.
+/// @param ctx The MTY_Zoom.
+/// @param value The absolute X position.
+/// @returns The zoom-relative X position.
+MTY_EXPORT int32_t 
+MTY_ZoomTranformX(MTY_Zoom *ctx, int32_t value);
+
+/// @brief Tranform an absolute Y position to one relative to the zoomed area.
+/// @param ctx The MTY_Zoom.
+/// @param value The absolute Y position.
+/// @returns The zoom-relative Y position.
+MTY_EXPORT int32_t 
+MTY_ZoomTranformY(MTY_Zoom *ctx, int32_t value);
+
+/// @brief Get the most recently computed scale value.
+/// @param ctx The MTY_Zoom.
+/// @returns The computed scale value.
+MTY_EXPORT float 
+MTY_ZoomGetScale(MTY_Zoom *ctx);
+
+/// @brief Get the most recently computed horizontal position of the image. 
+/// @param ctx The MTY_Zoom.
+/// @returns The computed horizontal position.
+MTY_EXPORT int32_t 
+MTY_ZoomGetImageX(MTY_Zoom *ctx);
+
+/// @brief Get the most recently computed vertical position of the image.
+/// @param ctx The MTY_Zoom.
+/// @returns The computed vertical position.
+MTY_EXPORT int32_t 
+MTY_ZoomGetImageY(MTY_Zoom *ctx);
+
+/// @brief Set whether a scaling gesture is in progress or not.
+/// @details Scaling status must be set to tell the context all values must be computed.
+///   A disabled state is useful when preparing the context before actually scaling.
+/// @param ctx The MTY_Zoom.
+/// @param scaling True when scaling, otherwise false.
+MTY_EXPORT void 
+MTY_ZoomSetScaling(MTY_Zoom *ctx, bool scaling);
+
+/// @brief Return whether a scaling gesture is in progress or not.
+/// @param ctx The MTY_Zoom.
+/// @returns True when scaling, otherwise false.
+MTY_EXPORT bool 
+MTY_ZoomIsScaling(MTY_Zoom *ctx);
+
+/// @brief Destroy the scaling context.
+/// @param ctx The MTY_Zoom.
+MTY_EXPORT void 
+MTY_ZoomDestroy(MTY_Zoom **ctx);
+
 #ifdef __cplusplus
 }
 #endif

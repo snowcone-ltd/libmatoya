@@ -39,6 +39,7 @@ OBJS = \
 	src\tlocal.obj \
 	src\tls.obj \
 	src\version.obj \
+	src\zoom.obj \
 	src\gfx\gl.obj \
 	src\gfx\gl-ui.obj \
 	src\hid\hid.obj \
