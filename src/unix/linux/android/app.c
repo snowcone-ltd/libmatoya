@@ -464,6 +464,23 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1generic_1scroll(JNIEnv 
 	app_push_event(&CTX, &evt);
 }
 
+JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1scale(JNIEnv *env, jobject obj,
+	jfloat scaleFactor, jfloat focus_x, jfloat focus_y, jboolean start, jboolean stop)
+{
+	CTX.should_detach = true;
+
+	MTY_Event evt = {0};
+	evt.type = MTY_EVENT_SCALE;
+	evt.scale.factor = scaleFactor;
+	evt.scale.focusX = focus_x;
+	evt.scale.focusY = focus_y;
+	evt.scale.state = 
+		start ? MTY_SCALE_STATE_START :
+		stop  ? MTY_SCALE_STATE_STOP  :
+		MTY_SCALE_STATE_ONGOING;
+	app_push_event(&CTX, &evt);
+}
+
 JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1mouse_1button(JNIEnv *env, jobject obj,
 	jboolean pressed, jint button, jfloat x, jfloat y)
 {

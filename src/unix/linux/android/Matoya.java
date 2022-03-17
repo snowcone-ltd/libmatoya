@@ -74,6 +74,7 @@ public class Matoya extends SurfaceView implements
 	native void app_mouse_motion(boolean relative, float x, float y);
 	native void app_mouse_button(boolean pressed, int button, float x, float y);
 	native void app_generic_scroll(float x, float y);
+	native void app_scale(float scaleFactor, float focusX, float focusY, boolean begin, boolean end);
 	native void app_button(int deviceId, boolean pressed, int code);
 	native void app_axis(int deviceId, float hatX, float hatY, float lX, float lY, float rX, float rY,
 		float lT, float rT, float lTalt, float rTalt);
@@ -373,18 +374,28 @@ public class Matoya extends SurfaceView implements
 		return this.onGenericMotionEvent(event);
 	}
 
+	private void processScale(ScaleGestureDetector sdetector, boolean start, boolean stop) {
+		float focusX = sdetector.getFocusX();
+		float focusY = sdetector.getFocusY();
+
+		app_scale(sdetector.getScaleFactor(), focusX, focusY, start, stop);
+	}
+
 	@Override
-	public boolean onScale(ScaleGestureDetector detector) {
+	public boolean onScale(ScaleGestureDetector sdetector) {
+		processScale(sdetector, false, false);
 		return true;
 	}
 
 	@Override
 	public boolean onScaleBegin(ScaleGestureDetector sdetector) {
+		processScale(sdetector, true, false);
 		return true;
 	}
 
 	@Override
 	public void onScaleEnd(ScaleGestureDetector sdetector) {
+		processScale(sdetector, false, true);
 	}
 
 

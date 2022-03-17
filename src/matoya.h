@@ -349,6 +349,7 @@ typedef enum {
 	MTY_EVENT_BACK         = 19, ///< The mobile back command has been triggered.
 	MTY_EVENT_SIZE         = 20, ///< The size of a window has changed.
 	MTY_EVENT_MOVE         = 21, ///< The window's top left corner has moved.
+	MTY_EVENT_SCALE        = 22, ///< The scale factor has been changed.
 	MTY_EVENT_MAKE_32      = INT32_MAX,
 } MTY_EventType;
 
@@ -629,6 +630,14 @@ typedef enum {
 	MTY_CONTEXT_STATE_MAKE_32 = INT32_MAX,
 } MTY_ContextState;
 
+/// @brief State of a scaling gesture.
+typedef enum {
+	MTY_SCALE_STATE_ONGOING = 0, ///< The scaling gesture is in progress.
+	MTY_SCALE_STATE_START   = 1, ///< The scaling gesture has just started.
+	MTY_SCALE_STATE_STOP    = 2, ///< The scaling gesture has just ended.
+	MTY_SCALE_STATE_MAKE_32 = INT32_MAX,
+} MTY_ScaleState;
+
 /// @brief Key event.
 typedef struct {
 	MTY_Key key;  ///< The key that has been pressed or released.
@@ -642,6 +651,14 @@ typedef struct {
 	int32_t y;   ///< Vertical scroll value.
 	bool pixels; ///< The scroll values are expressed in exact pixels.
 } MTY_ScrollEvent;
+
+/// @brief Scale event.
+typedef struct {
+	MTY_ScaleState state; ///< Current state of the scaling gesture.
+	float factor;         ///< The relative scale factor.
+	float focusX;         ///< The horizontal focal point position.
+	float focusY;         ///< The vertical focal point position.
+} MTY_ScaleEvent;
 
 /// @brief Button event.
 typedef struct {
@@ -710,6 +727,7 @@ typedef struct MTY_Event {
 		MTY_ControllerEvent controller; ///< Valid on MTY_EVENT_CONTROLLER, MTY_EVENT_CONNECT, and
 		                                ///<   MTY_EVENT_DISCONNECT.
 		MTY_ScrollEvent scroll;         ///< Valid on MTY_EVENT_SCROLL.
+		MTY_ScaleEvent scale;           ///< Valid on MTY_EVENT_SCALE.
 		MTY_ButtonEvent button;         ///< Valid on MTY_EVENT_BUTTON.
 		MTY_MotionEvent motion;         ///< Valid on MTY_EVENT_MOTION.
 		MTY_DropEvent drop;             ///< Valid on MTY_EVENT_DROP.

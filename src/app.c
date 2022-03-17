@@ -151,6 +151,8 @@ void MTY_PrintEvent(const MTY_Event *evt)
 		PEVENT(MTY_EVENT_HOTKEY, evt, "id: %u", evt->hotkey);
 		PEVENT(MTY_EVENT_TEXT, evt, "text: %s", evt->text);
 		PEVENT(MTY_EVENT_SCROLL, evt, "x: %d, y: %d, pixels: %u", evt->scroll.x, evt->scroll.y, evt->scroll.pixels);
+		PEVENT(MTY_EVENT_SCALE, evt, "factor: %f, focusX: %f, focusY: %f", evt->scale.factor, 
+			evt->scale.focusX, evt->scale.focusY);
 		PEVENT(MTY_EVENT_FOCUS, evt, "focus: %u", evt->focus);
 		PEVENT(MTY_EVENT_MOTION, evt, "x: %d, y: %d, relative: %u, synth: %u", evt->motion.x,
 			evt->motion.y, evt->motion.relative, evt->motion.synth);
