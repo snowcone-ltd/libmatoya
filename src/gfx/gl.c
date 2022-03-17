@@ -187,7 +187,7 @@ static void gl_reload_textures(struct gl *ctx, const void *image, const MTY_Rend
 		case MTY_COLOR_FORMAT_AYUV:
 		case MTY_COLOR_FORMAT_BGR565:
 		case MTY_COLOR_FORMAT_BGRA5551: {
-			GLenum internal = GL_RGBA;
+			GLenum internal = GL_BGRA;
 			GLenum format = GL_BGRA;
 			GLenum type = GL_UNSIGNED_BYTE;
 			GLint bpp = 4;
