@@ -922,6 +922,11 @@ void MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode)
 
 MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 {
+	if (desc->api != MTY_GFX_NONE && desc->api != MTY_GFX_GL)
+		return -1;
+	
+	MTY_WindowSetGFX(app, 0, desc->api, desc->vsync);
+
 	return 0;
 }
 
