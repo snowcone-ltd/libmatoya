@@ -99,18 +99,30 @@ typedef enum {
 	MTY_ROTATION_MAKE_32 = INT32_MAX,
 } MTY_Rotation;
 
+/// @brief Quad position type.
+typedef enum {
+	MTY_POSITION_AUTO    = 0, ///< Automatic center positioning.
+	MTY_POSITION_FIXED   = 1, ///< Position using pixel values.
+	MTY_POSITION_MAKE_32 = INT32_MAX,
+} MTY_Position;
+
 /// @brief Description of a render operation.
 typedef struct {
 	MTY_ColorFormat format; ///< The color format of a raw image.
 	MTY_Rotation rotation;  ///< Rotation applied to the image.
 	MTY_Filter filter;      ///< Filter applied to the image.
 	MTY_Effect effect;      ///< Effect applied to the image.
+	MTY_Position type;      ///< Type of positioning configuration.
+	int32_t imageX;         ///< The horizontal position in pixels of the image.
+	int32_t imageY;         ///< The vertical position in pixels of the image.
 	uint32_t imageWidth;    ///< The width in pixels of the image.
 	uint32_t imageHeight;   ///< The height in pixels of the image.
 	uint32_t cropWidth;     ///< Desired crop width of the image from the top left corner.
 	uint32_t cropHeight;    ///< Desired crop height of the image from the top left corner.
 	uint32_t viewWidth;     ///< The width of the viewport.
 	uint32_t viewHeight;    ///< The height of the viewport.
+	uint32_t displayWidth;  ///< The current width of the window.
+	uint32_t displayHeight; ///< The current height of the window.
 	float aspectRatio;      ///< Desired aspect ratio of the image. The renderer will letterbox
 	                        ///<   the image to maintain the specified aspect ratio.
 	float scale;            ///< Multiplier applied to the dimensions of the image, producing an
