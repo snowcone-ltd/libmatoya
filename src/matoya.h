@@ -3561,6 +3561,16 @@ MTY_ZoomFeed(MTY_Zoom *ctx, float scaleFactor, float focusX, float focusY);
 MTY_EXPORT void 
 MTY_ZoomResizeWindow(MTY_Zoom *ctx, uint32_t windowWidth, uint32_t windowHeight);
 
+/// @brief Set the scale limits of the context.
+/// @details This must be called before the first call to MTY_ZoomProcess(). If not, the
+///   change will only have effect after the next context reset, occuring after a window
+///   or image resize. By default, the minimum is 1 (100%) and the maximum is 4 (400%).
+/// @param ctx The MTY_Zoom.
+/// @param min The minimum scaling factor.
+/// @param max The maximum scaling factor.
+MTY_EXPORT void 
+MTY_ZoomSetLimits(MTY_Zoom *ctx, float min, float max);
+
 /// @brief Tranform an absolute X position to one relative to the zoomed area.
 /// @param ctx The MTY_Zoom.
 /// @param value The absolute X position.
