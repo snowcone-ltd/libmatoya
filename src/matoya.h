@@ -630,6 +630,11 @@ typedef enum {
 	MTY_CONTEXT_STATE_MAKE_32 = INT32_MAX,
 } MTY_ContextState;
 
+typedef enum {
+	MTY_MOTION_FLAG_START    = 0x01, ///< Motion event has started.
+	MTY_MOTION_FLAG_MAKE_32  = INT32_MAX,
+} MTY_MotionFlag;
+
 /// @brief State of a scaling gesture.
 typedef enum {
 	MTY_SCALE_STATE_ONGOING = 0, ///< The scaling gesture is in progress.
@@ -670,12 +675,13 @@ typedef struct {
 
 /// @brief Motion event.
 typedef struct {
-	int32_t x;     ///< If `relative` is true, the horizontal delta since the previous motion
-	               ///<   event, otherwise the horizontal position in the window's client area.
-	int32_t y;     ///< In `relative` is true, the vertical delta since the previous motion event,
-	               ///<   otherwise the vertical position in the window's client area.
-	bool relative; ///< The event is a relative motion event.
-	bool synth;    ///< The event was synthesized by libmatoya.
+	MTY_MotionFlag flags; ///< Additional motion event flags.
+	int32_t x;            ///< If `relative` is true, the horizontal delta since the previous motion
+	                      ///<   event, otherwise the horizontal position in the window's client area.
+	int32_t y;            ///< In `relative` is true, the vertical delta since the previous motion event,
+	                      ///<   otherwise the vertical position in the window's client area.
+	bool relative;        ///< The event is a relative motion event.
+	bool synth;           ///< The event was synthesized by libmatoya.
 } MTY_MotionEvent;
 
 /// @brief File drop event.
@@ -3552,6 +3558,17 @@ MTY_ZoomProcess(MTY_Zoom *ctx, uint32_t imageWidth, uint32_t imageHeight);
 MTY_EXPORT void 
 MTY_ZoomFeed(MTY_Zoom *ctx, float scaleFactor, float focusX, float focusY);
 
+/// @brief Notify the context of a cursor move.
+/// @details Calling this function allows to keep track of the cursor movement.
+///   This is required in relative mode, and optional in absolute mode. When a move
+///   starts, the coordinates are used as the new gesture origin.
+/// @param ctx The MTY_Zoom.
+/// @param x The new X position of the cursor.
+/// @param y The new Y position of the cursor.
+/// @param start Defines the start of a new move gesture.
+MTY_EXPORT void
+MTY_ZoomMove(MTY_Zoom *ctx, int32_t x, int32_t y, bool start);
+
 /// @brief Set the current window size and reset the context.
 /// @details This is required by the context to know how to correctly scale the image.
 ///   This should be called each time the window is resized.
@@ -3570,6 +3587,15 @@ MTY_ZoomResizeWindow(MTY_Zoom *ctx, uint32_t windowWidth, uint32_t windowHeight)
 /// @param max The maximum scaling factor.
 MTY_EXPORT void 
 MTY_ZoomSetLimits(MTY_Zoom *ctx, float min, float max);
+
+/// @brief Sets whether the context is in relative mode or not.
+/// @details In absolute mode, the zoomed area does not move and the cursor if positioned
+///   within this area. In relative mode, the cursor is moved relatively to its previous 
+///   position and the zoomed area is panned if the cursor goes out.
+/// @param ctx The MTY_Zoom.
+/// @param relative Whether the context is in relative mode or not.
+MTY_EXPORT void 
+MTY_ZoomSetRelative(MTY_Zoom *ctx, bool relative);
 
 /// @brief Tranform an absolute X position to one relative to the zoomed area.
 /// @param ctx The MTY_Zoom.

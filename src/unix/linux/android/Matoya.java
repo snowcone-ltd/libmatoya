@@ -69,7 +69,7 @@ public class Matoya extends SurfaceView implements
 	native void app_resize(int width, int height);
 	native void app_unplug(int deviceId);
 	native void app_single_tap_up(float x, float y);
-	native void app_scroll(float absX, float absY, float x, float y, int fingers);
+	native void app_scroll(float absX, float absY, float x, float y, int fingers, boolean start);
 	native void app_check_scroller(boolean check);
 	native void app_mouse_motion(boolean relative, float x, float y);
 	native void app_mouse_button(boolean pressed, int button, float x, float y);
@@ -250,10 +250,14 @@ public class Matoya extends SurfaceView implements
 		return true;
 	}
 
+	boolean gestureStarted = false;
+
 	@Override
 	public boolean onDown(MotionEvent event) {
 		if (isMouseEvent(event))
 			return false;
+
+		gestureStarted = true;
 
 		this.scroller.forceFinished(true);
 		return true;
@@ -287,7 +291,9 @@ public class Matoya extends SurfaceView implements
 			return false;
 
 		this.scroller.forceFinished(true);
-		app_scroll(event2.getX(0), event2.getY(0), distanceX, distanceY, event2.getPointerCount());
+		app_scroll(event2.getX(0), event2.getY(0), distanceX, distanceY, event2.getPointerCount(), gestureStarted);
+		gestureStarted = false;
+
 		return true;
 	}
 
@@ -570,7 +576,7 @@ public class Matoya extends SurfaceView implements
 			int diff = this.scrollY - currY;
 
 			if (diff != 0)
-				app_scroll(-1.0f, -1.0f, 0.0f, diff, 1);
+				app_scroll(-1.0f, -1.0f, 0.0f, diff, 1, false);
 
 			this.scrollY = currY;
 

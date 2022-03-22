@@ -397,7 +397,7 @@ JNIEXPORT jboolean JNICALL Java_group_matoya_lib_Matoya_app_1long_1press(JNIEnv 
 }
 
 JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1scroll(JNIEnv *env, jobject obj,
-	jfloat abs_x, jfloat abs_y, jfloat x, jfloat y, jint fingers)
+	jfloat abs_x, jfloat abs_y, jfloat x, jfloat y, jint fingers, jboolean start)
 {
 	CTX.should_detach = false;
 
@@ -415,6 +415,8 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1scroll(JNIEnv *env, job
 			evt.type = MTY_EVENT_MOTION;
 			evt.motion.x = lrint(abs_x);
 			evt.motion.y = lrint(abs_y);
+			if (start)
+				evt.motion.flags |= MTY_MOTION_FLAG_START;
 			app_push_event(&CTX, &evt);
 		}
 
@@ -430,6 +432,8 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1scroll(JNIEnv *env, job
 		evt.type = MTY_EVENT_MOTION;
 		evt.motion.x = lrint(abs_x);
 		evt.motion.y = lrint(abs_y);
+		if (start)
+			evt.motion.flags |= MTY_MOTION_FLAG_START;
 		app_push_event(&CTX, &evt);
 	}
 }
