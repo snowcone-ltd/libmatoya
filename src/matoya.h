@@ -129,6 +129,7 @@ typedef struct {
 	                        ///<   minimized or magnified image. This can be set to 0
 	                        ///<   if unnecessary.
 	bool clear;             ///< Should clear the window before drawing the quad.
+	bool blend;             ///< Should enable blending capability when drawing the quad.
 } MTY_RenderDesc;
 
 /// @brief A point with an `x` and `y` coordinate.
