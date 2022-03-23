@@ -283,6 +283,10 @@ public class Matoya extends SurfaceView implements
 		if (isMouseEvent(event))
 			return;
 
+		MotionEvent cancel = MotionEvent.obtain(event);
+		cancel.setAction(MotionEvent.ACTION_CANCEL);
+		this.detector.onTouchEvent(cancel);
+
 		if (app_long_press(event.getX(0), event.getY(0)))
 			this.vibrator.vibrate(10);
 	}

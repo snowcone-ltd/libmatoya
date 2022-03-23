@@ -401,8 +401,6 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1scroll(JNIEnv *env, job
 {
 	CTX.should_detach = false;
 
-	app_cancel_long_button(&CTX, lrint(abs_x), lrint(abs_y));
-
 	// Single finger scrolling in touchscreen mode OR two finger scrolling in
 	// trackpad mode moves to the touch location and produces a scroll event
 	if (CTX.input == MTY_INPUT_MODE_TOUCHSCREEN ||
