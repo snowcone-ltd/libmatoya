@@ -387,8 +387,10 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 
 		ID3D11DeviceContext_OMSetRenderTargets(_context, 1, &rtv, NULL);
 
-		FLOAT clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-		ID3D11DeviceContext_ClearRenderTargetView(_context, rtv, clear_color);
+		if (desc->clear) {
+			FLOAT clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+			ID3D11DeviceContext_ClearRenderTargetView(_context, rtv, clear_color);
+		}
 	}
 
 	// Vertex shader

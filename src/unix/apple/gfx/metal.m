@@ -253,8 +253,10 @@ bool mty_metal_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	// Begin render pass
 	MTLRenderPassDescriptor *rpd = [MTLRenderPassDescriptor new];
 	rpd.colorAttachments[0].texture = _dest;
-	rpd.colorAttachments[0].clearColor = MTLClearColorMake(0.0, 0.0, 0.0, 1.0);
-	rpd.colorAttachments[0].loadAction = MTLLoadActionClear;
+	if (desc->clear) {
+		rpd.colorAttachments[0].clearColor = MTLClearColorMake(0.0, 0.0, 0.0, 1.0);
+		rpd.colorAttachments[0].loadAction = MTLLoadActionClear;
+	}
 	rpd.colorAttachments[0].storeAction = MTLStoreActionStore;
 
 	id<MTLCommandBuffer> cb = [cq commandBuffer];
