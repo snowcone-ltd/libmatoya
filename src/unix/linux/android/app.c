@@ -41,6 +41,7 @@ static struct MTY_App {
 	bool check_scroller;
 	bool log_thread_running;
 	bool should_detach;
+	bool relative;
 
 	MTY_GFX api;
 	struct gfx_ctx *gfx_ctx;
@@ -401,8 +402,9 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1scroll(JNIEnv *env, job
 		// Negative init values mean "don't move the cursor"
 		if (abs_x > 0.0f || abs_y > 0.0f) {
 			evt.type = MTY_EVENT_MOTION;
-			evt.motion.x = lrint(abs_x);
-			evt.motion.y = lrint(abs_y);
+			evt.motion.relative = CTX.relative;
+			evt.motion.x = CTX.relative ? -lrint(x) : lrint(abs_x);
+			evt.motion.y = CTX.relative ? -lrint(y) : lrint(abs_y);
 			if (start)
 				evt.motion.flags |= MTY_MOTION_FLAG_START;
 			app_push_event(&CTX, &evt);
@@ -418,8 +420,9 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1scroll(JNIEnv *env, job
 	} else if (abs_x > 0.0f || abs_y > 0.0f) {
 		MTY_Event evt = {0};
 		evt.type = MTY_EVENT_MOTION;
-		evt.motion.x = lrint(abs_x);
-		evt.motion.y = lrint(abs_y);
+		evt.motion.relative = CTX.relative;
+		evt.motion.x = CTX.relative ? -lrint(x) : lrint(abs_x);
+		evt.motion.y = CTX.relative ? -lrint(y) : lrint(abs_y);
 		if (start)
 			evt.motion.flags |= MTY_MOTION_FLAG_START;
 		app_push_event(&CTX, &evt);
@@ -814,12 +817,12 @@ void MTY_AppGrabMouse(MTY_App *ctx, bool grab)
 
 bool MTY_AppGetRelativeMouse(MTY_App *ctx)
 {
-	return mty_jni_bool(MTY_GetJNIEnv(), ctx->obj, "getRelativeMouse", "()Z");
+	return ctx->relative;
 }
 
 void MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative)
 {
-	mty_jni_void(MTY_GetJNIEnv(), ctx->obj, "setRelativeMouse", "(Z)V", relative);
+	ctx->relative = relative;
 }
 
 void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX, uint32_t hotY)

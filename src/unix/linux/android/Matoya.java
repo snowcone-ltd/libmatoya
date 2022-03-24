@@ -535,27 +535,6 @@ public class Matoya extends SurfaceView implements
 		});
 	}
 
-	public void setRelativeMouse(boolean _relative) {
-		final Matoya self = this;
-		final boolean relative = _relative;
-
-		this.activity.runOnUiThread(new Runnable() {
-			@Override
-			public void run() {
-				if (relative) {
-					self.requestPointerCapture();
-
-				} else {
-					self.releasePointerCapture();
-				}
-			}
-		});
-	}
-
-	public boolean getRelativeMouse() {
-		return this.hasPointerCapture();
-	}
-
 
 	// Misc
 

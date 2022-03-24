@@ -3613,6 +3613,12 @@ MTY_ZoomGetCursorX(MTY_Zoom *ctx);
 MTY_EXPORT int32_t 
 MTY_ZoomGetCursorY(MTY_Zoom *ctx);
 
+/// @brief Check whether a scaling gesture is in progress or not.
+/// @param ctx The MTY_Zoom.
+/// @returns True when scaling, otherwise false.
+MTY_EXPORT bool 
+MTY_ZoomIsScaling(MTY_Zoom *ctx);
+
 /// @brief Set whether a scaling gesture is in progress or not.
 /// @details Scaling status must be set to tell the context all values must be computed.
 ///   A disabled state is useful when preparing the context before actually scaling.
@@ -3621,11 +3627,19 @@ MTY_ZoomGetCursorY(MTY_Zoom *ctx);
 MTY_EXPORT void 
 MTY_ZoomSetScaling(MTY_Zoom *ctx, bool scaling);
 
-/// @brief Check whether a scaling gesture is in progress or not.
+/// @brief Check whether the context treats data as relative inputs or not.
 /// @param ctx The MTY_Zoom.
-/// @returns True when scaling, otherwise false.
+/// @returns True when relative, otherwise false.
 MTY_EXPORT bool 
-MTY_ZoomIsScaling(MTY_Zoom *ctx);
+MTY_ZoomIsRelative(MTY_Zoom *ctx);
+
+/// @brief Set whether the context treats data as relative inputs or not.
+/// @details In relative mode, transform functions return a scaled version of the provided
+///   relative coordinates (e.g. 1 will be tranformed to 0.5 if the current scale factor is 2).
+/// @param ctx The MTY_Zoom.
+/// @param scaling True when relative, otherwise false.
+MTY_EXPORT void 
+MTY_ZoomSetRelative(MTY_Zoom *ctx, bool relative);
 
 /// @brief Set the current context mode.
 /// @details Set the behavior the context must adopt when processing data:
@@ -3641,7 +3655,7 @@ MTY_ZoomSetMode(MTY_Zoom *ctx, MTY_InputMode mode);
 
 /// @brief Check if the context recommends to show a cursor.
 /// @details Currently, the context will recommend the show a cursor when the mode is
-///   MTY_INPUT_MODE_TRACKPAD, and to hide it otherwise.
+///   MTY_INPUT_MODE_TRACKPAD and the context is not relative, and to hide it otherwise.
 /// @param ctx The MTY_Zoom.
 /// @returns True is the cursor should be shown, false otherwise.
 MTY_EXPORT bool 

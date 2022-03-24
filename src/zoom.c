@@ -3,6 +3,7 @@
 struct MTY_Zoom {
 	MTY_InputMode mode;
 	bool scaling;
+	bool relative;
 
 	MTY_Point image;
 	MTY_Point image_min;
@@ -143,11 +144,13 @@ void MTY_ZoomScale(MTY_Zoom *ctx, float scaleFactor, float focusX, float focusY)
 	if (ctx->scale_screen < ctx->scale_screen_min) {
 		ctx->scale_screen = ctx->scale_screen_min;
 		ctx->scale_image  = ctx->scale_image_min;
+		scaleFactor = 1;
 	}
 
 	if (ctx->scale_screen > ctx->scale_screen_max) {
 		ctx->scale_screen = ctx->scale_screen_max;
 		ctx->scale_image  = ctx->scale_image_max;
+		scaleFactor = 1;
 	}
 
 	ctx->image.x = ctx->focus.x - scaleFactor * (ctx->focus.x - ctx->image.x);
@@ -221,6 +224,9 @@ void MTY_ZoomMove(MTY_Zoom *ctx, int32_t x, int32_t y, bool start)
 
 int32_t MTY_ZoomTranformX(MTY_Zoom *ctx, int32_t value)
 {
+	if (ctx->relative)
+		return (int32_t) (value / ctx->scale_screen);
+
 	if (ctx->mode == MTY_INPUT_MODE_TRACKPAD)
 		return (int32_t) ctx->cursor.x;
 
@@ -229,6 +235,9 @@ int32_t MTY_ZoomTranformX(MTY_Zoom *ctx, int32_t value)
 
 int32_t MTY_ZoomTranformY(MTY_Zoom *ctx, int32_t value)
 {
+	if (ctx->relative)
+		return (int32_t) (value / ctx->scale_screen);
+
 	if (ctx->mode == MTY_INPUT_MODE_TRACKPAD)
 		return (int32_t) ctx->cursor.y;
 
@@ -266,14 +275,24 @@ int32_t MTY_ZoomGetCursorY(MTY_Zoom *ctx)
 	return (int32_t) (ctx->window_h * (ctx->cursor.y - top) / (bottom - top));
 }
 
+bool MTY_ZoomIsScaling(MTY_Zoom *ctx)
+{
+	return ctx->scaling;
+}
+
 void MTY_ZoomSetScaling(MTY_Zoom *ctx, bool scaling)
 {
 	ctx->scaling = scaling;
 }
 
-bool MTY_ZoomIsScaling(MTY_Zoom *ctx)
+bool MTY_ZoomIsRelative(MTY_Zoom *ctx)
 {
-	return ctx->scaling;
+	return ctx->relative;
+}
+
+void MTY_ZoomSetRelative(MTY_Zoom *ctx, bool relative)
+{
+	ctx->relative = relative;
 }
 
 void MTY_ZoomSetMode(MTY_Zoom *ctx, MTY_InputMode mode)
@@ -286,7 +305,7 @@ void MTY_ZoomSetMode(MTY_Zoom *ctx, MTY_InputMode mode)
 
 bool MTY_ZoomShouldShowCursor(MTY_Zoom *ctx)
 {
-	return ctx->mode == MTY_INPUT_MODE_TRACKPAD;
+	return ctx->mode == MTY_INPUT_MODE_TRACKPAD && !ctx->relative;
 }
 
 void MTY_ZoomSetLimits(MTY_Zoom *ctx, float min, float max)
