@@ -324,17 +324,6 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1unhandled_1touch(JNIEnv
 
 	if (CTX.input != MTY_INPUT_MODE_TOUCHSCREEN) {
 		switch (action) {
-			case AMOTION_EVENT_ACTION_MOVE:
-				// While a long press is in effect, move events get reported here
-				// They do NOT come through in the onScroll gesture handler
-				if (CTX.long_button != MTY_BUTTON_NONE) {
-					MTY_Event evt = {0};
-					evt.type = MTY_EVENT_MOTION;
-					evt.motion.x = lrint(x);
-					evt.motion.y = lrint(y);
-					app_push_event(&CTX, &evt);
-				}
-				break;
 			case AMOTION_EVENT_ACTION_POINTER_DOWN:
 				// Taps with two fingers need to be handled manually
 				// They are not detected by the gesture recognizer
@@ -400,6 +389,7 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1scroll(JNIEnv *env, job
 	jfloat abs_x, jfloat abs_y, jfloat x, jfloat y, jint fingers, jboolean start)
 {
 	CTX.should_detach = false;
+	CTX.double_tap = false;
 
 	// Single finger scrolling in touchscreen mode OR two finger scrolling in
 	// trackpad mode moves to the touch location and produces a scroll event
@@ -470,6 +460,7 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1scale(JNIEnv *env, jobj
 	jfloat scaleFactor, jfloat focus_x, jfloat focus_y, jboolean start, jboolean stop)
 {
 	CTX.should_detach = true;
+	CTX.double_tap = false;
 
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_SCALE;

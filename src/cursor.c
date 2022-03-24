@@ -68,8 +68,8 @@ void MTY_CursorDraw(MTY_Cursor *ctx, MTY_Window window)
 
 	desc.type = MTY_POSITION_FIXED;
 	desc.scale = ctx->scale;
-	desc.imageX = ctx->x - ctx->hotX;
-	desc.imageY = ctx->y - ctx->hotY;
+	desc.imageX = (int32_t) (ctx->x - (ctx->hotX * desc.scale));
+	desc.imageY = (int32_t) (ctx->y - (ctx->hotY * desc.scale));
 
 	MTY_WindowDrawQuad(ctx->app, window, ctx->image, &desc);
 }

@@ -235,6 +235,9 @@ public class Matoya extends SurfaceView implements
 		return keyEvent(keyCode, event, false);
 	}
 
+	int previousFingers = 0;
+	boolean isNewGesture = false;
+
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
 		// Mouse motion while buttons are held down fire here
@@ -243,6 +246,13 @@ public class Matoya extends SurfaceView implements
 				app_mouse_motion(false, event.getX(0), event.getY(0));
 
 		} else {
+			int currentFingers = event.getPointerCount();
+			if (event.getAction() == MotionEvent.ACTION_UP)
+				currentFingers--;
+			if (previousFingers != currentFingers)
+				isNewGesture = true;
+			previousFingers = currentFingers;
+
 			this.detector.onTouchEvent(event);
 			this.sdetector.onTouchEvent(event);
 
@@ -252,14 +262,10 @@ public class Matoya extends SurfaceView implements
 		return true;
 	}
 
-	boolean gestureStarted = false;
-
 	@Override
 	public boolean onDown(MotionEvent event) {
 		if (isMouseEvent(event))
 			return false;
-
-		gestureStarted = true;
 
 		this.scroller.forceFinished(true);
 		return true;
@@ -297,8 +303,8 @@ public class Matoya extends SurfaceView implements
 			return false;
 
 		this.scroller.forceFinished(true);
-		app_scroll(event2.getX(0), event2.getY(0), distanceX, distanceY, event2.getPointerCount(), gestureStarted);
-		gestureStarted = false;
+		app_scroll(event2.getX(0), event2.getY(0), distanceX, distanceY, event2.getPointerCount(), isNewGesture);
+		isNewGesture = false;
 
 		return true;
 	}
