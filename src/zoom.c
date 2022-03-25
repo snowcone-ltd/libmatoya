@@ -4,6 +4,7 @@ struct MTY_Zoom {
 	MTY_InputMode mode;
 	bool scaling;
 	bool relative;
+	bool postpone;
 
 	MTY_Point image;
 	MTY_Point image_min;
@@ -176,7 +177,12 @@ void MTY_ZoomMove(MTY_Zoom *ctx, int32_t x, int32_t y, bool start)
 		return;
 	}
 
-	if (start) {
+	if (start || ctx->postpone) {
+		ctx->postpone = ctx->relative;
+
+		if (ctx->postpone)
+			return;
+
 		ctx->origin.x = (float) x;
 		ctx->origin.y = (float) y;
 		return;
