@@ -12,6 +12,7 @@ struct MTY_Zoom {
 
 	MTY_Point origin;
 	MTY_Point cursor;
+	MTY_Point cursor_prev;
 	float margin;
 
 	uint32_t image_w;
@@ -301,6 +302,16 @@ void MTY_ZoomSetMode(MTY_Zoom *ctx, MTY_InputMode mode)
 
 	if (ctx->mode == MTY_INPUT_MODE_UNSPECIFIED)
 		ctx->mode = MTY_INPUT_MODE_TOUCHSCREEN;
+}
+
+bool MTY_ZoomHasMoved(MTY_Zoom *ctx)
+{
+	bool has_moved = ctx->cursor.x != ctx->cursor_prev.x || ctx->cursor.y != ctx->cursor_prev.y;
+
+	ctx->cursor_prev.x = ctx->cursor.x;
+	ctx->cursor_prev.y = ctx->cursor.y;
+
+	return has_moved;
 }
 
 bool MTY_ZoomShouldShowCursor(MTY_Zoom *ctx)

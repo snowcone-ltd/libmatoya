@@ -3654,11 +3654,17 @@ MTY_ZoomSetRelative(MTY_Zoom *ctx, bool relative);
 MTY_EXPORT void 
 MTY_ZoomSetMode(MTY_Zoom *ctx, MTY_InputMode mode);
 
+/// @brief Check if the cursor has moved since the previous call.
+/// @param ctx The MTY_Zoom.
+/// @returns True if the cursor has moved, false otherwise.
+MTY_EXPORT bool 
+MTY_ZoomHasMoved(MTY_Zoom *ctx);
+
 /// @brief Check if the context recommends to show a cursor.
 /// @details Currently, the context will recommend the show a cursor when the mode is
 ///   MTY_INPUT_MODE_TRACKPAD and the context is not relative, and to hide it otherwise.
 /// @param ctx The MTY_Zoom.
-/// @returns True is the cursor should be shown, false otherwise.
+/// @returns True if the cursor should be shown, false otherwise.
 MTY_EXPORT bool 
 MTY_ZoomShouldShowCursor(MTY_Zoom *ctx);
 
