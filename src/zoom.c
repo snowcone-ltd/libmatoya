@@ -12,8 +12,8 @@ struct MTY_Zoom {
 
 	MTY_Point origin;
 	MTY_Point cursor;
-	MTY_Point cursor_prev;
 	float margin;
+	float status;
 
 	uint32_t image_w;
 	uint32_t image_h;
@@ -306,10 +306,10 @@ void MTY_ZoomSetMode(MTY_Zoom *ctx, MTY_InputMode mode)
 
 bool MTY_ZoomHasMoved(MTY_Zoom *ctx)
 {
-	bool has_moved = ctx->cursor.x != ctx->cursor_prev.x || ctx->cursor.y != ctx->cursor_prev.y;
+	float status = ctx->cursor.x + ctx->cursor.y + ctx->image.x + ctx->image.y;
 
-	ctx->cursor_prev.x = ctx->cursor.x;
-	ctx->cursor_prev.y = ctx->cursor.y;
+	bool has_moved = status != ctx->status;
+	ctx->status = status;
 
 	return has_moved;
 }
