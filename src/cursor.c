@@ -58,7 +58,7 @@ void MTY_CursorDraw(MTY_Cursor *ctx, MTY_Window window)
 	
     MTY_RenderDesc desc = {0};
 
-	desc.format = MTY_COLOR_FORMAT_BGRA;
+	desc.format = MTY_COLOR_FORMAT_RGBA;
 	desc.cropWidth = ctx->width;
 	desc.cropHeight = ctx->height;
 	desc.imageWidth = ctx->width;
