@@ -188,17 +188,17 @@ void MTY_ZoomMove(MTY_Zoom *ctx, int32_t x, int32_t y, bool start)
 	ctx->cursor.x += delta_x / ctx->scale_screen;
 	ctx->cursor.y += delta_y / ctx->scale_screen;
 
-	if (ctx->cursor.x < 0)
-		ctx->cursor.x = 0;
+	if (ctx->cursor.x < ctx->image_min.x)
+		ctx->cursor.x = ctx->image_min.x;
 
-	if (ctx->cursor.y < 0)
-		ctx->cursor.y = 0;
+	if (ctx->cursor.y < ctx->image_min.y)
+		ctx->cursor.y = ctx->image_min.y;
 
-	if (ctx->cursor.x > ctx->window_w)
-		ctx->cursor.x = (float) ctx->window_w;
+	if (ctx->cursor.x > ctx->window_w - ctx->image_min.x)
+		ctx->cursor.x = ctx->window_w - ctx->image_min.x;
 
-	if (ctx->cursor.y > ctx->window_h)
-		ctx->cursor.y = (float) ctx->window_h;
+	if (ctx->cursor.y > ctx->window_h - ctx->image_min.y)
+		ctx->cursor.y = ctx->window_h - ctx->image_min.y;
 
 	float left   = mty_zoom_tranform_x(ctx, ctx->margin);
 	float right  = mty_zoom_tranform_x(ctx, ctx->window_w - ctx->margin);
