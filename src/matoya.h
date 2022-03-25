@@ -70,6 +70,7 @@ typedef enum {
 	MTY_COLOR_FORMAT_BGR565   = 6, ///< 5-bits blue, 6-bits green, 5-bits red.
 	MTY_COLOR_FORMAT_BGRA5551 = 7, ///< 5-bits per BGR channels, 1-bit alpha.
 	MTY_COLOR_FORMAT_AYUV     = 8, ///< 4:4:4 full W/H interleaved Y, U, V.
+	MTY_COLOR_FORMAT_RGBA     = 9, ///< 8-bits per channel RGBA.
 	MTY_COLOR_FORMAT_MAKE_32 = INT32_MAX,
 } MTY_ColorFormat;
 

@@ -215,12 +215,20 @@ static HRESULT d3d9_reload_textures(struct d3d9 *ctx, IDirect3DDevice9 *device,
 {
 	switch (desc->format) {
 		case MTY_COLOR_FORMAT_BGRA:
+		case MTY_COLOR_FORMAT_RGBA:
 		case MTY_COLOR_FORMAT_AYUV:
 		case MTY_COLOR_FORMAT_BGR565:
 		case MTY_COLOR_FORMAT_BGRA5551: {
-			D3DFORMAT format = desc->format == MTY_COLOR_FORMAT_BGR565 ? D3DFMT_R5G6B5 :
-				desc->format == MTY_COLOR_FORMAT_BGRA5551 ? D3DFMT_X1R5G5B5 : D3DFMT_A8R8G8B8;
-			uint8_t bpp = (desc->format == MTY_COLOR_FORMAT_BGRA || desc->format == MTY_COLOR_FORMAT_AYUV) ? 4 : 2;
+			D3DFORMAT format =
+				desc->format == MTY_COLOR_FORMAT_BGR565   ? D3DFMT_R5G6B5   :
+				desc->format == MTY_COLOR_FORMAT_BGRA5551 ? D3DFMT_X1R5G5B5 :
+				desc->format == MTY_COLOR_FORMAT_RGBA     ? D3DFMT_A8B8G8R8 :
+				D3DFMT_A8R8G8B8;
+			uint8_t bpp =
+				desc->format == MTY_COLOR_FORMAT_BGRA ? sizeof(uint32_t) :
+				desc->format == MTY_COLOR_FORMAT_AYUV ? sizeof(uint32_t) :
+				desc->format == MTY_COLOR_FORMAT_RGBA ? sizeof(uint32_t) :
+				sizeof(uint16_t);
 
 			// BGRA
 			HRESULT e = d3d9_refresh_resource(&ctx->staging[0], device, format, desc->cropWidth, desc->cropHeight);

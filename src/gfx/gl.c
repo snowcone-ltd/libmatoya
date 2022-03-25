@@ -184,6 +184,7 @@ static void gl_reload_textures(struct gl *ctx, const void *image, const MTY_Rend
 {
 	switch (desc->format) {
 		case MTY_COLOR_FORMAT_BGRA:
+		case MTY_COLOR_FORMAT_RGBA: 
 		case MTY_COLOR_FORMAT_AYUV:
 		case MTY_COLOR_FORMAT_BGR565:
 		case MTY_COLOR_FORMAT_BGRA5551: {
@@ -192,7 +193,11 @@ static void gl_reload_textures(struct gl *ctx, const void *image, const MTY_Rend
 			GLenum type = GL_UNSIGNED_BYTE;
 			GLint bpp = 4;
 
-			if (desc->format == MTY_COLOR_FORMAT_BGR565) {
+			if (desc->format == MTY_COLOR_FORMAT_RGBA) {
+				internal = GL_RGBA;
+				format = GL_RGBA;
+
+			} else if (desc->format == MTY_COLOR_FORMAT_BGR565) {
 				internal = GL_RGB;
 				format = GL_RGB;
 				type = GL_UNSIGNED_SHORT_5_6_5;
