@@ -635,6 +635,7 @@ typedef enum {
 
 typedef enum {
 	MTY_MOTION_FLAG_START    = 0x01, ///< Motion event has started.
+	MTY_MOTION_FLAG_TOUCH    = 0x02, ///< Motion event comes from a touch event.
 	MTY_MOTION_FLAG_MAKE_32  = INT32_MAX,
 } MTY_MotionFlag;
 

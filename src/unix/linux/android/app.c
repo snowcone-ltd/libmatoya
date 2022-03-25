@@ -405,6 +405,7 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1scroll(JNIEnv *env, job
 			evt.motion.relative = CTX.relative;
 			evt.motion.x = CTX.relative ? -lrint(x) : lrint(abs_x);
 			evt.motion.y = CTX.relative ? -lrint(y) : lrint(abs_y);
+			evt.motion.flags |= MTY_MOTION_FLAG_TOUCH;
 			if (start)
 				evt.motion.flags |= MTY_MOTION_FLAG_START;
 			app_push_event(&CTX, &evt);
@@ -423,6 +424,7 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1scroll(JNIEnv *env, job
 		evt.motion.relative = CTX.relative;
 		evt.motion.x = CTX.relative ? -lrint(x) : lrint(abs_x);
 		evt.motion.y = CTX.relative ? -lrint(y) : lrint(abs_y);
+		evt.motion.flags |= MTY_MOTION_FLAG_TOUCH;
 		if (start)
 			evt.motion.flags |= MTY_MOTION_FLAG_START;
 		app_push_event(&CTX, &evt);
