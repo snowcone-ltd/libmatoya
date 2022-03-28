@@ -317,7 +317,7 @@ bool MTY_ZoomHasMoved(MTY_Zoom *ctx)
 	bool has_moved = status != ctx->status;
 	ctx->status = status;
 
-	return has_moved;
+	return has_moved || ctx->scaling;
 }
 
 bool MTY_ZoomShouldShowCursor(MTY_Zoom *ctx)
