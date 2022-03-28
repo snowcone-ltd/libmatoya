@@ -400,14 +400,14 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1scroll(JNIEnv *env, job
 		MTY_Event evt = {0};
 
 		// Negative init values mean "don't move the cursor"
-		if (abs_x > 0.0f || abs_y > 0.0f) {
+		// Only move on the first event to prevent the cursor from going out of range
+		if (start && (abs_x > 0.0f || abs_y > 0.0f)) {
 			evt.type = MTY_EVENT_MOTION;
 			evt.motion.relative = CTX.relative;
 			evt.motion.x = CTX.relative ? -lrint(x) : lrint(abs_x);
 			evt.motion.y = CTX.relative ? -lrint(y) : lrint(abs_y);
 			evt.motion.flags |= MTY_MOTION_FLAG_TOUCH;
-			if (start)
-				evt.motion.flags |= MTY_MOTION_FLAG_START;
+			evt.motion.flags |= MTY_MOTION_FLAG_START;
 			app_push_event(&CTX, &evt);
 		}
 
