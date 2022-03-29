@@ -1,5 +1,8 @@
 #include "matoya.h"
 
+// XXX Required because clicks does not always fire on the very edges
+#define EDGE_PADDING 5.0f
+
 struct MTY_Zoom {
 	MTY_InputMode mode;
 	bool scaling;
@@ -194,17 +197,17 @@ void MTY_ZoomMove(MTY_Zoom *ctx, int32_t x, int32_t y, bool start)
 	ctx->cursor.x += delta_x / ctx->scale_screen;
 	ctx->cursor.y += delta_y / ctx->scale_screen;
 
-	if (ctx->cursor.x < ctx->image_min.x)
-		ctx->cursor.x = ctx->image_min.x;
+	if (ctx->cursor.x < ctx->image_min.x + EDGE_PADDING)
+		ctx->cursor.x = ctx->image_min.x + EDGE_PADDING;
 
-	if (ctx->cursor.y < ctx->image_min.y)
-		ctx->cursor.y = ctx->image_min.y;
+	if (ctx->cursor.y < ctx->image_min.y + EDGE_PADDING)
+		ctx->cursor.y = ctx->image_min.y + EDGE_PADDING;
 
-	if (ctx->cursor.x > ctx->window_w - ctx->image_min.x)
-		ctx->cursor.x = ctx->window_w - ctx->image_min.x;
+	if (ctx->cursor.x > ctx->window_w - ctx->image_min.x - EDGE_PADDING)
+		ctx->cursor.x = ctx->window_w - ctx->image_min.x - EDGE_PADDING;
 
-	if (ctx->cursor.y > ctx->window_h - ctx->image_min.y)
-		ctx->cursor.y = ctx->window_h - ctx->image_min.y;
+	if (ctx->cursor.y > ctx->window_h - ctx->image_min.y - EDGE_PADDING)
+		ctx->cursor.y = ctx->window_h - ctx->image_min.y - EDGE_PADDING;
 
 	float left   = mty_zoom_tranform_x(ctx, ctx->margin);
 	float right  = mty_zoom_tranform_x(ctx, ctx->window_w - ctx->margin);
