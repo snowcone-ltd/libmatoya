@@ -3643,17 +3643,16 @@ MTY_ZoomIsRelative(MTY_Zoom *ctx);
 MTY_EXPORT void 
 MTY_ZoomSetRelative(MTY_Zoom *ctx, bool relative);
 
-/// @brief Set the current context mode.
+/// @brief Set whether the context uses trackpad mode.
 /// @details Set the behavior the context must adopt when processing data:
-///   * MTY_INPUT_MODE_UNSPECIFIED: defaults to MTY_INPUT_MODE_TOUCHSCREEN.
-///   * MTY_INPUT_MODE_TOUCHSCREEN: The zoomed area does not move and the cursor
-///     is positioned within this area. 
-///   * MTY_INPUT_MODE_TRACKPAD: The cursor is moved relatively to its previous
+///   * When enabled, the cursor is moved relatively to its previous
 ///     position and the zoomed area is panned if the cursor goes out.
+///   * When disabled, the zoomed area does not move and the cursor is
+///     positioned within this area. 
 /// @param ctx The MTY_Zoom.
-/// @param mode The new input mode.
+/// @param enable True to enable trackpad mode, false otherwise.
 MTY_EXPORT void 
-MTY_ZoomSetMode(MTY_Zoom *ctx, MTY_InputMode mode);
+MTY_ZoomEnableTrackpad(MTY_Zoom *ctx, bool enable);
 
 /// @brief Check if the cursor has moved since the previous call.
 /// @param ctx The MTY_Zoom.

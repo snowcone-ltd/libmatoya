@@ -305,12 +305,9 @@ void MTY_ZoomSetRelative(MTY_Zoom *ctx, bool relative)
 	ctx->relative = relative;
 }
 
-void MTY_ZoomSetMode(MTY_Zoom *ctx, MTY_InputMode mode)
+void MTY_ZoomEnableTrackpad(MTY_Zoom *ctx, bool enable)
 {
-	ctx->mode = mode;
-
-	if (ctx->mode == MTY_INPUT_MODE_UNSPECIFIED)
-		ctx->mode = MTY_INPUT_MODE_TOUCHSCREEN;
+	ctx->mode = enable ? MTY_INPUT_MODE_TRACKPAD : MTY_INPUT_MODE_TOUCHSCREEN;
 }
 
 bool MTY_ZoomHasMoved(MTY_Zoom *ctx)
