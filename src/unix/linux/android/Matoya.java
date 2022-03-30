@@ -55,7 +55,9 @@ public class Matoya extends SurfaceView implements
 	boolean hiddenCursor;
 	boolean defaultCursor;
 	boolean kbShowing;
+	boolean isNewGesture;
 	float displayDensity;
+	int touchingFingers;
 	int scrollY;
 
 	native void gfx_set_surface(Surface surface);
@@ -235,9 +237,6 @@ public class Matoya extends SurfaceView implements
 		return keyEvent(keyCode, event, false);
 	}
 
-	int previousFingers = 0;
-	boolean isNewGesture = false;
-
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
 		// Mouse motion while buttons are held down fire here
@@ -249,9 +248,9 @@ public class Matoya extends SurfaceView implements
 			int currentFingers = event.getPointerCount();
 			if (event.getAction() == MotionEvent.ACTION_UP)
 				currentFingers--;
-			if (previousFingers != currentFingers)
+			if (touchingFingers != currentFingers)
 				isNewGesture = true;
-			previousFingers = currentFingers;
+			touchingFingers = currentFingers;
 
 			this.detector.onTouchEvent(event);
 			this.sdetector.onTouchEvent(event);
