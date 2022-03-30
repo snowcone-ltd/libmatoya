@@ -103,8 +103,8 @@ void MTY_ZoomUpdate(MTY_Zoom *ctx, uint32_t windowWidth, uint32_t windowHeight, 
 
 	ctx->scale_screen = 1;
 	ctx->scale_image = ctx->window_w < ctx->window_h
-		? (float)ctx->window_w / ctx->image_w
-		: (float)ctx->window_h / ctx->image_h;
+		? (float) ctx->window_w / ctx->image_w
+		: (float) ctx->window_h / ctx->image_h;
 
 	ctx->image.x = 0;
 	ctx->image.y = 0;
