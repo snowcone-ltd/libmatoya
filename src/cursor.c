@@ -2,6 +2,7 @@
 
 struct MTY_Cursor {
     MTY_App *app;
+	bool enabled;
 	void *image;
 	uint32_t width;
 	uint32_t height;
@@ -17,8 +18,14 @@ MTY_Cursor *MTY_CursorCreate(MTY_App *app)
     MTY_Cursor *ctx = MTY_Alloc(1, sizeof(MTY_Cursor));
 
     ctx->app = app;
+	ctx->enabled = true;
 
     return ctx;
+}
+
+void MTY_CursorEnable(MTY_Cursor *ctx, bool enable)
+{
+	ctx->enabled = enable;
 }
 
 void MTY_CursorSetHotspot(MTY_Cursor *ctx, uint16_t hotX, uint16_t hotY)
@@ -53,7 +60,7 @@ void MTY_CursorMoveFromZoom(MTY_Cursor *ctx, MTY_Zoom *zoom)
 
 void MTY_CursorDraw(MTY_Cursor *ctx, MTY_Window window)
 {
-	if (!ctx->image)
+	if (!ctx->image || !ctx->enabled)
 		return;
 	
     MTY_RenderDesc desc = {0};

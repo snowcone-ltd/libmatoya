@@ -3695,6 +3695,13 @@ typedef struct MTY_Cursor MTY_Cursor;
 MTY_EXPORT MTY_Cursor *
 MTY_CursorCreate(MTY_App *app);
 
+/// @brief Enable or disable cursor drawing.
+/// @details When disabled, MTY_CursorDraw() has not effect.
+/// @param ctx The MTY_Cursor.
+/// @param enable True to draw the cursor, false otherwise.
+MTY_EXPORT void
+MTY_CursorEnable(MTY_Cursor *ctx, bool enable);
+
 /// @brief Set the hotspot coordinates of the image
 /// @param ctx The MTY_Cursor.
 /// @param hotX The cursor's horizontal hotspot position.
