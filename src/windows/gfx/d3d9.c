@@ -364,6 +364,14 @@ bool mty_d3d9_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 		goto except;
 	}
 
+	if (desc->blend) {
+		IDirect3DDevice9_SetRenderState(_device, D3DRS_ALPHABLENDENABLE, true);
+		IDirect3DDevice9_SetRenderState(_device, D3DRS_ALPHATESTENABLE, false);
+		IDirect3DDevice9_SetRenderState(_device, D3DRS_BLENDOP, D3DBLENDOP_ADD);
+		IDirect3DDevice9_SetRenderState(_device, D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+		IDirect3DDevice9_SetRenderState(_device, D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	}
+
 	// D3D9 half texel fix
 	float texel_offset[4] = {0};
 	texel_offset[0] = -1.0f / (float) vp.Width;
