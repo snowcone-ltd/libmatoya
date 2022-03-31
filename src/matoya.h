@@ -131,6 +131,7 @@ typedef struct {
 	                        ///<   if unnecessary.
 	bool clear;             ///< Should clear the window before drawing the quad.
 	bool blend;             ///< Should enable blending capability when drawing the quad.
+	                        ///<   Note: This is currently not supported in D3D12 and Metal.
 } MTY_RenderDesc;
 
 /// @brief A point with an `x` and `y` coordinate.
@@ -3544,8 +3545,8 @@ MTY_ZoomCreate();
 ///   This function has not effect in provided metrics are the same as the ones
 ///   provided to the previous call of MTY_ZoomUpdate().
 /// @param ctx The MTY_Zoom.
-/// @param window_w The window width.
-/// @param window_h The window height.
+/// @param windowWidth The window width.
+/// @param windowHeight The window height.
 /// @param imageWidth The image width.
 /// @param imageHeight The image height.
 MTY_EXPORT void 
