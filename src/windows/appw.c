@@ -7,7 +7,6 @@
 #include "app.h"
 
 #include <stdio.h>
-#define _USE_MATH_DEFINES
 #include <math.h>
 
 #include <windows.h>
@@ -17,19 +16,9 @@
 #include <shellscalingapi.h>
 #include <dbt.h>
 
-#include "wintab/MSGPACK.H"
-#define NOWTFUNCTIONS
-#include "wintab/WINTAB.H"
-#define PACKETDATA       (PK_CONTEXT | PK_STATUS | PK_TIME | PK_CHANGED | PK_SERIAL_NUMBER | PK_CURSOR | PK_BUTTONS |\
-                          PK_X | PK_Y | PK_Z | PK_NORMAL_PRESSURE | PK_TANGENT_PRESSURE | PK_ORIENTATION | PK_ROTATION)
-#define PACKETMODE       0
-#define PACKETEXPKEYS    PKEXT_ABSOLUTE
-#define PACKETTOUCHSTRIP PKEXT_ABSOLUTE
-#define PACKETTOUCHRING  PKEXT_ABSOLUTE
-#include "wintab/PKTDEF.H"
-
 #include "xip.h"
 #include "wsize.h"
+#include "wintab.h"
 #include "hid/hid.h"
 
 #define APP_CLASS_NAME L"MTY_Window"
@@ -113,33 +102,6 @@ struct MTY_App {
 	BOOL (WINAPI *GetPointerPenInfo)(UINT32 pointerId, POINTER_PEN_INFO *penInfo);
 };
 
-typedef UINT(API *WTINFOA)(UINT, UINT, LPVOID);
-typedef HCTX(API *WTOPENA)(HWND, LPLOGCONTEXTA, BOOL);
-typedef BOOL(API *WTCLOSE)(HCTX);
-typedef BOOL(API *WTPACKET)(HCTX, UINT, LPVOID);
-typedef BOOL(API *WTEXTGET)(HCTX, UINT, LPVOID);
-typedef BOOL(API *WTEXTSET)(HCTX, UINT, LPVOID);
-
-struct wintab
-{
-	MTY_SO *instance;
-	HCTX context;
-	MTY_PenEvent prev_evt;
-	PACKETEXT prev_pktext;
-	DWORD prev_buttons;
-
-	bool override;
-	int32_t min_altitude;
-	int32_t max_altitude;
-	int32_t max_pressure;
-
-	WTINFOA  InfoA;
-	WTOPENA  OpenA;
-	WTCLOSE  Close;
-	WTPACKET Packet;
-	WTEXTGET ExtGet;
-	WTEXTSET ExtSet;
-};
 
 // MTY -> VK mouse map
 
@@ -661,159 +623,7 @@ static void app_kb_to_hotkey(MTY_App *app, MTY_Event *evt)
 	}
 }
 
-static bool app_wintab_find_extension(struct wintab *wintab, uint32_t searched_tag, uint32_t *index)
-{
-	uint32_t current;
-
-	for (uint32_t i = 0; wintab->InfoA(WTI_EXTENSIONS + i, EXT_TAG, &current); i++)
-	{
-		if (current != searched_tag)
-			continue;
-
-		*index = i;
-		return true;
-	}
-
-	return false;
-}
-
-static void app_wintab_override_extension(struct wintab *wintab, uint8_t tablet_i, uint32_t extension)
-{
-	// Retrieve the number of controls for the given extension
-	EXTPROPERTY props = {0};
-	props.propertyID = TABLET_PROPERTY_CONTROLCOUNT;
-	props.tabletIndex = tablet_i;
-
-	if (!wintab->ExtGet(wintab->context, extension, &props))
-		return;
-	uint8_t controls = props.data[0];
-
-	for (uint8_t control_i = 0; control_i < controls; control_i++) {
-		// Retrieve the number of functions for the current control
-		props.propertyID = TABLET_PROPERTY_FUNCCOUNT;
-		props.controlIndex = control_i;
-
-		if (!wintab->ExtGet(wintab->context, extension, &props))
-			return;
-		uint8_t functions = props.data[0];
-
-		for (uint8_t function_i = 0; function_i < functions; function_i++) {
-			// Mark the current function as overriden by the application
-			props.propertyID = TABLET_PROPERTY_OVERRIDE;
-			props.functionIndex = function_i;
-			props.dataSize = sizeof(bool);
-			props.data[0] = wintab->override;
-
-			wintab->ExtSet(wintab->context, extension, &props);
-		}
-	}
-}
-
-static void app_wintab_destroy(MTY_App *ctx, bool unload)
-{
-	if (!ctx->wintab)
-		return;
-
-	if (ctx->wintab->context) {
-		ctx->wintab->Close(ctx->wintab->context);
-		ctx->wintab->context = NULL;
-	}
-
-	if (!unload)
-		return;
-
-	if (ctx->wintab->instance)
-		MTY_SOUnload(&ctx->wintab->instance);
-
-	MTY_Free(ctx->wintab);
-	ctx->wintab = NULL;
-}
-
-static bool app_wintab_create(MTY_App *ctx)
-{
-	if (ctx->wintab && ctx->wintab->context)
-		return true;
-
-	bool r = false;
-
-	// Symbols are preserved between runtime destructions, so we only initialize them once 
-	if (!ctx->wintab) {
-		ctx->wintab = MTY_Alloc(1, sizeof(struct wintab));
-		if (!ctx->wintab)
-			goto except;
-
-		ctx->wintab->instance = MTY_SOLoad("Wintab32.dll");
-		if (!ctx->wintab->instance)
-			goto except;
-
-		#define MAP(type, func) ctx->wintab->##func = (type)MTY_SOGetSymbol(ctx->wintab->instance, "WT" #func); \
-		                        if (!ctx->wintab->##func) goto except;
-
-		MAP(WTINFOA,  InfoA);
-		MAP(WTOPENA,  OpenA);
-		MAP(WTCLOSE,  Close);
-		MAP(WTPACKET, Packet);
-		MAP(WTEXTGET, ExtGet);
-		MAP(WTEXTSET, ExtSet);
-
-		if (!ctx->wintab->InfoA(0, 0, NULL))
-			goto except;
-	}
-
-	// Retrieve a default system context from Wintab
-	LOGCONTEXTA lc = {0};
-	ctx->wintab->InfoA(WTI_DEFSYSCTX, 0, &lc);
-
-	uint32_t touch_strip_i = 0,    touch_ring_i = 0,    exp_keys_i = 0;
-	uint32_t touch_strip_mask = 0, touch_ring_mask = 0, exp_keys_mask = 0;
-
-	if (app_wintab_find_extension(ctx->wintab, WTX_TOUCHSTRIP, &touch_strip_i))
-		ctx->wintab->InfoA(WTI_EXTENSIONS + touch_strip_i, EXT_MASK, &touch_strip_mask);
-
-	if (app_wintab_find_extension(ctx->wintab, WTX_TOUCHRING, &touch_ring_i))
-		ctx->wintab->InfoA(WTI_EXTENSIONS + touch_ring_i, EXT_MASK, &touch_ring_mask);
-
-	if (app_wintab_find_extension(ctx->wintab, WTX_EXPKEYS2, &exp_keys_i))
-		ctx->wintab->InfoA(WTI_EXTENSIONS + exp_keys_i, EXT_MASK, &exp_keys_mask);
-
-	lc.lcOptions = CXO_MESSAGES | CXO_SYSTEM;
-	lc.lcPktData = PACKETDATA | touch_strip_mask | touch_ring_mask | exp_keys_mask;
-	lc.lcOutExtY = -lc.lcOutExtY;
-
-	ctx->wintab->context = ctx->wintab->OpenA(app_get_main_hwnd(ctx), &lc, TRUE);
-	if (!ctx->wintab->context)
-		goto except;
-
-	// Wintab only supports up to 16 devices working at the same time
-	for (uint8_t i = 0; i < 16; i++) {
-		if (!ctx->wintab->InfoA(WTI_DDCTXS + i, 0, NULL))
-			break;
-
-		app_wintab_override_extension(ctx->wintab, i, WTX_TOUCHSTRIP);
-		app_wintab_override_extension(ctx->wintab, i, WTX_TOUCHRING);
-		app_wintab_override_extension(ctx->wintab, i, WTX_EXPKEYS2);
-	}
-
-	AXIS ncaps = {0};
-	ctx->wintab->InfoA(WTI_DEVICES, DVC_NPRESSURE, &ncaps);
-	ctx->wintab->max_pressure = ncaps.axMax;
-
-	AXIS ocaps[3] = {0};
-	ctx->wintab->InfoA(WTI_DEVICES, DVC_ORIENTATION, &ocaps);
-	ctx->wintab->min_altitude = ocaps[1].axMin;
-	ctx->wintab->max_altitude = ocaps[1].axMax;
-
-	r = true;
-
-	except:
-
-	if (!r)
-		app_wintab_destroy(ctx, true);
-
-	return r;
-}
-
-static bool app_wintab_adjust_position(HWND hwnd, int32_t pointer_x, int32_t pointer_y, POINT *position) 
+static bool app_adjust_position(HWND hwnd, int32_t pointer_x, int32_t pointer_y, POINT *position) 
 {
 	POINT origin = {0};
 	if (!ClientToScreen(hwnd, &origin))
@@ -841,13 +651,13 @@ static bool app_wintab_adjust_position(HWND hwnd, int32_t pointer_x, int32_t poi
 	return true;
 }
 
-static HWND app_wintab_get_hovered_window(MTY_App *ctx, int32_t pointer_x, int32_t pointer_y, POINT *position)
+static HWND app_get_hovered_window(MTY_App *ctx, int32_t pointer_x, int32_t pointer_y, POINT *position)
 {
 	HWND hwnd = GetActiveWindow();
 	if (!hwnd)
 		return NULL;
 
-	if (app_wintab_adjust_position(hwnd, pointer_x, pointer_y, position))
+	if (app_adjust_position(hwnd, pointer_x, pointer_y, position))
 		return hwnd;
 
 	for (uint8_t i = 0; i < MTY_WINDOW_MAX; i++) {
@@ -855,7 +665,7 @@ static HWND app_wintab_get_hovered_window(MTY_App *ctx, int32_t pointer_x, int32
 			continue;
 
 		hwnd = ctx->windows[i]->hwnd;
-		if (app_wintab_adjust_position(hwnd, pointer_x, pointer_y, position))
+		if (app_adjust_position(hwnd, pointer_x, pointer_y, position))
 			return hwnd;
 	}
 
@@ -1123,126 +933,45 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 				EndMenu();
 			break;
 		case WT_PACKET: {
-			if (!app->wintab || !app->pen_in_range)
+			if (!app || !app->wintab || !app->pen_in_range)
 				break;
 
 			PACKET pkt = {0};
-			app->wintab->Packet((HCTX) lparam, (UINT) wparam, &pkt);
+			wintab_get_packet(app->wintab, wparam, lparam, &pkt);
 
 			POINT position = {0};
-			HWND focused_window = app_wintab_get_hovered_window(app, pkt.pkX, pkt.pkY, &position);
+			HWND focused_window = app_get_hovered_window(app, pkt.pkX, pkt.pkY, &position);
 			if (!focused_window)
 				break;
 
+			pkt.pkX = position.x;
+			pkt.pkY = position.y;
+
 			// Wintab context only catches events on the main window, so we update the real one manually
 			struct window *new_ctx = (struct window *) GetWindowLongPtr(focused_window, 0);
-			evt.window = new_ctx->window;
 
-			evt.type = MTY_EVENT_PEN;
-
-			evt.pen.x = (uint16_t) position.x;
-			evt.pen.y = (uint16_t) position.y;
-			evt.pen.z = (uint16_t) pkt.pkZ;
-
-			evt.pen.pressure = (uint16_t) (pkt.pkNormalPressure / (double)app->wintab->max_pressure * 1024.0);
-			evt.pen.rotation = (uint16_t) pkt.pkOrientation.orTwist;
-
-			#define sind(x) sin(fmod(x, 360) * M_PI / 180)
-			#define cosd(x) cos(fmod(x, 360) * M_PI / 180)
-			double azimuth  = 90.0 + pkt.pkOrientation.orAzimuth  / 10.0;
-			double altitude = 90.0 - pkt.pkOrientation.orAltitude / 10.0;
-			evt.pen.tiltX = (int8_t) (-sind(altitude) * cosd(azimuth) * 90.0);
-			evt.pen.tiltY = (int8_t) (-sind(altitude) * sind(azimuth) * 90.0);
-			
-			if (pkt.pkStatus & TPS_INVERT)
-				evt.pen.flags |= MTY_PEN_FLAG_INVERTED;
-
-			BYTE buttons = 0;
-			app->wintab->InfoA(WTI_CURSORS + pkt.pkCursor, CSR_BUTTONS, &buttons);
-
-			BYTE mapping[32] = {0};
-			app->wintab->InfoA(WTI_CURSORS + pkt.pkCursor, CSR_SYSBTNMAP, &mapping);
-
-			for (uint8_t i = 0; i < buttons; i++) {
-				bool pressed      = pkt.pkButtons & (1 << i);
-				bool prev_pressed = app->wintab->prev_buttons & (1 << i);
-
-				bool right_click  = mapping[i] == SBN_RCLICK    || mapping[i] == SBN_RDBLCLICK;
-				bool double_click = mapping[i] == SBN_LDBLCLICK || mapping[i] == SBN_RDBLCLICK;
-
-				if (pressed && mapping[i] != SBN_NONE)
-					evt.pen.flags |= MTY_PEN_FLAG_TOUCHING;
-
-				if (right_click && (pressed || prev_pressed))
-					evt.pen.flags |= MTY_PEN_FLAG_BARREL;
-
-				if (double_click)
-					evt.pen.pressure = 1024;
-			}
-
-			if (evt.pen.flags & MTY_PEN_FLAG_TOUCHING && evt.pen.flags & MTY_PEN_FLAG_INVERTED)
-				evt.pen.flags |= MTY_PEN_FLAG_ERASER;
-
-			app->wintab->prev_evt     = evt.pen;
-			app->wintab->prev_buttons = pkt.pkButtons;
+			wintab_on_packet(app->wintab, &evt, &pkt, new_ctx->window);
 
 			break;
 		}
 		case WT_PACKETEXT: {
-			if (!app->wintab)
+			if (!app || !app->wintab)
 				break;
 
 			PACKETEXT pktext = {0};
-			app->wintab->Packet((HCTX) lparam, (UINT) wparam, &pktext);
-
-			evt.type = MTY_EVENT_WINTAB;
-			
-			evt.wintab.device = pktext.pkExpKeys.nTablet;
-
-			evt.wintab.type    = MTY_WINTAB_TYPE_KEY;
-			evt.wintab.control = pktext.pkExpKeys.nControl;
-			evt.wintab.state   = (uint8_t) pktext.pkExpKeys.nState;
-
-			SLIDERDATA *curr_ring = &pktext.pkTouchRing;
-			SLIDERDATA *prev_ring = &app->wintab->prev_pktext.pkTouchRing;
-			if (curr_ring->nPosition != prev_ring->nPosition || curr_ring->nMode != prev_ring->nMode) {
-				evt.wintab.type     = MTY_WINTAB_TYPE_RING;
-				evt.wintab.control  = curr_ring->nControl;
-				evt.wintab.state    = curr_ring->nMode;
-				evt.wintab.position = (uint16_t) curr_ring->nPosition;
-			}
-			
-			SLIDERDATA *curr_strip = &pktext.pkTouchStrip;
-			SLIDERDATA *prev_strip = &app->wintab->prev_pktext.pkTouchStrip;
-			if (curr_strip->nPosition != prev_strip->nPosition || curr_strip->nMode != prev_strip->nMode) {
-				evt.wintab.type     = MTY_WINTAB_TYPE_STRIP;
-				evt.wintab.control  = curr_strip->nControl;
-				evt.wintab.state    = curr_strip->nMode;
-				evt.wintab.position = (uint16_t) curr_strip->nPosition;
-			}
-
-			app->wintab->prev_pktext = pktext;
+			wintab_get_packetext(app->wintab, wparam, lparam, &pktext);
+			wintab_on_packetext(app->wintab, &evt, &pktext);
 
 			break;
 		}
 		case WT_PROXIMITY:
-			if (!app->wintab)
-				break;
-
-			app->pen_in_range = LOWORD(lparam) != 0;
-
-			if (!app->pen_in_range) {
-				evt.type = MTY_EVENT_PEN;
-				evt.pen = app->wintab->prev_evt;
-				evt.pen.flags |= MTY_PEN_FLAG_LEAVE;
-			}
-
+			if (app)
+				wintab_on_proximity(app->wintab, &evt, lparam);
 			break;
 		case WT_INFOCHANGE:
-			app_wintab_destroy(app, false);
-			app_wintab_create(app);
-
+			wintab_recreate(&app->wintab);
 			break;
+
 	}
 
 	// Tray
@@ -1405,7 +1134,7 @@ void MTY_AppDestroy(MTY_App **app)
 
 	MTY_App *ctx = *app;
 
-	app_wintab_destroy(ctx, true);
+	wintab_destroy(&ctx->wintab, true);
 
 	if (ctx->custom_cursor)
 		DestroyIcon(ctx->custom_cursor);
@@ -1948,23 +1677,19 @@ void MTY_AppEnablePen(MTY_App *ctx, bool enable)
 {
 	ctx->pen_enabled = enable;
 
-	if (ctx->pen_enabled) {
-		app_wintab_create(ctx);
+	if (ctx->pen_enabled && !ctx->wintab) {
+		ctx->wintab = wintab_create(app_get_main_hwnd(ctx));
 	
-	} else {
-		app_wintab_destroy(ctx, true);
+	} else if (ctx->wintab) {
+		wintab_destroy(&ctx->wintab, true);
 	}
 }
 
 void MTY_AppOverrideTabletControls(MTY_App *ctx, bool override)
 {
-	if (!ctx->wintab)
-		return;
+	wintab_override_controls(ctx->wintab, override);
 
-	ctx->wintab->override = override;
-
-	app_wintab_destroy(ctx, false);
-	app_wintab_create(ctx);
+	wintab_recreate(&ctx->wintab);
 }
 
 MTY_InputMode MTY_AppGetInputMode(MTY_App *ctx)
