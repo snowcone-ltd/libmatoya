@@ -3641,8 +3641,14 @@ MTY_ZoomIsRelative(MTY_Zoom *ctx);
 ///   relative coordinates (e.g. 1 will be tranformed to 0.5 if the current scale factor is 2).
 /// @param ctx The MTY_Zoom.
 /// @param scaling True when relative, otherwise false.
-MTY_EXPORT void 
+MTY_EXPORT void
 MTY_ZoomSetRelative(MTY_Zoom *ctx, bool relative);
+
+/// @brief Get whether the context uses trackpad mode.
+/// @param ctx The MTY_Zoom.
+/// @returns True if trackpad mode is enabled, false otherwise.
+MTY_EXPORT bool
+MTY_ZoomIsTrackpadEnabled(MTY_Zoom *ctx);
 
 /// @brief Set whether the context uses trackpad mode.
 /// @details Set the behavior the context must adopt when processing data:
@@ -3652,13 +3658,13 @@ MTY_ZoomSetRelative(MTY_Zoom *ctx, bool relative);
 ///     positioned within this area. 
 /// @param ctx The MTY_Zoom.
 /// @param enable True to enable trackpad mode, false otherwise.
-MTY_EXPORT void 
+MTY_EXPORT void
 MTY_ZoomEnableTrackpad(MTY_Zoom *ctx, bool enable);
 
 /// @brief Check if the cursor has moved since the previous call.
 /// @param ctx The MTY_Zoom.
 /// @returns True if the cursor has moved, false otherwise.
-MTY_EXPORT bool 
+MTY_EXPORT bool
 MTY_ZoomHasMoved(MTY_Zoom *ctx);
 
 /// @brief Check if the context recommends to show a cursor.

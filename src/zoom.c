@@ -1,7 +1,7 @@
 #include "matoya.h"
 
-// XXX Required because clicks does not always fire on the very edges
-#define EDGE_PADDING 5.0f
+// XXX Required because clicks does not always fire on the edges
+#define EDGE_PADDING 1.0f
 
 struct MTY_Zoom {
 	MTY_InputMode mode;
@@ -303,6 +303,11 @@ bool MTY_ZoomIsRelative(MTY_Zoom *ctx)
 void MTY_ZoomSetRelative(MTY_Zoom *ctx, bool relative)
 {
 	ctx->relative = relative;
+}
+
+bool MTY_ZoomIsTrackpadEnabled(MTY_Zoom *ctx)
+{
+	return ctx->mode == MTY_INPUT_MODE_TRACKPAD;
 }
 
 void MTY_ZoomEnableTrackpad(MTY_Zoom *ctx, bool enable)
