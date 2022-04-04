@@ -1,6 +1,3 @@
-#include <windows.h>
-#include <windowsx.h>
-
 #define _USE_MATH_DEFINES
 #include <math.h>
 
@@ -27,15 +24,12 @@ static struct wt {
 
 struct wintab
 {
-	HWND hwnd;
 	HCTX context;
 	MTY_PenEvent prev_evt;
 	PACKETEXT prev_pktext;
 	DWORD prev_buttons;
 
 	bool override;
-	int32_t min_altitude;
-	int32_t max_altitude;
 	int32_t max_pressure;
 };
 
@@ -43,8 +37,7 @@ static bool wintab_find_extension(struct wintab *ctx, uint32_t searched_tag, uin
 {
 	uint32_t current;
 
-	for (uint32_t i = 0; wt.info(WTI_EXTENSIONS + i, EXT_TAG, &current); i++)
-	{
+	for (uint32_t i = 0; wt.info(WTI_EXTENSIONS + i, EXT_TAG, &current); i++) {
 		if (current != searched_tag)
 			continue;
 
@@ -72,7 +65,7 @@ static void wintab_override_extension(struct wintab *ctx, uint8_t tablet_i, uint
 		props.controlIndex = control_i;
 
 		if (!wt.ext_get(ctx->context, extension, &props))
-			return;
+			continue;
 		uint8_t functions = props.data[0];
 
 		for (uint8_t function_i = 0; function_i < functions; function_i++) {
@@ -112,15 +105,15 @@ struct wintab *wintab_create(HWND hwnd)
 		MAP(WTEXTGET, ExtGet, ext_get);
 		MAP(WTEXTSET, ExtSet, ext_set);
 
+		// We check that the driver running is currently running
 		if (!wt.info(0, 0, NULL))
 			goto except;
 	}
 
-	ctx->hwnd = hwnd;
-
 	// Retrieve a default system context from Wintab
 	LOGCONTEXTA lc = {0};
-	wt.info(WTI_DEFSYSCTX, 0, &lc);
+	if (!wt.info(WTI_DEFSYSCTX, 0, &lc))
+		goto except;
 
 	uint32_t touch_strip_i = 0,    touch_ring_i = 0,    exp_keys_i = 0;
 	uint32_t touch_strip_mask = 0, touch_ring_mask = 0, exp_keys_mask = 0;
@@ -156,45 +149,43 @@ struct wintab *wintab_create(HWND hwnd)
 	wt.info(WTI_DEVICES, DVC_NPRESSURE, &ncaps);
 	ctx->max_pressure = ncaps.axMax;
 
-	AXIS ocaps[3] = {0};
-	wt.info(WTI_DEVICES, DVC_ORIENTATION, &ocaps);
-	ctx->min_altitude = ocaps[1].axMin;
-	ctx->max_altitude = ocaps[1].axMax;
-
 	r = true;
 
 	except:
 
-	if (!r)
+	if (!r) {
+		MTY_Log("Wintab is not available, fallback to WinInk");
 		wintab_destroy(&ctx, true);
+	}
 
 	return ctx;
 }
 
-void wintab_recreate(struct wintab **ctx)
+void wintab_recreate(struct wintab **ctx, HWND hwnd)
 {
-	HWND hwnd = (*ctx)->hwnd;
 	wintab_destroy(ctx, false);
 	*ctx = wintab_create(hwnd);
 }
 
-void wintab_destroy(struct wintab **ctx, bool unload)
+void wintab_destroy(struct wintab **wintab, bool unload_symbols)
 {
-	if (!(*ctx))
+	if (!wintab || !*wintab)
 		return;
 
-	if ((*ctx)->context) {
-		wt.close((*ctx)->context);
-		(*ctx)->context = NULL;
+	struct wintab *ctx = *wintab;
+
+	if (ctx->context) {
+		wt.close(ctx->context);
+		ctx->context = NULL;
 	}
 
-	if (unload && wt.instance) {
+	if (unload_symbols && wt.instance) {
 		MTY_SOUnload(&wt.instance);
 		wt = (struct wt) {0};
 	}
 
-	MTY_Free(*ctx);
-	*ctx = NULL;
+	MTY_Free(ctx);
+	*wintab = NULL;
 }
 
 void wintab_override_controls(struct wintab *ctx, bool override)
@@ -202,26 +193,21 @@ void wintab_override_controls(struct wintab *ctx, bool override)
 	ctx->override = override;
 }
 
-void wintab_get_packet(struct wintab *ctx, WPARAM wparam, LPARAM lparam, PACKET *pkt)
+void wintab_get_packet(struct wintab *ctx, WPARAM wparam, LPARAM lparam, void *pkt)
 {
 	wt.packet((HCTX) lparam, (UINT) wparam, pkt);
 }
 
-void wintab_get_packetext(struct wintab *ctx, WPARAM wparam, LPARAM lparam, PACKETEXT *pktext)
-{
-	wt.packet((HCTX) lparam, (UINT) wparam, pktext);
-}
-
-void wintab_on_packet(struct wintab *ctx, MTY_Event *evt, PACKET *pkt, MTY_Window window)
+void wintab_on_packet(struct wintab *ctx, MTY_Event *evt, const PACKET *pkt, MTY_Window window)
 {
 	evt->type = MTY_EVENT_PEN;
 	evt->window = window;
 
-	evt->pen.x = (uint16_t) pkt->pkX;
-	evt->pen.y = (uint16_t) pkt->pkY;
-	evt->pen.z = (uint16_t) pkt->pkZ;
+	evt->pen.x = (uint16_t) MTY_MAX(pkt->pkX, 0);
+	evt->pen.y = (uint16_t) MTY_MAX(pkt->pkY, 0);
+	evt->pen.z = (uint16_t) MTY_MAX(pkt->pkZ, 0);
 
-	evt->pen.pressure = (uint16_t) (pkt->pkNormalPressure / (double)ctx->max_pressure * 1024.0);
+	evt->pen.pressure = (uint16_t) (pkt->pkNormalPressure / (double) ctx->max_pressure * 1024.0);
 	evt->pen.rotation = (uint16_t) pkt->pkOrientation.orTwist;
 
 	#define sind(x) sin(fmod(x, 360) * M_PI / 180)
@@ -253,6 +239,7 @@ void wintab_on_packet(struct wintab *ctx, MTY_Event *evt, PACKET *pkt, MTY_Windo
 		if (right_click && (pressed || prev_pressed))
 			evt->pen.flags |= MTY_PEN_FLAG_BARREL;
 
+		// Max pressure is set when double-clicking to mimic WinInk behavior
 		if (double_click)
 			evt->pen.pressure = 1024;
 	}
@@ -264,7 +251,7 @@ void wintab_on_packet(struct wintab *ctx, MTY_Event *evt, PACKET *pkt, MTY_Windo
 	ctx->prev_buttons = pkt->pkButtons;
 }
 
-void wintab_on_packetext(struct wintab *ctx, MTY_Event *evt, PACKETEXT *pktext)
+void wintab_on_packetext(struct wintab *ctx, MTY_Event *evt, const PACKETEXT *pktext)
 {
 	evt->type = MTY_EVENT_WINTAB;
 
@@ -274,8 +261,8 @@ void wintab_on_packetext(struct wintab *ctx, MTY_Event *evt, PACKETEXT *pktext)
 	evt->wintab.control = pktext->pkExpKeys.nControl;
 	evt->wintab.state   = (uint8_t) pktext->pkExpKeys.nState;
 
-	SLIDERDATA *curr_ring = &pktext->pkTouchRing;
-	SLIDERDATA *prev_ring = &ctx->prev_pktext.pkTouchRing;
+	const SLIDERDATA *curr_ring = &pktext->pkTouchRing;
+	const SLIDERDATA *prev_ring = &ctx->prev_pktext.pkTouchRing;
 	if (curr_ring->nPosition != prev_ring->nPosition || curr_ring->nMode != prev_ring->nMode) {
 		evt->wintab.type     = MTY_WINTAB_TYPE_RING;
 		evt->wintab.control  = curr_ring->nControl;
@@ -283,8 +270,8 @@ void wintab_on_packetext(struct wintab *ctx, MTY_Event *evt, PACKETEXT *pktext)
 		evt->wintab.position = (uint16_t) curr_ring->nPosition;
 	}
 
-	SLIDERDATA *curr_strip = &pktext->pkTouchStrip;
-	SLIDERDATA *prev_strip = &ctx->prev_pktext.pkTouchStrip;
+	const SLIDERDATA *curr_strip = &pktext->pkTouchStrip;
+	const SLIDERDATA *prev_strip = &ctx->prev_pktext.pkTouchStrip;
 	if (curr_strip->nPosition != prev_strip->nPosition || curr_strip->nMode != prev_strip->nMode) {
 		evt->wintab.type     = MTY_WINTAB_TYPE_STRIP;
 		evt->wintab.control  = curr_strip->nControl;

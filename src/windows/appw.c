@@ -959,7 +959,7 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 				break;
 
 			PACKETEXT pktext = {0};
-			wintab_get_packetext(app->wintab, wparam, lparam, &pktext);
+			wintab_get_packet(app->wintab, wparam, lparam, &pktext);
 			wintab_on_packetext(app->wintab, &evt, &pktext);
 
 			break;
@@ -969,7 +969,7 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 				wintab_on_proximity(app->wintab, &evt, lparam);
 			break;
 		case WT_INFOCHANGE:
-			wintab_recreate(&app->wintab);
+			wintab_recreate(&app->wintab, app_get_main_hwnd(app));
 			break;
 
 	}
@@ -1677,10 +1677,10 @@ void MTY_AppEnablePen(MTY_App *ctx, bool enable)
 {
 	ctx->pen_enabled = enable;
 
-	if (ctx->pen_enabled && !ctx->wintab) {
+	if (enable && !ctx->wintab) {
 		ctx->wintab = wintab_create(app_get_main_hwnd(ctx));
 	
-	} else if (ctx->wintab) {
+	} else if (!enable && ctx->wintab) {
 		wintab_destroy(&ctx->wintab, true);
 	}
 }
@@ -1689,7 +1689,7 @@ void MTY_AppOverrideTabletControls(MTY_App *ctx, bool override)
 {
 	wintab_override_controls(ctx->wintab, override);
 
-	wintab_recreate(&ctx->wintab);
+	wintab_recreate(&ctx->wintab, app_get_main_hwnd(ctx));
 }
 
 MTY_InputMode MTY_AppGetInputMode(MTY_App *ctx)
