@@ -3,6 +3,8 @@
 // XXX Required because clicks does not always fire on the edges
 #define EDGE_PADDING 1.0f
 
+#define assert(ctx, ...) if (!ctx) return __VA_ARGS__
+
 struct MTY_Zoom {
 	MTY_InputMode mode;
 	bool scaling;
@@ -88,8 +90,7 @@ static void mty_zoom_restrict_image(MTY_Zoom *ctx)
 
 void MTY_ZoomUpdate(MTY_Zoom *ctx, uint32_t windowWidth, uint32_t windowHeight, uint32_t imageWidth, uint32_t imageHeight)
 {
-	if (!ctx)
-		return;
+	assert(ctx);
 
 	bool same_window = ctx->window_w == windowWidth && ctx->window_h == windowHeight;
 	bool same_image  = ctx->image_w  == imageWidth  && ctx->image_h  == imageHeight;
@@ -132,6 +133,8 @@ void MTY_ZoomUpdate(MTY_Zoom *ctx, uint32_t windowWidth, uint32_t windowHeight, 
 
 void MTY_ZoomScale(MTY_Zoom *ctx, float scaleFactor, float focusX, float focusY)
 {
+	assert(ctx);
+
 	if (!mty_zoom_context_initialized(ctx))
 		return;
 
@@ -171,6 +174,8 @@ void MTY_ZoomScale(MTY_Zoom *ctx, float scaleFactor, float focusX, float focusY)
 
 void MTY_ZoomMove(MTY_Zoom *ctx, int32_t x, int32_t y, bool start)
 {
+	assert(ctx);
+
 	if (!mty_zoom_context_initialized(ctx) || ctx->scaling)
 		return;
 
@@ -234,6 +239,8 @@ void MTY_ZoomMove(MTY_Zoom *ctx, int32_t x, int32_t y, bool start)
 
 int32_t MTY_ZoomTranformX(MTY_Zoom *ctx, int32_t value)
 {
+	assert(ctx, value);
+
 	if (ctx->relative)
 		return (int32_t) (value / ctx->scale_screen);
 
@@ -245,6 +252,8 @@ int32_t MTY_ZoomTranformX(MTY_Zoom *ctx, int32_t value)
 
 int32_t MTY_ZoomTranformY(MTY_Zoom *ctx, int32_t value)
 {
+	assert(ctx, value);
+
 	if (ctx->relative)
 		return (int32_t) (value / ctx->scale_screen);
 
@@ -256,21 +265,29 @@ int32_t MTY_ZoomTranformY(MTY_Zoom *ctx, int32_t value)
 
 float MTY_ZoomGetScale(MTY_Zoom *ctx)
 {
+	assert(ctx, 1);
+
 	return ctx->scale_image;
 }
 
 int32_t MTY_ZoomGetImageX(MTY_Zoom *ctx)
 {
+	assert(ctx, 0);
+
 	return (int32_t) ctx->image.x;
 }
 
 int32_t MTY_ZoomGetImageY(MTY_Zoom *ctx)
 {
+	assert(ctx, 0);
+
 	return (int32_t) ctx->image.y;
 }
 
 int32_t MTY_ZoomGetCursorX(MTY_Zoom *ctx)
 {
+	assert(ctx, 0);
+
 	float left  = mty_zoom_tranform_x(ctx, 0);
 	float right = mty_zoom_tranform_x(ctx, (float) ctx->window_w);
 
@@ -279,6 +296,8 @@ int32_t MTY_ZoomGetCursorX(MTY_Zoom *ctx)
 
 int32_t MTY_ZoomGetCursorY(MTY_Zoom *ctx)
 {
+	assert(ctx, 0);
+
 	float top    = mty_zoom_tranform_y(ctx, 0);
 	float bottom = mty_zoom_tranform_y(ctx, (float) ctx->window_h);
 
@@ -287,36 +306,50 @@ int32_t MTY_ZoomGetCursorY(MTY_Zoom *ctx)
 
 bool MTY_ZoomIsScaling(MTY_Zoom *ctx)
 {
+	assert(ctx, false);
+
 	return ctx->scaling;
 }
 
 void MTY_ZoomSetScaling(MTY_Zoom *ctx, bool scaling)
 {
+	assert(ctx);
+
 	ctx->scaling = scaling;
 }
 
 bool MTY_ZoomIsRelative(MTY_Zoom *ctx)
 {
+	assert(ctx, false);
+
 	return ctx->relative;
 }
 
 void MTY_ZoomSetRelative(MTY_Zoom *ctx, bool relative)
 {
+	assert(ctx);
+
 	ctx->relative = relative;
 }
 
 bool MTY_ZoomIsTrackpadEnabled(MTY_Zoom *ctx)
 {
+	assert(ctx, false);
+
 	return ctx->mode == MTY_INPUT_MODE_TRACKPAD;
 }
 
 void MTY_ZoomEnableTrackpad(MTY_Zoom *ctx, bool enable)
 {
+	assert(ctx);
+
 	ctx->mode = enable ? MTY_INPUT_MODE_TRACKPAD : MTY_INPUT_MODE_TOUCHSCREEN;
 }
 
 bool MTY_ZoomHasMoved(MTY_Zoom *ctx)
 {
+	assert(ctx, false);
+
 	float status = ctx->cursor.x + ctx->cursor.y + ctx->image.x + ctx->image.y;
 
 	bool has_moved = status != ctx->status;
@@ -327,20 +360,26 @@ bool MTY_ZoomHasMoved(MTY_Zoom *ctx)
 
 bool MTY_ZoomShouldShowCursor(MTY_Zoom *ctx)
 {
+	assert(ctx, false);
+
 	return ctx->mode == MTY_INPUT_MODE_TRACKPAD && !ctx->relative;
 }
 
 void MTY_ZoomSetLimits(MTY_Zoom *ctx, float min, float max)
 {
+	assert(ctx);
+
 	ctx->scale_screen_min = min;
 	ctx->scale_screen_max = max;
 }
 
-void MTY_ZoomDestroy(MTY_Zoom **ctx)
+void MTY_ZoomDestroy(MTY_Zoom **zoom)
 {
-	if (!(*ctx))
+	if (!zoom || !*zoom)
 		return;
 
-	MTY_Free(*ctx);
-	*ctx = NULL;
+	MTY_Zoom *ctx = *zoom;
+
+	MTY_Free(ctx);
+	*zoom = NULL;
 }
