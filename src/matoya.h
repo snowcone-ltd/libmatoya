@@ -117,6 +117,8 @@ typedef struct {
 	                        ///<   minimized or magnified image. This can be set to 0
 	                        ///<   if unnecessary.
 	bool clear;             ///< Should clear the window before drawing the quad.
+	bool blend;             ///< Should enable blending capability when drawing the quad.
+	                        ///<   Note: This is currently not supported in D3D12 and Metal.
 } MTY_RenderDesc;
 
 /// @brief A point with an `x` and `y` coordinate.
