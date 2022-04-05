@@ -55,7 +55,9 @@ public class Matoya extends SurfaceView implements
 	boolean hiddenCursor;
 	boolean defaultCursor;
 	boolean kbShowing;
+	boolean isNewGesture;
 	float displayDensity;
+	int touchingFingers;
 	int scrollY;
 
 	native void gfx_set_surface(Surface surface);
@@ -69,11 +71,12 @@ public class Matoya extends SurfaceView implements
 	native void app_resize(int width, int height);
 	native void app_unplug(int deviceId);
 	native void app_single_tap_up(float x, float y);
-	native void app_scroll(float absX, float absY, float x, float y, int fingers);
+	native void app_scroll(float absX, float absY, float x, float y, int fingers, boolean start);
 	native void app_check_scroller(boolean check);
 	native void app_mouse_motion(boolean relative, float x, float y);
 	native void app_mouse_button(boolean pressed, int button, float x, float y);
 	native void app_generic_scroll(float x, float y);
+	native void app_scale(float scaleFactor, float focusX, float focusY, boolean begin, boolean end);
 	native void app_button(int deviceId, boolean pressed, int code);
 	native void app_axis(int deviceId, float hatX, float hatY, float lX, float lY, float rX, float rY,
 		float lT, float rT, float lTalt, float rTalt);
@@ -116,6 +119,8 @@ public class Matoya extends SurfaceView implements
 		this.getHolder().addCallback(this);
 		this.detector.setOnDoubleTapListener(this);
 		this.detector.setContextClickListener(this);
+		this.sdetector.setQuickScaleEnabled(false);
+		this.sdetector.setStylusScaleEnabled(false);
 		this.setFocusableInTouchMode(true);
 		this.setFocusable(true);
 		this.requestFocus();
@@ -240,6 +245,13 @@ public class Matoya extends SurfaceView implements
 				app_mouse_motion(false, event.getX(0), event.getY(0));
 
 		} else {
+			int currentFingers = event.getPointerCount();
+			if (event.getAction() == MotionEvent.ACTION_UP)
+				currentFingers--;
+			if (touchingFingers != currentFingers)
+				isNewGesture = true;
+			touchingFingers = currentFingers;
+
 			this.detector.onTouchEvent(event);
 			this.sdetector.onTouchEvent(event);
 
@@ -276,6 +288,10 @@ public class Matoya extends SurfaceView implements
 		if (isMouseEvent(event))
 			return;
 
+		MotionEvent cancel = MotionEvent.obtain(event);
+		cancel.setAction(MotionEvent.ACTION_CANCEL);
+		this.detector.onTouchEvent(cancel);
+
 		if (app_long_press(event.getX(0), event.getY(0)))
 			this.vibrator.vibrate(10);
 	}
@@ -286,7 +302,9 @@ public class Matoya extends SurfaceView implements
 			return false;
 
 		this.scroller.forceFinished(true);
-		app_scroll(event2.getX(0), event2.getY(0), distanceX, distanceY, event2.getPointerCount());
+		app_scroll(event2.getX(0), event2.getY(0), distanceX, distanceY, event2.getPointerCount(), isNewGesture);
+		isNewGesture = false;
+
 		return true;
 	}
 
@@ -373,18 +391,28 @@ public class Matoya extends SurfaceView implements
 		return this.onGenericMotionEvent(event);
 	}
 
+	private void processScale(ScaleGestureDetector sdetector, boolean start, boolean stop) {
+		float focusX = sdetector.getFocusX();
+		float focusY = sdetector.getFocusY();
+
+		app_scale(sdetector.getScaleFactor(), focusX, focusY, start, stop);
+	}
+
 	@Override
-	public boolean onScale(ScaleGestureDetector detector) {
+	public boolean onScale(ScaleGestureDetector sdetector) {
+		processScale(sdetector, false, false);
 		return true;
 	}
 
 	@Override
 	public boolean onScaleBegin(ScaleGestureDetector sdetector) {
+		processScale(sdetector, true, false);
 		return true;
 	}
 
 	@Override
 	public void onScaleEnd(ScaleGestureDetector sdetector) {
+		processScale(sdetector, false, true);
 	}
 
 
@@ -523,10 +551,6 @@ public class Matoya extends SurfaceView implements
 		});
 	}
 
-	public boolean getRelativeMouse() {
-		return this.hasPointerCapture();
-	}
-
 
 	// Misc
 
@@ -559,7 +583,7 @@ public class Matoya extends SurfaceView implements
 			int diff = this.scrollY - currY;
 
 			if (diff != 0)
-				app_scroll(-1.0f, -1.0f, 0.0f, diff, 1);
+				app_scroll(-1.0f, -1.0f, 0.0f, diff, 1, false);
 
 			this.scrollY = currY;
 
