@@ -303,8 +303,10 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	glVertexAttribPointer(ctx->loc_uv,  2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *) (2 * sizeof(GLfloat)));
 
 	// Clear
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
+	if (desc->clear) {
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+	}
 
 	// Fragment shader
 	for (uint8_t x = 0; x < GL_NUM_STAGING; x++) {

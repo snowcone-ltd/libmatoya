@@ -116,6 +116,7 @@ typedef struct {
 	float scale;            ///< Multiplier applied to the dimensions of the image, producing an
 	                        ///<   minimized or magnified image. This can be set to 0
 	                        ///<   if unnecessary.
+	bool clear;             ///< Should clear the window before drawing the quad.
 } MTY_RenderDesc;
 
 /// @brief A point with an `x` and `y` coordinate.
