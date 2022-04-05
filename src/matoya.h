@@ -3489,6 +3489,166 @@ MTY_EXPORT uint32_t
 MTY_GetVersion(void);
 
 
+//- #module Zoom
+//- #mbrief Image scaling and positioning helper.
+
+typedef struct MTY_Zoom MTY_Zoom;
+
+/// @brief Create a scaling context.
+/// @returns The newly created scaling context.
+MTY_EXPORT MTY_Zoom *
+MTY_ZoomCreate();
+
+/// @brief Update the context with the window and image sizes.
+/// @details Reset and compute initial scaling data for the provided metrics.
+///   This function has not effect in provided metrics are the same as the ones
+///   provided to the previous call of MTY_ZoomUpdate().
+/// @param ctx The MTY_Zoom.
+/// @param windowWidth The window width.
+/// @param windowHeight The window height.
+/// @param imageWidth The image width.
+/// @param imageHeight The image height.
+MTY_EXPORT void 
+MTY_ZoomUpdate(MTY_Zoom *ctx, uint32_t windowWidth, uint32_t windowHeight, uint32_t imageWidth, uint32_t imageHeight);
+
+/// @brief Apply a scaling data to the context.
+/// @details Update the context according to the provided scaling data.
+/// @param ctx The MTY_Zoom.
+/// @param scaleFactor The new relative scale factor.
+/// @param focusX The new horizontal coordinate of the focal point.
+/// @param focusY The new vertical coordinate of the focal point.
+MTY_EXPORT void 
+MTY_ZoomScale(MTY_Zoom *ctx, float scaleFactor, float focusX, float focusY);
+
+/// @brief Notify the context of a cursor move.
+/// @details Calling this function allows to keep track of the cursor movement.
+///   This is required in relative mode, and recommended in absolute mode to keep
+///   track of the cursor at any time.
+/// @param ctx The MTY_Zoom.
+/// @param x The new X position of the cursor.
+/// @param y The new Y position of the cursor.
+/// @param start Defines the start of a new move gesture.
+MTY_EXPORT void
+MTY_ZoomMove(MTY_Zoom *ctx, int32_t x, int32_t y, bool start);
+
+/// @brief Tranform an absolute X position to one relative to the zoomed area.
+/// @param ctx The MTY_Zoom.
+/// @param value The absolute X position.
+/// @returns The zoom-relative X position.
+MTY_EXPORT int32_t 
+MTY_ZoomTranformX(MTY_Zoom *ctx, int32_t value);
+
+/// @brief Tranform an absolute Y position to one relative to the zoomed area.
+/// @param ctx The MTY_Zoom.
+/// @param value The absolute Y position.
+/// @returns The zoom-relative Y position.
+MTY_EXPORT int32_t 
+MTY_ZoomTranformY(MTY_Zoom *ctx, int32_t value);
+
+/// @brief Get the most recently computed image scale value.
+/// @param ctx The MTY_Zoom.
+/// @returns The computed scale value.
+MTY_EXPORT float 
+MTY_ZoomGetScale(MTY_Zoom *ctx);
+
+/// @brief Get the most recently computed horizontal position of the image. 
+/// @param ctx The MTY_Zoom.
+/// @returns The computed horizontal position.
+MTY_EXPORT int32_t 
+MTY_ZoomGetImageX(MTY_Zoom *ctx);
+
+/// @brief Get the most recently computed vertical position of the image.
+/// @param ctx The MTY_Zoom.
+/// @returns The computed vertical position.
+MTY_EXPORT int32_t 
+MTY_ZoomGetImageY(MTY_Zoom *ctx);
+
+/// @brief Get the current horizontal position of the cursor. 
+/// @param ctx The MTY_Zoom.
+/// @returns The horizontal position, in screen coordinates.
+MTY_EXPORT int32_t 
+MTY_ZoomGetCursorX(MTY_Zoom *ctx);
+
+/// @brief Get the current vertical position of the cursor.
+/// @param ctx The MTY_Zoom.
+/// @returns The vertical position, in screen coordinates.
+MTY_EXPORT int32_t 
+MTY_ZoomGetCursorY(MTY_Zoom *ctx);
+
+/// @brief Check whether a scaling gesture is in progress or not.
+/// @param ctx The MTY_Zoom.
+/// @returns True when scaling, otherwise false.
+MTY_EXPORT bool 
+MTY_ZoomIsScaling(MTY_Zoom *ctx);
+
+/// @brief Set whether a scaling gesture is in progress or not.
+/// @details Scaling status must be set to tell the context all values must be computed.
+///   A disabled state is useful when preparing the context before actually scaling.
+/// @param ctx The MTY_Zoom.
+/// @param scaling True when scaling, otherwise false.
+MTY_EXPORT void 
+MTY_ZoomSetScaling(MTY_Zoom *ctx, bool scaling);
+
+/// @brief Check whether the context treats data as relative inputs or not.
+/// @param ctx The MTY_Zoom.
+/// @returns True when relative, otherwise false.
+MTY_EXPORT bool 
+MTY_ZoomIsRelative(MTY_Zoom *ctx);
+
+/// @brief Set whether the context treats data as relative inputs or not.
+/// @details In relative mode, transform functions return a scaled version of the provided
+///   relative coordinates (e.g. 1 will be tranformed to 0.5 if the current scale factor is 2).
+/// @param ctx The MTY_Zoom.
+/// @param scaling True when relative, otherwise false.
+MTY_EXPORT void
+MTY_ZoomSetRelative(MTY_Zoom *ctx, bool relative);
+
+/// @brief Get whether the context uses trackpad mode.
+/// @param ctx The MTY_Zoom.
+/// @returns True if trackpad mode is enabled, false otherwise.
+MTY_EXPORT bool
+MTY_ZoomIsTrackpadEnabled(MTY_Zoom *ctx);
+
+/// @brief Set whether the context uses trackpad mode.
+/// @details Set the behavior the context must adopt when processing data:
+///   * When enabled, the cursor is moved relatively to its previous
+///     position and the zoomed area is panned if the cursor goes out.
+///   * When disabled, the zoomed area does not move and the cursor is
+///     positioned within this area. 
+/// @param ctx The MTY_Zoom.
+/// @param enable True to enable trackpad mode, false otherwise.
+MTY_EXPORT void
+MTY_ZoomEnableTrackpad(MTY_Zoom *ctx, bool enable);
+
+/// @brief Check if the cursor has moved since the previous call.
+/// @param ctx The MTY_Zoom.
+/// @returns True if the cursor has moved, false otherwise.
+MTY_EXPORT bool
+MTY_ZoomHasMoved(MTY_Zoom *ctx);
+
+/// @brief Check if the context recommends to show a cursor.
+/// @details Currently, the context will recommend the show a cursor when the mode is
+///   MTY_INPUT_MODE_TRACKPAD and the context is not relative, and to hide it otherwise.
+/// @param ctx The MTY_Zoom.
+/// @returns True if the cursor should be shown, false otherwise.
+MTY_EXPORT bool 
+MTY_ZoomShouldShowCursor(MTY_Zoom *ctx);
+
+/// @brief Set the scale limits of the context.
+/// @details This must be called before the first call to MTY_ZoomUpdate(). If not, the
+///   change will only have effect after the next context reset, occuring after a window
+///   or image resize. By default, the minimum is 1 (100%) and the maximum is 4 (400%).
+/// @param ctx The MTY_Zoom.
+/// @param min The minimum scaling factor.
+/// @param max The maximum scaling factor.
+MTY_EXPORT void 
+MTY_ZoomSetLimits(MTY_Zoom *ctx, float min, float max);
+
+/// @brief Destroy the scaling context.
+/// @param ctx The MTY_Zoom.
+MTY_EXPORT void 
+MTY_ZoomDestroy(MTY_Zoom **ctx);
+
 #ifdef __cplusplus
 }
 #endif

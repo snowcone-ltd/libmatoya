@@ -53,6 +53,7 @@ LOCAL_SRC_FILES := \
 	src/tlocal.c \
 	src/tls.c \
 	src/version.c \
+	src/zoom.c \
 	src/gfx/gl.c \
 	src/gfx/gl-ui.c \
 	src/hid/utils.c \
