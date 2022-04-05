@@ -50,8 +50,9 @@ typedef enum {
 	MTY_GFX_GL      = 1, ///< OpenGL/GLES.
 	MTY_GFX_D3D9    = 2, ///< Direct3D 9. Windows only.
 	MTY_GFX_D3D11   = 3, ///< Direct3D 11. Windows only.
-	MTY_GFX_METAL   = 4, ///< Metal. Apple only.
-	MTY_GFX_MAX     = 5, ///< Maximum number of 3D graphics APIs.
+	MTY_GFX_D3D12   = 4, ///< Direct3D 12. Windows only.
+	MTY_GFX_METAL   = 5, ///< Metal. Apple only.
+	MTY_GFX_MAX     = 6, ///< Maximum number of 3D graphics APIs.
 	MTY_GFX_MAKE_32 = INT32_MAX,
 } MTY_GFX;
 
@@ -2178,6 +2179,12 @@ MTY_LogFatalParams(const char *func, const char *fmt, ...) MTY_FMT(2, 3);
 ///   before `e0`. Otherwise, the position is unchanged.
 typedef int32_t (*MTY_CompareFunc)(const void *e0, const void *e1);
 
+/// @brief Guarantee memory is zeroed without compiler interference.
+/// @param mem Buffer to zero.
+/// @param size Size in bytes of `mem`.
+MTY_EXPORT void
+MTY_SecureZero(void *mem, size_t size);
+
 /// @brief Allocate zeroed memory.
 /// @details For more information, see `calloc` from the C standard library.
 /// @param len Number of elements requested.
@@ -2210,6 +2217,12 @@ MTY_Free(void *mem);
 /// @param mem Memory allocated by MTY_AllocAligned.
 MTY_EXPORT void
 MTY_FreeAligned(void *mem);
+
+/// @brief Guarantee allocated memory is zeroed before it is freed.
+/// @param mem Dynamically allocated memory.
+/// @param size Size in bytes of `mem`.
+MTY_EXPORT void
+MTY_SecureFree(void *mem, size_t size);
 
 /// @brief Resize previously allocated memory.
 /// @details For more information, see `realloc` from the C standard library.

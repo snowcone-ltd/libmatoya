@@ -14,6 +14,15 @@
 
 #include "tlocal.h"
 
+static volatile void *(*MEMORY_MEMSET)(void *s, int c, size_t n) = (void *) memset;
+
+void MTY_SecureZero(void *mem, size_t size)
+{
+	// This prevents the compiler from optimizing memset away
+	if (mem)
+		MEMORY_MEMSET(mem, 0, size);
+}
+
 void *MTY_Alloc(size_t len, size_t size)
 {
 	void *mem = calloc(len, size);
@@ -27,6 +36,12 @@ void *MTY_Alloc(size_t len, size_t size)
 void MTY_Free(void *mem)
 {
 	free(mem);
+}
+
+void MTY_SecureFree(void *mem, size_t size)
+{
+	MTY_SecureZero(mem, size);
+	MTY_Free(mem);
 }
 
 void *MTY_Realloc(void *mem, size_t len, size_t size)

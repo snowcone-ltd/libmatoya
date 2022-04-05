@@ -116,6 +116,8 @@ static const int APP_MOUSE_MAP[] = {
 // Low level keyboard hook needs a global HWND
 
 static HWND APP_KB_HWND;
+static MTY_Mod APP_KB_LWIN;
+static MTY_Mod APP_KB_RWIN;
 
 
 // App Static Helpers
@@ -447,7 +449,8 @@ static MTY_Mod app_get_keymod(void)
 		((GetKeyState(VK_LWIN)     & 0x8000) >> 9)  |
 		((GetKeyState(VK_RWIN)     & 0x8000) >> 8)  |
 		((GetKeyState(VK_CAPITAL)  & 0x0001) << 8)  |
-		((GetKeyState(VK_NUMLOCK)  & 0x0001) << 9);
+		((GetKeyState(VK_NUMLOCK)  & 0x0001) << 9)  |
+		APP_KB_LWIN | APP_KB_RWIN;
 }
 
 static LRESULT CALLBACK app_ll_keyboard_proc(int nCode, WPARAM wParam, LPARAM lParam)
@@ -461,10 +464,19 @@ static LRESULT CALLBACK app_ll_keyboard_proc(int nCode, WPARAM wParam, LPARAM lP
 			(p->vkCode == VK_ESCAPE); // ESC
 
 		if (intercept) {
+			bool up = p->flags & LLKHF_UP;
+
+			// Windows low level keyboard hook interferes with the Win key modifier state, track globally
+			if (p->vkCode == VK_LWIN)
+				APP_KB_LWIN = up ? MTY_MOD_NONE : MTY_MOD_LWIN;
+
+			if (p->vkCode == VK_RWIN)
+				APP_KB_RWIN = up ? MTY_MOD_NONE : MTY_MOD_RWIN;
+
 			LPARAM wproc_lparam = 0;
 			wproc_lparam |= (p->scanCode & 0xFF) << 16;
 			wproc_lparam |= (p->flags & LLKHF_EXTENDED) ? (1 << 24) : 0;
-			wproc_lparam |= (p->flags & LLKHF_UP) ? (1 << 31) : 0;
+			wproc_lparam |= up ? (1 << 31) : 0;
 
 			SendMessage(APP_KB_HWND, (UINT) wParam, 0, wproc_lparam);
 			return 1;
@@ -554,6 +566,8 @@ static void app_apply_keyboard_state(MTY_App *app, bool focus)
 
 			APP_KB_HWND = NULL;
 			app->kbhook = NULL;
+
+			APP_KB_LWIN = APP_KB_RWIN = MTY_MOD_NONE;
 		}
 	}
 }
@@ -1044,6 +1058,7 @@ void MTY_AppDestroy(MTY_App **app)
 	xip_destroy(&ctx->xip);
 
 	APP_KB_HWND = NULL;
+	APP_KB_LWIN = APP_KB_RWIN = MTY_MOD_NONE;
 
 	MTY_Free(ctx);
 	*app = NULL;
