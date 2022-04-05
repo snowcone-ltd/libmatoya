@@ -3649,6 +3649,64 @@ MTY_ZoomSetLimits(MTY_Zoom *ctx, float min, float max);
 MTY_EXPORT void 
 MTY_ZoomDestroy(MTY_Zoom **ctx);
 
+
+//- #module Cursor
+//- #mbrief Cursor manipulation and display helper.
+
+typedef struct MTY_Cursor MTY_Cursor;
+
+/// @brief Create a cursor context.
+/// @param ctx The MTY_Cursor.
+/// @returns The newly created cursor context.
+MTY_EXPORT MTY_Cursor *
+MTY_CursorCreate(MTY_App *app);
+
+/// @brief Enable or disable cursor drawing.
+/// @details When disabled, MTY_CursorDraw() has not effect.
+/// @param ctx The MTY_Cursor.
+/// @param enable True to draw the cursor, false otherwise.
+MTY_EXPORT void
+MTY_CursorEnable(MTY_Cursor *ctx, bool enable);
+
+/// @brief Set the hotspot coordinates of the image
+/// @param ctx The MTY_Cursor.
+/// @param hotX The cursor's horizontal hotspot position.
+/// @param hotY The cursor's vertical hotspot position.
+MTY_EXPORT void
+MTY_CursorSetHotspot(MTY_Cursor *ctx, uint16_t hotX, uint16_t hotY);
+
+/// @brief Decompress and set the cursor image.
+/// @param ctx The MTY_Cursor.
+/// @param data The compressed image data.
+/// @param size The size of the image data.
+MTY_EXPORT void
+MTY_CursorSetImage(MTY_Cursor *ctx, const void *data, size_t size);
+
+/// @brief Move the cursor to the specified position.
+/// @param ctx The MTY_Cursor.
+/// @param x The new cursor's horizontal position.
+/// @param y The new cursor's vertical position.
+/// @param scale The scaling factor to apply on the image.
+MTY_EXPORT void
+MTY_CursorMove(MTY_Cursor *ctx, int32_t x, int32_t y, float scale);
+
+/// @brief Move the cursor based on the current MTY_Zoom state.
+/// @param ctx The MTY_Cursor.
+/// @param zoom The MTY_Zoom.
+MTY_EXPORT void
+MTY_CursorMoveFromZoom(MTY_Cursor *ctx, MTY_Zoom *zoom);
+
+/// @brief Draw the cursor on the specified window
+/// @param ctx The MTY_Cursor.
+/// @param window The target window.
+MTY_EXPORT void
+MTY_CursorDraw(MTY_Cursor *ctx, MTY_Window window);
+
+/// @brief Destroy the cursor context.
+/// @param ctx The MTY_Cursor.
+MTY_EXPORT void
+MTY_CursorDestroy(MTY_Cursor **ctx);
+
 #ifdef __cplusplus
 }
 #endif
