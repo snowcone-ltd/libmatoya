@@ -287,8 +287,17 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	if (_dest)
 		glBindFramebuffer(GL_FRAMEBUFFER, _dest);
 
+	// Blending capability
+	if (desc->blend) {
+		glEnable(GL_BLEND);
+		glBlendEquation(GL_FUNC_ADD);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	} else {
+		glDisable(GL_BLEND);
+	}
+	
 	// Context state, set vertex and fragment shaders
-	glDisable(GL_BLEND);
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_SCISSOR_TEST);
