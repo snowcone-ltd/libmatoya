@@ -1,5 +1,8 @@
 #include "matoya.h"
 
+#include <stdbool.h>
+#include <stdint.h>
+
 struct MTY_Cursor {
 	MTY_App *app;
 	bool enabled;
@@ -21,6 +24,20 @@ MTY_Cursor *MTY_CursorCreate(MTY_App *app)
 	ctx->enabled = true;
 
 	return ctx;
+}
+
+void MTY_CursorDestroy(MTY_Cursor **cursor)
+{
+	if (!cursor || !*cursor)
+		return;
+
+	MTY_Cursor *ctx = *cursor;
+
+	if (ctx->image)
+		MTY_Free(ctx->image);
+
+	MTY_Free(ctx);
+	*cursor = NULL;
 }
 
 void MTY_CursorEnable(MTY_Cursor *ctx, bool enable)
@@ -71,25 +88,13 @@ void MTY_CursorDraw(MTY_Cursor *ctx, MTY_Window window)
 	desc.cropHeight = ctx->height;
 	desc.imageWidth = ctx->width;
 	desc.imageHeight = ctx->width;
-	desc.aspectRatio = (float)ctx->width / (float)ctx->height;
+	desc.aspectRatio = (float) ctx->width / (float) ctx->height;
 	desc.blend = true;
 
 	desc.type = MTY_POSITION_FIXED;
 	desc.scale = ctx->scale;
-	desc.imageX = (int32_t)(ctx->x - (ctx->hotX * desc.scale));
-	desc.imageY = (int32_t)(ctx->y - (ctx->hotY * desc.scale));
+	desc.imageX = (int32_t) (ctx->x - (ctx->hotX * desc.scale));
+	desc.imageY = (int32_t) (ctx->y - (ctx->hotY * desc.scale));
 
 	MTY_WindowDrawQuad(ctx->app, window, ctx->image, &desc);
-}
-
-void MTY_CursorDestroy(MTY_Cursor **ctx)
-{
-	if (!(*ctx))
-		return;
-
-	if ((*ctx)->image)
-		MTY_Free((*ctx)->image);
-
-	MTY_Free(*ctx);
-	*ctx = NULL;
 }

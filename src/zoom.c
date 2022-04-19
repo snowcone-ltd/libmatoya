@@ -1,5 +1,8 @@
 #include "matoya.h"
 
+#include <stdbool.h>
+#include <stdint.h>
+
 // XXX Required because clicks does not always fire on the edges
 #define EDGE_PADDING 1.0f
 
@@ -45,6 +48,17 @@ MTY_Zoom *MTY_ZoomCreate()
 	ctx->scale_screen_max = 4;
 
 	return ctx;
+}
+
+void MTY_ZoomDestroy(MTY_Zoom **zoom)
+{
+	if (!zoom || !*zoom)
+		return;
+
+	MTY_Zoom *ctx = *zoom;
+
+	MTY_Free(ctx);
+	*zoom = NULL;
 }
 
 static bool mty_zoom_context_initialized(MTY_Zoom *ctx)
@@ -153,9 +167,8 @@ void MTY_ZoomScale(MTY_Zoom *ctx, float scaleFactor, float focusX, float focusY)
 		ctx->scale_screen = ctx->scale_screen_min;
 		ctx->scale_image  = ctx->scale_image_min;
 		scaleFactor = 1;
-	}
 
-	if (ctx->scale_screen > ctx->scale_screen_max) {
+	} else if (ctx->scale_screen > ctx->scale_screen_max) {
 		ctx->scale_screen = ctx->scale_screen_max;
 		ctx->scale_image  = ctx->scale_image_max;
 		scaleFactor = 1;
@@ -371,15 +384,4 @@ void MTY_ZoomSetLimits(MTY_Zoom *ctx, float min, float max)
 
 	ctx->scale_screen_min = min;
 	ctx->scale_screen_max = max;
-}
-
-void MTY_ZoomDestroy(MTY_Zoom **zoom)
-{
-	if (!zoom || !*zoom)
-		return;
-
-	MTY_Zoom *ctx = *zoom;
-
-	MTY_Free(ctx);
-	*zoom = NULL;
 }

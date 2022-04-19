@@ -3499,6 +3499,11 @@ typedef struct MTY_Zoom MTY_Zoom;
 MTY_EXPORT MTY_Zoom *
 MTY_ZoomCreate();
 
+/// @brief Destroy the scaling context.
+/// @param ctx The MTY_Zoom.
+MTY_EXPORT void 
+MTY_ZoomDestroy(MTY_Zoom **ctx);
+
 /// @brief Update the context with the window and image sizes.
 /// @details Reset and compute initial scaling data for the provided metrics.
 ///   This function has not effect in provided metrics are the same as the ones
@@ -3644,11 +3649,6 @@ MTY_ZoomShouldShowCursor(MTY_Zoom *ctx);
 MTY_EXPORT void 
 MTY_ZoomSetLimits(MTY_Zoom *ctx, float min, float max);
 
-/// @brief Destroy the scaling context.
-/// @param ctx The MTY_Zoom.
-MTY_EXPORT void 
-MTY_ZoomDestroy(MTY_Zoom **ctx);
-
 
 //- #module Cursor
 //- #mbrief Cursor manipulation and display helper.
@@ -3660,6 +3660,11 @@ typedef struct MTY_Cursor MTY_Cursor;
 /// @returns The newly created cursor context.
 MTY_EXPORT MTY_Cursor *
 MTY_CursorCreate(MTY_App *app);
+
+/// @brief Destroy the cursor context.
+/// @param ctx The MTY_Cursor.
+MTY_EXPORT void
+MTY_CursorDestroy(MTY_Cursor **cursor);
 
 /// @brief Enable or disable cursor drawing.
 /// @details When disabled, MTY_CursorDraw() has not effect.
@@ -3701,11 +3706,6 @@ MTY_CursorMoveFromZoom(MTY_Cursor *ctx, MTY_Zoom *zoom);
 /// @param window The target window.
 MTY_EXPORT void
 MTY_CursorDraw(MTY_Cursor *ctx, MTY_Window window);
-
-/// @brief Destroy the cursor context.
-/// @param ctx The MTY_Cursor.
-MTY_EXPORT void
-MTY_CursorDestroy(MTY_Cursor **ctx);
 
 #ifdef __cplusplus
 }
