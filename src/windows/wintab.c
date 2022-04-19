@@ -35,7 +35,7 @@ struct wintab
 
 static bool wintab_find_extension(struct wintab *ctx, uint32_t searched_tag, uint32_t *index)
 {
-	uint32_t current;
+	uint32_t current = 0;
 
 	for (uint32_t i = 0; wt.info(WTI_EXTENSIONS + i, EXT_TAG, &current); i++) {
 		if (current != searched_tag)
@@ -57,6 +57,7 @@ static void wintab_override_extension(struct wintab *ctx, uint8_t tablet_i, uint
 
 	if (!wt.ext_get(ctx->context, extension, &props))
 		return;
+
 	uint8_t controls = props.data[0];
 
 	for (uint8_t control_i = 0; control_i < controls; control_i++) {
@@ -66,6 +67,7 @@ static void wintab_override_extension(struct wintab *ctx, uint8_t tablet_i, uint
 
 		if (!wt.ext_get(ctx->context, extension, &props))
 			continue;
+
 		uint8_t functions = props.data[0];
 
 		for (uint8_t function_i = 0; function_i < functions; function_i++) {
@@ -95,7 +97,7 @@ struct wintab *wintab_create(HWND hwnd)
 			goto except;
 
 		#define MAP(type, sym, func) \
-			wt.##func = (type)MTY_SOGetSymbol(wt.instance, "WT" #sym); \
+			wt.##func = (type) MTY_SOGetSymbol(wt.instance, "WT" #sym); \
 			if (!wt.##func) goto except;
 
 		MAP(WTINFOA,  InfoA , info);

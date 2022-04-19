@@ -620,9 +620,10 @@ typedef enum {
 
 /// @brief Wintab input type.
 typedef enum {
-	MTY_WINTAB_TYPE_KEY,   ///< The Wintab input comes from an ExpressKey button.
-	MTY_WINTAB_TYPE_STRIP, ///< The Wintab input comes from a TouchStrip manipulation.
-	MTY_WINTAB_TYPE_RING   ///< The Wintab input comes from a TouchRing manipulation.
+	MTY_WINTAB_TYPE_KEY     = 0, ///< The Wintab input comes from an ExpressKey button.
+	MTY_WINTAB_TYPE_STRIP   = 1, ///< The Wintab input comes from a TouchStrip manipulation.
+	MTY_WINTAB_TYPE_RING    = 2, ///< The Wintab input comes from a TouchRing manipulation.
+	MTY_WINTAB_TYPE_MAKE_32 = INT32_MAX,
 } MTY_WintabType;
 
 /// @brief Key event.

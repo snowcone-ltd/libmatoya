@@ -965,11 +965,12 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 			break;
 		}
 		case WT_PROXIMITY:
-			if (app)
+			if (app && app->wintab)
 				wintab_on_proximity(app->wintab, &evt, lparam);
 			break;
 		case WT_INFOCHANGE:
-			wintab_recreate(&app->wintab, app_get_main_hwnd(app));
+			if (app)
+				wintab_recreate(&app->wintab, app_get_main_hwnd(app));
 			break;
 
 	}
