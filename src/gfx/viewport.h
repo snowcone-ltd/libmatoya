@@ -10,10 +10,10 @@
 
 static void mty_viewport(const MTY_RenderDesc *desc, float *vp_x, float *vp_y, float *vp_w, float *vp_h, bool transform_origin)
 {
-	float w      = (float)desc->cropWidth;
-	float h      = (float)desc->cropHeight;
-	float view_w = (float)desc->viewWidth;
-	float view_h = (float)desc->viewHeight;
+	float w      = (float) desc->cropWidth;
+	float h      = (float) desc->cropHeight;
+	float view_w = (float) desc->viewWidth;
+	float view_h = (float) desc->viewHeight;
 	float ar     = desc->aspectRatio;
 
 	if (desc->rotation == MTY_ROTATION_90 || desc->rotation == MTY_ROTATION_270) {
