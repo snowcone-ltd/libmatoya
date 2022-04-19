@@ -287,10 +287,10 @@ static HRESULT d3d11_reload_textures(struct d3d11 *ctx, ID3D11Device *device, ID
 				desc->format == MTY_COLOR_FORMAT_BGRA5551 ? DXGI_FORMAT_B5G5R5A1_UNORM :
 				DXGI_FORMAT_B8G8R8A8_UNORM;
 			uint8_t bpp =
-				desc->format == MTY_COLOR_FORMAT_BGRA ? sizeof(uint32_t) :
-				desc->format == MTY_COLOR_FORMAT_RGBA ? sizeof(uint32_t) :
-				desc->format == MTY_COLOR_FORMAT_AYUV ? sizeof(uint32_t) :
-				sizeof(uint16_t);
+				desc->format == MTY_COLOR_FORMAT_BGRA ? 4 :
+				desc->format == MTY_COLOR_FORMAT_RGBA ? 4 :
+				desc->format == MTY_COLOR_FORMAT_AYUV ? 4 :
+				2;
 
 			// BGRA
 			HRESULT e = d3d11_refresh_resource(&ctx->staging[0], device, format, desc->cropWidth, desc->cropHeight);

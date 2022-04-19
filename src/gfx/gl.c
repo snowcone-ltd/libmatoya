@@ -191,7 +191,7 @@ static void gl_reload_textures(struct gl *ctx, const void *image, const MTY_Rend
 			GLenum internal = GL_BGRA;
 			GLenum format = GL_BGRA;
 			GLenum type = GL_UNSIGNED_BYTE;
-			GLint bpp = sizeof(uint32_t);
+			GLint bpp = 4;
 
 			if (desc->format == MTY_COLOR_FORMAT_RGBA) {
 				internal = GL_RGBA;
@@ -201,11 +201,11 @@ static void gl_reload_textures(struct gl *ctx, const void *image, const MTY_Rend
 				internal = GL_RGB;
 				format = GL_RGB;
 				type = GL_UNSIGNED_SHORT_5_6_5;
-				bpp = sizeof(uint16_t);
+				bpp = 2;
 
 			} else if (desc->format == MTY_COLOR_FORMAT_BGRA5551) {
 				type = GL_UNSIGNED_SHORT_1_5_5_5_REV;
-				bpp = sizeof(uint16_t);
+				bpp = 2;
 			}
 
 			// BGRA

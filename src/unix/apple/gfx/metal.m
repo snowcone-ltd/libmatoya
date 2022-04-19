@@ -165,10 +165,10 @@ static void metal_reload_textures(struct metal *ctx, id<MTLDevice> device, const
 				? MTLPixelFormatRGBA8Unorm
 				: MTLPixelFormatBGRA8Unorm;
 			uint8_t bpp =
-				desc->format == MTY_COLOR_FORMAT_BGRA ? sizeof(uint32_t) :
-				desc->format == MTY_COLOR_FORMAT_RGBA ? sizeof(uint32_t) :
-				desc->format == MTY_COLOR_FORMAT_AYUV ? sizeof(uint32_t) :
-				sizeof(uint16_t);
+				desc->format == MTY_COLOR_FORMAT_BGRA ? 4 :
+				desc->format == MTY_COLOR_FORMAT_RGBA ? 4 :
+				desc->format == MTY_COLOR_FORMAT_AYUV ? 4 :
+				2;
 
 			// 16-bit packed pixel formats were not available until Big Sur
 			if (bpp == 2) {
