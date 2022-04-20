@@ -116,6 +116,7 @@ public class Matoya extends SurfaceView implements
 		this.getHolder().addCallback(this);
 		this.detector.setOnDoubleTapListener(this);
 		this.detector.setContextClickListener(this);
+		this.setFilterTouchesWhenObscured(true);
 		this.setFocusableInTouchMode(true);
 		this.setFocusable(true);
 		this.requestFocus();
