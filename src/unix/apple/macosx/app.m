@@ -53,6 +53,15 @@ static const MTY_Button APP_MOUSE_MAP[] = {
 	MTY_BUTTON_X2,
 };
 
+typedef int32_t CGSConnection;
+typedef enum {
+	CGSGlobalHotKeyEnable  = 0,
+	CGSGlobalHotKeyDisable = 1,
+} CGSGlobalHotKeyOperatingMode;
+
+extern CGSConnection CGSMainConnectionID(void);
+extern CGError CGSSetGlobalHotKeyOperatingMode(CGSConnection connection, CGSGlobalHotKeyOperatingMode mode);
+
 #define APP_MOUSE_MAX (sizeof(APP_MOUSE_MAP) / sizeof(MTY_Button))
 
 static void app_schedule_func(App *ctx)
@@ -106,11 +115,14 @@ static void app_apply_keyboard_state(App *ctx)
 	if (ctx.grab_kb && ctx.detach == MTY_DETACH_STATE_NONE) {
 		// Requires "Enable access for assistive devices" checkbox is checked
 		// in the Universal Access preference pane
-		if (!ctx.kb_mode)
+		if (!ctx.kb_mode) {
 			ctx.kb_mode = PushSymbolicHotKeyMode(kHIHotKeyModeAllDisabled);
+			CGSSetGlobalHotKeyOperatingMode(CGSMainConnectionID(), CGSGlobalHotKeyDisable);
+		}
 
 	} else if (ctx.kb_mode) {
 		PopSymbolicHotKeyMode(ctx.kb_mode);
+		CGSSetGlobalHotKeyOperatingMode(CGSMainConnectionID(), CGSGlobalHotKeyEnable);
 		ctx.kb_mode = NULL;
 	}
 }
@@ -663,6 +675,12 @@ static void window_mod_event(Window *window, NSEvent *event)
 	evt.key.key = keymap_keycode_to_key(event.keyCode);
 	evt.key.mod = keymap_modifier_flags_to_keymod(event.modifierFlags);
 
+	// Macos doesn't send capslock keycodes, so emulate them to act more like windows
+	if (event.keyCode == kVK_CapsLock) {
+		window_keyboard_event(window, event.keyCode, event.modifierFlags, true);
+		window_keyboard_event(window, event.keyCode, event.modifierFlags, false);
+	}
+
 	switch (evt.key.key) {
 		case MTY_KEY_LSHIFT: evt.key.pressed = evt.key.mod & MTY_MOD_LSHIFT; break;
 		case MTY_KEY_LCTRL:  evt.key.pressed = evt.key.mod & MTY_MOD_LCTRL;  break;
@@ -694,13 +712,24 @@ static void window_mod_event(Window *window, NSEvent *event)
 	{
 		NSUInteger mods = NSEventModifierFlagControl | NSEventModifierFlagCommand;
 
+		// Allow bypassing some system keys when in immersive
+		bool grabbed = self.app.grab_kb;
+		bool is_command = (event.modifierFlags & NSEventModifierFlagCommand) ? true : false;
+		bool is_command_q = (event.keyCode == kVK_ANSI_Q) && is_command;
+		bool is_command_w = (event.keyCode == kVK_ANSI_W) && is_command;
+		bool is_command_space = (event.keyCode == kVK_Space) && is_command;
+
 		// macOS swallows Ctrl+Tab and Cmd+Tab, special cases
-		if (event.keyCode == kVK_Tab && (event.modifierFlags & mods)) {
+		bool is_command_tab = (event.keyCode == kVK_Tab) && (event.modifierFlags & mods);
+
+		bool override_hotkey = grabbed && (is_command_q || is_command_w || is_command_space);
+
+		if (override_hotkey || is_command_tab) {
 			window_keyboard_event(self, event.keyCode, event.modifierFlags, true);
 			window_keyboard_event(self, event.keyCode, event.modifierFlags, false);
 		}
 
-		return NO;
+		return override_hotkey ? YES : NO;
 	}
 
 	- (BOOL)windowShouldClose:(NSWindow *)sender
@@ -1003,6 +1032,7 @@ void MTY_AppDestroy(MTY_App **app)
 
 	if (ctx.kb_mode) {
 		PopSymbolicHotKeyMode(ctx.kb_mode);
+		CGSSetGlobalHotKeyOperatingMode(CGSMainConnectionID(), CGSGlobalHotKeyEnable);
 		ctx.kb_mode = NULL;
 	}
 
