@@ -18,6 +18,7 @@
 
 #include "xip.h"
 #include "wsize.h"
+#include "wintab.h"
 #include "hid/hid.h"
 
 #define APP_CLASS_NAME L"MTY_Window"
@@ -54,6 +55,7 @@ struct MTY_App {
 	DWORD cb_seq;
 	bool pen_in_range;
 	bool pen_enabled;
+	bool pen_had_barrel;
 	bool touch_active;
 	bool relative;
 	bool kbgrab;
@@ -69,6 +71,7 @@ struct MTY_App {
 	int32_t last_y;
 	struct hid *hid;
 	struct xip *xip;
+	struct wintab *wintab;
 	MTY_Button buttons;
 	MTY_DetachState detach;
 	MTY_Hash *hotkey;
@@ -620,6 +623,55 @@ static void app_kb_to_hotkey(MTY_App *app, MTY_Event *evt)
 	}
 }
 
+static bool app_adjust_position(HWND hwnd, int32_t pointer_x, int32_t pointer_y, POINT *position) 
+{
+	POINT origin = {0};
+	if (!ClientToScreen(hwnd, &origin))
+		return false;
+
+	RECT size = {0};
+	if (!GetClientRect(hwnd, &size))
+		return false;
+
+	POINT point = {pointer_x, pointer_y};
+	if (!PhysicalToLogicalPointForPerMonitorDPI(hwnd, &point))
+		return false;
+
+	int32_t x      = (int32_t) (point.x - origin.x);
+	int32_t y      = (int32_t) (point.y - origin.y);
+	int32_t width  = size.right  - size.left;
+	int32_t height = size.bottom - size.top;
+
+	if (x < 0 || x > width || y < 0 || y > height)
+		return false;
+
+	position->x = x;
+	position->y = y;
+
+	return true;
+}
+
+static HWND app_get_hovered_window(MTY_App *ctx, int32_t pointer_x, int32_t pointer_y, POINT *position)
+{
+	HWND hwnd = GetActiveWindow();
+	if (!hwnd)
+		return NULL;
+
+	if (app_adjust_position(hwnd, pointer_x, pointer_y, position))
+		return hwnd;
+
+	for (uint8_t i = 0; i < MTY_WINDOW_MAX; i++) {
+		if (!ctx->windows[i])
+			continue;
+
+		hwnd = ctx->windows[i]->hwnd;
+		if (app_adjust_position(hwnd, pointer_x, pointer_y, position))
+			return hwnd;
+	}
+
+	return NULL;
+}
+
 static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	MTY_App *app = ctx->app;
@@ -758,7 +810,8 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 			break;
 		}
 		case WM_POINTERLEAVE:
-			app->pen_in_range = false;
+			if (!app->wintab)
+				app->pen_in_range = false;
 			app->touch_active = false;
 			break;
 		case WM_POINTERUPDATE:
@@ -807,8 +860,11 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 			if (ppi.penFlags & PEN_FLAG_ERASER)
 				evt.pen.flags |= MTY_PEN_FLAG_ERASER;
 
-			if (ppi.penFlags & PEN_FLAG_BARREL)
+			// We must send a last barrel to notify it has been released
+			bool pen_barrel = (ppi.penFlags & PEN_FLAG_BARREL) ? true : false;
+			if (pen_barrel || app->pen_had_barrel)
 				evt.pen.flags |= MTY_PEN_FLAG_BARREL;
+			app->pen_had_barrel = pen_barrel;
 
 			defreturn = true;
 			break;
@@ -876,6 +932,47 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 			if (wparam == DBT_DEVNODES_CHANGED && app->tray.menu_open)
 				EndMenu();
 			break;
+		case WT_PACKET: {
+			if (!app || !app->wintab || !app->pen_in_range)
+				break;
+
+			PACKET pkt = {0};
+			wintab_get_packet(app->wintab, wparam, lparam, &pkt);
+
+			POINT position = {0};
+			HWND focused_window = app_get_hovered_window(app, pkt.pkX, pkt.pkY, &position);
+			if (!focused_window)
+				break;
+
+			pkt.pkX = position.x;
+			pkt.pkY = position.y;
+
+			// Wintab context only catches events on the main window, so we update the real one manually
+			struct window *new_ctx = (struct window *) GetWindowLongPtr(focused_window, 0);
+
+			wintab_on_packet(app->wintab, &evt, &pkt, new_ctx->window);
+
+			break;
+		}
+		case WT_PACKETEXT: {
+			if (!app || !app->wintab)
+				break;
+
+			PACKETEXT pktext = {0};
+			wintab_get_packet(app->wintab, wparam, lparam, &pktext);
+			wintab_on_packetext(app->wintab, &evt, &pktext);
+
+			break;
+		}
+		case WT_PROXIMITY:
+			if (app && app->wintab)
+				wintab_on_proximity(app->wintab, &evt, lparam);
+			break;
+		case WT_INFOCHANGE:
+			if (app)
+				wintab_recreate(&app->wintab, app_get_main_hwnd(app));
+			break;
+
 	}
 
 	// Tray
@@ -1037,6 +1134,8 @@ void MTY_AppDestroy(MTY_App **app)
 		return;
 
 	MTY_App *ctx = *app;
+
+	wintab_destroy(&ctx->wintab, true);
 
 	if (ctx->custom_cursor)
 		DestroyIcon(ctx->custom_cursor);
@@ -1578,6 +1677,20 @@ bool MTY_AppIsPenEnabled(MTY_App *ctx)
 void MTY_AppEnablePen(MTY_App *ctx, bool enable)
 {
 	ctx->pen_enabled = enable;
+
+	if (enable && !ctx->wintab) {
+		ctx->wintab = wintab_create(app_get_main_hwnd(ctx));
+	
+	} else if (!enable && ctx->wintab) {
+		wintab_destroy(&ctx->wintab, true);
+	}
+}
+
+void MTY_AppOverrideTabletControls(MTY_App *ctx, bool override)
+{
+	wintab_override_controls(ctx->wintab, override);
+
+	wintab_recreate(&ctx->wintab, app_get_main_hwnd(ctx));
 }
 
 MTY_InputMode MTY_AppGetInputMode(MTY_App *ctx)
