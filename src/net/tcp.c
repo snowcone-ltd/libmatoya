@@ -243,13 +243,15 @@ bool mty_tcp_read(struct tcp *ctx, void *buf, size_t size, uint32_t timeout)
 
 // DNS
 
-bool mty_dns_query(const char *host, char *ip, size_t size)
+bool mty_dns_query(const char *host, bool v6, char *ip, size_t size)
 {
 	bool r = true;
 
+	int32_t af = v6 ? AF_INET6 : AF_INET;
+
 	// IP4 only
 	struct addrinfo hints = {0};
-	hints.ai_family = AF_INET;
+	hints.ai_family = af;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 
@@ -261,7 +263,7 @@ bool mty_dns_query(const char *host, char *ip, size_t size)
 	}
 
 	struct sockaddr_in *addr = (struct sockaddr_in *) servinfo->ai_addr;
-	if (!inet_ntop(AF_INET, &addr->sin_addr, ip, size)) {
+	if (!inet_ntop(af, &addr->sin_addr, ip, size)) {
 		MTY_Log("'inet_ntop' failed with errno %d", errno);
 		r = false;
 		goto except;
