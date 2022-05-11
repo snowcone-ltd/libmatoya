@@ -25,7 +25,7 @@ uint32_t MTY_GetPlatform(void)
 
 	int32_t level = android_get_device_api_level();
 
-	v |= (uint32_t) level << 8;
+	v |= (uint32_t) level;
 
 	return v;
 }
