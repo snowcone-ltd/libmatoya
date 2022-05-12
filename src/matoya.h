@@ -3242,7 +3242,7 @@ MTY_IsSupported(void);
 /// @returns An MTY_OS value bitwise OR'd with the OS's major and minor version numbers.
 ///   The major version has a mask of `0xFF00` and the minor has a mask of `0xFF`. On
 ///   Android, only a single version number is reported, the API level, in the
-///   position of the minor number.
+///   position of the major number.
 MTY_EXPORT uint32_t
 MTY_GetPlatform(void);
 
