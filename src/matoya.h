@@ -2346,6 +2346,12 @@ MTY_WideToMulti(const wchar_t *src, char *dst, size_t size);
 MTY_EXPORT char *
 MTY_WideToMultiD(const wchar_t *src);
 
+/// @brief Thread local version of MTY_WideToMulti.
+/// @param src Source wide character string.
+/// @returns This buffer is allocated in thread local storage and must not be freed.
+MTY_EXPORT const char *
+MTY_WideToMultiDL(const wchar_t *src);
+
 /// @brief Convert a UTF-8 string to its wide character equivalent.
 /// @param src Source UTF-8 string.
 /// @param dst Destination wide character string.
@@ -2361,6 +2367,12 @@ MTY_MultiToWide(const char *src, wchar_t *dst, uint32_t len);
 /// @returns The returned buffer must be destroyed with MTY_Free.
 MTY_EXPORT wchar_t *
 MTY_MultiToWideD(const char *src);
+
+/// @brief Thread local version of MTY_MultiToWide.
+/// @param src Source UTF-8 string.
+/// @returns This buffer is allocated in thread local storage and must not be freed.
+MTY_EXPORT const wchar_t *
+MTY_MultiToWideDL(const char *src);
 
 /// @brief Get the bytes of a 16-bit integer in reverse order.
 /// @param value Value to swap.
