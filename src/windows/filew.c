@@ -97,15 +97,15 @@ bool MTY_MoveFile(const char *src, const char *dst)
 	return r;
 }
 
-static char *file_known_folder(const KNOWNFOLDERID *fid)
+static const char *file_known_folder(const KNOWNFOLDERID *fid)
 {
 	WCHAR *dirw = NULL;
-	char *local = NULL;
+	const char *local = NULL;
 
 	HRESULT e = SHGetKnownFolderPath(fid, 0, NULL, &dirw);
 
 	if (e == S_OK) {
-		local = mty_tlocal_strcpyw(dirw);
+		local = MTY_WideToMultiDL(dirw);
 		CoTaskMemFree(dirw);
 
 	} else {
@@ -118,13 +118,13 @@ static char *file_known_folder(const KNOWNFOLDERID *fid)
 const char *MTY_GetDir(MTY_Dir dir)
 {
 	wchar_t tmp[MTY_PATH_MAX] = {0};
-	char *local = NULL;
+	const char *local = NULL;
 
 	switch (dir) {
 		case MTY_DIR_CWD: {
 			DWORD n = GetCurrentDirectory(MTY_PATH_MAX, tmp);
 			if (n > 0) {
-				local = mty_tlocal_strcpyw(tmp);
+				local = MTY_WideToMultiDL(tmp);
 
 			} else {
 				MTY_Log("'GetCurrentDirectory' failed with error 0x%X", GetLastError());
@@ -216,11 +216,10 @@ MTY_FileList *MTY_GetFileList(const char *path, const char *filter)
 	char *pathd = MTY_Strdup(path);
 
 	WIN32_FIND_DATA ent;
-	wchar_t *pathw = MTY_MultiToWideD(MTY_JoinPath(pathd, "*"));
+	const wchar_t *pathw = MTY_MultiToWideDL(MTY_JoinPath(pathd, "*"));
 
 	HANDLE dir = FindFirstFile(pathw, &ent);
 	bool ok = dir != INVALID_HANDLE_VALUE;
-	MTY_Free(pathw);
 
 	wchar_t *filterw = filter ? MTY_MultiToWideD(filter) : NULL;
 
