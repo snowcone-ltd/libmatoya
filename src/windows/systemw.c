@@ -66,7 +66,7 @@ const char *MTY_GetHostname(void)
 		return "noname";
 	}
 
-	return mty_tlocal_strcpyw(tmp);
+	return MTY_WideToMultiDL(tmp);
 }
 
 uint32_t MTY_GetPlatform(void)
@@ -157,7 +157,7 @@ const char *MTY_GetProcessPath(void)
 	if (GetModuleFileName(NULL, tmp, MTY_PATH_MAX) <= 0)
 		MTY_Log("'GetModuleFileName' failed with error 0x%X", GetLastError());
 
-	return mty_tlocal_strcpyw(tmp);
+	return MTY_WideToMultiDL(tmp);
 }
 
 bool MTY_RestartProcess(char * const *argv)

@@ -41,13 +41,3 @@ char *mty_tlocal_strcpy(const char *str)
 
 	return local;
 }
-
-char *mty_tlocal_strcpyw(wchar_t *wstr)
-{
-	char *str = MTY_WideToMultiD(wstr);
-	char *local = mty_tlocal_strcpy(str);
-
-	MTY_Free(str);
-
-	return local;
-}

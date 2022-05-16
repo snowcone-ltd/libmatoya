@@ -184,6 +184,20 @@ char *MTY_WideToMultiD(const wchar_t *src)
 	return dst;
 }
 
+const char *MTY_WideToMultiDL(const wchar_t *src)
+{
+	if (!src)
+		return NULL;
+
+	// UTF8 may be up to 4 bytes per character
+	size_t len = (wcslen(src) + 1) * 4;
+	char *dst = mty_tlocal(len);
+
+	MTY_WideToMulti(src, dst, len);
+
+	return dst;
+}
+
 wchar_t *MTY_MultiToWideD(const char *src)
 {
 	if (!src)
@@ -191,6 +205,19 @@ wchar_t *MTY_MultiToWideD(const char *src)
 
 	uint32_t len = (uint32_t) strlen(src) + 1;
 	wchar_t *dst = MTY_Alloc(len, sizeof(wchar_t));
+
+	MTY_MultiToWide(src, dst, len);
+
+	return dst;
+}
+
+const wchar_t *MTY_MultiToWideDL(const char *src)
+{
+	if (!src)
+		return NULL;
+
+	uint32_t len = (uint32_t) strlen(src) + 1;
+	wchar_t *dst = mty_tlocal(len * sizeof(wchar_t));
 
 	MTY_MultiToWide(src, dst, len);
 
