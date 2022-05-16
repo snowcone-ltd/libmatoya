@@ -295,13 +295,13 @@ void MTY_AudioReset(MTY_Audio *ctx)
 
 	if (ctx->playing) {
 		HRESULT e = IAudioClient_Stop(ctx->client);
-		if (e != S_OK) {
+		if (e != S_OK && e != S_FALSE) {
 			MTY_Log("'IAudioClient_Stop' failed with HRESULT 0x%X", e);
 			return;
 		}
 
 		e = IAudioClient_Reset(ctx->client);
-		if (e != S_OK) {
+		if (e != S_OK && e != S_FALSE) {
 			MTY_Log("'IAudioClient_Reset' failed with HRESULT 0x%X", e);
 			return;
 		}
