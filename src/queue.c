@@ -105,7 +105,7 @@ static uint32_t queue_next_pos(MTY_Queue *ctx, uint32_t pos)
 
 static void queue_push(MTY_Queue *ctx, size_t size, bool ptr)
 {
-	if (size > 0) {
+	if (size > 0 || ptr) {
 		uint32_t lock_pos = ctx->push_pos;
 		ctx->slots[lock_pos].size = size;
 

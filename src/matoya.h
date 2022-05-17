@@ -1499,6 +1499,11 @@ MTY_HasDialogs(void);
 MTY_EXPORT void
 MTY_ShowMessageBox(const char *title, const char *fmt, ...) MTY_FMT(2, 3);
 
+/// @brief Creates a dialog box for opening files.
+/// @returns The opened file name allocated in thread local storage. Must not be freed.
+MTY_EXPORT const char *
+MTY_OpenFile(void);
+
 
 //- #module File
 //- #mbrief Simple filesystem helpers.
@@ -3073,7 +3078,7 @@ MTY_QueuePush(MTY_Queue *ctx, size_t size);
 /// @param timeout Time to wait in milliseconds for an output buffer to become available.
 ///   A negative value will not timeout.
 /// @param buffer Reference to the next output buffer.
-/// @param size Set to the size of the data available in `buffer`.
+/// @param size Set to the size of the data available in `buffer`. May be NULL.
 /// @returns Returns true if an output buffer was acquired, false on timeout.
 MTY_EXPORT bool
 MTY_QueueGetOutputBuffer(MTY_Queue *ctx, int32_t timeout, void **buffer, size_t *size);
@@ -3098,7 +3103,7 @@ MTY_QueuePop(MTY_Queue *ctx);
 /// @brief Push a pointer allocated by the caller to a queue.
 /// @param ctx An MTY_Queue.
 /// @param opaque Value you allocated and are responsible for freeing.
-/// @param size Size in bytes of `opaque`.
+/// @param size Size in bytes of `opaque`. This value is returned by MTY_QueuePopPtr.
 /// @returns Returns true if `opaque` was successfully pushed to the queue, otherwise
 ///   false if there was no input buffer available.
 MTY_EXPORT bool
@@ -3109,7 +3114,7 @@ MTY_QueuePushPtr(MTY_Queue *ctx, void *opaque, size_t size);
 /// @param timeout Time to wait in milliseconds for the next pointer to become available.
 ///   A negative value will not timeout.
 /// @param opaque Reference to a pointer set via MTY_QueuePushPtr.
-/// @param size Set to the `size` passed to MTY_QueuePushPtr.
+/// @param size Set to the `size` passed to MTY_QueuePushPtr. May be NULL.
 /// @returns Returns true if an `opaque` was successfully popped from the queue,
 ///   otherwise false on timeout.
 MTY_EXPORT bool
