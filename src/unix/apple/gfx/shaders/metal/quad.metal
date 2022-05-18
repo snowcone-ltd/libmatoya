@@ -73,12 +73,12 @@ static void gaussian(uint type, float w, float h, thread float2 &uv)
 	uv = p / res;
 }
 
-static void scanline(uint effect, float y, float h, thread float4 &rgba)
+static void scanline(float y, float h, thread float4 &rgba)
 {
-	float n = (effect == 1) ? 1.0 : 2.0;
+	float n = floor(h / 240.0);
 
-	if (fmod(floor(y * h), n * 2.0) < n)
-		rgba *= 0.7;
+	if (fmod(floor(y * h), n) < n / 2.0)
+		rgba *= 0.8;
 }
 
 fragment float4 fs(
@@ -142,7 +142,7 @@ fragment float4 fs(
 
 	// Scanlines
 	if (cb.effect == 1 || cb.effect == 2)
-		scanline(cb.effect, in.texcoord.y, cb.vp_height, rgba);
+		scanline(in.texcoord.y, cb.vp_height, rgba);
 
 	return rgba;
 }

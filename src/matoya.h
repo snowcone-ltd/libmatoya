@@ -85,8 +85,7 @@ typedef enum {
 /// @brief Quad texture effects.
 typedef enum {
 	MTY_EFFECT_NONE         = 0, ///< No effect applied.
-	MTY_EFFECT_SCANLINES    = 1, ///< A scanline effect applied every other line.
-	MTY_EFFECT_SCANLINES_X2 = 2, ///< A scanline effect applied every two lines.
+	MTY_EFFECT_SCANLINES    = 1, ///< A scanline effect simulating a 480i CRT television.
 	MTY_EFFECT_MAKE_32      = INT32_MAX,
 } MTY_Effect;
 
