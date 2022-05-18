@@ -58,12 +58,12 @@ void gaussian(int type, float w, float h, inout vec2 uv)
 	uv = p / res;
 }
 
-void scanline(int effect, float y, float h, inout vec4 rgba)
+void scanline(float y, float h, inout vec4 rgba)
 {
-	float n = (effect == 1) ? 1.0 : 2.0;
+	float n = floor(h / 240.0);
 
-	if (mod(floor(y * h), n * 2.0) < n)
-		rgba *= 0.7;
+	if (mod(floor(y * h), n) < n / 2.0)
+		rgba *= 0.8;
 }
 
 void main(void)
@@ -129,5 +129,5 @@ void main(void)
 
 	// Scanlines
 	if (effect == 1 || effect == 2)
-		scanline(effect, vs_texcoord[1], vp_height, gl_FragColor);
+		scanline(vs_texcoord[1], vp_height, gl_FragColor);
 }

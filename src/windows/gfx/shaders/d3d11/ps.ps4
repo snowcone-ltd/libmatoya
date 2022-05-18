@@ -61,12 +61,12 @@ inline void gaussian(uint type, float w, float h, inout float2 uv)
 	uv = p / res;
 }
 
-inline void scanline(uint effect, float y, float h, inout float4 rgba)
+inline void scanline(float y, float h, inout float4 rgba)
 {
-	float n = (effect == 1) ? 1.0 : 2.0;
+	float n = floor(h / 240.0);
 
-	if (fmod(floor(y * h), n * 2.0) < n)
-		rgba *= 0.7;
+	if (fmod(floor(y * h), n) < n / 2.0)
+		rgba *= 0.8;
 }
 
 float4 main(VS_OUTPUT input) : SV_TARGET
@@ -124,7 +124,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 
 	// Scanlines
 	if (effect == 1 || effect == 2)
-		scanline(effect, input.texcoord.y, vp_height, rgba);
+		scanline(input.texcoord.y, vp_height, rgba);
 
 	return rgba;
 }
