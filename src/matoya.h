@@ -1501,9 +1501,12 @@ MTY_EXPORT void
 MTY_ShowMessageBox(const char *title, const char *fmt, ...) MTY_FMT(2, 3);
 
 /// @brief Creates a dialog box for opening files.
-/// @returns The opened file name allocated in thread local storage. Must not be freed.
+/// @title The title of the dialog. May be NULL for the default behavior.
+/// @app The MTY_App owner of the dialog. May be NULL for none.
+/// @window The MTY_Window owner of the dialog. Ignored if `app` is NULL.
+/// @returns The selected file name allocated in thread local storage. Must not be freed.
 MTY_EXPORT const char *
-MTY_OpenFile(void);
+MTY_OpenFile(const char *title, MTY_App *app, MTY_Window window);
 
 
 //- #module File
@@ -1758,6 +1761,17 @@ MTY_GetProgramIcon(const char *path, uint32_t *width, uint32_t *height);
 //- #module JSON
 //- #mbrief JSON parsing and construction.
 
+/// @brief JSON types.
+typedef enum {
+	MTY_JSON_NULL    = 0, ///< JSON `null` type.
+	MTY_JSON_BOOL    = 1, ///< JSON boolean.
+	MTY_JSON_NUMBER  = 2, ///< JSON number (double).
+	MTY_JSON_STRING  = 3, ///< JSON string.
+	MTY_JSON_ARRAY   = 4, ///< JSON array.
+	MTY_JSON_OBJECT  = 5, ///< JSON object.
+	MTY_JSON_MAKE_32 = INT32_MAX,
+} MTY_JSONType;
+
 typedef struct MTY_JSON MTY_JSON;
 
 /// @brief Parse a string into an MTY_JSON item.
@@ -1968,12 +1982,11 @@ MTY_JSONObjGetFloat(const MTY_JSON *json, const char *key, float *val);
 MTY_EXPORT bool
 MTY_JSONObjGetBool(const MTY_JSON *json, const char *key, bool *val);
 
-/// @brief Check if a value is NULL on a JSON object.
+/// @brief Check type of an item in a JSON object.
 /// @param json An MTY_JSON object.
-/// @param key Key to check.
-/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
-MTY_EXPORT bool
-MTY_JSONObjIsValNull(const MTY_JSON *json, const char *key);
+/// @param key Key of the item to type check.
+MTY_EXPORT MTY_JSONType
+MTY_JSONObjGetValType(const MTY_JSON *json, const char *key);
 
 /// @brief Set a string value on a JSON object.
 /// @param json An MTY_JSON object.
@@ -2056,12 +2069,11 @@ MTY_JSONArrayGetFloat(const MTY_JSON *json, uint32_t index, float *val);
 MTY_EXPORT bool
 MTY_JSONArrayGetBool(const MTY_JSON *json, uint32_t index, bool *val);
 
-/// @brief Check if a value is NULL in a JSON array.
-/// @param json An MTY_JSON array.
-/// @param index Index to check.
-/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
-MTY_EXPORT bool
-MTY_JSONArrayIsValNull(const MTY_JSON *json, uint32_t index);
+/// @brief Check type of an item in a JSON array.
+/// @param json An MTY_JSON object.
+/// @param key Index of the item to type check.
+MTY_EXPORT MTY_JSONType
+MTY_JSONArrayGetValType(const MTY_JSON *json, uint32_t index);
 
 /// @brief Set a string value in a JSON array.
 /// @param json An MTY_JSON array.
