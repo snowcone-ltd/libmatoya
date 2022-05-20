@@ -847,6 +847,8 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 				if (evt.drop.buf)
 					evt.type = MTY_EVENT_DROP;
 			}
+
+			DragFinish((HDROP) wparam);
 			break;
 		case WM_INPUT:
 			UINT rsize = APP_RI_MAX;
