@@ -71,6 +71,7 @@ struct MTY_App {
 	MTY_DetachState detach;
 	MTY_Hash *hotkey;
 	MTY_Hash *ghotkey;
+	MTY_Hash *deduper;
 
 	struct window *windows[MTY_WINDOW_MAX];
 
@@ -966,8 +967,8 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 	evt.type = MTY_EVENT_CONTROLLER;
 
 	if (mty_hid_driver_state(device, buf, size, &evt.controller)) {
-		// Prevent gamepad input while in the background
-		if (evt.type == MTY_EVENT_CONTROLLER && MTY_AppIsActive(ctx))
+		// Prevent gamepad input while in the background, dedupe
+		if (MTY_AppIsActive(ctx) && mty_hid_dedupe(ctx->deduper, &evt.controller))
 			ctx->event_func(&evt, ctx->opaque);
 	}
 }
@@ -982,6 +983,7 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	ctx->opaque = opaque;
 	ctx->hotkey = MTY_HashCreate(0);
 	ctx->ghotkey = MTY_HashCreate(0);
+	ctx->deduper = MTY_HashCreate(0);
 	ctx->instance = GetModuleHandle(NULL);
 	if (!ctx->instance) {
 		r = false;
@@ -1045,6 +1047,7 @@ void MTY_AppDestroy(MTY_App **app)
 
 	MTY_HashDestroy(&ctx->hotkey, NULL);
 	MTY_HashDestroy(&ctx->ghotkey, NULL);
+	MTY_HashDestroy(&ctx->deduper, NULL);
 
 	for (MTY_Window x = 0; x < MTY_WINDOW_MAX; x++)
 		MTY_WindowDestroy(ctx, x);
@@ -1083,7 +1086,7 @@ void MTY_AppRun(MTY_App *ctx)
 
 		// XInput
 		if (focus)
-			xip_state(ctx->xip, ctx->event_func, ctx->opaque);
+			xip_state(ctx->xip, ctx->deduper, ctx->event_func, ctx->opaque);
 
 		// Tray retry in case of failure
 		app_tray_retry(ctx, window);

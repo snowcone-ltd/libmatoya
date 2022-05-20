@@ -4,6 +4,8 @@
 
 #include <xinput.h>
 
+#include "hid/utils.h"
+
 // Private struct in XInput 1.4 used for VID/PID
 typedef struct {
 	WORD vid;
@@ -154,7 +156,7 @@ static void xip_rumble(struct xip *ctx, uint32_t id, uint16_t low, uint16_t high
 	}
 }
 
-static void xip_state(struct xip *ctx, MTY_EventFunc func, void *opaque)
+static void xip_state(struct xip *ctx, MTY_Hash *deduper, MTY_EventFunc func, void *opaque)
 {
 	for (uint8_t x = 0; x < 4; x++) {
 		struct xip_state *state = &ctx->state[x];
@@ -187,7 +189,9 @@ static void xip_state(struct xip *ctx, MTY_EventFunc func, void *opaque)
 					evt.controller.pid = state->bbi.pid;
 
 					xip_to_mty(&xstate, &evt);
-					func(&evt, opaque);
+
+					if (mty_hid_dedupe(deduper, &evt.controller))
+						func(&evt, opaque);
 
 					state->packet = xstate.dwPacketNumber;
 				}
