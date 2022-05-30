@@ -52,7 +52,9 @@ static float4 yuv_to_rgba(float y, float u, float v)
 	return float4(r, g, b, 1.0);
 }
 
-static float4 sample_rgba(uint format, thread float2 uv)
+static float4 sample_rgba(uint format, texture2d<float, access::sample> tex0,
+	texture2d<float, access::sample> tex1, texture2d<float, access::sample> tex2,
+	sampler s, float2 uv)
 {
 	// NV12, NV16
 	if (format == 2 || format == 5) {
@@ -114,18 +116,18 @@ static float2 rotate(uint rotation, float2 texcoord)
 	float2 uv = texcoord;
 
 	// Rotation
-	if (cb.rotation == 1 || cb.rotation == 3) {
+	if (rotation == 1 || rotation == 3) {
 		float tmp = uv[0];
 		uv[0] = uv[1];
 		uv[1] = tmp;
 	}
 
 	// Flipped vertically
-	if (cb.rotation == 1 || cb.rotation == 2)
+	if (rotation == 1 || rotation == 2)
 		uv[1] = 1.0 - uv[1];
 
 	// Flipped horizontally
-	if (cb.rotation == 2 || cb.rotation == 3)
+	if (rotation == 2 || rotation == 3)
 		uv[0] = 1.0 - uv[0];
 
 	return uv;
@@ -145,15 +147,15 @@ fragment float4 fs(
 	// Sharpen
 	for (uint x = 0; x < 2; x++)
 		if (cb.effects[x] == 2)
-			sharpen(width, height, cb.levels[x], uv);
+			sharpen(cb.width, cb.height, cb.levels[x], uv);
 
 	// Sample
-	float4 rgba = sample_rgba(format, uv);
+	float4 rgba = sample_rgba(cb.format, tex0, tex1, tex2, s, uv);
 
 	// Effects
 	for (uint y = 0; y < 2; y++)
 		if (cb.effects[y] == 1)
-			scanline(input.texcoord.y, vp_height, cb.levels[y], rgba);
+			scanline(in.texcoord.y, cb.vp_height, cb.levels[y], rgba);
 
 	return rgba;
 }
