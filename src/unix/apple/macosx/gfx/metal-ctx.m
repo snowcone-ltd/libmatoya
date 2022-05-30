@@ -34,6 +34,16 @@ static CGSize metal_ctx_get_size(struct metal_ctx *ctx)
 	return size;
 }
 
+static void metal_ctx_mt_block(void (^block)(void))
+{
+	if ([NSThread isMainThread]) {
+		block();
+
+	} else {
+		dispatch_sync(dispatch_get_main_queue(), block);
+	}
+}
+
 struct gfx_ctx *mty_metal_ctx_create(void *native_window, bool vsync)
 {
 	id<MTLDevice> device = MTLCreateSystemDefaultDevice();
@@ -45,17 +55,19 @@ struct gfx_ctx *mty_metal_ctx_create(void *native_window, bool vsync)
 	ctx->window = (__bridge NSWindow *) native_window;
 	ctx->renderer = MTY_RendererCreate();
 
-	ctx->layer = [CAMetalLayer layer];
-	ctx->layer.device = device;
-	ctx->layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+	metal_ctx_mt_block(^{
+		ctx->layer = [CAMetalLayer layer];
+		ctx->layer.device = device;
+		ctx->layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
 
-	if (@available(macOS 10.13, *))
-		ctx->layer.displaySyncEnabled = vsync ? YES : NO;
+		if (@available(macOS 10.13, *))
+			ctx->layer.displaySyncEnabled = vsync ? YES : NO;
 
-	ctx->cq = [ctx->layer.device newCommandQueue];
+		ctx->cq = [ctx->layer.device newCommandQueue];
 
-	ctx->window.contentView.wantsLayer = YES;
-	ctx->window.contentView.layer = ctx->layer;
+		ctx->window.contentView.wantsLayer = YES;
+		ctx->window.contentView.layer = ctx->layer;
+	});
 
 	return (struct gfx_ctx *) ctx;
 }
