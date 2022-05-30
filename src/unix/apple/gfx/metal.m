@@ -17,10 +17,12 @@ struct metal_cb {
 	float width;
 	float height;
 	float vp_height;
-	uint32_t filter;
-	uint32_t effect;
+	float pad0;
+	uint32_t effects[4];
+	float levels[4];
 	uint32_t format;
 	uint32_t rotation;
+	uint32_t pad1[2];
 };
 
 struct metal_res {
@@ -287,13 +289,15 @@ bool mty_metal_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 		[re setFragmentTexture:tex atIndex:x];
 	}
 
-	ctx->fcb.format = ctx->format;
-	ctx->fcb.effect = desc->effect;
-	ctx->fcb.filter = desc->filter;
 	ctx->fcb.width = desc->cropWidth;
 	ctx->fcb.height = desc->cropHeight;
-	ctx->fcb.rotation = desc->rotation;
 	ctx->fcb.vp_height = vph;
+	ctx->fcb.effects[0] = desc->effects[0];
+	ctx->fcb.effects[1] = desc->effects[1];
+	ctx->fcb.levels[0] = desc->levels[0];
+	ctx->fcb.levels[1] = desc->levels[1];
+	ctx->fcb.format = ctx->format;
+	ctx->fcb.rotation = desc->rotation;
 	[re setFragmentBytes:&ctx->fcb length:sizeof(struct metal_cb) atIndex:0];
 
 	// Draw

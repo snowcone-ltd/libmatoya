@@ -20,10 +20,12 @@ struct cb {
 	float width;
 	float height;
 	float vp_height;
-	uint filter;
-	uint effect;
+	float pad0;
+	uint4 effects;
+	float4 levels;
 	uint format;
 	uint rotation;
+	uint2 pad1;
 };
 
 vertex struct vs_out vs(struct vtx v [[stage_in]])
@@ -50,45 +52,66 @@ static float4 yuv_to_rgba(float y, float u, float v)
 	return float4(r, g, b, 1.0);
 }
 
-static void gaussian(uint type, float w, float h, thread float2 &uv)
+static float4 sample_rgba(uint format, thread float2 uv)
+{
+	// NV12, NV16
+	if (format == 2 || format == 5) {
+		float y = tex0.sample(s, uv).r;
+		float u = tex1.sample(s, uv).r;
+		float v = tex1.sample(s, uv).g;
+
+		return yuv_to_rgba(y, u, v);
+
+	// I420, I444
+	} else if (format == 3 || format == 4) {
+		float y = tex0.sample(s, uv).r;
+		float u = tex1.sample(s, uv).r;
+		float v = tex2.sample(s, uv).r;
+
+		return yuv_to_rgba(y, u, v);
+
+	// AYUV
+	} else if (format == 8) {
+		float y = tex0.sample(s, uv).r;
+		float u = tex0.sample(s, uv).g;
+		float v = tex0.sample(s, uv).b;
+
+		return yuv_to_rgba(y, u, v);
+
+	// BGRA
+	} else {
+		return tex0.sample(s, uv);
+	}
+}
+
+static void sharpen(float w, float h, float level, thread float2 &uv)
 {
 	float2 res = float2(w, h);
 	float2 p = uv * res;
 	float2 c = floor(p) + 0.5;
 	float2 dist = p - c;
 
-	// Sharp
-	if (type == 3) {
+	if (level >= 0.5) {
 		dist = 16.0 * dist * dist * dist * dist * dist;
 
-	// Soft
 	} else {
 		dist = 4.0 * dist * dist * dist;
 	}
 
-	p = c + dist;
-
-	uv = p / res;
+	uv = (c + dist) / res;
 }
 
-static void scanline(float y, float h, thread float4 &rgba)
+static void scanline(float y, float h, float level, thread float4 &rgba)
 {
 	float n = floor(h / 240.0);
 
 	if (fmod(floor(y * h), n) < n / 2.0)
-		rgba *= 0.8;
+		rgba *= level;
 }
 
-fragment float4 fs(
-	struct vs_out in [[stage_in]],
-	texture2d<float, access::sample> tex0 [[texture(0)]],
-	texture2d<float, access::sample> tex1 [[texture(1)]],
-	texture2d<float, access::sample> tex2 [[texture(2)]],
-	constant struct cb &cb [[buffer(0)]],
-	sampler s [[sampler(0)]]
-) {
-	float4 rgba = 0.0;
-	float2 uv = in.texcoord;
+static float2 rotate(uint rotation, float2 texcoord)
+{
+	float2 uv = texcoord;
 
 	// Rotation
 	if (cb.rotation == 1 || cb.rotation == 3) {
@@ -105,42 +128,32 @@ fragment float4 fs(
 	if (cb.rotation == 2 || cb.rotation == 3)
 		uv[0] = 1.0 - uv[0];
 
-	// Gaussian
-	if (cb.filter == 3 || cb.filter == 4)
-		gaussian(cb.filter, cb.width, cb.height, uv);
+	return uv;
+}
 
-	// NV12, NV16
-	if (cb.format == 2 || cb.format == 5) {
-		float y = tex0.sample(s, uv).r;
-		float u = tex1.sample(s, uv).r;
-		float v = tex1.sample(s, uv).g;
+fragment float4 fs(
+	struct vs_out in [[stage_in]],
+	texture2d<float, access::sample> tex0 [[texture(0)]],
+	texture2d<float, access::sample> tex1 [[texture(1)]],
+	texture2d<float, access::sample> tex2 [[texture(2)]],
+	constant struct cb &cb [[buffer(0)]],
+	sampler s [[sampler(0)]]
+) {
+	// Rotate
+	float2 uv = rotate(cb.rotation, in.texcoord);
 
-		rgba = yuv_to_rgba(y, u, v);
+	// Sharpen
+	for (uint x = 0; x < 2; x++)
+		if (cb.effects[x] == 2)
+			sharpen(width, height, cb.levels[x], uv);
 
-	// I420, I444
-	} else if (cb.format == 3 || cb.format == 4) {
-		float y = tex0.sample(s, uv).r;
-		float u = tex1.sample(s, uv).r;
-		float v = tex2.sample(s, uv).r;
+	// Sample
+	float4 rgba = sample_rgba(format, uv);
 
-		rgba = yuv_to_rgba(y, u, v);
-
-	// AYUV
-	} else if (cb.format == 8) {
-		float y = tex0.sample(s, uv).r;
-		float u = tex0.sample(s, uv).g;
-		float v = tex0.sample(s, uv).b;
-
-		rgba = yuv_to_rgba(y, u, v);
-
-	// BGRA
-	} else {
-		rgba = tex0.sample(s, uv);
-	}
-
-	// Scanlines
-	if (cb.effect == 1 || cb.effect == 2)
-		scanline(in.texcoord.y, cb.vp_height, rgba);
+	// Effects
+	for (uint y = 0; y < 2; y++)
+		if (cb.effects[y] == 1)
+			scanline(input.texcoord.y, vp_height, cb.levels[y], rgba);
 
 	return rgba;
 }

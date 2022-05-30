@@ -16,11 +16,9 @@ uniform sampler2D tex0;
 uniform sampler2D tex1;
 uniform sampler2D tex2;
 
-// width, height, vp_height
-uniform vec4 fcb;
-
-// filter, effect, format
-uniform ivec4 icb;
+uniform vec4 fcb0; // width, height, vp_height
+uniform vec4 fcb1; // effects, levels
+uniform ivec4 icb; // format, rotation
 
 void yuv_to_rgba(float y, float u, float v, out vec4 rgba)
 {
@@ -37,48 +35,65 @@ void yuv_to_rgba(float y, float u, float v, out vec4 rgba)
 	rgba = vec4(r, g, b, 1.0);
 }
 
-void gaussian(int type, float w, float h, inout vec2 uv)
+void sample_rgba(int format, vec2 uv, out vec4 rgba)
+{
+	// NV12, NV16
+	if (format == 2 || format == 5) {
+		float y = texture2D(tex0, uv).r;
+		float u = texture2D(tex1, uv).r;
+		float v = texture2D(tex1, uv).g;
+
+		yuv_to_rgba(y, u, v, rgba);
+
+	// I420, I444
+	} else if (format == 3 || format == 4) {
+		float y = texture2D(tex0, uv).r;
+		float u = texture2D(tex1, uv).r;
+		float v = texture2D(tex2, uv).r;
+
+		yuv_to_rgba(y, u, v, rgba);
+
+	// AYUV
+	} else if (format == 8) {
+		float y = texture2D(tex0, uv).r;
+		float u = texture2D(tex0, uv).g;
+		float v = texture2D(tex0, uv).b;
+
+		yuv_to_rgba(y, u, v, rgba);
+
+	// BGRA
+	} else {
+		rgba = texture2D(tex0, uv);
+	}
+}
+
+void sharpen(float w, float h, float level, inout vec2 uv)
 {
 	vec2 res = vec2(w, h);
 	vec2 p = uv * res;
 	vec2 c = floor(p) + 0.5;
 	vec2 dist = p - c;
 
-	// Sharp
-	if (type == 3) {
+	if (level >= 0.5) {
 		dist = 16.0 * dist * dist * dist * dist * dist;
 
-	// Soft
 	} else {
 		dist = 4.0 * dist * dist * dist;
 	}
 
-	p = c + dist;
-
-	uv = p / res;
+	uv = (c + dist) / res;
 }
 
-void scanline(float y, float h, inout vec4 rgba)
+void scanline(float y, float h, float level, inout vec4 rgba)
 {
 	float n = floor(h / 240.0);
 
 	if (mod(floor(y * h), n) < n / 2.0)
-		rgba *= 0.8;
+		rgba *= level;
 }
 
-void main(void)
+void rotate(int rotation, inout vec2 uv)
 {
-	float width = fcb[0];
-	float height = fcb[1];
-	float vp_height = fcb[2];
-
-	int filter = icb[0];
-	int effect = icb[1];
-	int format = icb[2];
-	int rotation = icb[3];
-
-	vec2 uv = vs_texcoord;
-
 	// Rotation
 	if (rotation == 1 || rotation == 3) {
 		float tmp = uv[0];
@@ -93,41 +108,35 @@ void main(void)
 	// Flipped horizontally
 	if (rotation == 2 || rotation == 3)
 		uv[0] = 1.0 - uv[0];
+}
 
-	// Gaussian
-	if (filter == 3 || filter == 4)
-		gaussian(filter, width, height, uv);
+void main(void)
+{
+	// Uniforms
+	float width = fcb0[0];
+	float height = fcb0[1];
+	float vp_height = fcb0[2];
 
-	// NV12, NV16
-	if (format == 2 || format == 5) {
-		float y = texture2D(tex0, uv).r;
-		float u = texture2D(tex1, uv).r;
-		float v = texture2D(tex1, uv).g;
+	vec2 effects = vec2(fcb1[0], fcb1[1]);
+	vec2 levels = vec2(fcb1[2], fcb1[3]);
 
-		yuv_to_rgba(y, u, v, gl_FragColor);
+	int format = icb[0];
+	int rotation = icb[1];
 
-	// I420, I444
-	} else if (format == 3 || format == 4) {
-		float y = texture2D(tex0, uv).r;
-		float u = texture2D(tex1, uv).r;
-		float v = texture2D(tex2, uv).r;
+	// Rotate
+	vec2 uv = vs_texcoord;
+	rotate(rotation, uv);
 
-		yuv_to_rgba(y, u, v, gl_FragColor);
+	// Sharpen
+	for (int x = 0; x < 2; x++)
+		if (effects[x] == 2.0)
+			sharpen(width, height, levels[x], uv);
 
-	// AYUV
-	} else if (format == 8) {
-		float y = texture2D(tex0, uv).r;
-		float u = texture2D(tex0, uv).g;
-		float v = texture2D(tex0, uv).b;
+	// Sample
+	sample_rgba(format, uv, gl_FragColor);
 
-		yuv_to_rgba(y, u, v, gl_FragColor);
-
-	// BGRA
-	} else {
-		gl_FragColor = texture2D(tex0, uv);
-	}
-
-	// Scanlines
-	if (effect == 1 || effect == 2)
-		scanline(vs_texcoord[1], vp_height, gl_FragColor);
+	// Effects
+	for (int y = 0; y < 2; y++)
+		if (effects[y] == 1.0)
+			scanline(vs_texcoord.y, vp_height, levels[y], gl_FragColor);
 }

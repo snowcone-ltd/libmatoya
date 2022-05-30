@@ -36,7 +36,8 @@ struct gl {
 	GLuint loc_tex[GL_NUM_STAGING];
 	GLuint loc_pos;
 	GLuint loc_uv;
-	GLuint loc_fcb;
+	GLuint loc_fcb0;
+	GLuint loc_fcb1;
 	GLuint loc_icb;
 };
 
@@ -107,7 +108,8 @@ struct gfx *mty_gl_create(MTY_Device *device)
 
 	ctx->loc_pos = glGetAttribLocation(ctx->prog, "position");
 	ctx->loc_uv = glGetAttribLocation(ctx->prog, "texcoord");
-	ctx->loc_fcb = glGetUniformLocation(ctx->prog, "fcb");
+	ctx->loc_fcb0 = glGetUniformLocation(ctx->prog, "fcb0");
+	ctx->loc_fcb1 = glGetUniformLocation(ctx->prog, "fcb1");
 	ctx->loc_icb = glGetUniformLocation(ctx->prog, "icb");
 
 	for (uint8_t x = 0; x < GL_NUM_STAGING; x++) {
@@ -320,8 +322,9 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	}
 
 	// Uniforms
-	glUniform4f(ctx->loc_fcb, (GLfloat) desc->cropWidth, (GLfloat) desc->cropHeight, vph, 0.0f);
-	glUniform4i(ctx->loc_icb, desc->filter, desc->effect, ctx->format, desc->rotation);
+	glUniform4f(ctx->loc_fcb0, (GLfloat) desc->cropWidth, (GLfloat) desc->cropHeight, vph, 0.0f);
+	glUniform4f(ctx->loc_fcb1, desc->effects[0], desc->effects[1], desc->levels[0], desc->levels[1]);
+	glUniform4i(ctx->loc_icb, ctx->format, desc->rotation, 0, 0);
 
 	// Draw
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);

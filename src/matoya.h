@@ -68,23 +68,22 @@ typedef enum {
 	MTY_COLOR_FORMAT_BGR565   = 6, ///< 5-bits blue, 6-bits green, 5-bits red.
 	MTY_COLOR_FORMAT_BGRA5551 = 7, ///< 5-bits per BGR channels, 1-bit alpha.
 	MTY_COLOR_FORMAT_AYUV     = 8, ///< 4:4:4 full W/H interleaved Y, U, V.
-	MTY_COLOR_FORMAT_MAKE_32 = INT32_MAX,
+	MTY_COLOR_FORMAT_MAKE_32  = INT32_MAX,
 } MTY_ColorFormat;
 
 /// @brief Quad texture filtering.
 typedef enum {
-	MTY_FILTER_NEAREST        = 0, ///< Nearest neighbor filter by the GPU, can cause shimmering.
-	MTY_FILTER_LINEAR         = 1, ///< Bilinear filter by the GPU, can cause noticeable blurring.
-	MTY_FILTER_GAUSSIAN_SOFT  = 2, ///< A softer nearest neighbor filter applied via shader.
-	MTY_FILTER_GAUSSIAN_SHARP = 3, ///< A sharper bilinear filter applied via shader.
-	MTY_FILTER_MAKE_32        = INT32_MAX,
+	MTY_FILTER_NEAREST = 0, ///< Nearest neighbor filter, can cause shimmering.
+	MTY_FILTER_LINEAR  = 1, ///< Bilinear interpolation filter, can cause noticeable blurring.
+	MTY_FILTER_MAKE_32 = INT32_MAX,
 } MTY_Filter;
 
 /// @brief Quad texture effects.
 typedef enum {
-	MTY_EFFECT_NONE         = 0, ///< No effect applied.
-	MTY_EFFECT_SCANLINES    = 1, ///< A scanline effect simulating a 480i CRT television.
-	MTY_EFFECT_MAKE_32      = INT32_MAX,
+	MTY_EFFECT_NONE      = 0, ///< No effect applied.
+	MTY_EFFECT_SCANLINES = 1, ///< A scanline effect simulating a 480i CRT television.
+	MTY_EFFECT_SHARPEN   = 2, ///< Sharpens bilinear filter.
+	MTY_EFFECT_MAKE_32   = INT32_MAX,
 } MTY_Effect;
 
 /// @brief Quad rotation.
@@ -101,7 +100,8 @@ typedef struct {
 	MTY_ColorFormat format; ///< The color format of a raw image.
 	MTY_Rotation rotation;  ///< Rotation applied to the image.
 	MTY_Filter filter;      ///< Filter applied to the image.
-	MTY_Effect effect;      ///< Effect applied to the image.
+	MTY_Effect effects[2];  ///< Effects applied to the image.
+	float levels[2];        ///< Intensity of the applied `effects` between `0.0f` and `1.0f`.
 	uint32_t imageWidth;    ///< The width in pixels of the image.
 	uint32_t imageHeight;   ///< The height in pixels of the image.
 	uint32_t cropWidth;     ///< Desired crop width of the image from the top left corner.
