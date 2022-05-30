@@ -33,3 +33,8 @@ void MTY_ShowMessageBox(const char *title, const char *fmt, ...)
 	CFRelease(nsmsg);
 	MTY_Free(msg);
 }
+
+const char *MTY_OpenFile(const char *title, MTY_App *app, MTY_Window window)
+{
+	return NULL;
+}
