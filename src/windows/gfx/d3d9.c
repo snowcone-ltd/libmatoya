@@ -394,15 +394,24 @@ bool mty_d3d9_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	}
 
 	// Uniforms
-	float cb[8] = {0};
-	cb[0] = (float) desc->cropWidth;
-	cb[1] = (float) desc->cropHeight;
-	cb[2] = vph;
-	cb[4] = desc->filter;
-	cb[5] = desc->effect;
-	cb[6] = ctx->format;
-	cb[7] = desc->rotation;
-	e = IDirect3DDevice9_SetPixelShaderConstantF(_device, 0, cb, 2);
+	float cb[3][4] = {0};
+
+	// cb0
+	cb[0][0] = (float) desc->cropWidth;
+	cb[0][1] = (float) desc->cropHeight;
+	cb[0][2] = vph;
+
+	// cb1
+	cb[1][0] = desc->effects[0];
+	cb[1][1] = desc->effects[1];
+	cb[1][2] = desc->levels[0];
+	cb[1][3] = desc->levels[1];
+
+	// cb2
+	cb[2][0] = ctx->format;
+	cb[2][1] = desc->rotation;
+
+	e = IDirect3DDevice9_SetPixelShaderConstantF(_device, 0, (float *) cb, 3);
 	if (e != D3D_OK) {
 		MTY_Log("'IDirect3DDevice9_SetPixelShaderConstantF' failed with HRESULT 0x%X", e);
 		goto except;
