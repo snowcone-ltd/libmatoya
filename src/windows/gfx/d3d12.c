@@ -23,15 +23,17 @@ static
 #define D3D12_PITCH(w, bpp) \
 	(((w) * (bpp) + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1))
 
+// https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules
 struct d3d12_psvars {
 	float width;
 	float height;
 	float vp_height;
-	uint32_t filter;
-	uint32_t effect;
+	float pad0;
+	uint32_t effects[4];
+	float levels[4];
 	uint32_t format;
 	uint32_t rotation;
-	uint32_t __pad[1]; // D3D11 needs 16-byte aligned, unsure about D3D12
+	uint32_t pad1[2];
 };
 
 struct d3d12_res {
@@ -596,8 +598,10 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	cb.width = (float) desc->cropWidth;
 	cb.height = (float) desc->cropHeight;
 	cb.vp_height = (float) vp.Height;
-	cb.filter = desc->filter;
-	cb.effect = desc->effect;
+	cb.effects[0] = desc->effects[0];
+	cb.effects[1] = desc->effects[1];
+	cb.levels[0] = desc->levels[0];
+	cb.levels[1] = desc->levels[1];
 	cb.format = ctx->format;
 	cb.rotation = desc->rotation;
 

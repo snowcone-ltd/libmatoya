@@ -13,11 +13,12 @@ cbuffer VS_CONSTANT_BUFFER : register(b0) {
 	float width;
 	float height;
 	float vp_height;
-	uint filter;
-	uint effect;
+	float pad0;
+	uint4 effects;
+	float4 levels;
 	uint format;
 	uint rotation;
-	uint __pad[1];
+	uint2 pad1;
 };
 
 SamplerState ss {
@@ -42,39 +43,66 @@ inline float4 yuv_to_rgba(float y, float u, float v)
 	return float4(r, g, b, 1.0);
 }
 
-inline void gaussian(uint type, float w, float h, inout float2 uv)
+inline float4 sample_rgba(uint format, float2 uv)
+{
+	// NV12, NV16
+	if (format == 2 || format == 5) {
+		float y = tex0.Sample(ss, uv).r;
+		float u = tex1.Sample(ss, uv).r;
+		float v = tex1.Sample(ss, uv).g;
+
+		return yuv_to_rgba(y, u, v);
+
+	// I420, I444
+	} else if (format == 3 || format == 4) {
+		float y = tex0.Sample(ss, uv).r;
+		float u = tex1.Sample(ss, uv).r;
+		float v = tex2.Sample(ss, uv).r;
+
+		return yuv_to_rgba(y, u, v);
+
+	// AYUV
+	} else if (format == 8) {
+		float y = tex0.Sample(ss, uv).r;
+		float u = tex0.Sample(ss, uv).g;
+		float v = tex0.Sample(ss, uv).b;
+
+		return yuv_to_rgba(y, u, v);
+
+	// BGRA
+	} else {
+		return tex0.Sample(ss, uv);
+	}
+}
+
+inline void sharpen(float w, float h, float level, inout float2 uv)
 {
 	float2 res = float2(w, h);
 	float2 p = uv * res;
 	float2 c = floor(p) + 0.5;
 	float2 dist = p - c;
 
-	// Sharp
-	if (type == 3) {
+	if (level >= 0.5) {
 		dist = 16.0 * dist * dist * dist * dist * dist;
 
-	// Soft
 	} else {
 		dist = 4.0 * dist * dist * dist;
 	}
 
-	p = c + dist;
-
-	uv = p / res;
+	uv = (c + dist) / res;
 }
 
-inline void scanline(float y, float h, inout float4 rgba)
+inline void scanline(float y, float h, float level, inout float4 rgba)
 {
 	float n = floor(h / 240.0);
 
 	if (fmod(floor(y * h), n) < n / 2.0)
-		rgba *= 0.8;
+		rgba *= level;
 }
 
-float4 main(VS_OUTPUT input) : SV_TARGET
+inline float2 rotate(uint rotation, float2 texcoord)
 {
-	float4 rgba = 0.0;
-	float2 uv = input.texcoord;
+	float2 uv = texcoord;
 
 	// Rotation
 	if (rotation == 1 || rotation == 3) {
@@ -91,42 +119,26 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	if (rotation == 2 || rotation == 3)
 		uv[0] = 1.0 - uv[0];
 
-	// Gaussian
-	if (filter == 3 || filter == 4)
-		gaussian(filter, width, height, uv);
+	return uv;
+}
 
-	// NV12, NV16
-	if (format == 2 || format == 5) {
-		float y = tex0.Sample(ss, uv).r;
-		float u = tex1.Sample(ss, uv).r;
-		float v = tex1.Sample(ss, uv).g;
+float4 main(VS_OUTPUT input) : SV_TARGET
+{
+	// Rotate
+	float2 uv = rotate(rotation, input.texcoord);
 
-		rgba = yuv_to_rgba(y, u, v);
+	// Sharpen
+	for (uint x = 0; x < 2; x++)
+		if (effects[x] == 2)
+			sharpen(width, height, levels[x], uv);
 
-	// I420, I444
-	} else if (format == 3 || format == 4) {
-		float y = tex0.Sample(ss, uv).r;
-		float u = tex1.Sample(ss, uv).r;
-		float v = tex2.Sample(ss, uv).r;
+	// Sample
+	float4 rgba = sample_rgba(format, uv);
 
-		rgba = yuv_to_rgba(y, u, v);
-
-	// AYUV
-	} else if (format == 8) {
-		float y = tex0.Sample(ss, uv).r;
-		float u = tex0.Sample(ss, uv).g;
-		float v = tex0.Sample(ss, uv).b;
-
-		rgba = yuv_to_rgba(y, u, v);
-
-	// BGRA
-	} else {
-		rgba = tex0.Sample(ss, uv);
-	}
-
-	// Scanlines
-	if (effect == 1 || effect == 2)
-		scanline(input.texcoord.y, vp_height, rgba);
+	// Effects
+	for (uint y = 0; y < 2; y++)
+		if (effects[y] == 1)
+			scanline(input.texcoord.y, vp_height, levels[y], rgba);
 
 	return rgba;
 }
