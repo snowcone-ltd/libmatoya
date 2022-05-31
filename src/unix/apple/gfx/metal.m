@@ -165,13 +165,26 @@ static void metal_reload_textures(struct metal *ctx, id<MTLDevice> device, const
 	MTLPixelFormat fmt0 = FMT_PLANE0[desc->format];
 	MTLPixelFormat fmt1 = FMT_PLANE1[desc->format];
 
+	// 16-bit packed pixel formats were not available until Big Sur
+	if (@available(iOS 8.0, tvOS 9.0, macOS 11.0, *)) {
+		if (desc->format == MTY_COLOR_FORMAT_BGR565)
+			fmt0 = fmt1 = MTLPixelFormatB5G6R5Unorm;
+
+		if (desc->format == MTY_COLOR_FORMAT_BGRA5551)
+			fmt0 = fmt1 = MTLPixelFormatBGR5A1Unorm;
+
+		if (desc->format == MTY_COLOR_FORMAT_Y410)
+			fmt0 = fmt1 = MTLPixelFormatBGR10A2Unorm;
+
+	} else if (desc->format == MTY_COLOR_FORMAT_BGR565 ||
+		desc->format == MTY_COLOR_FORMAT_BGRA5551 ||
+		desc->format == MTY_COLOR_FORMAT_Y410)
+	{
+		return;
+	}
+
 	switch (FMT_PLANES[desc->format]) {
 		case FMT_1_PLANE: {
-			// 16-bit packed pixel formats were not available until Big Sur
-			if (fmt0 == MTLPixelFormatB5G6R5Unorm || fmt0 == MTLPixelFormatBGR5A1Unorm)
-				if (!@available(iOS 8.0, tvOS 9.0, macOS 11.0, *))
-					break;
-
 			metal_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight);
 
 			MTLRegion region = MTLRegionMake2D(0, 0, desc->cropWidth, desc->cropHeight);
