@@ -11,6 +11,8 @@ GFX_PROTOTYPES(_d3d12_)
 #include <d3d12.h>
 
 #include "gfx/viewport.h"
+#include "gfx/fmt-dxgi.h"
+#include "gfx/fmt.h"
 
 static
 #include "shaders/d3d11/ps.h"
@@ -31,9 +33,10 @@ struct d3d12_psvars {
 	float pad0;
 	uint32_t effects[4];
 	float levels[4];
-	uint32_t format;
+	uint32_t planes;
 	uint32_t rotation;
-	uint32_t pad1[2];
+	uint32_t conversion;
+	uint32_t pad1;
 };
 
 struct d3d12_res {
@@ -472,64 +475,59 @@ static HRESULT d3d12_crop_copy(struct d3d12_res *res, ID3D12GraphicsCommandList 
 static HRESULT d3d12_reload_textures(struct d3d12 *ctx, ID3D12Device *device, ID3D12GraphicsCommandList *cl,
 	const void *image, const MTY_RenderDesc *desc)
 {
-	switch (desc->format) {
-		case MTY_COLOR_FORMAT_BGRA:
-		case MTY_COLOR_FORMAT_AYUV:
-		case MTY_COLOR_FORMAT_BGR565:
-		case MTY_COLOR_FORMAT_BGRA5551: {
-			DXGI_FORMAT format = desc->format == MTY_COLOR_FORMAT_BGR565 ? DXGI_FORMAT_B5G6R5_UNORM :
-				desc->format == MTY_COLOR_FORMAT_BGRA5551 ? DXGI_FORMAT_B5G5R5A1_UNORM : DXGI_FORMAT_B8G8R8A8_UNORM;
-			uint8_t bpp = (desc->format == MTY_COLOR_FORMAT_BGRA || desc->format == MTY_COLOR_FORMAT_AYUV) ? 4 : 2;
+	int8_t bpp = FMT_BPP[desc->format];
+	uint32_t div = FMT_DIV[desc->format];
+	DXGI_FORMAT fmt0 = FMT_PLANE0[desc->format];
+	DXGI_FORMAT fmt1 = FMT_PLANE1[desc->format];
 
-			// BGRA
-			HRESULT e = d3d12_refresh_resource(&ctx->staging[0], device, format, desc->cropWidth, desc->cropHeight, bpp);
+	switch (FMT_PLANES[desc->format]) {
+		case FMT_1_PLANE: {
+			HRESULT e = d3d12_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight, bpp);
 			if (e != S_OK) return e;
 
 			e = d3d12_crop_copy(&ctx->staging[0], cl, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, bpp);
 			if (e != S_OK) return e;
 			break;
 		}
-		case MTY_COLOR_FORMAT_NV12: {
+		case FMT_2_PLANE: {
 			// Y
-			HRESULT e = d3d12_refresh_resource(&ctx->staging[0], device, DXGI_FORMAT_R8_UNORM, desc->cropWidth, desc->cropHeight, 1);
+			HRESULT e = d3d12_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight, bpp);
 			if (e != S_OK) return e;
 
-			e = d3d12_crop_copy(&ctx->staging[0], cl, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, 1);
+			e = d3d12_crop_copy(&ctx->staging[0], cl, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, bpp);
 			if (e != S_OK) return e;
 
 			// UV
-			e = d3d12_refresh_resource(&ctx->staging[1], device, DXGI_FORMAT_R8G8_UNORM, desc->cropWidth / 2, desc->cropHeight / 2, 2);
+			e = d3d12_refresh_resource(&ctx->staging[1], device, fmt1, desc->cropWidth / 2, desc->cropHeight / 2, 2 * bpp);
 			if (e != S_OK) return e;
 
-			e = d3d12_crop_copy(&ctx->staging[1], cl, (uint8_t *) image + desc->imageWidth * desc->imageHeight, desc->cropWidth / 2, desc->cropHeight / 2, desc->imageWidth / 2, 2);
+			const void *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight;
+			e = d3d12_crop_copy(&ctx->staging[1], cl, p, desc->cropWidth / 2, desc->cropHeight / 2, desc->imageWidth / 2, 2 * bpp);
 			if (e != S_OK) return e;
 			break;
 		}
-		case MTY_COLOR_FORMAT_I420:
-		case MTY_COLOR_FORMAT_I444: {
-			uint32_t div = desc->format == MTY_COLOR_FORMAT_I420 ? 2 : 1;
-
+		case FMT_3_PLANE: {
 			// Y
-			HRESULT e = d3d12_refresh_resource(&ctx->staging[0], device, DXGI_FORMAT_R8_UNORM, desc->cropWidth, desc->cropHeight, 1);
+			HRESULT e = d3d12_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight, bpp);
 			if (e != S_OK) return e;
 
-			e = d3d12_crop_copy(&ctx->staging[0], cl, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, 1);
+			e = d3d12_crop_copy(&ctx->staging[0], cl, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, bpp);
 			if (e != S_OK) return e;
 
 			// U
-			uint8_t *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight;
-			e = d3d12_refresh_resource(&ctx->staging[1], device, DXGI_FORMAT_R8_UNORM, desc->cropWidth / div, desc->cropHeight / div, 1);
+			uint8_t *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight * bpp;
+			e = d3d12_refresh_resource(&ctx->staging[1], device, fmt0, desc->cropWidth / div, desc->cropHeight / div, bpp);
 			if (e != S_OK) return e;
 
-			e = d3d12_crop_copy(&ctx->staging[1], cl, p, desc->cropWidth / div, desc->cropHeight / div, desc->imageWidth / div, 1);
+			e = d3d12_crop_copy(&ctx->staging[1], cl, p, desc->cropWidth / div, desc->cropHeight / div, desc->imageWidth / div, bpp);
 			if (e != S_OK) return e;
 
 			// V
-			p += (desc->imageWidth / div) * (desc->imageHeight / div);
-			e = d3d12_refresh_resource(&ctx->staging[2], device, DXGI_FORMAT_R8_UNORM, desc->cropWidth / div, desc->cropHeight / div, 1);
+			p += (desc->imageWidth / div) * (desc->imageHeight / div) * bpp;
+			e = d3d12_refresh_resource(&ctx->staging[2], device, fmt0, desc->cropWidth / div, desc->cropHeight / div, bpp);
 			if (e != S_OK) return e;
 
-			e = d3d12_crop_copy(&ctx->staging[2], cl, p, desc->cropWidth / div, desc->cropHeight / div, desc->imageWidth / div, 1);
+			e = d3d12_crop_copy(&ctx->staging[2], cl, p, desc->cropWidth / div, desc->cropHeight / div, desc->imageWidth / div, bpp);
 			if (e != S_OK) return e;
 			break;
 		}
@@ -602,8 +600,9 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	cb.effects[1] = desc->effects[1];
 	cb.levels[0] = desc->levels[0];
 	cb.levels[1] = desc->levels[1];
-	cb.format = ctx->format;
+	cb.planes = FMT_PLANES[ctx->format];
 	cb.rotation = desc->rotation;
+	cb.conversion = FMT_CONVERSION(ctx->format, desc->fullRangeYUV);
 
 	uint8_t *data = NULL;
 	e = ID3D12Resource_Map(ctx->cb, 0, NULL, &data);
