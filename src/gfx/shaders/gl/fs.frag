@@ -20,50 +20,62 @@ uniform sampler2D tex2;
 
 uniform vec4 fcb0; // width, height, vp_height
 uniform vec4 fcb1; // effects, levels
-uniform ivec4 icb; // format, rotation
+uniform ivec4 icb; // planes, rotation, conversion
 
-void yuv_to_rgba(float y, float u, float v, out vec4 rgba)
+void yuv_to_rgba(int conversion, float y, float u, float v, out vec4 rgba)
 {
-	// Using "RGB to YCbCr color conversion for HDTV" (ITU-R BT.709)
+	// 10-bit -> 16-bit
+	if (conversion == 2 || conversion == 8) {
+		y = y * 64.0;
+		u = u * 64.0;
+		v = v * 64.0;
+	}
 
-	y = (y - 0.0625) * 1.164;
-	u = u - 0.5;
-	v = v - 0.5;
+	// Full range
+	if (conversion == 4 || conversion == 8) {
+		u = u - 0.5;
+		v = v - 0.5;
 
-	float r = y + 1.793 * v;
-	float g = y - 0.213 * u - 0.533 * v;
-	float b = y + 2.112 * u;
+	// Limited
+	} else {
+		y = (y - 16.0 / 255.0) * (255.0 / 219.0);
+		u = (u - 128.0 / 255.0) * (255.0 / 224.0);
+		v = (v - 128.0 / 255.0) * (255.0 / 224.0);
+	}
+
+	float kr = 0.2126;
+	float kb = 0.0722;
+
+	float r = y + (2.0 - 2.0 * kr) * v;
+	float b = y + (2.0 - 2.0 * kb) * u;
+	float g = (y - kr * r - kb * b) / (1.0 - kr - kb);
 
 	rgba = vec4(r, g, b, 1.0);
 }
 
-void sample_rgba(int format, vec2 uv, out vec4 rgba)
+void sample_rgba(int planes, int conversion, vec2 uv, out vec4 rgba)
 {
-	// NV12, NV16
-	if (format == 2 || format == 5) {
+	if (planes == 2) {
 		float y = texture2D(tex0, uv).r;
 		float u = texture2D(tex1, uv).r;
 		float v = texture2D(tex1, uv).g;
 
-		yuv_to_rgba(y, u, v, rgba);
+		yuv_to_rgba(conversion, y, u, v, rgba);
 
-	// I420, I444
-	} else if (format == 3 || format == 4) {
+	} else if (planes == 3) {
 		float y = texture2D(tex0, uv).r;
 		float u = texture2D(tex1, uv).r;
 		float v = texture2D(tex2, uv).r;
 
-		yuv_to_rgba(y, u, v, rgba);
+		yuv_to_rgba(conversion, y, u, v, rgba);
 
-	// AYUV
-	} else if (format == 8) {
+	} else if (conversion != 0) {
 		float y = texture2D(tex0, uv).r;
 		float u = texture2D(tex0, uv).g;
 		float v = texture2D(tex0, uv).b;
 
-		yuv_to_rgba(y, u, v, rgba);
+		yuv_to_rgba(conversion, y, u, v, rgba);
 
-	// BGRA
 	} else {
 		rgba = texture2D(tex0, uv);
 	}
@@ -122,8 +134,9 @@ void main(void)
 	vec2 effects = vec2(fcb1[0], fcb1[1]);
 	vec2 levels = vec2(fcb1[2], fcb1[3]);
 
-	int format = icb[0];
+	int planes = icb[0];
 	int rotation = icb[1];
+	int conversion = icb[2];
 
 	// Rotate
 	vec2 uv = vs_texcoord;
@@ -135,7 +148,7 @@ void main(void)
 			sharpen(width, height, levels[x], uv);
 
 	// Sample
-	sample_rgba(format, uv, gl_FragColor);
+	sample_rgba(planes, conversion, uv, gl_FragColor);
 
 	// Effects
 	for (int y = 0; y < 2; y++)

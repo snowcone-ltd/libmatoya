@@ -16,9 +16,10 @@ cbuffer VS_CONSTANT_BUFFER : register(b0) {
 	float pad0;
 	uint4 effects;
 	float4 levels;
-	uint format;
+	uint planes;
 	uint rotation;
-	uint2 pad1;
+	uint conversion;
+	uint pad1;
 };
 
 SamplerState ss {
@@ -28,48 +29,60 @@ Texture2D tex0 : register(t0);
 Texture2D tex1 : register(t1);
 Texture2D tex2 : register(t2);
 
-inline float4 yuv_to_rgba(float y, float u, float v)
+inline float4 yuv_to_rgba(uint conversion, float y, float u, float v)
 {
-	// Using "RGB to YCbCr color conversion for HDTV" (ITU-R BT.709)
+	// 10-bit -> 16-bit
+	if (conversion == 2 || conversion == 8) {
+		y = y * 64.0;
+		u = u * 64.0;
+		v = v * 64.0;
+	}
 
-	y = (y - 0.0625) * 1.164;
-	u = u - 0.5;
-	v = v - 0.5;
+	// Full range
+	if (conversion == 4 || conversion == 8) {
+		u = u - 0.5;
+		v = v - 0.5;
 
-	float r = y + 1.793 * v;
-	float g = y - 0.213 * u - 0.533 * v;
-	float b = y + 2.112 * u;
+	// Limited
+	} else {
+		y = (y - 16.0 / 255.0) * (255.0 / 219.0);
+		u = (u - 128.0 / 255.0) * (255.0 / 224.0);
+		v = (v - 128.0 / 255.0) * (255.0 / 224.0);
+	}
+
+	float kr = 0.2126;
+	float kb = 0.0722;
+
+	float r = y + (2.0 - 2.0 * kr) * v;
+	float b = y + (2.0 - 2.0 * kb) * u;
+	float g = (y - kr * r - kb * b) / (1.0 - kr - kb);
 
 	return float4(r, g, b, 1.0);
 }
 
-inline float4 sample_rgba(uint format, float2 uv)
+inline float4 sample_rgba(uint planes, uint conversion, float2 uv)
 {
-	// NV12, NV16
-	if (format == 2 || format == 5) {
+	if (planes == 2) {
 		float y = tex0.Sample(ss, uv).r;
 		float u = tex1.Sample(ss, uv).r;
 		float v = tex1.Sample(ss, uv).g;
 
-		return yuv_to_rgba(y, u, v);
+		return yuv_to_rgba(conversion, y, u, v);
 
-	// I420, I444
-	} else if (format == 3 || format == 4) {
+	} else if (planes == 3) {
 		float y = tex0.Sample(ss, uv).r;
 		float u = tex1.Sample(ss, uv).r;
 		float v = tex2.Sample(ss, uv).r;
 
-		return yuv_to_rgba(y, u, v);
+		return yuv_to_rgba(conversion, y, u, v);
 
-	// AYUV
-	} else if (format == 8) {
+	} else if (conversion != 0) {
 		float y = tex0.Sample(ss, uv).r;
 		float u = tex0.Sample(ss, uv).g;
 		float v = tex0.Sample(ss, uv).b;
 
-		return yuv_to_rgba(y, u, v);
+		return yuv_to_rgba(conversion, y, u, v);
 
-	// BGRA
 	} else {
 		return tex0.Sample(ss, uv);
 	}
@@ -133,7 +146,7 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 			sharpen(width, height, levels[x], uv);
 
 	// Sample
-	float4 rgba = sample_rgba(format, uv);
+	float4 rgba = sample_rgba(planes, conversion, uv);
 
 	// Effects
 	for (uint y = 0; y < 2; y++)

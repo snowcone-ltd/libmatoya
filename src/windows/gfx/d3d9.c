@@ -11,6 +11,8 @@ GFX_PROTOTYPES(_d3d9_)
 #include <d3d9.h>
 
 #include "gfx/viewport.h"
+#include "gfx/fmt-d3d9.h"
+#include "gfx/fmt.h"
 
 static
 #include "shaders/d3d9/ps.h"
@@ -213,64 +215,59 @@ static HRESULT d3d9_crop_copy(IDirect3DDevice9 *device, IDirect3DTexture9 *textu
 static HRESULT d3d9_reload_textures(struct d3d9 *ctx, IDirect3DDevice9 *device,
 	const void *image, const MTY_RenderDesc *desc)
 {
-	switch (desc->format) {
-		case MTY_COLOR_FORMAT_BGRA:
-		case MTY_COLOR_FORMAT_AYUV:
-		case MTY_COLOR_FORMAT_BGR565:
-		case MTY_COLOR_FORMAT_BGRA5551: {
-			D3DFORMAT format = desc->format == MTY_COLOR_FORMAT_BGR565 ? D3DFMT_R5G6B5 :
-				desc->format == MTY_COLOR_FORMAT_BGRA5551 ? D3DFMT_X1R5G5B5 : D3DFMT_A8R8G8B8;
-			uint8_t bpp = (desc->format == MTY_COLOR_FORMAT_BGRA || desc->format == MTY_COLOR_FORMAT_AYUV) ? 4 : 2;
+	int8_t bpp = FMT_BPP[desc->format];
+	uint32_t div = FMT_DIV[desc->format];
+	D3DFORMAT fmt0 = FMT_PLANE0[desc->format];
+	D3DFORMAT fmt1 = FMT_PLANE1[desc->format];
 
-			// BGRA
-			HRESULT e = d3d9_refresh_resource(&ctx->staging[0], device, format, desc->cropWidth, desc->cropHeight);
+	switch (FMT_PLANES[desc->format]) {
+		case FMT_1_PLANE: {
+			HRESULT e = d3d9_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight);
 			if (e != D3D_OK) return e;
 
 			e = d3d9_crop_copy(device, ctx->staging[0].texture, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, bpp);
 			if (e != D3D_OK) return e;
 			break;
 		}
-		case MTY_COLOR_FORMAT_NV12: {
+		case FMT_2_PLANE: {
 			// Y
-			HRESULT e = d3d9_refresh_resource(&ctx->staging[0], device, D3DFMT_L8, desc->cropWidth, desc->cropHeight);
+			HRESULT e = d3d9_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight);
 			if (e != D3D_OK) return e;
 
-			e = d3d9_crop_copy(device, ctx->staging[0].texture, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, 1);
+			e = d3d9_crop_copy(device, ctx->staging[0].texture, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, bpp);
 			if (e != D3D_OK) return e;
 
 			// UV
-			e = d3d9_refresh_resource(&ctx->staging[1], device, D3DFMT_A8L8, desc->cropWidth / 2, desc->cropHeight / 2);
+			e = d3d9_refresh_resource(&ctx->staging[1], device, fmt1, desc->cropWidth / 2, desc->cropHeight / 2);
 			if (e != D3D_OK) return e;
 
-			e = d3d9_crop_copy(device, ctx->staging[1].texture, (uint8_t *) image + desc->imageWidth * desc->imageHeight, desc->cropWidth / 2, desc->cropHeight / 2, desc->imageWidth / 2, 2);
+			const void *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight * bpp;
+			e = d3d9_crop_copy(device, ctx->staging[1].texture, p, desc->cropWidth / 2, desc->cropHeight / 2, desc->imageWidth / 2, 2 * bpp);
 			if (e != D3D_OK) return e;
 			break;
 		}
-		case MTY_COLOR_FORMAT_I420:
-		case MTY_COLOR_FORMAT_I444: {
-			uint32_t div = desc->format == MTY_COLOR_FORMAT_I420 ? 2 : 1;
-
+		case FMT_3_PLANE: {
 			// Y
-			HRESULT e = d3d9_refresh_resource(&ctx->staging[0], device, D3DFMT_L8, desc->cropWidth, desc->cropHeight);
+			HRESULT e = d3d9_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight);
 			if (e != D3D_OK) return e;
 
-			e = d3d9_crop_copy(device, ctx->staging[0].texture, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, 1);
+			e = d3d9_crop_copy(device, ctx->staging[0].texture, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, bpp);
 			if (e != D3D_OK) return e;
 
 			// U
-			uint8_t *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight;
-			e = d3d9_refresh_resource(&ctx->staging[1], device, D3DFMT_L8, desc->cropWidth / div, desc->cropHeight / div);
+			uint8_t *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight * bpp;
+			e = d3d9_refresh_resource(&ctx->staging[1], device, fmt0, desc->cropWidth / div, desc->cropHeight / div);
 			if (e != D3D_OK) return e;
 
-			e = d3d9_crop_copy(device, ctx->staging[1].texture, p, desc->cropWidth / div, desc->cropHeight / div, desc->imageWidth / div, 1);
+			e = d3d9_crop_copy(device, ctx->staging[1].texture, p, desc->cropWidth / div, desc->cropHeight / div, desc->imageWidth / div, bpp);
 			if (e != D3D_OK) return e;
 
 			// V
-			p += (desc->imageWidth / div) * (desc->imageHeight / div);
-			e = d3d9_refresh_resource(&ctx->staging[2], device, D3DFMT_L8, desc->cropWidth / div, desc->cropHeight / div);
+			p += (desc->imageWidth / div) * (desc->imageHeight / div) * bpp;
+			e = d3d9_refresh_resource(&ctx->staging[2], device, fmt0, desc->cropWidth / div, desc->cropHeight / div);
 			if (e != D3D_OK) return e;
 
-			e = d3d9_crop_copy(device, ctx->staging[2].texture, p, desc->cropWidth / div, desc->cropHeight / div, desc->imageWidth / div, 1);
+			e = d3d9_crop_copy(device, ctx->staging[2].texture, p, desc->cropWidth / div, desc->cropHeight / div, desc->imageWidth / div, bpp);
 			if (e != D3D_OK) return e;
 			break;
 		}
@@ -408,8 +405,9 @@ bool mty_d3d9_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	cb[1][3] = desc->levels[1];
 
 	// cb2
-	cb[2][0] = ctx->format;
+	cb[2][0] = FMT_PLANES[ctx->format];
 	cb[2][1] = desc->rotation;
+	cb[2][2] = (float) FMT_CONVERSION(ctx->format, desc->fullRangeYUV);
 
 	e = IDirect3DDevice9_SetPixelShaderConstantF(_device, 0, (float *) cb, 3);
 	if (e != D3D_OK) {

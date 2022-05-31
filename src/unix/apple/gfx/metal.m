@@ -10,6 +10,8 @@ GFX_PROTOTYPES(_metal_)
 #include <Metal/Metal.h>
 
 #include "gfx/viewport.h"
+#include "gfx/fmt-metal.h"
+#include "gfx/fmt.h"
 
 #include "shaders/metal/quad.h"
 
@@ -22,9 +24,10 @@ struct metal_cb {
 	float pad0;
 	uint32_t effects[4];
 	float levels[4];
-	uint32_t format;
+	uint32_t planes;
 	uint32_t rotation;
-	uint32_t pad1[2];
+	uint32_t conversion;
+	uint32_t pad1;
 };
 
 struct metal_res {
@@ -157,79 +160,59 @@ static void metal_refresh_resource(struct metal_res *res, id<MTLDevice> device,
 
 static void metal_reload_textures(struct metal *ctx, id<MTLDevice> device, const void *image, const MTY_RenderDesc *desc)
 {
-	switch (desc->format) {
-		case MTY_COLOR_FORMAT_BGRA:
-		case MTY_COLOR_FORMAT_AYUV:
-		case MTY_COLOR_FORMAT_BGR565:
-		case MTY_COLOR_FORMAT_BGRA5551: {
-			MTLPixelFormat format = MTLPixelFormatBGRA8Unorm;
-			uint8_t bpp = (desc->format == MTY_COLOR_FORMAT_BGRA || desc->format == MTY_COLOR_FORMAT_AYUV) ? 4 : 2;
+	int8_t bpp = FMT_BPP[desc->format];
+	uint32_t div = FMT_DIV[desc->format];
+	MTLPixelFormat fmt0 = FMT_PLANE0[desc->format];
+	MTLPixelFormat fmt1 = FMT_PLANE1[desc->format];
 
+	switch (FMT_PLANES[desc->format]) {
+		case FMT_1_PLANE: {
 			// 16-bit packed pixel formats were not available until Big Sur
-			if (bpp == 2) {
-				if (@available(iOS 8.0, tvOS 9.0, macOS 11.0, *)) {
-					if (desc->format == MTY_COLOR_FORMAT_BGR565) {
-						format = MTLPixelFormatB5G6R5Unorm;
-
-					} else if (desc->format == MTY_COLOR_FORMAT_BGRA5551) {
-						format = MTLPixelFormatBGR5A1Unorm;
-
-					} else {
-						break;
-					}
-
-				} else {
+			if (fmt0 == MTLPixelFormatB5G6R5Unorm || fmt0 == MTLPixelFormatBGR5A1Unorm)
+				if (!@available(iOS 8.0, tvOS 9.0, macOS 11.0, *))
 					break;
-				}
-			}
 
-			// BGRA
-			metal_refresh_resource(&ctx->staging[0], device, format, desc->cropWidth, desc->cropHeight);
+			metal_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight);
 
 			MTLRegion region = MTLRegionMake2D(0, 0, desc->cropWidth, desc->cropHeight);
 			[ctx->staging[0].texture replaceRegion:region mipmapLevel:0 withBytes:image bytesPerRow:bpp * desc->imageWidth];
 			break;
 		}
-		case MTY_COLOR_FORMAT_NV12:
-		case MTY_COLOR_FORMAT_NV16: {
-			uint32_t div = desc->format == MTY_COLOR_FORMAT_NV12 ? 2 : 1;
-
+		case FMT_2_PLANE: {
 			// Y
-			metal_refresh_resource(&ctx->staging[0], device, MTLPixelFormatR8Unorm, desc->cropWidth, desc->cropHeight);
+			metal_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight);
 
 			MTLRegion region = MTLRegionMake2D(0, 0, desc->cropWidth, desc->cropHeight);
-			[ctx->staging[0].texture replaceRegion:region mipmapLevel:0 withBytes:image bytesPerRow:desc->imageWidth];
+			[ctx->staging[0].texture replaceRegion:region mipmapLevel:0 withBytes:image bytesPerRow:bpp * desc->imageWidth];
 
 			// UV
-			metal_refresh_resource(&ctx->staging[1], device, MTLPixelFormatRG8Unorm, desc->cropWidth / 2, desc->cropHeight / div);
+			metal_refresh_resource(&ctx->staging[1], device, fmt1, desc->cropWidth / 2, desc->cropHeight / div);
 
+			const void *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight * bpp;
 			region = MTLRegionMake2D(0, 0, desc->cropWidth / 2, desc->cropHeight / div);
-			[ctx->staging[1].texture replaceRegion:region mipmapLevel:0 withBytes:(uint8_t *) image + desc->imageWidth * desc->imageHeight bytesPerRow:desc->imageWidth];
+			[ctx->staging[1].texture replaceRegion:region mipmapLevel:0 withBytes:p bytesPerRow:bpp * desc->imageWidth];
 			break;
 		}
-		case MTY_COLOR_FORMAT_I420:
-		case MTY_COLOR_FORMAT_I444: {
-			uint32_t div = desc->format == MTY_COLOR_FORMAT_I420 ? 2 : 1;
-
+		case FMT_3_PLANE: {
 			// Y
-			metal_refresh_resource(&ctx->staging[0], device, MTLPixelFormatR8Unorm, desc->cropWidth, desc->cropHeight);
+			metal_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight);
 
 			MTLRegion region = MTLRegionMake2D(0, 0, desc->cropWidth, desc->cropHeight);
-			[ctx->staging[0].texture replaceRegion:region mipmapLevel:0 withBytes:image bytesPerRow:desc->imageWidth];
+			[ctx->staging[0].texture replaceRegion:region mipmapLevel:0 withBytes:image bytesPerRow:bpp * desc->imageWidth];
 
 			// U
-			uint8_t *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight;
-			metal_refresh_resource(&ctx->staging[1], device, MTLPixelFormatR8Unorm, desc->cropWidth / div, desc->cropHeight / div);
+			uint8_t *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight * bpp;
+			metal_refresh_resource(&ctx->staging[1], device, fmt0, desc->cropWidth / div, desc->cropHeight / div);
 
 			region = MTLRegionMake2D(0, 0, desc->cropWidth / div, desc->cropHeight / div);
-			[ctx->staging[1].texture replaceRegion:region mipmapLevel:0 withBytes:p bytesPerRow:desc->imageWidth / div];
+			[ctx->staging[1].texture replaceRegion:region mipmapLevel:0 withBytes:p bytesPerRow:bpp * (desc->imageWidth / div)];
 
 			// V
-			p += (desc->imageWidth / div) * (desc->imageHeight / div);
-			metal_refresh_resource(&ctx->staging[2], device, MTLPixelFormatR8Unorm, desc->cropWidth / div, desc->cropHeight / div);
+			p += (desc->imageWidth / div) * (desc->imageHeight / div) * bpp;
+			metal_refresh_resource(&ctx->staging[2], device, fmt0, desc->cropWidth / div, desc->cropHeight / div);
 
 			region = MTLRegionMake2D(0, 0, desc->cropWidth / div, desc->cropHeight / div);
-			[ctx->staging[2].texture replaceRegion:region mipmapLevel:0 withBytes:p bytesPerRow:desc->imageWidth / div];
+			[ctx->staging[2].texture replaceRegion:region mipmapLevel:0 withBytes:p bytesPerRow:bpp * (desc->imageWidth / div)];
 			break;
 		}
 	}
@@ -298,8 +281,9 @@ bool mty_metal_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	ctx->fcb.effects[1] = desc->effects[1];
 	ctx->fcb.levels[0] = desc->levels[0];
 	ctx->fcb.levels[1] = desc->levels[1];
-	ctx->fcb.format = ctx->format;
+	ctx->fcb.planes = FMT_PLANES[ctx->format];
 	ctx->fcb.rotation = desc->rotation;
+	ctx->fcb.conversion = FMT_CONVERSION(ctx->format, desc->fullRangeYUV);
 	[re setFragmentBytes:&ctx->fcb length:sizeof(struct metal_cb) atIndex:0];
 
 	// Draw
