@@ -23,9 +23,10 @@ struct cb {
 	float pad0;
 	uint4 effects;
 	float4 levels;
-	uint format;
+	uint planes;
 	uint rotation;
-	uint2 pad1;
+	uint conversion;
+	uint pad1;
 };
 
 vertex struct vs_out vs(struct vtx v [[stage_in]])
@@ -37,50 +38,57 @@ vertex struct vs_out vs(struct vtx v [[stage_in]])
 	return out;
 }
 
-static float4 yuv_to_rgba(float y, float u, float v)
+static float4 yuv_to_rgba(uint conversion, float y, float u, float v)
 {
-	// Using "RGB to YCbCr color conversion for HDTV" (ITU-R BT.709)
+	// 10-bit -> 16-bit
+	if (conversion == 2 || conversion == 8) {
+		y = y * 64.0;
+		u = u * 64.0;
+		v = v * 64.0;
+	}
 
-	y = (y - 0.0625) * 1.164;
-	u = u - 0.5;
-	v = v - 0.5;
+	// Full range
+	if (conversion == 4 || conversion == 8) {
+		y = (y - 16.0 / 255.0) * (255.0 / 219.0);
+		u = (u - 128.0 / 255.0) * (255.0 / 224.0);
+		v = (v - 128.0 / 255.0) * (255.0 / 224.0);
+	}
 
-	float r = y + 1.793 * v;
-	float g = y - 0.213 * u - 0.533 * v;
-	float b = y + 2.112 * u;
+	float kr = 0.2126;
+	float kb = 0.0722;
+
+	float r = y + (2.0 - 2.0 * kr) * v;
+	float b = y + (2.0 - 2.0 * kb) * u;
+	float g = (y - kr * r - kb * b) / (1.0 - kr - kb);
 
 	return float4(r, g, b, 1.0);
 }
 
-static float4 sample_rgba(uint format, texture2d<float, access::sample> tex0,
-	texture2d<float, access::sample> tex1, texture2d<float, access::sample> tex2,
-	sampler s, float2 uv)
+static float4 sample_rgba(uint planes, uint conversion,
+	texture2d<float, access::sample> tex0, texture2d<float, access::sample> tex1,
+	texture2d<float, access::sample> tex2, sampler s, float2 uv)
 {
-	// NV12, NV16
-	if (format == 2 || format == 5) {
+	if (planes == 2) {
 		float y = tex0.sample(s, uv).r;
 		float u = tex1.sample(s, uv).r;
 		float v = tex1.sample(s, uv).g;
 
-		return yuv_to_rgba(y, u, v);
+		return yuv_to_rgba(conversion, y, u, v);
 
-	// I420, I444
-	} else if (format == 3 || format == 4) {
+	} else if (planes == 3) {
 		float y = tex0.sample(s, uv).r;
 		float u = tex1.sample(s, uv).r;
 		float v = tex2.sample(s, uv).r;
 
-		return yuv_to_rgba(y, u, v);
+		return yuv_to_rgba(conversion, y, u, v);
 
-	// AYUV
-	} else if (format == 8) {
+	} else if (conversion != 0) {
 		float y = tex0.sample(s, uv).r;
 		float u = tex0.sample(s, uv).g;
 		float v = tex0.sample(s, uv).b;
 
-		return yuv_to_rgba(y, u, v);
+		return yuv_to_rgba(conversion, y, u, v);
 
-	// BGRA
 	} else {
 		return tex0.sample(s, uv);
 	}
@@ -150,7 +158,7 @@ fragment float4 fs(
 			sharpen(cb.width, cb.height, cb.levels[x], uv);
 
 	// Sample
-	float4 rgba = sample_rgba(cb.format, tex0, tex1, tex2, s, uv);
+	float4 rgba = sample_rgba(cb.planes, cb.conversion, tex0, tex1, tex2, s, uv);
 
 	// Effects
 	for (uint y = 0; y < 2; y++)

@@ -56,18 +56,31 @@ typedef enum {
 
 /// @brief Raw image color formats.
 typedef enum {
-	MTY_COLOR_FORMAT_UNKNOWN  = 0, ///< Unknown color format.
-	MTY_COLOR_FORMAT_BGRA     = 1, ///< 8-bits per channel BGRA.
-	MTY_COLOR_FORMAT_NV12     = 2, ///< 4:2:0 full W/H Y plane followed by an interleaved half
-	                               ///<   W/H UV plane.
-	MTY_COLOR_FORMAT_I420     = 3, ///< 4:2:0 full W/H Y plane followed by a half W/H U plane
-	                               ///<   followed by a half W/H V plane.
-	MTY_COLOR_FORMAT_I444     = 4, ///< 4:4:4 full W/H consecutive Y, U, V planes.
-	MTY_COLOR_FORMAT_NV16     = 5, ///< 4:2:2 full W/H Y plane followed by an interleaved half W
-	                               ///<   full H UV plane.
-	MTY_COLOR_FORMAT_BGR565   = 6, ///< 5-bits blue, 6-bits green, 5-bits red.
-	MTY_COLOR_FORMAT_BGRA5551 = 7, ///< 5-bits per BGR channels, 1-bit alpha.
-	MTY_COLOR_FORMAT_AYUV     = 8, ///< 4:4:4 full W/H interleaved Y, U, V.
+	MTY_COLOR_FORMAT_UNKNOWN  = 0,  ///< Unknown color format.
+	MTY_COLOR_FORMAT_BGRA     = 1,  ///< 8-bits per channel BGRA.
+	MTY_COLOR_FORMAT_NV12     = 2,  ///< 4:2:0 full W/H Y plane followed by an interleaved half
+	                                ///<   W/H UV plane.
+	MTY_COLOR_FORMAT_I420     = 3,  ///< 4:2:0 full W/H Y plane followed by a half W/H U plane
+	                                ///<   followed by a half W/H V plane.
+	MTY_COLOR_FORMAT_I444     = 4,  ///< 4:4:4 full W/H consecutive Y, U, V planes.
+	MTY_COLOR_FORMAT_NV16     = 5,  ///< 4:2:2 full W/H Y plane followed by an interleaved half W
+	                                ///<   full H UV plane.
+	MTY_COLOR_FORMAT_BGR565   = 6,  ///< 5-bits blue, 6-bits green, 5-bits red.
+	MTY_COLOR_FORMAT_BGRA5551 = 7,  ///< 5-bits per BGR channels, 1-bit alpha.
+	MTY_COLOR_FORMAT_AYUV     = 8,  ///< 4:4:4 full W/H interleaved Y, U, V.
+	MTY_COLOR_FORMAT_Y410     = 9,  ///< 4:4:4 full W/H interleaved Y, U, V, A. 10-bit YUV,
+	                                ///<   2-bit alpha.
+	MTY_COLOR_FORMAT_Y416     = 10,  ///< 4:4:4 full W/H interleaved Y, U, V, A. 16 bits used per
+	                                ///<   channel.
+	MTY_COLOR_FORMAT_P010     = 11, ///< 4:2:0 full W/H Y plane followed by an interleaved half
+	                                ///<   W/H UV plane. 10/16 bits used per channel.
+	MTY_COLOR_FORMAT_P016     = 12, ///< 4:2:0 full W/H Y plane followed by an interleaved half
+	                                ///<   W/H UV plane. All 16 bits used per channel.
+	MTY_COLOR_FORMAT_I444_10  = 13, ///< 4:4:4 full W/H consecutive Y, U, V planes.
+	                                ///<   10/16 bits used per channel.
+	MTY_COLOR_FORMAT_I444_16  = 14, ///< 4:4:4 full W/H consecutive Y, U, V planes.
+	                                ///<   All 16 bits used per channel.
+	MTY_COLOR_FORMAT_MAX      = 15, ///< Maximum number of color formats.
 	MTY_COLOR_FORMAT_MAKE_32  = INT32_MAX,
 } MTY_ColorFormat;
 
@@ -102,6 +115,7 @@ typedef struct {
 	MTY_Filter filter;      ///< Filter applied to the image.
 	MTY_Effect effects[2];  ///< Effects applied to the image.
 	float levels[2];        ///< Intensity of the applied `effects` between `0.0f` and `1.0f`.
+	bool fullRangeYUV;      ///< Use the full 0-255 color range for YUV formats.
 	uint32_t imageWidth;    ///< The width in pixels of the image.
 	uint32_t imageHeight;   ///< The height in pixels of the image.
 	uint32_t cropWidth;     ///< Desired crop width of the image from the top left corner.
