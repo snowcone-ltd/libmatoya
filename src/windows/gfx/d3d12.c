@@ -349,91 +349,23 @@ static void d3d12_destroy_resource(struct d3d12_res *res)
 	res->height = 0;
 }
 
-static HRESULT d3d12_refresh_resource(struct d3d12_res *res, ID3D12Device *device,
-	DXGI_FORMAT format, uint32_t width, uint32_t height, uint8_t bpp)
+static bool d3d12_crop_copy(struct d3d12_res *res, MTY_Context *context, const uint8_t *image, uint32_t full_w,
+	uint32_t w, uint32_t h, int8_t bpp)
 {
-	HRESULT e = S_OK;
+	ID3D12GraphicsCommandList *cl = (ID3D12GraphicsCommandList *) context;
 
-	if (!res->resource || width != res->width || height != res->height || format != res->format) {
-		d3d12_destroy_resource(res);
-
-		// Upload buffer
-		D3D12_HEAP_PROPERTIES hp = {0};
-		hp.Type = D3D12_HEAP_TYPE_UPLOAD;
-
-		D3D12_RESOURCE_DESC desc = {0};
-		desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-		desc.Width = D3D12_PITCH(width, bpp) * height;
-		desc.Height = 1;
-		desc.DepthOrArraySize = 1;
-		desc.MipLevels = 1;
-		desc.Format = DXGI_FORMAT_UNKNOWN;
-		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-		desc.SampleDesc.Count = 1;
-
-		e = ID3D12Device_CreateCommittedResource(device, &hp, D3D12_HEAP_FLAG_NONE, &desc,
-			 D3D12_RESOURCE_STATE_GENERIC_READ, NULL, &IID_ID3D12Resource, &res->buffer);
-		if (e != S_OK) {
-			MTY_Log("'ID3D12Device_CreateCommittedResource' failed with HRESULT 0x%X", e);
-			goto except;
-		}
-
-		// Texture
-		hp.Type = D3D12_HEAP_TYPE_DEFAULT;
-
-		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		desc.Width = width;
-		desc.Height = height;
-		desc.DepthOrArraySize = 1;
-		desc.MipLevels = 1;
-		desc.Format = format;
-		desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		desc.SampleDesc.Count = 1;
-
-		e = ID3D12Device_CreateCommittedResource(device, &hp, D3D12_HEAP_FLAG_NONE, &desc,
-			 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, NULL, &IID_ID3D12Resource, &res->resource);
-		if (e != S_OK) {
-			MTY_Log("'ID3D12Device_CreateCommittedResource' failed with HRESULT 0x%X", e);
-			goto except;
-		}
-
-		// Shader resourve view
-		D3D12_SHADER_RESOURCE_VIEW_DESC sdesc = {0};
-		sdesc.Format = format;
-		sdesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		sdesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		sdesc.Texture2D.MipLevels = 1;
-
-		ID3D12Device_CreateShaderResourceView(device, res->resource, &sdesc, res->dh);
-
-		res->width = width;
-		res->height = height;
-		res->format = format;
-	}
-
-	except:
-
-	if (e != S_OK)
-		d3d12_destroy_resource(res);
-
-	return e;
-}
-
-static HRESULT d3d12_crop_copy(struct d3d12_res *res, ID3D12GraphicsCommandList *cl, const uint8_t *image,
-	uint32_t w, uint32_t h, int32_t fullWidth, uint8_t bpp)
-{
 	// Copy data to upload buffer
 	uint8_t *data = NULL;
 	HRESULT e = ID3D12Resource_Map(res->buffer, 0, NULL, &data);
 	if (e != S_OK) {
 		MTY_Log("'ID3D12Resource_Map' failed with HRESULT 0x%X", e);
-		return e;
+		return false;
 	}
 
 	UINT pitch = D3D12_PITCH(w, bpp);
 
 	for (uint32_t y = 0; y < h; y++)
-		memcpy(data + y * pitch, image + y * fullWidth * bpp, w * bpp);
+		memcpy(data + y * pitch, image + y * full_w * bpp, w * bpp);
 
 	ID3D12Resource_Unmap(res->buffer, 0, NULL);
 
@@ -467,71 +399,92 @@ static HRESULT d3d12_crop_copy(struct d3d12_res *res, ID3D12GraphicsCommandList 
 
 	ID3D12GraphicsCommandList_ResourceBarrier(cl, 1, &rb);
 
-	return S_OK;
+	return true;
 }
 
-static HRESULT d3d12_reload_textures(struct d3d12 *ctx, ID3D12Device *device, ID3D12GraphicsCommandList *cl,
-	const void *image, const MTY_RenderDesc *desc)
+static bool d3d12_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Context *context, MTY_ColorFormat fmt,
+	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, int8_t bpp)
 {
-	int8_t bpp = FMT_BPP[desc->format];
-	uint32_t div = FMT_DIV[desc->format];
-	DXGI_FORMAT fmt0 = FMT_PLANE0[desc->format];
-	DXGI_FORMAT fmt1 = FMT_PLANE1[desc->format];
+	struct d3d12 *ctx = (struct d3d12 *) gfx;
 
-	switch (FMT_PLANES[desc->format]) {
-		case FMT_1_PLANE: {
-			HRESULT e = d3d12_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight, bpp);
-			if (e != S_OK) return e;
+	bool r = true;
 
-			e = d3d12_crop_copy(&ctx->staging[0], cl, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, bpp);
-			if (e != S_OK) return e;
-			break;
+	struct d3d12_res *res = &ctx->staging[plane];
+	DXGI_FORMAT format = FMT_PLANES[fmt][plane];
+
+	// Resize
+	if (!res->resource || w != res->width || h != res->height || format != res->format) {
+		ID3D12Device *device = (ID3D12Device *) _device;
+
+		d3d12_destroy_resource(res);
+
+		// Upload buffer
+		D3D12_HEAP_PROPERTIES hp = {0};
+		hp.Type = D3D12_HEAP_TYPE_UPLOAD;
+
+		D3D12_RESOURCE_DESC desc = {0};
+		desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		desc.Width = D3D12_PITCH(w, bpp) * h;
+		desc.Height = 1;
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.Format = DXGI_FORMAT_UNKNOWN;
+		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		desc.SampleDesc.Count = 1;
+
+		HRESULT e = ID3D12Device_CreateCommittedResource(device, &hp, D3D12_HEAP_FLAG_NONE, &desc,
+			 D3D12_RESOURCE_STATE_GENERIC_READ, NULL, &IID_ID3D12Resource, &res->buffer);
+		if (e != S_OK) {
+			MTY_Log("'ID3D12Device_CreateCommittedResource' failed with HRESULT 0x%X", e);
+			r = false;
+			goto except;
 		}
-		case FMT_2_PLANE: {
-			// Y
-			HRESULT e = d3d12_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight, bpp);
-			if (e != S_OK) return e;
 
-			e = d3d12_crop_copy(&ctx->staging[0], cl, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, bpp);
-			if (e != S_OK) return e;
+		// Texture
+		hp.Type = D3D12_HEAP_TYPE_DEFAULT;
 
-			// UV
-			e = d3d12_refresh_resource(&ctx->staging[1], device, fmt1, desc->cropWidth / 2, desc->cropHeight / 2, 2 * bpp);
-			if (e != S_OK) return e;
+		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		desc.Width = w;
+		desc.Height = h;
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.Format = format;
+		desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		desc.SampleDesc.Count = 1;
 
-			const void *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight;
-			e = d3d12_crop_copy(&ctx->staging[1], cl, p, desc->cropWidth / 2, desc->cropHeight / 2, desc->imageWidth / 2, 2 * bpp);
-			if (e != S_OK) return e;
-			break;
+		e = ID3D12Device_CreateCommittedResource(device, &hp, D3D12_HEAP_FLAG_NONE, &desc,
+			 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, NULL, &IID_ID3D12Resource, &res->resource);
+		if (e != S_OK) {
+			MTY_Log("'ID3D12Device_CreateCommittedResource' failed with HRESULT 0x%X", e);
+			r = false;
+			goto except;
 		}
-		case FMT_3_PLANE: {
-			// Y
-			HRESULT e = d3d12_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight, bpp);
-			if (e != S_OK) return e;
 
-			e = d3d12_crop_copy(&ctx->staging[0], cl, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, bpp);
-			if (e != S_OK) return e;
+		// Shader resourve view
+		D3D12_SHADER_RESOURCE_VIEW_DESC sdesc = {0};
+		sdesc.Format = format;
+		sdesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		sdesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		sdesc.Texture2D.MipLevels = 1;
 
-			// U
-			uint8_t *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight * bpp;
-			e = d3d12_refresh_resource(&ctx->staging[1], device, fmt0, desc->cropWidth / div, desc->cropHeight / div, bpp);
-			if (e != S_OK) return e;
+		ID3D12Device_CreateShaderResourceView(device, res->resource, &sdesc, res->dh);
 
-			e = d3d12_crop_copy(&ctx->staging[1], cl, p, desc->cropWidth / div, desc->cropHeight / div, desc->imageWidth / div, bpp);
-			if (e != S_OK) return e;
-
-			// V
-			p += (desc->imageWidth / div) * (desc->imageHeight / div) * bpp;
-			e = d3d12_refresh_resource(&ctx->staging[2], device, fmt0, desc->cropWidth / div, desc->cropHeight / div, bpp);
-			if (e != S_OK) return e;
-
-			e = d3d12_crop_copy(&ctx->staging[2], cl, p, desc->cropWidth / div, desc->cropHeight / div, desc->imageWidth / div, bpp);
-			if (e != S_OK) return e;
-			break;
-		}
+		res->width = w;
+		res->height = h;
+		res->format = format;
 	}
 
-	return S_OK;
+	except:
+
+	if (r) {
+		// Upload
+		r = d3d12_crop_copy(res, context, image, full_w, w, h, bpp);
+
+	} else {
+		d3d12_destroy_resource(res);
+	}
+
+	return r;
 }
 
 bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
@@ -539,7 +492,6 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 {
 	struct d3d12 *ctx = (struct d3d12 *) gfx;
 
-	ID3D12Device *_device = (ID3D12Device *) device;
 	ID3D12GraphicsCommandList *cl = (ID3D12GraphicsCommandList *) context;
 	D3D12_CPU_DESCRIPTOR_HANDLE *_dest = (D3D12_CPU_DESCRIPTOR_HANDLE *) dest;
 
@@ -552,8 +504,7 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 
 	// Refresh textures and load texture data
 	// If format == MTY_COLOR_FORMAT_UNKNOWN, texture refreshing/loading is skipped and the previous frame is rendered
-	HRESULT e = d3d12_reload_textures(ctx, _device, cl, image, desc);
-	if (e != S_OK)
+	if (!fmt_reload_textures(gfx, device, context, image, desc, d3d12_refresh_resource))
 		return false;
 
 	// Viewport
@@ -598,12 +549,12 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	cb.effects[1] = desc->effects[1];
 	cb.levels[0] = desc->levels[0];
 	cb.levels[1] = desc->levels[1];
-	cb.planes = FMT_PLANES[ctx->format];
+	cb.planes = FMT_INFO[ctx->format].planes;
 	cb.rotation = desc->rotation;
-	cb.conversion = FMT_CONVERSION(ctx->format, desc->fullRangeYUV);
+	cb.conversion = FMT_CONVERSION(ctx->format, desc->fullRangeYUV, desc->multiplyYUV);
 
 	uint8_t *data = NULL;
-	e = ID3D12Resource_Map(ctx->cb, 0, NULL, &data);
+	HRESULT e = ID3D12Resource_Map(ctx->cb, 0, NULL, &data);
 	if (e != S_OK) {
 		MTY_Log("'ID3D12Resource_Map' failed with HRESULT 0x%X", e);
 		return false;

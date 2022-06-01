@@ -15,19 +15,19 @@ uniform float4 cb0 : register(c0); // width, height, vp_height
 uniform float4 cb1 : register(c1); // effects, levels
 uniform float4 cb2 : register(c2); // planes, rotation, conversion
 
-inline float4 yuv_to_rgba(float conversion, float y, float u, float v)
+inline float4 yuv_to_rgba(int4 conversion, float y, float u, float v)
 {
 	// 10-bit -> 16-bit
-	if (conversion == 2.0 || conversion == 8.0) {
-		y = y * 64.0;
-		u = u * 64.0;
-		v = v * 64.0;
+	if (conversion[2]) {
+		y *= 64.0;
+		u *= 64.0;
+		v *= 64.0;
 	}
 
 	// Full range
-	if (conversion == 4.0 || conversion == 8.0) {
-		u = u - 0.5;
-		v = v - 0.5;
+	if (conversion[0]) {
+		u -= 0.5;
+		v -= 0.5;
 
 	// Limited
 	} else {
@@ -46,31 +46,50 @@ inline float4 yuv_to_rgba(float conversion, float y, float u, float v)
 	return float4(r, g, b, 1.0);
 }
 
-inline float4 sample_rgba(float planes, float conversion, float2 uv)
+inline float4 sample_rgba(int planes, int4 conversion, float2 uv)
 {
-	if (planes == 2.0) {
-		float y = tex2D(tex0, uv).r;
-		float u = tex2D(tex1, uv).r;
-		float v = tex2D(tex1, uv).a;
+	float4 pixel0 = tex2D(tex0, uv);
+
+	if (planes == 2) {
+		float4 pixel1 = tex2D(tex1, uv);
+		float y = pixel0.r;
+
+		// A8L8
+		float u = pixel1.r;
+		float v = pixel1.a;
+
+		// G16R16
+		if (conversion[1]) {
+			u = pixel1.r;
+			v = pixel1.g;
+		}
 
 		return yuv_to_rgba(conversion, y, u, v);
 
-	} else if (planes == 3.0) {
-		float y = tex2D(tex0, uv).r;
+	} else if (planes == 3) {
+		float y = pixel0.r;
 		float u = tex2D(tex1, uv).r;
 		float v = tex2D(tex2, uv).r;
 
 		return yuv_to_rgba(conversion, y, u, v);
 
-	} else if (conversion != 0.0) {
-		float y = tex2D(tex0, uv).r;
-		float u = tex2D(tex0, uv).g;
-		float v = tex2D(tex0, uv).b;
+	} else if (conversion[3]) {
+		// AYUV
+		float y = pixel0.r;
+		float u = pixel0.g;
+		float v = pixel0.b;
+
+		// Y410
+		if (conversion[1]) {
+			y = pixel0.g;
+			u = pixel0.b;
+			v = pixel0.r;
+		}
 
 		return yuv_to_rgba(conversion, y, u, v);
 
 	} else {
-		return tex2D(tex0, uv);
+		return pixel0;
 	}
 }
 
@@ -99,26 +118,36 @@ inline void scanline(float y, float h, float level, inout float4 rgba)
 		rgba *= level;
 }
 
-inline float2 rotate(float rotation, float2 texcoord)
+inline float2 rotate(int rotation, float2 texcoord)
 {
 	float2 uv = texcoord;
 
 	// Rotation
-	if (rotation == 1.0 || rotation == 3.0) {
+	if (rotation == 1 || rotation == 3) {
 		float tmp = uv[0];
 		uv[0] = uv[1];
 		uv[1] = tmp;
 	}
 
 	// Flipped vertically
-	if (rotation == 1.0 || rotation == 2.0)
+	if (rotation == 1 || rotation == 2)
 		uv[1] = 1.0 - uv[1];
 
 	// Flipped horizontally
-	if (rotation == 2.0 || rotation == 3.0)
+	if (rotation == 2 || rotation == 3)
 		uv[0] = 1.0 - uv[0];
 
 	return uv;
+}
+
+inline int get_bit(inout int mask, int bit)
+{
+	if (mask >= bit) {
+		mask -= bit;
+		return 1;
+	}
+
+	return 0;
 }
 
 float4 main(VS_OUTPUT input) : SV_TARGET
@@ -128,27 +157,33 @@ float4 main(VS_OUTPUT input) : SV_TARGET
 	float height = cb0[1];
 	float vp_height = cb0[2];
 
-	float2 effects = float2(cb1[0], cb1[1]);
+	int2 effects = int2(cb1[0], cb1[1]);
 	float2 levels = float2(cb1[2], cb1[3]);
 
-	float planes = cb2[0];
-	float rotation = cb2[1];
-	float conversion = cb2[2];
+	int planes = cb2[0];
+	int rotation = cb2[1];
+	int cbits = cb2[2];
+
+	int4 conversion;
+	conversion[3] = get_bit(cbits, 8);
+	conversion[2] = get_bit(cbits, 4);
+	conversion[1] = get_bit(cbits, 2);
+	conversion[0] = get_bit(cbits, 1);
 
 	// Rotate
 	float2 uv = rotate(rotation, input.texcoord);
 
 	// Sharpen
-	for (uint x = 0; x < 2; x++)
-		if (effects[x] == 2.0)
+	for (int x = 0; x < 2; x++)
+		if (effects[x] == 2)
 			sharpen(width, height, levels[x], uv);
 
 	// Sample
 	float4 rgba = sample_rgba(planes, conversion, uv);
 
 	// Effects
-	for (uint y = 0; y < 2; y++)
-		if (effects[y] == 1.0)
+	for (int y = 0; y < 2; y++)
+		if (effects[y] == 1)
 			scanline(input.texcoord.y, vp_height, levels[y], rgba);
 
 	return rgba;

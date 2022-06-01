@@ -36,7 +36,6 @@ struct d3d11_psvars {
 
 struct d3d11_res {
 	DXGI_FORMAT format;
-	ID3D11Texture2D *texture;
 	ID3D11Resource *resource;
 	ID3D11ShaderResourceView *srv;
 	uint32_t width;
@@ -194,25 +193,50 @@ static void d3d11_destroy_resource(struct d3d11_res *res)
 	if (res->resource)
 		ID3D11Resource_Release(res->resource);
 
-	if (res->texture)
-		ID3D11Texture2D_Release(res->texture);
-
 	memset(res, 0, sizeof(struct d3d11_res));
 }
 
-static HRESULT d3d11_refresh_resource(struct d3d11_res *res, ID3D11Device *device,
-	DXGI_FORMAT format, uint32_t width, uint32_t height)
+static bool d3d11_crop_copy(struct d3d11_res *res, MTY_Context *_context, const uint8_t *image, uint32_t full_w,
+	uint32_t w, uint32_t h, int8_t bpp)
 {
-	HRESULT e = S_OK;
+	ID3D11DeviceContext *context = (ID3D11DeviceContext *) _context;
 
-	if (!res->texture || !res->srv || !res->resource || width != res->width ||
-		height != res->height || format != res->format)
-	{
+	D3D11_MAPPED_SUBRESOURCE m = {0};
+	HRESULT e = ID3D11DeviceContext_Map(context, res->resource, 0, D3D11_MAP_WRITE_DISCARD, 0, &m);
+	if (e != S_OK) {
+		MTY_Log("'ID3D11DeviceContext_Map' failed with HRESULT 0x%X", e);
+		return false;
+	}
+
+	for (uint32_t y = 0; y < h; y++)
+		memcpy((uint8_t *) m.pData + (y * m.RowPitch), image + (y * full_w * bpp), w * bpp);
+
+	ID3D11DeviceContext_Unmap(context, res->resource, 0);
+
+	return true;
+}
+
+static bool d3d11_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Context *context, MTY_ColorFormat fmt,
+	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, int8_t bpp)
+{
+	struct d3d11 *ctx = (struct d3d11 *) gfx;
+
+	bool r = true;
+
+	struct d3d11_res *res = &ctx->staging[plane];
+	DXGI_FORMAT format = FMT_PLANES[fmt][plane];
+
+	ID3D11Texture2D *texture = NULL;
+
+	// Resize
+	if (!res->resource || w != res->width || h != res->height || format != res->format) {
+		ID3D11Device *device = (ID3D11Device *) _device;
+
 		d3d11_destroy_resource(res);
 
 		D3D11_TEXTURE2D_DESC desc = {0};
-		desc.Width = width;
-		desc.Height = height;
+		desc.Width = w;
+		desc.Height = h;
 		desc.MipLevels = 1;
 		desc.ArraySize = 1;
 		desc.Format = format;
@@ -221,15 +245,17 @@ static HRESULT d3d11_refresh_resource(struct d3d11_res *res, ID3D11Device *devic
 		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-		e = ID3D11Device_CreateTexture2D(device, &desc, NULL, &res->texture);
+		HRESULT e = ID3D11Device_CreateTexture2D(device, &desc, NULL, &texture);
 		if (e != S_OK) {
 			MTY_Log("'ID3D11Device_CreateTexture2D' failed with HRESULT 0x%X", e);
+			r = false;
 			goto except;
 		}
 
-		e = ID3D11Texture2D_QueryInterface(res->texture, &IID_ID3D11Resource, &res->resource);
+		e = ID3D11Texture2D_QueryInterface(texture, &IID_ID3D11Resource, &res->resource);
 		if (e != S_OK) {
 			MTY_Log("'ID3D11Texture2D_QueryInterface' failed with HRESULT 0x%X", e);
+			r = false;
 			goto except;
 		}
 
@@ -241,102 +267,29 @@ static HRESULT d3d11_refresh_resource(struct d3d11_res *res, ID3D11Device *devic
 		e = ID3D11Device_CreateShaderResourceView(device, res->resource, &srvd, &res->srv);
 		if (e != S_OK) {
 			MTY_Log("'ID3D11Device_CreateShaderResourceView' failed with HRESULT 0x%X", e);
+			r = false;
 			goto except;
 		}
 
-		res->width = width;
-		res->height = height;
+		res->width = w;
+		res->height = h;
 		res->format = format;
 	}
 
 	except:
 
-	if (e != S_OK)
+	if (texture)
+		ID3D11Texture2D_Release(texture);
+
+	if (r) {
+		// Upload
+		r = d3d11_crop_copy(res, context, image, full_w, w, h, bpp);
+
+	} else {
 		d3d11_destroy_resource(res);
-
-	return e;
-}
-
-static HRESULT d3d11_crop_copy(ID3D11DeviceContext *context, ID3D11Resource *texture,
-	const uint8_t *image, uint32_t w, uint32_t h, int32_t fullWidth, uint8_t bpp)
-{
-	D3D11_MAPPED_SUBRESOURCE res;
-	HRESULT e = ID3D11DeviceContext_Map(context, texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &res);
-	if (e != S_OK) {
-		MTY_Log("'ID3D11DeviceContext_Map' failed with HRESULT 0x%X", e);
-		return e;
 	}
 
-	for (uint32_t y = 0; y < h; y++)
-		memcpy((uint8_t *) res.pData + (y * res.RowPitch), image + (y * fullWidth * bpp), w * bpp);
-
-	ID3D11DeviceContext_Unmap(context, texture, 0);
-
-	return e;
-}
-
-static HRESULT d3d11_reload_textures(struct d3d11 *ctx, ID3D11Device *device, ID3D11DeviceContext *context,
-	const void *image, const MTY_RenderDesc *desc)
-{
-	int8_t bpp = FMT_BPP[desc->format];
-	uint32_t div = FMT_DIV[desc->format];
-	DXGI_FORMAT fmt0 = FMT_PLANE0[desc->format];
-	DXGI_FORMAT fmt1 = FMT_PLANE1[desc->format];
-
-	switch (FMT_PLANES[desc->format]) {
-		case FMT_1_PLANE: {
-			HRESULT e = d3d11_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight);
-			if (e != S_OK) return e;
-
-			e = d3d11_crop_copy(context, ctx->staging[0].resource, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, bpp);
-			if (e != S_OK) return e;
-			break;
-		}
-		case FMT_2_PLANE: {
-			// Y
-			HRESULT e = d3d11_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight);
-			if (e != S_OK) return e;
-
-			e = d3d11_crop_copy(context, ctx->staging[0].resource, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, bpp);
-			if (e != S_OK) return e;
-
-			// UV
-			e = d3d11_refresh_resource(&ctx->staging[1], device, fmt1, desc->cropWidth / 2, desc->cropHeight / 2);
-			if (e != S_OK) return e;
-
-			const void *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight * bpp;
-			e = d3d11_crop_copy(context, ctx->staging[1].resource, p, desc->cropWidth / 2, desc->cropHeight / 2, desc->imageWidth / 2, 2 * bpp);
-			if (e != S_OK) return e;
-			break;
-		}
-		case FMT_3_PLANE: {
-			// Y
-			HRESULT e = d3d11_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight);
-			if (e != S_OK) return e;
-
-			e = d3d11_crop_copy(context, ctx->staging[0].resource, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, bpp);
-			if (e != S_OK) return e;
-
-			// U
-			uint8_t *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight * bpp;
-			e = d3d11_refresh_resource(&ctx->staging[1], device, fmt0, desc->cropWidth / div, desc->cropHeight / div);
-			if (e != S_OK) return e;
-
-			e = d3d11_crop_copy(context, ctx->staging[1].resource, p, desc->cropWidth / div, desc->cropHeight / div, desc->imageWidth / div, bpp);
-			if (e != S_OK) return e;
-
-			// V
-			p += (desc->imageWidth / div) * (desc->imageHeight / div) * bpp;
-			e = d3d11_refresh_resource(&ctx->staging[2], device, fmt0, desc->cropWidth / div, desc->cropHeight / div);
-			if (e != S_OK) return e;
-
-			e = d3d11_crop_copy(context, ctx->staging[2].resource, p, desc->cropWidth / div, desc->cropHeight / div, desc->imageWidth / div, bpp);
-			if (e != S_OK) return e;
-			break;
-		}
-	}
-
-	return S_OK;
+	return r;
 }
 
 bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
@@ -356,8 +309,7 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 
 	// Refresh textures and load texture data
 	// If format == MTY_COLOR_FORMAT_UNKNOWN, texture refreshing/loading is skipped and the previous frame is rendered
-	HRESULT e = d3d11_reload_textures(ctx, _device, _context, image, desc);
-	if (e != S_OK)
+	if (!fmt_reload_textures(gfx, device, context, image, desc, d3d11_refresh_resource))
 		return false;
 
 	// Viewport
@@ -371,6 +323,7 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	// Begin render pass (set destination texture if available)
 	ID3D11Resource *rtvresource = NULL;
 	ID3D11RenderTargetView *rtv = NULL;
+	HRESULT e = S_OK;
 
 	if (_dest) {
 		e = ID3D11Texture2D_QueryInterface(_dest, &IID_ID3D11Resource, &rtvresource);
@@ -420,9 +373,9 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	cb.effects[1] = desc->effects[1];
 	cb.levels[0] = desc->levels[0];
 	cb.levels[1] = desc->levels[1];
-	cb.planes = FMT_PLANES[ctx->format];
+	cb.planes = FMT_INFO[ctx->format].planes;
 	cb.rotation = desc->rotation;
-	cb.conversion = FMT_CONVERSION(ctx->format, desc->fullRangeYUV);
+	cb.conversion = FMT_CONVERSION(ctx->format, desc->fullRangeYUV, desc->multiplyYUV);
 
 	D3D11_MAPPED_SUBRESOURCE res = {0};
 	e = ID3D11DeviceContext_Map(_context, ctx->psbres, 0, D3D11_MAP_WRITE_DISCARD, 0, &res);

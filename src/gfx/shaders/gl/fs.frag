@@ -20,19 +20,19 @@ uniform vec4 fcb0; // width, height, vp_height
 uniform vec4 fcb1; // effects, levels
 uniform ivec4 icb; // planes, rotation, conversion
 
-void yuv_to_rgba(int conversion, float y, float u, float v, out vec4 rgba)
+void yuv_to_rgba(ivec4 conversion, float y, float u, float v, out vec4 rgba)
 {
 	// 10-bit -> 16-bit
-	if (conversion == 2 || conversion == 8) {
-		y = y * 64.0;
-		u = u * 64.0;
-		v = v * 64.0;
+	if (conversion[2] == 1) {
+		y *= 64.0;
+		u *= 64.0;
+		v *= 64.0;
 	}
 
 	// Full range
-	if (conversion == 4 || conversion == 8) {
-		u = u - 0.5;
-		v = v - 0.5;
+	if (conversion[0] == 1) {
+		u -= 0.5;
+		v -= 0.5;
 
 	// Limited
 	} else {
@@ -51,31 +51,42 @@ void yuv_to_rgba(int conversion, float y, float u, float v, out vec4 rgba)
 	rgba = vec4(r, g, b, 1.0);
 }
 
-void sample_rgba(int planes, int conversion, vec2 uv, out vec4 rgba)
+void sample_rgba(int planes, ivec4 conversion, vec2 uv, out vec4 rgba)
 {
+	vec4 pixel0 = texture2D(tex0, uv);
+
 	if (planes == 2) {
-		float y = texture2D(tex0, uv).r;
-		float u = texture2D(tex1, uv).r;
-		float v = texture2D(tex1, uv).g;
+		vec4 pixel1 = texture2D(tex1, uv);
+		float y = pixel0.r;
+		float u = pixel1.r;
+		float v = pixel1.g;
 
 		yuv_to_rgba(conversion, y, u, v, rgba);
 
 	} else if (planes == 3) {
-		float y = texture2D(tex0, uv).r;
+		float y = pixel0.r;
 		float u = texture2D(tex1, uv).r;
 		float v = texture2D(tex2, uv).r;
 
 		yuv_to_rgba(conversion, y, u, v, rgba);
 
-	} else if (conversion != 0) {
-		float y = texture2D(tex0, uv).r;
-		float u = texture2D(tex0, uv).g;
-		float v = texture2D(tex0, uv).b;
+	} else if (conversion[3] == 1) {
+		// AYUV
+		float y = pixel0.r;
+		float u = pixel0.g;
+		float v = pixel0.b;
+
+		// Y410
+		if (conversion[1] == 1) {
+			y = pixel0.g;
+			u = pixel0.b;
+			v = pixel0.r;
+		}
 
 		yuv_to_rgba(conversion, y, u, v, rgba);
 
 	} else {
-		rgba = texture2D(tex0, uv);
+		rgba = pixel0;
 	}
 }
 
@@ -122,6 +133,17 @@ void rotate(int rotation, inout vec2 uv)
 		uv[0] = 1.0 - uv[0];
 }
 
+void get_bit(inout int mask, int bit, out int set)
+{
+	if (mask >= bit) {
+		mask -= bit;
+		set = 1;
+
+	} else {
+		set = 0;
+	}
+}
+
 void main(void)
 {
 	// Uniforms
@@ -134,7 +156,13 @@ void main(void)
 
 	int planes = icb[0];
 	int rotation = icb[1];
-	int conversion = icb[2];
+	int cbits = icb[2];
+
+	ivec4 conversion;
+	get_bit(cbits, 8, conversion[3]);
+	get_bit(cbits, 4, conversion[2]);
+	get_bit(cbits, 2, conversion[1]);
+	get_bit(cbits, 1, conversion[0]);
 
 	// Rotate
 	vec2 uv = vs_texcoord;

@@ -4,38 +4,16 @@
 
 #pragma once
 
-static const MTLPixelFormat FMT_PLANE0[MTY_COLOR_FORMAT_MAX] = {
-	[MTY_COLOR_FORMAT_UNKNOWN]    = MTLPixelFormatBGRA8Unorm,
-	[MTY_COLOR_FORMAT_BGRA]       = MTLPixelFormatBGRA8Unorm,
-	[MTY_COLOR_FORMAT_NV12]       = MTLPixelFormatR8Unorm,
-	[MTY_COLOR_FORMAT_I420]       = MTLPixelFormatR8Unorm,
-	[MTY_COLOR_FORMAT_I444]       = MTLPixelFormatR8Unorm,
-	[MTY_COLOR_FORMAT_NV16]       = MTLPixelFormatR8Unorm,
-	//[MTY_COLOR_FORMAT_BGR565]     = MTLPixelFormatB5G6R5Unorm,
-	//[MTY_COLOR_FORMAT_BGRA5551]   = MTLPixelFormatBGR5A1Unorm,
-	[MTY_COLOR_FORMAT_AYUV]       = MTLPixelFormatBGRA8Unorm,
-	//[MTY_COLOR_FORMAT_Y410]       = MTLPixelFormatBGR10A2Unorm,
-	[MTY_COLOR_FORMAT_Y416]       = MTLPixelFormatRGBA16Unorm,
-	[MTY_COLOR_FORMAT_P010]       = MTLPixelFormatR16Unorm,
-	[MTY_COLOR_FORMAT_P016]       = MTLPixelFormatR16Unorm,
-	[MTY_COLOR_FORMAT_I444_10]    = MTLPixelFormatR16Unorm,
-	[MTY_COLOR_FORMAT_I444_16]    = MTLPixelFormatR16Unorm,
-};
-
-static const MTLPixelFormat FMT_PLANE1[MTY_COLOR_FORMAT_MAX] = {
-	[MTY_COLOR_FORMAT_UNKNOWN]    = MTLPixelFormatBGRA8Unorm,
-	[MTY_COLOR_FORMAT_BGRA]       = MTLPixelFormatBGRA8Unorm,
-	[MTY_COLOR_FORMAT_NV12]       = MTLPixelFormatRG8Unorm,
-	[MTY_COLOR_FORMAT_I420]       = MTLPixelFormatR8Unorm,
-	[MTY_COLOR_FORMAT_I444]       = MTLPixelFormatR8Unorm,
-	[MTY_COLOR_FORMAT_NV16]       = MTLPixelFormatRG8Unorm,
-	//[MTY_COLOR_FORMAT_BGR565]     = MTLPixelFormatB5G6R5Unorm,
-	//[MTY_COLOR_FORMAT_BGRA5551]   = MTLPixelFormatBGR5A1Unorm,
-	[MTY_COLOR_FORMAT_AYUV]       = MTLPixelFormatBGRA8Unorm,
-	//[MTY_COLOR_FORMAT_Y410]       = MTLPixelFormatBGR10A2Unorm,
-	[MTY_COLOR_FORMAT_Y416]       = MTLPixelFormatRGBA16Unorm,
-	[MTY_COLOR_FORMAT_P010]       = MTLPixelFormatRG16Unorm,
-	[MTY_COLOR_FORMAT_P016]       = MTLPixelFormatRG16Unorm,
-	[MTY_COLOR_FORMAT_I444_10]    = MTLPixelFormatR16Unorm,
-	[MTY_COLOR_FORMAT_I444_16]    = MTLPixelFormatR16Unorm,
+static const MTLPixelFormat FMT_PLANES[MTY_COLOR_FORMAT_MAX][3] = {
+	[MTY_COLOR_FORMAT_UNKNOWN]    = {MTLPixelFormatInvalid,      MTLPixelFormatInvalid,   MTLPixelFormatInvalid},
+	[MTY_COLOR_FORMAT_BGRA]       = {MTLPixelFormatBGRA8Unorm,   MTLPixelFormatInvalid,   MTLPixelFormatInvalid},
+	// [MTY_COLOR_FORMAT_BGR565]     = {MTLPixelFormatB5G6R5Unorm,  MTLPixelFormatInvalid,   MTLPixelFormatInvalid},
+	// [MTY_COLOR_FORMAT_BGRA5551]   = {MTLPixelFormatBGR5A1Unorm,  MTLPixelFormatInvalid,   MTLPixelFormatInvalid},
+	[MTY_COLOR_FORMAT_AYUV]       = {MTLPixelFormatBGRA8Unorm,   MTLPixelFormatInvalid,   MTLPixelFormatInvalid},
+	// [MTY_COLOR_FORMAT_Y410]       = {MTLPixelFormatBGR10A2Unorm, MTLPixelFormatInvalid,   MTLPixelFormatInvalid},
+	[MTY_COLOR_FORMAT_Y416]       = {MTLPixelFormatRGBA16Unorm,  MTLPixelFormatInvalid,   MTLPixelFormatInvalid},
+	[MTY_COLOR_FORMAT_2PLANES]    = {MTLPixelFormatR8Unorm,      MTLPixelFormatRG8Unorm,  MTLPixelFormatInvalid},
+	[MTY_COLOR_FORMAT_3PLANES]    = {MTLPixelFormatR8Unorm,      MTLPixelFormatR8Unorm,   MTLPixelFormatR8Unorm},
+	[MTY_COLOR_FORMAT_2PLANES_16] = {MTLPixelFormatR16Unorm,     MTLPixelFormatRG16Unorm, MTLPixelFormatInvalid},
+	[MTY_COLOR_FORMAT_3PLANES_16] = {MTLPixelFormatR16Unorm,     MTLPixelFormatR16Unorm,  MTLPixelFormatR16Unorm},
 };

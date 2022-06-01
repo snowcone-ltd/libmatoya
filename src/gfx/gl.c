@@ -167,9 +167,19 @@ static void gl_rtv_destroy(struct gl_rtv *rtv)
 	}
 }
 
-static void gl_rtv_refresh(struct gl_rtv *rtv, GLint internal, GLenum format, GLenum type, uint32_t w, uint32_t h)
+static bool gl_refresh_resource(struct gfx *gfx, MTY_Device *device, MTY_Context *context, MTY_ColorFormat fmt,
+	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, int8_t bpp)
 {
+	struct gl *ctx = (struct gl *) gfx;
+
+	struct gl_rtv *rtv = &ctx->staging[plane];
+	GLenum format = FMT_PLANES[fmt][plane][1];
+	GLenum type = FMT_PLANES[fmt][plane][2];
+
+	// Resize texture
 	if (!rtv->texture || rtv->w != w || rtv->h != h || rtv->format != format) {
+		GLenum internal = FMT_PLANES[fmt][plane][0];
+
 		gl_rtv_destroy(rtv);
 
 		glGenTextures(1, &rtv->texture);
@@ -180,69 +190,14 @@ static void gl_rtv_refresh(struct gl_rtv *rtv, GLint internal, GLenum format, GL
 		rtv->h = h;
 		rtv->format = format;
 	}
-}
 
-static void gl_reload_textures(struct gl *ctx, const void *image, const MTY_RenderDesc *desc)
-{
-	int8_t bpp = FMT_BPP[desc->format];
-	uint32_t div = FMT_DIV[desc->format];
-	GLenum int0 = FMT_PLANE0[desc->format];
-	GLenum ext0 = FMT_PLANE0_EXT[desc->format];
-	GLenum type0 = FMT_PLANE0_TYPE[desc->format];
-	GLenum int1 = FMT_PLANE1[desc->format];
-	GLenum ext1 = FMT_PLANE1_EXT[desc->format];
-	GLenum type1 = FMT_PLANE1_TYPE[desc->format];
+	// Upload
+	glBindTexture(GL_TEXTURE_2D, rtv->texture);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, bpp);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, full_w);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, format, type, image);
 
-	switch (FMT_PLANES[desc->format]) {
-		case FMT_1_PLANE: {
-			gl_rtv_refresh(&ctx->staging[0], int0, ext0, type0, desc->cropWidth, desc->cropHeight);
-			glBindTexture(GL_TEXTURE_2D, ctx->staging[0].texture);
-			glPixelStorei(GL_UNPACK_ALIGNMENT, bpp);
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, desc->imageWidth);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, desc->cropWidth, desc->cropHeight, ext0, type0, image);
-			break;
-		}
-		case FMT_2_PLANE: {
-			// Y
-			gl_rtv_refresh(&ctx->staging[0], int0, ext0, type0, desc->cropWidth, desc->cropHeight);
-			glBindTexture(GL_TEXTURE_2D, ctx->staging[0].texture);
-			glPixelStorei(GL_UNPACK_ALIGNMENT, bpp);
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, desc->imageWidth);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, desc->cropWidth, desc->cropHeight, ext0, type0, image);
-
-			// UV
-			const void *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight * bpp;
-			gl_rtv_refresh(&ctx->staging[1], int1, ext1, type1, desc->cropWidth / 2, desc->cropHeight / div);
-			glBindTexture(GL_TEXTURE_2D, ctx->staging[1].texture);
-			glPixelStorei(GL_UNPACK_ALIGNMENT, 2 * bpp);
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, desc->imageWidth / 2);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, desc->cropWidth / 2, desc->cropHeight / div, ext1, type1, p);
-			break;
-		}
-		case FMT_3_PLANE: {
-			// Y
-			gl_rtv_refresh(&ctx->staging[0], int0, ext0, type0, desc->cropWidth, desc->cropHeight);
-			glBindTexture(GL_TEXTURE_2D, ctx->staging[0].texture);
-			glPixelStorei(GL_UNPACK_ALIGNMENT, bpp);
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, desc->imageWidth);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, desc->cropWidth, desc->cropHeight, ext0, type0, image);
-
-			// U
-			uint8_t *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight * bpp;
-			gl_rtv_refresh(&ctx->staging[1], int0, ext0, type0, desc->cropWidth / div, desc->cropHeight / div);
-			glBindTexture(GL_TEXTURE_2D, ctx->staging[1].texture);
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, desc->imageWidth / div);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, desc->cropWidth / div, desc->cropHeight / div, ext0, type0, p);
-
-			// V
-			p += (desc->imageWidth / div) * (desc->imageHeight / div) * bpp;
-			gl_rtv_refresh(&ctx->staging[2], int0, ext0, type0, desc->cropWidth / div, desc->cropHeight / div);
-			glBindTexture(GL_TEXTURE_2D, ctx->staging[2].texture);
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, desc->imageWidth / div);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, desc->cropWidth / div, desc->cropHeight / div, ext0, type0, p);
-			break;
-		}
-	}
+	return true;
 }
 
 bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
@@ -259,7 +214,8 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 		return true;
 
 	// Refresh staging texture dimensions
-	gl_reload_textures(ctx, image, desc);
+	if (!fmt_reload_textures(gfx, NULL, NULL, image, desc, gl_refresh_resource))
+		return false;
 
 	// Viewport
 	float vpx, vpy, vpw, vph;
@@ -310,7 +266,8 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	// Uniforms
 	glUniform4f(ctx->loc_fcb0, (GLfloat) desc->cropWidth, (GLfloat) desc->cropHeight, vph, 0.0f);
 	glUniform4f(ctx->loc_fcb1, desc->effects[0], desc->effects[1], desc->levels[0], desc->levels[1]);
-	glUniform4i(ctx->loc_icb, FMT_PLANES[ctx->format], desc->rotation, FMT_CONVERSION(ctx->format, desc->fullRangeYUV), 0);
+	glUniform4i(ctx->loc_icb, FMT_INFO[ctx->format].planes, desc->rotation,
+		FMT_CONVERSION(ctx->format, desc->fullRangeYUV, desc->multiplyYUV), 0);
 
 	// Draw
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
