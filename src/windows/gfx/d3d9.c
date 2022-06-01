@@ -153,20 +153,48 @@ static void d3d9_destroy_resource(struct d3d9_res *res)
 	memset(res, 0, sizeof(struct d3d9_res));
 }
 
-static HRESULT d3d9_refresh_resource(struct d3d9_res *res, IDirect3DDevice9 *device,
-	D3DFORMAT format, uint32_t width, uint32_t height)
+static bool d3d9_crop_copy(struct d3d9_res *res, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, int8_t bpp)
 {
-	HRESULT e = D3D_OK;
+	D3DLOCKED_RECT rect = {0};
+	HRESULT e = IDirect3DTexture9_LockRect(res->texture, 0, &rect, NULL, D3DLOCK_DISCARD);
+	if (e != D3D_OK) {
+		MTY_Log("'IDirect3DTexture9_LockRect' failed with HRESULT 0x%X", e);
+		return false;
+	}
 
-	if (!res->texture || !res->base || width != res->width ||
-		height != res->height || format != res->format)
-	{
+	for (uint32_t y = 0; y < h; y++)
+		memcpy((uint8_t *) rect.pBits + (y * rect.Pitch), image + (y * full_w * bpp), w * bpp);
+
+	e = IDirect3DTexture9_UnlockRect(res->texture, 0);
+	if (e != D3D_OK) {
+		MTY_Log("'IDirect3DTexture9_UnlockRect' failed with HRESULT 0x%X", e);
+		return false;
+	}
+
+	return true;
+}
+
+static bool d3d9_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Context *context, MTY_ColorFormat fmt,
+	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, int8_t bpp)
+{
+	struct d3d9 *ctx = (struct d3d9 *) gfx;
+
+	bool r = true;
+
+	struct d3d9_res *res = &ctx->staging[plane];
+	D3DFORMAT format = FMT_PLANES[fmt][plane];
+
+	// Resize texture
+	if (!res->texture || w != res->width || h != res->height || format != res->format) {
+		IDirect3DDevice9 *device = (IDirect3DDevice9 *) _device;
+
 		d3d9_destroy_resource(res);
 
-		e = IDirect3DDevice9_CreateTexture(device, width, height, 1, D3DUSAGE_DYNAMIC,
+		HRESULT e = IDirect3DDevice9_CreateTexture(device, w, h, 1, D3DUSAGE_DYNAMIC,
 			format, D3DPOOL_DEFAULT, &res->texture, NULL);
 		if (e != D3D_OK) {
 			MTY_Log("'IDirect3DDevice9_CreateTexture' failed with HRESULT 0x%X", e);
+			r = false;
 			goto except;
 		}
 
@@ -174,106 +202,26 @@ static HRESULT d3d9_refresh_resource(struct d3d9_res *res, IDirect3DDevice9 *dev
 			(void **) &res->base);
 		if (e != D3D_OK) {
 			MTY_Log("'IDirect3DTexture9_QueryInterface' failed with HRESULT 0x%X", e);
+			r = false;
 			goto except;
 		}
 
-		res->width = width;
-		res->height = height;
+		res->width = w;
+		res->height = h;
 		res->format = format;
 	}
 
 	except:
 
-	if (e != D3D_OK)
+	if (r) {
+		// Upload
+		r = d3d9_crop_copy(res, image, full_w, w, h, bpp);
+
+	} else {
 		d3d9_destroy_resource(res);
-
-	return e;
-}
-
-static HRESULT d3d9_crop_copy(IDirect3DDevice9 *device, IDirect3DTexture9 *texture,
-	const uint8_t *image, uint32_t w, uint32_t h, int32_t fullWidth, uint8_t bpp)
-{
-	D3DLOCKED_RECT rect;
-	HRESULT e = IDirect3DTexture9_LockRect(texture, 0, &rect, NULL, D3DLOCK_DISCARD);
-	if (e != D3D_OK) {
-		MTY_Log("'IDirect3DTexture9_LockRect' failed with HRESULT 0x%X", e);
-		return e;
 	}
 
-	for (uint32_t y = 0; y < h; y++)
-		memcpy((uint8_t *) rect.pBits + (y * rect.Pitch), image + (y * fullWidth * bpp), w * bpp);
-
-	e = IDirect3DTexture9_UnlockRect(texture, 0);
-	if (e != D3D_OK) {
-		MTY_Log("'IDirect3DTexture9_UnlockRect' failed with HRESULT 0x%X", e);
-		return e;
-	}
-
-	return D3D_OK;
-}
-
-static HRESULT d3d9_reload_textures(struct d3d9 *ctx, IDirect3DDevice9 *device,
-	const void *image, const MTY_RenderDesc *desc)
-{
-	int8_t bpp = FMT_BPP[desc->format];
-	uint32_t div = FMT_DIV[desc->format];
-	D3DFORMAT fmt0 = FMT_PLANE0[desc->format];
-	D3DFORMAT fmt1 = FMT_PLANE1[desc->format];
-
-	switch (FMT_PLANES[desc->format]) {
-		case FMT_1_PLANE: {
-			HRESULT e = d3d9_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight);
-			if (e != D3D_OK) return e;
-
-			e = d3d9_crop_copy(device, ctx->staging[0].texture, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, bpp);
-			if (e != D3D_OK) return e;
-			break;
-		}
-		case FMT_2_PLANE: {
-			// Y
-			HRESULT e = d3d9_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight);
-			if (e != D3D_OK) return e;
-
-			e = d3d9_crop_copy(device, ctx->staging[0].texture, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, bpp);
-			if (e != D3D_OK) return e;
-
-			// UV
-			e = d3d9_refresh_resource(&ctx->staging[1], device, fmt1, desc->cropWidth / 2, desc->cropHeight / 2);
-			if (e != D3D_OK) return e;
-
-			const void *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight * bpp;
-			e = d3d9_crop_copy(device, ctx->staging[1].texture, p, desc->cropWidth / 2, desc->cropHeight / 2, desc->imageWidth / 2, 2 * bpp);
-			if (e != D3D_OK) return e;
-			break;
-		}
-		case FMT_3_PLANE: {
-			// Y
-			HRESULT e = d3d9_refresh_resource(&ctx->staging[0], device, fmt0, desc->cropWidth, desc->cropHeight);
-			if (e != D3D_OK) return e;
-
-			e = d3d9_crop_copy(device, ctx->staging[0].texture, image, desc->cropWidth, desc->cropHeight, desc->imageWidth, bpp);
-			if (e != D3D_OK) return e;
-
-			// U
-			uint8_t *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight * bpp;
-			e = d3d9_refresh_resource(&ctx->staging[1], device, fmt0, desc->cropWidth / div, desc->cropHeight / div);
-			if (e != D3D_OK) return e;
-
-			e = d3d9_crop_copy(device, ctx->staging[1].texture, p, desc->cropWidth / div, desc->cropHeight / div, desc->imageWidth / div, bpp);
-			if (e != D3D_OK) return e;
-
-			// V
-			p += (desc->imageWidth / div) * (desc->imageHeight / div) * bpp;
-			e = d3d9_refresh_resource(&ctx->staging[2], device, fmt0, desc->cropWidth / div, desc->cropHeight / div);
-			if (e != D3D_OK) return e;
-
-			e = d3d9_crop_copy(device, ctx->staging[2].texture, p, desc->cropWidth / div, desc->cropHeight / div, desc->imageWidth / div, bpp);
-			if (e != D3D_OK) return e;
-			break;
-		}
-	}
-
-	return D3D_OK;
+	return r;
 }
 
 bool mty_d3d9_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
@@ -292,10 +240,12 @@ bool mty_d3d9_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 
 	// Refresh textures and load texture data
 	// If format == MTY_COLOR_FORMAT_UNKNOWN, texture refreshing/loading is skipped and the previous frame is rendered
-	HRESULT e = d3d9_reload_textures(ctx, _device, image, desc);
-	if (e != D3D_OK) return false;
+	if (!fmt_reload_textures(gfx, device, (MTY_Context *) device, image, desc, d3d9_refresh_resource))
+		return false;
 
 	// Begin render pass (set destination texture if available)
+	HRESULT e = D3D_OK;
+
 	if (_dest) {
 		e = IDirect3DDevice9_SetRenderTarget(_device, 0, _dest);
 		if (e != D3D_OK) {
@@ -405,9 +355,9 @@ bool mty_d3d9_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	cb[1][3] = desc->levels[1];
 
 	// cb2
-	cb[2][0] = FMT_PLANES[ctx->format];
+	cb[2][0] = FMT_INFO[ctx->format].planes;
 	cb[2][1] = desc->rotation;
-	cb[2][2] = (float) FMT_CONVERSION(ctx->format, desc->fullRangeYUV);
+	cb[2][2] = (float) FMT_CONVERSION(ctx->format, desc->fullRangeYUV, desc->multiplyYUV);
 
 	e = IDirect3DDevice9_SetPixelShaderConstantF(_device, 0, (float *) cb, 3);
 	if (e != D3D_OK) {

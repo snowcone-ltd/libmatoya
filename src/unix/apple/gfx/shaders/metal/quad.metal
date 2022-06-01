@@ -43,14 +43,19 @@ vertex struct vs_out vs(struct vtx v [[stage_in]])
 static float4 yuv_to_rgba(uint conversion, float y, float u, float v)
 {
 	// 10-bit -> 16-bit
-	if (conversion == 2 || conversion == 8) {
-		y = y * 64.0;
-		u = u * 64.0;
-		v = v * 64.0;
+	if (conversion & 0x4) {
+		y *= 64.0;
+		u *= 64.0;
+		v *= 64.0;
 	}
 
 	// Full range
-	if (conversion == 4 || conversion == 8) {
+	if (conversion & 0x1) {
+		u -= 0.5;
+		v -= 0.5;
+
+	// Limited
+	} else {
 		y = (y - 16.0 / 255.0) * (255.0 / 219.0);
 		u = (u - 128.0 / 255.0) * (255.0 / 224.0);
 		v = (v - 128.0 / 255.0) * (255.0 / 224.0);
@@ -70,29 +75,32 @@ static float4 sample_rgba(uint planes, uint conversion,
 	texture2d<float, access::sample> tex0, texture2d<float, access::sample> tex1,
 	texture2d<float, access::sample> tex2, sampler s, float2 uv)
 {
+	float4 pixel0 = tex0.sample(s, uv);
+
 	if (planes == 2) {
-		float y = tex0.sample(s, uv).r;
-		float u = tex1.sample(s, uv).r;
-		float v = tex1.sample(s, uv).g;
+		float4 pixel1 = tex1.sample(s, uv);
+		float y = pixel0.r;
+		float u = pixel1.r;
+		float v = pixel1.g;
 
 		return yuv_to_rgba(conversion, y, u, v);
 
 	} else if (planes == 3) {
-		float y = tex0.sample(s, uv).r;
+		float y = pixel0.r;
 		float u = tex1.sample(s, uv).r;
 		float v = tex2.sample(s, uv).r;
 
 		return yuv_to_rgba(conversion, y, u, v);
 
-	} else if (conversion != 0) {
-		float y = tex0.sample(s, uv).r;
-		float u = tex0.sample(s, uv).g;
-		float v = tex0.sample(s, uv).b;
+	} else if (conversion & 0x8) {
+		float y = pixel0.r;
+		float u = pixel0.g;
+		float v = pixel0.b;
 
 		return yuv_to_rgba(conversion, y, u, v);
 
 	} else {
-		return tex0.sample(s, uv);
+		return pixel0;
 	}
 }
 
