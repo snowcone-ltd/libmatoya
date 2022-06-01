@@ -6,83 +6,64 @@
 
 #pragma once
 
-#define FMT_CONVERSION(fmt, full) \
-	(FMT_YUV[fmt] * ((full) ? 4 : 1))
+#define FMT_CONVERSION(fmt, full, multi) ( \
+	(FMT_INFO[fmt].yuv ? 0x8 : 0) | \
+	((multi)           ? 0x4 : 0) | \
+	(FMT_INFO[fmt].alt ? 0x2 : 0) | \
+	((full)            ? 0x1 : 0))
 
-enum fmt_planes {
-	FMT_UNKNOWN = 0,
-	FMT_1_PLANE = 1,
-	FMT_2_PLANE = 2,
-	FMT_3_PLANE = 3,
+static const struct {
+	uint8_t planes;
+	int8_t bpp;
+	uint8_t yuv;
+	uint8_t alt;
+
+} FMT_INFO[MTY_COLOR_FORMAT_MAX] = {
+	[MTY_COLOR_FORMAT_UNKNOWN]    = {0, 0, 0, 0},
+	[MTY_COLOR_FORMAT_BGRA]       = {1, 4, 0, 0},
+	[MTY_COLOR_FORMAT_BGR565]     = {1, 2, 0, 0},
+	[MTY_COLOR_FORMAT_BGRA5551]   = {1, 2, 0, 0},
+	[MTY_COLOR_FORMAT_AYUV]       = {1, 4, 1, 0},
+	[MTY_COLOR_FORMAT_Y410]       = {1, 4, 1, 1},
+	[MTY_COLOR_FORMAT_Y416]       = {1, 8, 1, 1},
+	[MTY_COLOR_FORMAT_2PLANES]    = {2, 1, 1, 0},
+	[MTY_COLOR_FORMAT_3PLANES]    = {3, 1, 1, 0},
+	[MTY_COLOR_FORMAT_2PLANES_16] = {2, 2, 1, 1},
+	[MTY_COLOR_FORMAT_3PLANES_16] = {3, 2, 1, 1},
 };
 
-static const enum fmt_planes FMT_PLANES[MTY_COLOR_FORMAT_MAX] = {
-	[MTY_COLOR_FORMAT_UNKNOWN]    = FMT_UNKNOWN,
-	[MTY_COLOR_FORMAT_BGRA]       = FMT_1_PLANE,
-	[MTY_COLOR_FORMAT_NV12]       = FMT_2_PLANE,
-	[MTY_COLOR_FORMAT_I420]       = FMT_3_PLANE,
-	[MTY_COLOR_FORMAT_I444]       = FMT_3_PLANE,
-	[MTY_COLOR_FORMAT_NV16]       = FMT_2_PLANE,
-	[MTY_COLOR_FORMAT_BGR565]     = FMT_1_PLANE,
-	[MTY_COLOR_FORMAT_BGRA5551]   = FMT_1_PLANE,
-	[MTY_COLOR_FORMAT_AYUV]       = FMT_1_PLANE,
-	[MTY_COLOR_FORMAT_Y410]       = FMT_1_PLANE,
-	[MTY_COLOR_FORMAT_P010]       = FMT_2_PLANE,
-	[MTY_COLOR_FORMAT_P016]       = FMT_2_PLANE,
-	[MTY_COLOR_FORMAT_I444_10]    = FMT_3_PLANE,
-	[MTY_COLOR_FORMAT_I444_16]    = FMT_3_PLANE,
-};
+static bool fmt_reload_textures(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
+	const uint8_t *image, const MTY_RenderDesc *desc, bool (*refresh_resource)(struct gfx *gfx,
+	MTY_Device *device, MTY_Context *context, MTY_ColorFormat fmt, uint8_t plane, const uint8_t *image,
+	uint32_t full_w, uint32_t w, uint32_t h, int8_t bpp))
+{
+	int8_t bpp = FMT_INFO[desc->format].bpp;
+	uint8_t planes = FMT_INFO[desc->format].planes;
 
-static const uint32_t FMT_DIV[MTY_COLOR_FORMAT_MAX] = {
-	[MTY_COLOR_FORMAT_UNKNOWN]    = 1,
-	[MTY_COLOR_FORMAT_BGRA]       = 1,
-	[MTY_COLOR_FORMAT_NV12]       = 2,
-	[MTY_COLOR_FORMAT_I420]       = 2,
-	[MTY_COLOR_FORMAT_I444]       = 1,
-	[MTY_COLOR_FORMAT_NV16]       = 1,
-	[MTY_COLOR_FORMAT_BGR565]     = 1,
-	[MTY_COLOR_FORMAT_BGRA5551]   = 1,
-	[MTY_COLOR_FORMAT_AYUV]       = 1,
-	[MTY_COLOR_FORMAT_Y410]       = 1,
-	[MTY_COLOR_FORMAT_Y416]       = 1,
-	[MTY_COLOR_FORMAT_P010]       = 2,
-	[MTY_COLOR_FORMAT_P016]       = 2,
-	[MTY_COLOR_FORMAT_I444_10]    = 1,
-	[MTY_COLOR_FORMAT_I444_16]    = 1,
-};
+	uint32_t _hdiv = 1;
+	uint32_t _wdiv = 1;
 
-static const int8_t FMT_BPP[MTY_COLOR_FORMAT_MAX] = {
-	[MTY_COLOR_FORMAT_UNKNOWN]    = 4,
-	[MTY_COLOR_FORMAT_BGRA]       = 4,
-	[MTY_COLOR_FORMAT_NV12]       = 1,
-	[MTY_COLOR_FORMAT_I420]       = 1,
-	[MTY_COLOR_FORMAT_I444]       = 1,
-	[MTY_COLOR_FORMAT_NV16]       = 1,
-	[MTY_COLOR_FORMAT_BGR565]     = 2,
-	[MTY_COLOR_FORMAT_BGRA5551]   = 2,
-	[MTY_COLOR_FORMAT_AYUV]       = 4,
-	[MTY_COLOR_FORMAT_Y410]       = 4,
-	[MTY_COLOR_FORMAT_Y416]       = 8,
-	[MTY_COLOR_FORMAT_P010]       = 2,
-	[MTY_COLOR_FORMAT_P016]       = 2,
-	[MTY_COLOR_FORMAT_I444_10]    = 2,
-	[MTY_COLOR_FORMAT_I444_16]    = 2,
-};
+	if (desc->chroma == MTY_CHROMA_420) {
+		_hdiv = _wdiv = 2;
 
-static const uint32_t FMT_YUV[MTY_COLOR_FORMAT_MAX] = {
-	[MTY_COLOR_FORMAT_UNKNOWN]    = 0,
-	[MTY_COLOR_FORMAT_BGRA]       = 0,
-	[MTY_COLOR_FORMAT_NV12]       = 1,
-	[MTY_COLOR_FORMAT_I420]       = 1,
-	[MTY_COLOR_FORMAT_I444]       = 1,
-	[MTY_COLOR_FORMAT_NV16]       = 1,
-	[MTY_COLOR_FORMAT_BGR565]     = 0,
-	[MTY_COLOR_FORMAT_BGRA5551]   = 0,
-	[MTY_COLOR_FORMAT_AYUV]       = 1,
-	[MTY_COLOR_FORMAT_Y410]       = 1,
-	[MTY_COLOR_FORMAT_Y416]       = 1,
-	[MTY_COLOR_FORMAT_P010]       = 2,
-	[MTY_COLOR_FORMAT_P016]       = 1,
-	[MTY_COLOR_FORMAT_I444_10]    = 2,
-	[MTY_COLOR_FORMAT_I444_16]    = 1,
-};
+	} else if (desc->chroma == MTY_CHROMA_422) {
+		_wdiv = 2;
+	}
+
+	for (uint8_t x = 0; x < planes; x++) {
+		// First plane (usually Y) is always full width, full height
+		uint32_t hdiv = x > 0 ? _hdiv : 1;
+		uint32_t wdiv = x > 0 ? _wdiv : 1;
+
+		// The second plane of two plane formats is always packed
+		int8_t pack = x == 1 && planes == 2 ? 2 : 1;
+
+		if (!refresh_resource(gfx, device, context, desc->format, x, image, desc->imageWidth / wdiv,
+			desc->cropWidth / wdiv, desc->cropHeight / hdiv, pack * bpp))
+			return false;
+
+		image += (desc->imageWidth / wdiv) * (desc->imageHeight / hdiv) * bpp;
+	}
+
+	return true;
+}
