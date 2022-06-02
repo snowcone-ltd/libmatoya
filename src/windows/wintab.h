@@ -24,6 +24,6 @@ void wintab_override_controls(struct wintab *ctx, bool override);
 
 void wintab_get_packet(struct wintab *ctx, WPARAM wparam, LPARAM lparam, void *pkt);
 
-void wintab_on_packet(struct wintab *ctx, MTY_Event *evt, const PACKET *pkt, MTY_Window window);
+void wintab_on_packet(struct wintab *ctx, MTY_Event *evt, const PACKET *pkt, MTY_Window window, bool *double_clicked);
 void wintab_on_packetext(struct wintab *ctx, MTY_Event *evt, const PACKETEXT *pktext);
 bool wintab_on_proximity(struct wintab *ctx, MTY_Event *evt, LPARAM lparam);

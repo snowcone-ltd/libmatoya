@@ -683,6 +683,7 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 	bool creturn = false;
 	bool defreturn = false;
 	bool pen_active = app->pen_enabled && app->pen_in_range;
+	bool pen_double_click = false;
 	char drop_name[MTY_PATH_MAX];
 
 	switch (msg) {
@@ -950,7 +951,7 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 			// Wintab context only catches events on the main window, so we update the real one manually
 			struct window *new_ctx = (struct window *) GetWindowLongPtr(focused_window, 0);
 
-			wintab_on_packet(app->wintab, &evt, &pkt, new_ctx->window);
+			wintab_on_packet(app->wintab, &evt, &pkt, new_ctx->window, &pen_double_click);
 
 			break;
 		}
@@ -997,6 +998,13 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 	// Process the message
 	if (evt.type != MTY_EVENT_NONE) {
 		app->event_func(&evt, app->opaque);
+
+		if (pen_double_click) {
+			evt.pen.flags &= ~MTY_PEN_FLAG_TOUCHING;
+			app->event_func(&evt, app->opaque);
+			evt.pen.flags &= MTY_PEN_FLAG_TOUCHING;
+			app->event_func(&evt, app->opaque);
+		}
 
 		if (evt.type == MTY_EVENT_DROP)
 			MTY_Free((void *) evt.drop.buf);

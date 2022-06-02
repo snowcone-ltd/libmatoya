@@ -29,8 +29,9 @@ struct wintab
 	PACKETEXT prev_pktext;
 	DWORD prev_buttons;
 
-	bool override;
 	int32_t max_pressure;
+	bool override;
+	bool has_double_clicked;
 };
 
 static bool wintab_find_extension(struct wintab *ctx, uint32_t searched_tag, uint32_t *index)
@@ -200,8 +201,11 @@ void wintab_get_packet(struct wintab *ctx, WPARAM wparam, LPARAM lparam, void *p
 	wt.packet((HCTX) lparam, (UINT) wparam, pkt);
 }
 
-void wintab_on_packet(struct wintab *ctx, MTY_Event *evt, const PACKET *pkt, MTY_Window window)
+void wintab_on_packet(struct wintab *ctx, MTY_Event *evt, const PACKET *pkt, MTY_Window window, bool *double_clicked)
 {
+	*double_clicked = false;
+	bool has_double_clicked = ctx->has_double_clicked;
+
 	evt->type = MTY_EVENT_PEN;
 	evt->window = window;
 
@@ -209,7 +213,7 @@ void wintab_on_packet(struct wintab *ctx, MTY_Event *evt, const PACKET *pkt, MTY
 	evt->pen.y = (uint16_t) MTY_MAX(pkt->pkY, 0);
 	evt->pen.z = (uint16_t) MTY_MAX(pkt->pkZ, 0);
 
-	evt->pen.pressure = (uint16_t) (pkt->pkNormalPressure / (double) ctx->max_pressure * 1024.0);
+	evt->pen.pressure = (uint16_t) ((double) pkt->pkNormalPressure / (double) ctx->max_pressure * 1024.0);
 	evt->pen.rotation = (uint16_t) pkt->pkOrientation.orTwist;
 
 	#define sind(x) sin(fmod(x, 360) * M_PI / 180)
@@ -232,18 +236,18 @@ void wintab_on_packet(struct wintab *ctx, MTY_Event *evt, const PACKET *pkt, MTY
 		bool pressed      = pkt->pkButtons & (1 << i);
 		bool prev_pressed = ctx->prev_buttons & (1 << i);
 
+		bool left_click   = mapping[i] == SBN_LCLICK    || mapping[i] == SBN_LDBLCLICK;
 		bool right_click  = mapping[i] == SBN_RCLICK    || mapping[i] == SBN_RDBLCLICK;
 		bool double_click = mapping[i] == SBN_LDBLCLICK || mapping[i] == SBN_RDBLCLICK;
 
-		if (pressed && mapping[i] != SBN_NONE)
+		if ((left_click || right_click) && pressed)
 			evt->pen.flags |= MTY_PEN_FLAG_TOUCHING;
 
 		if (right_click && (pressed || prev_pressed))
 			evt->pen.flags |= MTY_PEN_FLAG_BARREL;
 
-		// Max pressure is set when double-clicking to mimic WinInk behavior
 		if (double_click)
-			evt->pen.pressure = 1024;
+			ctx->has_double_clicked = *double_clicked = pressed;
 	}
 
 	if (evt->pen.flags & MTY_PEN_FLAG_TOUCHING && evt->pen.flags & MTY_PEN_FLAG_INVERTED)
@@ -251,6 +255,8 @@ void wintab_on_packet(struct wintab *ctx, MTY_Event *evt, const PACKET *pkt, MTY
 
 	ctx->prev_evt     = evt->pen;
 	ctx->prev_buttons = pkt->pkButtons;
+
+	*double_clicked = *double_clicked && !has_double_clicked;
 }
 
 void wintab_on_packetext(struct wintab *ctx, MTY_Event *evt, const PACKETEXT *pktext)
