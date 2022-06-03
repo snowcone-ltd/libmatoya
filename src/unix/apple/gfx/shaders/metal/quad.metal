@@ -51,8 +51,8 @@ static float4 yuv_to_rgba(uint conversion, float y, float u, float v)
 
 	// Full range
 	if (conversion & 0x1) {
-		u -= 0.5;
-		v -= 0.5;
+		u -= (128.0 / 255.0);
+		v -= (128.0 / 255.0);
 
 	// Limited
 	} else {

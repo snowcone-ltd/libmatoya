@@ -33,8 +33,8 @@ void yuv_to_rgba(ivec4 conversion, float y, float u, float v, out vec4 rgba)
 
 	// Full range
 	if (conversion[0] == 1) {
-		u -= 0.5;
-		v -= 0.5;
+		u -= (128.0 / 255.0);
+		v -= (128.0 / 255.0);
 
 	// Limited
 	} else {
