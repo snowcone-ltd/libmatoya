@@ -170,7 +170,7 @@ static void gl_rtv_destroy(struct gl_rtv *rtv)
 }
 
 static bool gl_refresh_resource(struct gfx *gfx, MTY_Device *device, MTY_Context *context, MTY_ColorFormat fmt,
-	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, int8_t bpp)
+	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, uint8_t bpp)
 {
 	struct gl *ctx = (struct gl *) gfx;
 
