@@ -137,7 +137,7 @@ struct gfx *mty_metal_create(MTY_Device *device)
 }
 
 static bool metal_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Context *context, MTY_ColorFormat fmt,
-	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, int8_t bpp)
+	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, uint8_t bpp)
 {
 	struct metal *ctx = (struct metal *) gfx;
 
