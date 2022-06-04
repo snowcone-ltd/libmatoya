@@ -9,14 +9,14 @@
 #define FMT_CONVERSION(fmt, full, multi) ( \
 	(FMT_INFO[fmt].yuv ? 0x8 : 0) | \
 	((multi)           ? 0x4 : 0) | \
-	(FMT_INFO[fmt].alt ? 0x2 : 0) | \
+	(FMT_INFO[fmt].ten ? 0x2 : 0) | \
 	((full)            ? 0x1 : 0))
 
 static const struct {
 	uint8_t planes;
-	int8_t bpp;
+	uint8_t bpp;
 	uint8_t yuv;
-	uint8_t alt;
+	uint8_t ten;
 
 } FMT_INFO[MTY_COLOR_FORMAT_MAX] = {
 	[MTY_COLOR_FORMAT_UNKNOWN]    = {0, 0, 0, 0},
@@ -35,20 +35,13 @@ static const struct {
 static bool fmt_reload_textures(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	const uint8_t *image, const MTY_RenderDesc *desc, bool (*refresh_resource)(struct gfx *gfx,
 	MTY_Device *device, MTY_Context *context, MTY_ColorFormat fmt, uint8_t plane, const uint8_t *image,
-	uint32_t full_w, uint32_t w, uint32_t h, int8_t bpp))
+	uint32_t full_w, uint32_t w, uint32_t h, uint8_t bpp))
 {
-	int8_t bpp = FMT_INFO[desc->format].bpp;
+	uint8_t bpp = FMT_INFO[desc->format].bpp;
 	uint8_t planes = FMT_INFO[desc->format].planes;
 
-	uint32_t _hdiv = 1;
-	uint32_t _wdiv = 1;
-
-	if (desc->chroma == MTY_CHROMA_420) {
-		_hdiv = _wdiv = 2;
-
-	} else if (desc->chroma == MTY_CHROMA_422) {
-		_wdiv = 2;
-	}
+	uint32_t _hdiv = desc->chroma == MTY_CHROMA_420 ? 2 : 1;
+	uint32_t _wdiv = desc->chroma != MTY_CHROMA_444 ? 2 : 1;
 
 	for (uint8_t x = 0; x < planes; x++) {
 		// First plane (usually Y) is always full width, full height
@@ -56,7 +49,7 @@ static bool fmt_reload_textures(struct gfx *gfx, MTY_Device *device, MTY_Context
 		uint32_t wdiv = x > 0 ? _wdiv : 1;
 
 		// The second plane of two plane formats is always packed
-		int8_t pack = x == 1 && planes == 2 ? 2 : 1;
+		uint8_t pack = x == 1 && planes == 2 ? 2 : 1;
 
 		if (!refresh_resource(gfx, device, context, desc->format, x, image, desc->imageWidth / wdiv,
 			desc->cropWidth / wdiv, desc->cropHeight / hdiv, pack * bpp))

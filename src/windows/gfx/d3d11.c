@@ -199,7 +199,7 @@ static void d3d11_destroy_resource(struct d3d11_res *res)
 }
 
 static bool d3d11_crop_copy(struct d3d11_res *res, MTY_Context *_context, const uint8_t *image, uint32_t full_w,
-	uint32_t w, uint32_t h, int8_t bpp)
+	uint32_t w, uint32_t h, uint8_t bpp)
 {
 	ID3D11DeviceContext *context = (ID3D11DeviceContext *) _context;
 
@@ -219,7 +219,7 @@ static bool d3d11_crop_copy(struct d3d11_res *res, MTY_Context *_context, const 
 }
 
 static bool d3d11_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Context *context, MTY_ColorFormat fmt,
-	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, int8_t bpp)
+	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, uint8_t bpp)
 {
 	struct d3d11 *ctx = (struct d3d11 *) gfx;
 

@@ -153,7 +153,7 @@ static void d3d9_destroy_resource(struct d3d9_res *res)
 	memset(res, 0, sizeof(struct d3d9_res));
 }
 
-static bool d3d9_crop_copy(struct d3d9_res *res, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, int8_t bpp)
+static bool d3d9_crop_copy(struct d3d9_res *res, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, uint8_t bpp)
 {
 	D3DLOCKED_RECT rect = {0};
 	HRESULT e = IDirect3DTexture9_LockRect(res->texture, 0, &rect, NULL, D3DLOCK_DISCARD);
@@ -175,7 +175,7 @@ static bool d3d9_crop_copy(struct d3d9_res *res, const uint8_t *image, uint32_t 
 }
 
 static bool d3d9_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Context *context, MTY_ColorFormat fmt,
-	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, int8_t bpp)
+	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, uint8_t bpp)
 {
 	struct d3d9 *ctx = (struct d3d9 *) gfx;
 

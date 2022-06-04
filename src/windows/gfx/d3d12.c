@@ -352,7 +352,7 @@ static void d3d12_destroy_resource(struct d3d12_res *res)
 }
 
 static bool d3d12_crop_copy(struct d3d12_res *res, MTY_Context *context, const uint8_t *image, uint32_t full_w,
-	uint32_t w, uint32_t h, int8_t bpp)
+	uint32_t w, uint32_t h, uint8_t bpp)
 {
 	ID3D12GraphicsCommandList *cl = (ID3D12GraphicsCommandList *) context;
 
@@ -405,7 +405,7 @@ static bool d3d12_crop_copy(struct d3d12_res *res, MTY_Context *context, const u
 }
 
 static bool d3d12_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Context *context, MTY_ColorFormat fmt,
-	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, int8_t bpp)
+	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, uint8_t bpp)
 {
 	struct d3d12 *ctx = (struct d3d12 *) gfx;
 
