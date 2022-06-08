@@ -100,6 +100,8 @@ struct MTY_App {
 	HRESULT (WINAPI *GetDpiForMonitor)(HMONITOR hmonitor, MONITOR_DPI_TYPE dpiType, UINT *dpiX, UINT *dpiY);
 	BOOL (WINAPI *GetPointerType)(UINT32 pointerId, POINTER_INPUT_TYPE *pointerType);
 	BOOL (WINAPI *GetPointerPenInfo)(UINT32 pointerId, POINTER_PEN_INFO *penInfo);
+	BOOL (WINAPI *PhysicalToLogicalPointForPerMonitorDPI)(HWND hWnd, LPPOINT lpPoint);
+	BOOL (WINAPI *PhysicalToLogicalPoint)(HWND hWnd, LPPOINT lpPoint);
 };
 
 
@@ -634,8 +636,17 @@ static bool app_adjust_position(HWND hwnd, int32_t pointer_x, int32_t pointer_y,
 		return false;
 
 	POINT point = {pointer_x, pointer_y};
-	if (!PhysicalToLogicalPointForPerMonitorDPI(hwnd, &point))
+	if (ctx->PhysicalToLogicalPointForPerMonitorDPI) {
+		if (!PhysicalToLogicalPointForPerMonitorDPI(hwnd, &point))
+			return false;
+
+	} else if (ctx->PhysicalToLogicalPoint) {
+		if (!PhysicalToLogicalPoint(hwnd, &point))
+			return false;
+
+	} else {
 		return false;
+	}
 
 	int32_t x      = (int32_t) (point.x - origin.x);
 	int32_t y      = (int32_t) (point.y - origin.y);
@@ -1122,6 +1133,8 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	ctx->GetDpiForMonitor = (void *) GetProcAddress(shcore, "GetDpiForMonitor");
 	ctx->GetPointerPenInfo = (void *) GetProcAddress(user32, "GetPointerPenInfo");
 	ctx->GetPointerType = (void *) GetProcAddress(user32, "GetPointerType");
+	ctx->PhysicalToLogicalPoint = (void *) GetProcAddress(user32, "PhysicalToLogicalPoint");
+	ctx->PhysicalToLogicalPointForPerMonitorDPI = (void *) GetProcAddress(user32, "PhysicalToLogicalPointForPerMonitorDPI");
 
 	ImmDisableIME(0);
 
