@@ -100,6 +100,8 @@ struct MTY_App {
 	HRESULT (WINAPI *GetDpiForMonitor)(HMONITOR hmonitor, MONITOR_DPI_TYPE dpiType, UINT *dpiX, UINT *dpiY);
 	BOOL (WINAPI *GetPointerType)(UINT32 pointerId, POINTER_INPUT_TYPE *pointerType);
 	BOOL (WINAPI *GetPointerPenInfo)(UINT32 pointerId, POINTER_PEN_INFO *penInfo);
+	BOOL (WINAPI *PhysicalToLogicalPointForPerMonitorDPI)(HWND hWnd, LPPOINT lpPoint);
+	BOOL (WINAPI *PhysicalToLogicalPoint)(HWND hWnd, LPPOINT lpPoint);
 };
 
 
@@ -623,7 +625,7 @@ static void app_kb_to_hotkey(MTY_App *app, MTY_Event *evt)
 	}
 }
 
-static bool app_adjust_position(HWND hwnd, int32_t pointer_x, int32_t pointer_y, POINT *position) 
+static bool app_adjust_position(MTY_App *ctx, HWND hwnd, int32_t pointer_x, int32_t pointer_y, POINT *position)
 {
 	POINT origin = {0};
 	if (!ClientToScreen(hwnd, &origin))
@@ -634,8 +636,17 @@ static bool app_adjust_position(HWND hwnd, int32_t pointer_x, int32_t pointer_y,
 		return false;
 
 	POINT point = {pointer_x, pointer_y};
-	if (!PhysicalToLogicalPointForPerMonitorDPI(hwnd, &point))
+	if (ctx->PhysicalToLogicalPointForPerMonitorDPI) {
+		if (!ctx->PhysicalToLogicalPointForPerMonitorDPI(hwnd, &point))
+			return false;
+
+	} else if (ctx->PhysicalToLogicalPoint) {
+		if (!ctx->PhysicalToLogicalPoint(hwnd, &point))
+			return false;
+
+	} else {
 		return false;
+	}
 
 	int32_t x      = (int32_t) (point.x - origin.x);
 	int32_t y      = (int32_t) (point.y - origin.y);
@@ -657,7 +668,7 @@ static HWND app_get_hovered_window(MTY_App *ctx, int32_t pointer_x, int32_t poin
 	if (!hwnd)
 		return NULL;
 
-	if (app_adjust_position(hwnd, pointer_x, pointer_y, position))
+	if (app_adjust_position(ctx, hwnd, pointer_x, pointer_y, position))
 		return hwnd;
 
 	for (uint8_t i = 0; i < MTY_WINDOW_MAX; i++) {
@@ -665,7 +676,7 @@ static HWND app_get_hovered_window(MTY_App *ctx, int32_t pointer_x, int32_t poin
 			continue;
 
 		hwnd = ctx->windows[i]->hwnd;
-		if (app_adjust_position(hwnd, pointer_x, pointer_y, position))
+		if (app_adjust_position(ctx, hwnd, pointer_x, pointer_y, position))
 			return hwnd;
 	}
 
@@ -1122,6 +1133,8 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	ctx->GetDpiForMonitor = (void *) GetProcAddress(shcore, "GetDpiForMonitor");
 	ctx->GetPointerPenInfo = (void *) GetProcAddress(user32, "GetPointerPenInfo");
 	ctx->GetPointerType = (void *) GetProcAddress(user32, "GetPointerType");
+	ctx->PhysicalToLogicalPoint = (void *) GetProcAddress(user32, "PhysicalToLogicalPoint");
+	ctx->PhysicalToLogicalPointForPerMonitorDPI = (void *) GetProcAddress(user32, "PhysicalToLogicalPointForPerMonitorDPI");
 
 	ImmDisableIME(0);
 
