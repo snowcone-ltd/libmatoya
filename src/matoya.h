@@ -96,21 +96,22 @@ typedef enum {
 } MTY_Rotation;
 
 typedef enum {
-	MTY_CHROMA_444 = 0,
-	MTY_CHROMA_422 = 1,
-	MTY_CHROMA_420 = 2,
+	MTY_CHROMA_444 = 0, ///< Full width, full height UV.
+	MTY_CHROMA_422 = 1, ///< Half width, full height UV.
+	MTY_CHROMA_420 = 2, ///< Half width, half height UV.
+	MTY_CHROMA_MAKE_32 = INT32_MAX,
 } MTY_Chroma;
 
 /// @brief Description of a render operation.
 typedef struct {
 	MTY_ColorFormat format; ///< The color format of a raw image.
 	MTY_Rotation rotation;  ///< Rotation applied to the image.
-	MTY_Chroma chroma;
+	MTY_Chroma chroma;      ///< Color subsampling, chroma layout for planar YUV formats.
 	MTY_Filter filter;      ///< Filter applied to the image.
 	MTY_Effect effects[2];  ///< Effects applied to the image.
 	float levels[2];        ///< Intensity of the applied `effects` between `0.0f` and `1.0f`.
 	bool fullRangeYUV;      ///< Use the full 0-255 color range for YUV formats.
-	bool multiplyYUV;
+	bool multiplyYUV;       ///< Properly normalize 10-bit YUV formats if not already done.
 	uint32_t imageWidth;    ///< The width in pixels of the image.
 	uint32_t imageHeight;   ///< The height in pixels of the image.
 	uint32_t cropWidth;     ///< Desired crop width of the image from the top left corner.
@@ -1300,11 +1301,13 @@ MTY_GLGetProcAddress(const char *name);
 
 
 //- #module Audio
-//- #mbrief Simple audio playback.
+//- #mbrief Simple audio playback and resampling.
 //- #mdetails This is a very minimal interface that assumes 2-channel, 16-bit signed PCM
-//-   submitted by pushing to a queue.
+//-   submitted by pushing to a queue. This module also includes a straightforward
+//-   resampler.
 
 typedef struct MTY_Audio MTY_Audio;
+typedef struct MTY_Resampler MTY_Resampler;
 
 /// @brief Create an MTY_Audio context for playback.
 /// @param sampleRate Audio sample rate in KHz.
@@ -1344,6 +1347,19 @@ MTY_AudioGetQueued(MTY_Audio *ctx);
 ///   be the size of `frames` in bytes divided by 4.
 MTY_EXPORT void
 MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count);
+
+MTY_EXPORT MTY_Resampler *
+MTY_ResamplerCreate(void);
+
+MTY_EXPORT void
+MTY_ResamplerDestroy(MTY_Resampler **resampler);
+
+MTY_EXPORT const int16_t *
+MTY_Resample(MTY_Resampler *ctx, double ratio, const int16_t *in, size_t inFrames,
+	size_t *outFrames);
+
+MTY_EXPORT void
+MTY_ResamplerReset(MTY_Resampler *ctx);
 
 
 //- #module Crypto
