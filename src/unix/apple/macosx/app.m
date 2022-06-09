@@ -1445,7 +1445,21 @@ float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
 
 uint32_t MTY_WindowGetRefreshRate(MTY_App *app, MTY_Window window)
 {
-	return 120;
+	uint32_t r = 60;
+
+	Window *ctx = app_get_window(app, window);
+
+	if (ctx) {
+		CGDirectDisplayID display = ((NSNumber *) [ctx.screen deviceDescription][@"NSScreenNumber"]).intValue;
+		CGDisplayModeRef mode = CGDisplayCopyDisplayMode(display);
+
+		if (mode) {
+			r = lrint(CGDisplayModeGetRefreshRate(mode));
+			CGDisplayModeRelease(mode);
+		}
+	}
+
+	return r;
 }
 
 void MTY_WindowSetTitle(MTY_App *app, MTY_Window window, const char *title)
