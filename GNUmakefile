@@ -25,6 +25,7 @@ OBJS = \
 	src/memory.o \
 	src/queue.o \
 	src/render.o \
+	src/resample.o \
 	src/system.o \
 	src/thread.o \
 	src/tlocal.o \
