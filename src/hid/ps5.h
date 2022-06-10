@@ -70,8 +70,9 @@ static bool ps5_state(struct hid_dev *device, const void *data, size_t dsize, MT
 	bool r = false;
 	struct ps5_state *ctx = mty_hid_device_get_state(device);
 
-	// First write must come after reports start coming in
 	if (!ctx->init) {
+		// Write once after the first report comes through in case the first
+		// write in ps5_init failed
 		ps5_init(device);
 		ctx->init = true;
 

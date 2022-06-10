@@ -77,6 +77,9 @@ void mty_hid_driver_init(struct hid_dev *device)
 		case MTY_CTYPE_PS4:
 			ps4_init(device);
 			break;
+		case MTY_CTYPE_PS5:
+			ps5_init(device);
+			break;
 		case MTY_CTYPE_XBOX:
 			xbox_init(device);
 			break;
