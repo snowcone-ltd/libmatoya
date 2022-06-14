@@ -1341,7 +1341,7 @@ MTY_AudioReset(MTY_Audio *ctx);
 MTY_EXPORT uint32_t
 MTY_AudioGetQueued(MTY_Audio *ctx);
 
-/// @brief Queue 16-bit signed PCM for playback.
+/// @brief Queue 2-channel, 16-bit signed PCM audio for playback.
 /// @param ctx An MTY_Audio context.
 /// @param frames Buffer containing 2-channel, 16-bit signed PCM audio frames. In this
 ///   case, one audio frame is two samples, each sample being one channel.
@@ -1350,16 +1350,31 @@ MTY_AudioGetQueued(MTY_Audio *ctx);
 MTY_EXPORT void
 MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count);
 
+/// @brief Create and MTY_Resampler for sample rate conversion.
+/// @returns The returned MTY_Resampler must be destroyed with MTY_ResamplerDestroy.
 MTY_EXPORT MTY_Resampler *
 MTY_ResamplerCreate(void);
 
+/// @brief Destroy an MTY_Resampler.
+/// @param resampler Passed by reference and set to NULL after being destroyed.
 MTY_EXPORT void
 MTY_ResamplerDestroy(MTY_Resampler **resampler);
 
+/// @brief Resample 2-channel, 16-bit signed PCM audio.
+/// @param ctx An MTY_Resampler.
+/// @param ratio The output sample rate divided by the input sample rate.
+/// @param in Input buffer containing 2-channel, 16-bit signed PCM audio frames.
+/// @param inFrames The number of frames contained in `in`. The number of frames
+///   would be the size of `in` in bytes divided by 4.
+/// @param outFrames Set to the number of frames in the returned buffer.
+/// @returns Output buffer containing the resampled audio. This pointer remains
+///   valid as long as `ctx` is not destroyed.
 MTY_EXPORT const int16_t *
-MTY_Resample(MTY_Resampler *ctx, double ratio, const int16_t *in, size_t inFrames,
+MTY_Resample(MTY_Resampler *ctx, float ratio, const int16_t *in, size_t inFrames,
 	size_t *outFrames);
 
+/// @brief Reset all internal state as though the MTY_Resampler was just created.
+/// @param ctx An MTY_Resampler.
 MTY_EXPORT void
 MTY_ResamplerReset(MTY_Resampler *ctx);
 
