@@ -18,21 +18,27 @@ static const char *ORIGINS[] = {
 static bool net_websocket_echo(void)
 {
 	uint16_t us = 0;
-	MTY_WebSocket *ws = MTY_WebSocketConnect("echo.websocket.org", 443, true, "/", "Origin: https://www.websocket.org", 10000, &us);
-	printf("%u %s\n", us, MTY_GetLog());
+	MTY_WebSocket *ws = MTY_WebSocketConnect("echo.websocket.events", 443, true, "/",
+		"Origin: https://echo.websocket.events", 10000, &us);
 	test_cmp("MTY_WebSocketConnect", ws != NULL);
+	test_cmp("Upgrade Status", us == 101);
+
+	// "echo.websocket.events sponsored by Lob.com"
 	char buffer[200] = {0};
+	MTY_Async s = MTY_WebSocketRead(ws, 5000, buffer, 200);
+	test_cmp("MTY_WebSocketRead", s == MTY_ASYNC_OK);
+
+	// Echo
+	memset(buffer, 0, 200);
 	snprintf(buffer, 200, "Hello");
 	test_cmp("MTY_WebSocketWrite", MTY_WebSocketWrite(ws, buffer));
-	memset(buffer, 0, 5);
 
-	MTY_Async s = MTY_WebSocketRead(ws, 5000, buffer, 6);
-	if (s != MTY_ASYNC_OK)
-		printf("%s\n", MTY_GetLog());
-
-	MTY_WebSocketDestroy(&ws);
+	memset(buffer, 0, 200);
+	s = MTY_WebSocketRead(ws, 5000, buffer, 6);
 	test_cmp("MTY_WebSocketRead", s == MTY_ASYNC_OK);
 	test_cmp("MTY_WebSocketRead", strcmp(buffer, "Hello") == 0);
+
+	MTY_WebSocketDestroy(&ws);
 	test_cmp("MTY_WebSocketDestroy", ws == NULL);
 
 	return true;
@@ -140,10 +146,11 @@ static bool net_badssl(void)
 	badssl_test("invalid-expected-sct.badssl.com", true);
 
 	// Should pass
+
 	badssl_test("sha256.badssl.com", false);
-	badssl_test("sha384.badssl.com", false);
-	badssl_test("sha512.badssl.com", false);
-	badssl_test("1000-sans.badssl.com", false);
+	// badssl_test("sha384.badssl.com", false);    // As of 6/14/2022, these certs seem to be invalid
+	// badssl_test("sha512.badssl.com", false);    // As of 6/14/2022, these certs seem to be invalid
+	// badssl_test("1000-sans.badssl.com", false); // As of 6/14/2022, these certs seem to be invalid
 	// badssl_test("10000-sans.badssl.com", false);
 	badssl_test("ecc256.badssl.com", false);
 	badssl_test("ecc384.badssl.com", false);
