@@ -47,10 +47,12 @@ struct MTY_App {
 	MTY_EventFunc event_func;
 	MTY_AppFunc app_func;
 	MTY_Hash *hotkey;
+	MTY_Hash *deduper;
 	MTY_Mutex *mutex;
 	struct evdev *evdev;
 	struct window *windows[MTY_WINDOW_MAX];
 	uint32_t timeout;
+	uint32_t rate;
 	MTY_Time suspend_ts;
 	bool relative;
 	bool suspend_ss;
@@ -513,7 +515,8 @@ static void app_evdev_report(struct evdev_dev *device, void *opaque)
 		evt.controller = mty_evdev_state(device);
 		mty_hid_map_axes(&evt.controller);
 
-		ctx->event_func(&evt, ctx->opaque);
+		if (mty_hid_dedupe(ctx->deduper, &evt.controller))
+			ctx->event_func(&evt, ctx->opaque);
 	}
 }
 
@@ -544,6 +547,7 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	bool r = true;
 	MTY_App *ctx = MTY_Alloc(1, sizeof(MTY_App));
 	ctx->hotkey = MTY_HashCreate(0);
+	ctx->deduper = MTY_HashCreate(0);
 	ctx->mutex = MTY_MutexCreate();
 	ctx->app_func = appFunc;
 	ctx->event_func = eventFunc;
@@ -622,6 +626,7 @@ void MTY_AppDestroy(MTY_App **app)
 
 	mty_evdev_destroy(&ctx->evdev);
 
+	MTY_HashDestroy(&ctx->deduper, MTY_Free);
 	MTY_HashDestroy(&ctx->hotkey, NULL);
 	MTY_MutexDestroy(&ctx->mutex);
 	MTY_Free(ctx->clip);
@@ -1122,6 +1127,33 @@ bool MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window, uint32_t *width, u
 float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
 {
 	return app->scale;
+}
+
+uint32_t MTY_WindowGetRefreshRate(MTY_App *app, MTY_Window window)
+{
+	// TODO This will cache the rate after the first call to this function because
+	// XRRGetScreenInfo is very slow. This means it will not respond to rate changes
+	// during runtime. A better way of doing this would be to use XRRSelectInput
+	// with RRScreenChangeNotifyMask and fetch the new refresh rate in response to
+	// the event.
+
+	if (app->rate > 0)
+		return app->rate;
+
+	struct window *ctx = app_get_window(app, window);
+
+	if (ctx && XRRGetScreenInfo && XRRFreeScreenConfigInfo && XRRConfigCurrentRate) {
+		XRRScreenConfiguration *conf = XRRGetScreenInfo(app->display, ctx->window);
+
+		if (conf) {
+			app->rate = XRRConfigCurrentRate(conf);
+			XRRFreeScreenConfigInfo(conf);
+
+			return app->rate;
+		}
+	}
+
+	return 60;
 }
 
 void MTY_WindowSetTitle(MTY_App *app, MTY_Window window, const char *title)

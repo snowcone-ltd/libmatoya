@@ -35,6 +35,16 @@ static CGSize gl_ctx_get_size(struct gl_ctx *ctx)
 	return size;
 }
 
+static void gl_ctx_mt_block(void (^block)(void))
+{
+	if ([NSThread isMainThread]) {
+		block();
+
+	} else {
+		dispatch_sync(dispatch_get_main_queue(), block);
+	}
+}
+
 struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
 {
 	struct gl_ctx *ctx = MTY_Alloc(1, sizeof(struct gl_ctx));
@@ -53,7 +63,10 @@ struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
 
 	NSOpenGLPixelFormat *pf = [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
 	ctx->gl = [[NSOpenGLContext alloc] initWithFormat:pf shareContext:nil];
-	[ctx->gl setView:ctx->window.contentView];
+
+	gl_ctx_mt_block(^{
+		[ctx->gl setView:ctx->window.contentView];
+	});
 
 	return (struct gfx_ctx *) ctx;
 }
@@ -91,24 +104,15 @@ MTY_Context *mty_gl_ctx_get_context(struct gfx_ctx *gfx_ctx)
 	return (__bridge MTY_Context *) ctx->gl;
 }
 
-static void gl_ctx_update(struct gl_ctx *ctx)
-{
-	if ([NSThread isMainThread]) {
-		[ctx->gl update];
-
-	} else {
-		dispatch_sync(dispatch_get_main_queue(), ^{
-			[ctx->gl update];
-		});
-	}
-}
-
 static void gl_ctx_refresh(struct gl_ctx *ctx)
 {
 	CGSize size = gl_ctx_get_size(ctx);
 
 	if (size.width != ctx->size.width || size.height != ctx->size.height) {
-		gl_ctx_update(ctx);
+		gl_ctx_mt_block(^{
+			[ctx->gl update];
+		});
+
 		ctx->size = size;
 	}
 }
@@ -182,7 +186,10 @@ bool mty_gl_ctx_make_current(struct gfx_ctx *gfx_ctx, bool current)
 
 	if (current) {
 		[ctx->gl makeCurrentContext];
-		gl_ctx_update(ctx);
+
+		gl_ctx_mt_block(^{
+			[ctx->gl update];
+		});
 
 	} else {
 		[NSOpenGLContext clearCurrentContext];

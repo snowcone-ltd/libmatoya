@@ -11,6 +11,8 @@ GFX_PROTOTYPES(_gl_)
 
 #include "glproc.h"
 #include "gfx/viewport.h"
+#include "gfx/fmt-gl.h"
+#include "gfx/fmt.h"
 
 #include "shaders/gl/vs.h"
 #include "shaders/gl/fs.h"
@@ -38,7 +40,8 @@ struct gl {
 	GLuint loc_tex[GL_NUM_STAGING];
 	GLuint loc_pos;
 	GLuint loc_uv;
-	GLuint loc_fcb;
+	GLuint loc_fcb0;
+	GLuint loc_fcb1;
 	GLuint loc_icb;
 };
 
@@ -109,7 +112,8 @@ struct gfx *mty_gl_create(MTY_Device *device)
 
 	ctx->loc_pos = glGetAttribLocation(ctx->prog, "position");
 	ctx->loc_uv = glGetAttribLocation(ctx->prog, "texcoord");
-	ctx->loc_fcb = glGetUniformLocation(ctx->prog, "fcb");
+	ctx->loc_fcb0 = glGetUniformLocation(ctx->prog, "fcb0");
+	ctx->loc_fcb1 = glGetUniformLocation(ctx->prog, "fcb1");
 	ctx->loc_icb = glGetUniformLocation(ctx->prog, "icb");
 
 	for (uint8_t x = 0; x < GL_NUM_STAGING; x++) {
@@ -165,9 +169,19 @@ static void gl_rtv_destroy(struct gl_rtv *rtv)
 	}
 }
 
-static void gl_rtv_refresh(struct gl_rtv *rtv, GLint internal, GLenum format, GLenum type, uint32_t w, uint32_t h)
+static bool gl_refresh_resource(struct gfx *gfx, MTY_Device *device, MTY_Context *context, MTY_ColorFormat fmt,
+	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, uint8_t bpp)
 {
+	struct gl *ctx = (struct gl *) gfx;
+
+	struct gl_rtv *rtv = &ctx->staging[plane];
+	GLenum format = FMT_PLANES[fmt][plane][1];
+	GLenum type = FMT_PLANES[fmt][plane][2];
+
+	// Resize texture
 	if (!rtv->texture || rtv->w != w || rtv->h != h || rtv->format != format) {
+		GLenum internal = FMT_PLANES[fmt][plane][0];
+
 		gl_rtv_destroy(rtv);
 
 		glGenTextures(1, &rtv->texture);
@@ -178,85 +192,14 @@ static void gl_rtv_refresh(struct gl_rtv *rtv, GLint internal, GLenum format, GL
 		rtv->h = h;
 		rtv->format = format;
 	}
-}
 
-static void gl_reload_textures(struct gl *ctx, const void *image, const MTY_RenderDesc *desc)
-{
-	switch (desc->format) {
-		case MTY_COLOR_FORMAT_BGRA:
-		case MTY_COLOR_FORMAT_AYUV:
-		case MTY_COLOR_FORMAT_BGR565:
-		case MTY_COLOR_FORMAT_BGRA5551: {
-			GLenum internal = GL_RGBA;
-			GLenum format = GL_BGRA;
-			GLenum type = GL_UNSIGNED_BYTE;
-			GLint bpp = 4;
+	// Upload
+	glBindTexture(GL_TEXTURE_2D, rtv->texture);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, bpp);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, full_w);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, format, type, image);
 
-			if (desc->format == MTY_COLOR_FORMAT_BGR565) {
-				internal = GL_RGB;
-				format = GL_RGB;
-				type = GL_UNSIGNED_SHORT_5_6_5;
-				bpp = 2;
-
-			} else if (desc->format == MTY_COLOR_FORMAT_BGRA5551) {
-				type = GL_UNSIGNED_SHORT_1_5_5_5_REV;
-				bpp = 2;
-			}
-
-			// BGRA
-			gl_rtv_refresh(&ctx->staging[0], internal, format, type, desc->cropWidth, desc->cropHeight);
-			glBindTexture(GL_TEXTURE_2D, ctx->staging[0].texture);
-			glPixelStorei(GL_UNPACK_ALIGNMENT, bpp);
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, desc->imageWidth);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, desc->cropWidth, desc->cropHeight, format, type, image);
-			break;
-		}
-		case MTY_COLOR_FORMAT_NV12:
-		case MTY_COLOR_FORMAT_NV16: {
-			uint32_t div = desc->format == MTY_COLOR_FORMAT_NV12 ? 2 : 1;
-
-			// Y
-			gl_rtv_refresh(&ctx->staging[0], GL_R8, GL_RED, GL_UNSIGNED_BYTE, desc->cropWidth, desc->cropHeight);
-			glBindTexture(GL_TEXTURE_2D, ctx->staging[0].texture);
-			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, desc->imageWidth);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, desc->cropWidth, desc->cropHeight, GL_RED, GL_UNSIGNED_BYTE, image);
-
-			// UV
-			gl_rtv_refresh(&ctx->staging[1], GL_RG8, GL_RG, GL_UNSIGNED_BYTE, desc->cropWidth / 2, desc->cropHeight / div);
-			glBindTexture(GL_TEXTURE_2D, ctx->staging[1].texture);
-			glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, desc->imageWidth / 2);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, desc->cropWidth / 2, desc->cropHeight / div, GL_RG, GL_UNSIGNED_BYTE, (uint8_t *) image + desc->imageWidth * desc->imageHeight);
-			break;
-		}
-		case MTY_COLOR_FORMAT_I420:
-		case MTY_COLOR_FORMAT_I444: {
-			uint32_t div = desc->format == MTY_COLOR_FORMAT_I420 ? 2 : 1;
-
-			// Y
-			gl_rtv_refresh(&ctx->staging[0], GL_R8, GL_RED, GL_UNSIGNED_BYTE, desc->cropWidth, desc->cropHeight);
-			glBindTexture(GL_TEXTURE_2D, ctx->staging[0].texture);
-			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, desc->imageWidth);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, desc->cropWidth, desc->cropHeight, GL_RED, GL_UNSIGNED_BYTE, image);
-
-			// U
-			uint8_t *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight;
-			gl_rtv_refresh(&ctx->staging[1], GL_R8, GL_RED, GL_UNSIGNED_BYTE, desc->cropWidth / div, desc->cropHeight / div);
-			glBindTexture(GL_TEXTURE_2D, ctx->staging[1].texture);
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, desc->imageWidth / div);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, desc->cropWidth / div, desc->cropHeight / div, GL_RED, GL_UNSIGNED_BYTE, p);
-
-			// V
-			p += (desc->imageWidth / div) * (desc->imageHeight / div);
-			gl_rtv_refresh(&ctx->staging[2], GL_R8, GL_RED, GL_UNSIGNED_BYTE, desc->cropWidth / div, desc->cropHeight / div);
-			glBindTexture(GL_TEXTURE_2D, ctx->staging[2].texture);
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, desc->imageWidth / div);
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, desc->cropWidth / div, desc->cropHeight / div, GL_RED, GL_UNSIGNED_BYTE, p);
-			break;
-		}
-	}
+	return true;
 }
 
 bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
@@ -273,13 +216,12 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 		return true;
 
 	// Refresh staging texture dimensions
-	gl_reload_textures(ctx, image, desc);
+	if (!fmt_reload_textures(gfx, NULL, NULL, image, desc, gl_refresh_resource))
+		return false;
 
 	// Viewport
 	float vpx, vpy, vpw, vph;
-	mty_viewport(desc->rotation, desc->cropWidth, desc->cropHeight,
-		desc->viewWidth, desc->viewHeight, desc->aspectRatio, desc->scale,
-		&vpx, &vpy, &vpw, &vph);
+	mty_viewport(desc, &vpx, &vpy, &vpw, &vph);
 
 	glViewport(lrint(vpx), lrint(vpy) + GL_ORIGIN_Y, lrint(vpw), lrint(vph));
 
@@ -322,8 +264,10 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	}
 
 	// Uniforms
-	glUniform4f(ctx->loc_fcb, (GLfloat) desc->cropWidth, (GLfloat) desc->cropHeight, vph, 0.0f);
-	glUniform4i(ctx->loc_icb, desc->filter, desc->effect, ctx->format, desc->rotation);
+	glUniform4f(ctx->loc_fcb0, (GLfloat) desc->cropWidth, (GLfloat) desc->cropHeight, vph, 0.0f);
+	glUniform4f(ctx->loc_fcb1, desc->effects[0], desc->effects[1], desc->levels[0], desc->levels[1]);
+	glUniform4i(ctx->loc_icb, FMT_INFO[ctx->format].planes, desc->rotation,
+		FMT_CONVERSION(ctx->format, desc->fullRangeYUV, desc->multiplyYUV), 0);
 
 	// Draw
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);

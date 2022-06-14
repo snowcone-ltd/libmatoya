@@ -10,6 +10,8 @@ GFX_PROTOTYPES(_metal_)
 #include <Metal/Metal.h>
 
 #include "gfx/viewport.h"
+#include "gfx/fmt-metal.h"
+#include "gfx/fmt.h"
 
 #include "shaders/metal/quad.h"
 
@@ -19,10 +21,13 @@ struct metal_cb {
 	float width;
 	float height;
 	float vp_height;
-	uint32_t filter;
-	uint32_t effect;
-	uint32_t format;
+	float pad0;
+	uint32_t effects[4];
+	float levels[4];
+	uint32_t planes;
 	uint32_t rotation;
+	uint32_t conversion;
+	uint32_t pad1;
 };
 
 struct metal_res {
@@ -133,111 +138,62 @@ struct gfx *mty_metal_create(MTY_Device *device)
 	return (struct gfx *) ctx;
 }
 
-static void metal_refresh_resource(struct metal_res *res, id<MTLDevice> device,
-	MTLPixelFormat format, uint32_t width, uint32_t height)
+static bool metal_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Context *context, MTY_ColorFormat fmt,
+	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, uint8_t bpp)
 {
-	if (!res->texture || width != res->width || height != res->height || format != res->format) {
+	struct metal *ctx = (struct metal *) gfx;
+
+	struct metal_res *res = &ctx->staging[plane];
+	MTLPixelFormat format = FMT_PLANES[fmt][plane];
+
+	// 16-bit packed pixel formats were not available until Big Sur
+	if (@available(iOS 8.0, tvOS 9.0, macOS 11.0, *)) {
+		if (fmt == MTY_COLOR_FORMAT_BGR565)
+			format = MTLPixelFormatB5G6R5Unorm;
+
+		if (fmt == MTY_COLOR_FORMAT_BGRA5551)
+			format = MTLPixelFormatBGR5A1Unorm;
+
+		if (fmt == MTY_COLOR_FORMAT_Y410)
+			format = MTLPixelFormatBGR10A2Unorm;
+
+	} else if (fmt == MTY_COLOR_FORMAT_BGR565 ||
+		fmt == MTY_COLOR_FORMAT_BGRA5551 ||
+		fmt == MTY_COLOR_FORMAT_Y410)
+	{
+		return false;
+	}
+
+	// Resize
+	if (!res->texture || w != res->width || h != res->height || format != res->format) {
+		id<MTLDevice> device = (__bridge id<MTLDevice>) _device;
+
 		res->texture = nil;
 
 		MTLTextureDescriptor *tdesc = [MTLTextureDescriptor new];
 		tdesc.pixelFormat = format;
 		tdesc.cpuCacheMode = MTLCPUCacheModeWriteCombined;
-		tdesc.width = width;
-		tdesc.height = height;
+		tdesc.width = w;
+		tdesc.height = h;
 
 		res->texture = [device newTextureWithDescriptor:tdesc];
 
-		res->width = width;
-		res->height = height;
+		res->width = w;
+		res->height = h;
 		res->format = format;
 	}
-}
 
-static void metal_reload_textures(struct metal *ctx, id<MTLDevice> device, const void *image, const MTY_RenderDesc *desc)
-{
-	switch (desc->format) {
-		case MTY_COLOR_FORMAT_BGRA:
-		case MTY_COLOR_FORMAT_AYUV:
-		case MTY_COLOR_FORMAT_BGR565:
-		case MTY_COLOR_FORMAT_BGRA5551: {
-			MTLPixelFormat format = MTLPixelFormatBGRA8Unorm;
-			uint8_t bpp = (desc->format == MTY_COLOR_FORMAT_BGRA || desc->format == MTY_COLOR_FORMAT_AYUV) ? 4 : 2;
+	// Upload
+	[res->texture replaceRegion:MTLRegionMake2D(0, 0, w, h) mipmapLevel:0
+		withBytes:image bytesPerRow:bpp * full_w];
 
-			// 16-bit packed pixel formats were not available until Big Sur
-			if (bpp == 2) {
-				if (@available(iOS 8.0, tvOS 9.0, macOS 11.0, *)) {
-					if (desc->format == MTY_COLOR_FORMAT_BGR565) {
-						format = MTLPixelFormatB5G6R5Unorm;
-
-					} else if (desc->format == MTY_COLOR_FORMAT_BGRA5551) {
-						format = MTLPixelFormatBGR5A1Unorm;
-
-					} else {
-						break;
-					}
-
-				} else {
-					break;
-				}
-			}
-
-			// BGRA
-			metal_refresh_resource(&ctx->staging[0], device, format, desc->cropWidth, desc->cropHeight);
-
-			MTLRegion region = MTLRegionMake2D(0, 0, desc->cropWidth, desc->cropHeight);
-			[ctx->staging[0].texture replaceRegion:region mipmapLevel:0 withBytes:image bytesPerRow:bpp * desc->imageWidth];
-			break;
-		}
-		case MTY_COLOR_FORMAT_NV12:
-		case MTY_COLOR_FORMAT_NV16: {
-			uint32_t div = desc->format == MTY_COLOR_FORMAT_NV12 ? 2 : 1;
-
-			// Y
-			metal_refresh_resource(&ctx->staging[0], device, MTLPixelFormatR8Unorm, desc->cropWidth, desc->cropHeight);
-
-			MTLRegion region = MTLRegionMake2D(0, 0, desc->cropWidth, desc->cropHeight);
-			[ctx->staging[0].texture replaceRegion:region mipmapLevel:0 withBytes:image bytesPerRow:desc->imageWidth];
-
-			// UV
-			metal_refresh_resource(&ctx->staging[1], device, MTLPixelFormatRG8Unorm, desc->cropWidth / 2, desc->cropHeight / div);
-
-			region = MTLRegionMake2D(0, 0, desc->cropWidth / 2, desc->cropHeight / div);
-			[ctx->staging[1].texture replaceRegion:region mipmapLevel:0 withBytes:(uint8_t *) image + desc->imageWidth * desc->imageHeight bytesPerRow:desc->imageWidth];
-			break;
-		}
-		case MTY_COLOR_FORMAT_I420:
-		case MTY_COLOR_FORMAT_I444: {
-			uint32_t div = desc->format == MTY_COLOR_FORMAT_I420 ? 2 : 1;
-
-			// Y
-			metal_refresh_resource(&ctx->staging[0], device, MTLPixelFormatR8Unorm, desc->cropWidth, desc->cropHeight);
-
-			MTLRegion region = MTLRegionMake2D(0, 0, desc->cropWidth, desc->cropHeight);
-			[ctx->staging[0].texture replaceRegion:region mipmapLevel:0 withBytes:image bytesPerRow:desc->imageWidth];
-
-			// U
-			uint8_t *p = (uint8_t *) image + desc->imageWidth * desc->imageHeight;
-			metal_refresh_resource(&ctx->staging[1], device, MTLPixelFormatR8Unorm, desc->cropWidth / div, desc->cropHeight / div);
-
-			region = MTLRegionMake2D(0, 0, desc->cropWidth / div, desc->cropHeight / div);
-			[ctx->staging[1].texture replaceRegion:region mipmapLevel:0 withBytes:p bytesPerRow:desc->imageWidth / div];
-
-			// V
-			p += (desc->imageWidth / div) * (desc->imageHeight / div);
-			metal_refresh_resource(&ctx->staging[2], device, MTLPixelFormatR8Unorm, desc->cropWidth / div, desc->cropHeight / div);
-
-			region = MTLRegionMake2D(0, 0, desc->cropWidth / div, desc->cropHeight / div);
-			[ctx->staging[2].texture replaceRegion:region mipmapLevel:0 withBytes:p bytesPerRow:desc->imageWidth / div];
-			break;
-		}
-	}
+	return true;
 }
 
 bool mty_metal_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest)
 {
 	struct metal *ctx = (struct metal *) gfx;
-	id<MTLDevice> _device = (__bridge id<MTLDevice>) device;
 	id<MTLCommandQueue> cq = (__bridge id<MTLCommandQueue>) context;
 	id<MTLTexture> _dest = (__bridge id<MTLTexture>) dest;
 
@@ -248,7 +204,8 @@ bool mty_metal_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	if (ctx->format == MTY_COLOR_FORMAT_UNKNOWN)
 		return true;
 
-	metal_reload_textures(ctx, _device, image, desc);
+	if (!fmt_reload_textures(gfx, device, context, image, desc, metal_refresh_resource))
+		return false;
 
 	// Begin render pass
 	MTLRenderPassDescriptor *rpd = [MTLRenderPassDescriptor new];
@@ -265,9 +222,7 @@ bool mty_metal_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 
 	// Viewport
 	float vpx, vpy, vpw, vph;
-	mty_viewport(desc->rotation, desc->cropWidth, desc->cropHeight,
-		desc->viewWidth, desc->viewHeight, desc->aspectRatio, desc->scale,
-		&vpx, &vpy, &vpw, &vph);
+	mty_viewport(desc, &vpx, &vpy, &vpw, &vph);
 
 	MTLViewport vp = {0};
 	vp.originX = vpx;
@@ -289,13 +244,16 @@ bool mty_metal_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 		[re setFragmentTexture:tex atIndex:x];
 	}
 
-	ctx->fcb.format = ctx->format;
-	ctx->fcb.effect = desc->effect;
-	ctx->fcb.filter = desc->filter;
 	ctx->fcb.width = desc->cropWidth;
 	ctx->fcb.height = desc->cropHeight;
-	ctx->fcb.rotation = desc->rotation;
 	ctx->fcb.vp_height = vph;
+	ctx->fcb.effects[0] = desc->effects[0];
+	ctx->fcb.effects[1] = desc->effects[1];
+	ctx->fcb.levels[0] = desc->levels[0];
+	ctx->fcb.levels[1] = desc->levels[1];
+	ctx->fcb.planes = FMT_INFO[ctx->format].planes;
+	ctx->fcb.rotation = desc->rotation;
+	ctx->fcb.conversion = FMT_CONVERSION(ctx->format, desc->fullRangeYUV, desc->multiplyYUV);
 	[re setFragmentBytes:&ctx->fcb length:sizeof(struct metal_cb) atIndex:0];
 
 	// Draw

@@ -6,7 +6,7 @@
 
 #include "matoya.h"
 
-#include <CoreFoundation/CoreFoundation.h>
+#include <AppKit/AppKit.h>
 
 bool MTY_HasDialogs(void)
 {
@@ -22,14 +22,21 @@ void MTY_ShowMessageBox(const char *title, const char *fmt, ...)
 
 	va_end(args);
 
-	CFStringRef nstitle = CFStringCreateWithCString(NULL, title, kCFStringEncodingUTF8);
-	CFStringRef nsmsg = CFStringCreateWithCString(NULL, msg, kCFStringEncodingUTF8);
+	NSAlert *alert = [NSAlert new];
+	[alert setMessageText:[NSString stringWithUTF8String:title]];
+	[alert setInformativeText:[NSString stringWithUTF8String:msg]];
+	[alert runModal];
 
-	CFOptionFlags r = 0;
-	CFUserNotificationDisplayAlert(0, kCFUserNotificationNoteAlertLevel, NULL,
-		NULL, NULL, nstitle, nsmsg, NULL, NULL, NULL, &r);
-
-	CFRelease(nstitle);
-	CFRelease(nsmsg);
 	MTY_Free(msg);
+}
+
+const char *MTY_OpenFile(const char *title, MTY_App *app, MTY_Window window)
+{
+	NSOpenPanel *panel = [NSOpenPanel openPanel];
+	panel.canChooseFiles = YES;
+
+	if ([panel runModal] == NSModalResponseOK)
+		return MTY_SprintfDL("%s", [[[panel URL] path] UTF8String]);
+
+	return NULL;
 }

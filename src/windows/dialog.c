@@ -7,6 +7,10 @@
 #include "matoya.h"
 
 #include <windows.h>
+#include <commdlg.h>
+
+#include "tlocal.h"
+#include "app.h"
 
 bool MTY_HasDialogs(void)
 {
@@ -30,4 +34,27 @@ void MTY_ShowMessageBox(const char *title, const char *fmt, ...)
 	MTY_Free(wmsg);
 	MTY_Free(wtitle);
 	MTY_Free(msg);
+}
+
+const char *MTY_OpenFile(const char *title, MTY_App *app, MTY_Window window)
+{
+	WCHAR file[MTY_PATH_MAX * sizeof(WCHAR)] = L"";
+
+	OPENFILENAME ofn = {0};
+	ofn.lStructSize = sizeof(OPENFILENAME);
+	ofn.lpstrFilter = L"All Files (*.*)\0*.*\0";
+	ofn.lpstrFile = file;
+	ofn.nMaxFile = MTY_PATH_MAX;
+	ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+
+	if (title)
+		ofn.lpstrTitle = MTY_MultiToWideDL(title);
+
+	if (app && window > -1)
+		ofn.hwndOwner = mty_window_get_native(app, window);
+
+	if (!GetOpenFileName(&ofn))
+		return NULL;
+
+	return MTY_WideToMultiDL(file);
 }

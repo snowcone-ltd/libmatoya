@@ -48,6 +48,7 @@ LOCAL_SRC_FILES := \
 	src/memory.c \
 	src/queue.c \
 	src/render.c \
+	src/resample.c \
 	src/system.c \
 	src/thread.c \
 	src/tlocal.c \

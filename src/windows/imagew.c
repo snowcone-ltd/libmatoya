@@ -20,7 +20,7 @@ void *MTY_CompressImage(MTY_ImageCompression method, const void *input, uint32_t
 	IWICBitmapFrameEncode *frame = NULL;
 	IStream *stream = NULL;
 
-	HRESULT ce = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+	HRESULT ce = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
 
 	HRESULT e = CoCreateInstance(&CLSID_WICImagingFactory1, NULL, CLSCTX_INPROC_SERVER, &IID_IWICImagingFactory, &factory);
 	if (e != S_OK) {
@@ -154,7 +154,7 @@ void *MTY_DecompressImage(const void *input, size_t size, uint32_t *width, uint3
 	IWICBitmapSource *sframe = NULL;
 	IWICBitmapSource *cframe = NULL;
 
-	HRESULT ce = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+	HRESULT ce = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
 
 	HRESULT e = CoCreateInstance(&CLSID_WICImagingFactory1, NULL, CLSCTX_INPROC_SERVER, &IID_IWICImagingFactory, &factory);
 	if (e != S_OK) {
