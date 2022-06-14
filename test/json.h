@@ -61,7 +61,7 @@ static bool json_torture(void)
 		int32_t pn = (intptr_t) n & 0xFFFFFF;
 
 		if (pn % 4 == 0) {
-			if (!MTY_JSONObjIsValNull(root, n->value))
+			if (MTY_JSONObjGetValType(root, n->value) != MTY_JSON_NULL)
 				test_failed("JSON Value: null");
 
 		} else if (pn % 4 == 1) {
