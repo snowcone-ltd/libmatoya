@@ -77,7 +77,7 @@ static void resample_output(bool left, const int16_t *buffer, size_t pos, double
 	}
 }
 
-const int16_t *MTY_Resample(MTY_Resampler *ctx, double ratio, const int16_t *in, size_t inFrames,
+const int16_t *MTY_Resample(MTY_Resampler *ctx, float ratio, const int16_t *in, size_t inFrames,
 	size_t *outFrames)
 {
 	if (ctx->ratio == 0.0)
