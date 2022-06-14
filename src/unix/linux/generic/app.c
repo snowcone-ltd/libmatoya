@@ -47,6 +47,7 @@ struct MTY_App {
 	MTY_EventFunc event_func;
 	MTY_AppFunc app_func;
 	MTY_Hash *hotkey;
+	MTY_Hash *deduper;
 	MTY_Mutex *mutex;
 	struct evdev *evdev;
 	struct window *windows[MTY_WINDOW_MAX];
@@ -513,7 +514,8 @@ static void app_evdev_report(struct evdev_dev *device, void *opaque)
 		evt.controller = mty_evdev_state(device);
 		mty_hid_map_axes(&evt.controller);
 
-		ctx->event_func(&evt, ctx->opaque);
+		if (mty_hid_dedupe(ctx->deduper, &evt.controller))
+			ctx->event_func(&evt, ctx->opaque);
 	}
 }
 
@@ -544,6 +546,7 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	bool r = true;
 	MTY_App *ctx = MTY_Alloc(1, sizeof(MTY_App));
 	ctx->hotkey = MTY_HashCreate(0);
+	ctx->deduper = MTY_HashCreate(0);
 	ctx->mutex = MTY_MutexCreate();
 	ctx->app_func = appFunc;
 	ctx->event_func = eventFunc;
@@ -622,6 +625,7 @@ void MTY_AppDestroy(MTY_App **app)
 
 	mty_evdev_destroy(&ctx->evdev);
 
+	MTY_HashDestroy(&ctx->deduper, MTY_Free);
 	MTY_HashDestroy(&ctx->hotkey, NULL);
 	MTY_MutexDestroy(&ctx->mutex);
 	MTY_Free(ctx->clip);

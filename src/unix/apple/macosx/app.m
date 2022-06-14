@@ -25,6 +25,7 @@
 	@property MTY_AppFunc app_func;
 	@property MTY_EventFunc event_func;
 	@property MTY_Hash *hotkey;
+	@property MTY_Hash *deduper;
 	@property MTY_DetachState detach;
 	@property void *opaque;
 	@property void *kb_mode;
@@ -943,8 +944,8 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 	evt.type = MTY_EVENT_CONTROLLER;
 
 	if (mty_hid_driver_state(device, buf, size, &evt.controller)) {
-		// Prevent gamepad input while in the background
-		if (evt.type != MTY_EVENT_NONE && MTY_AppIsActive((MTY_App *) opaque))
+		// Prevent gamepad input while in the background, dedupe
+		if (MTY_AppIsActive((MTY_App *) opaque) && mty_hid_dedupe(ctx.deduper, &evt.controller))
 			ctx.event_func(&evt, ctx.opaque);
 	}
 }
@@ -979,6 +980,7 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 
 	ctx.windows = MTY_Alloc(MTY_WINDOW_MAX, sizeof(void *));
 	ctx.hotkey = MTY_HashCreate(0);
+	ctx.deduper = MTY_HashCreate(0);
 
 	ctx.cb_seq = [[NSPasteboard generalPasteboard] changeCount];
 
@@ -1018,6 +1020,10 @@ void MTY_AppDestroy(MTY_App **app)
 	MTY_Hash *h = ctx.hotkey;
 	MTY_HashDestroy(&h, NULL);
 	ctx.hotkey = NULL;
+
+	h = ctx.deduper;
+	MTY_HashDestroy(&h, MTY_Free);
+	ctx.deduper = NULL;
 
 	[NSApp terminate:ctx];
 	*app = NULL;
