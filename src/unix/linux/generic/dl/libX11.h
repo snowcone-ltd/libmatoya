@@ -586,6 +586,15 @@ static Cursor (*XcursorImageLoadCursor)(Display *dpy, const XcursorImage *image)
 static void (*XcursorImageDestroy)(XcursorImage *image);
 
 
+// Xrandr interface
+
+typedef struct _XRRScreenConfiguration XRRScreenConfiguration;
+
+static XRRScreenConfiguration *(*XRRGetScreenInfo)(Display *dpy, Window window);
+static void (*XRRFreeScreenConfigInfo)(XRRScreenConfiguration *config);
+static short (*XRRConfigCurrentRate)(XRRScreenConfiguration *config);
+
+
 // GLX interface
 
 // Reference: https://code.woboq.org/qt5/include/GL/
@@ -638,6 +647,7 @@ static MTY_SO *LIBGL_SO;
 static MTY_SO *LIBXI_SO;
 static MTY_SO *LIBXCURSOR_SO;
 static MTY_SO *LIBX11_SO;
+static MTY_SO *LIBXRANDR_SO;
 static bool LIBX11_INIT;
 
 static void __attribute__((destructor)) libX11_global_destroy(void)
@@ -648,6 +658,7 @@ static void __attribute__((destructor)) libX11_global_destroy(void)
 	MTY_SOUnload(&LIBXI_SO);
 	MTY_SOUnload(&LIBXCURSOR_SO);
 	MTY_SOUnload(&LIBX11_SO);
+	MTY_SOUnload(&LIBXRANDR_SO);
 	LIBX11_INIT = false;
 
 	MTY_GlobalUnlock(&LIBX11_LOCK);
@@ -664,6 +675,7 @@ static bool libX11_global_init(void)
 		LIBXI_SO = MTY_SOLoad("libXi.so.6");
 		LIBXCURSOR_SO = MTY_SOLoad("libXcursor.so.1");
 		LIBGL_SO = MTY_SOLoad("libGL.so.1");
+		LIBXRANDR_SO = MTY_SOLoad("libXrandr.so.2");
 
 		if (!LIBX11_SO || !LIBGL_SO || !LIBXI_SO || !LIBXCURSOR_SO) {
 			r = false;
@@ -733,6 +745,12 @@ static bool libX11_global_init(void)
 		LOAD_SYM(LIBXCURSOR_SO, XcursorImageCreate);
 		LOAD_SYM(LIBXCURSOR_SO, XcursorImageLoadCursor);
 		LOAD_SYM(LIBXCURSOR_SO, XcursorImageDestroy);
+
+		if (LIBXRANDR_SO) {
+			LOAD_SYM_OPT(LIBXRANDR_SO, XRRGetScreenInfo);
+			LOAD_SYM_OPT(LIBXRANDR_SO, XRRFreeScreenConfigInfo);
+			LOAD_SYM_OPT(LIBXRANDR_SO, XRRConfigCurrentRate);
+		}
 
 		LOAD_SYM(LIBGL_SO, glXGetProcAddress);
 		LOAD_SYM(LIBGL_SO, glXSwapBuffers);
