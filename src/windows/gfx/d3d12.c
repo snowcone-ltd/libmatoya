@@ -509,9 +509,7 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 
 	// Viewport
 	D3D12_VIEWPORT vp = {0};
-	mty_viewport(desc->rotation, desc->cropWidth, desc->cropHeight,
-		desc->viewWidth, desc->viewHeight, desc->aspectRatio, desc->scale,
-		&vp.TopLeftX, &vp.TopLeftY, &vp.Width, &vp.Height);
+	mty_viewport(desc, &vp.TopLeftX, &vp.TopLeftY, &vp.Width, &vp.Height);
 
 	ID3D12GraphicsCommandList_RSSetViewports(cl, 1, &vp);
 
