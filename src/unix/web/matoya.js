@@ -527,6 +527,8 @@ const MTY_NET_API = {
 	},
 	MTY_HttpAsyncDestroy: function () {
 	},
+	MTY_HttpSetProxy: function (proxy) {
+	},
 	MTY_HttpParseUrl: function (url_c, host_c_out, host_size, path_c_out, path_size) {
 		const url = MTY_StrToJS(url_c);
 
@@ -655,8 +657,8 @@ const MTY_CRYPTO_API = {
 	MTY_CryptoHash: function (algo, input, inputSize, key, keySize, output, outputSize) {
 	},
 	MTY_GetRandomBytes: function (buf, size) {
-		const jbuf = new Uint8Array(buf, size);
-		Crypto.getRandomValues(jbuf);
+		const jbuf = new Uint8Array(mty_mem(), buf, size);
+		crypto.getRandomValues(jbuf);
 	},
 };
 
@@ -1277,11 +1279,15 @@ const MTY_WASI_API = {
 
 		// stdout
 		if (fd == 1) {
-			console.log(mty_char_to_js(full_buf));
+			const str = mty_char_to_js(full_buf);
+			if (str != '\n')
+				console.log(str);
 
 		// stderr
 		} else if (fd == 2) {
-			console.error(mty_char_to_js(full_buf));
+			const str = mty_char_to_js(full_buf)
+			if (str != '\n')
+				console.error();
 
 		// Filesystem
 		} else if (MTY.fds[fd]) {
@@ -1310,6 +1316,10 @@ const MTY_WASI_API = {
 		return 0;
 	},
 	proc_exit: function () {
+	},
+	environ_get: function () {
+	},
+	environ_sizes_get: function () {
 	},
 };
 
