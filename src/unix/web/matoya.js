@@ -1287,7 +1287,7 @@ const MTY_WASI_API = {
 		} else if (fd == 2) {
 			const str = mty_char_to_js(full_buf)
 			if (str != '\n')
-				console.error();
+				console.error(str);
 
 		// Filesystem
 		} else if (MTY.fds[fd]) {
