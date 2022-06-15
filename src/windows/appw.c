@@ -1132,28 +1132,29 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 	app_hwnd_activate(hwnd, active);
 }
 
-void MTY_AppTransformFrame(MTY_App *app, bool center, float maxHeight, MTY_Frame *frame)
+MTY_Frame MTY_AppMakeWindowFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, bool center,
+	bool scale, float maxHeight)
 {
-	HWND desktop = GetDesktopWindow();
-	float scale = app_hwnd_get_scale(app, desktop);
+	MTY_Frame frame = {
+		.x = x,
+		.y = y,
+		.w = w,
+		.h = h,
+	};
 
 	RECT r = {0};
+	HWND desktop = GetDesktopWindow();
 	GetWindowRect(desktop, &r);
 
 	uint32_t screen_h = r.bottom - r.top;
 	uint32_t screen_w = r.right - r.left;
-	wsize_client(scale, maxHeight, screen_h, frame);
-
-	RECT ar = {0};
-	ar.right = frame->w;
-	ar.bottom = frame->h;
-
-	AdjustWindowRectEx(&ar, WS_OVERLAPPEDWINDOW, FALSE, 0);
-	frame->w = ar.right - ar.left;
-	frame->h = ar.bottom - ar.top;
+	float f = scale ? app_hwnd_get_scale(ctx, desktop) : 1.0f;
+	wsize_client(f, maxHeight, screen_h, &frame);
 
 	if (center)
-		wsize_center(r.left, r.top, screen_w, screen_h, frame);
+		wsize_center(r.left, r.top, screen_w, screen_h, &frame);
+
+	return frame;
 }
 
 void MTY_AppSetTray(MTY_App *ctx, const char *tooltip, const MTY_MenuItem *items, uint32_t len)
@@ -1618,6 +1619,23 @@ void MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode)
 
 // Window
 
+static void window_adjust_frame(MTY_Frame *frame)
+{
+	RECT r = {
+		.top = frame->y,
+		.left = frame->x,
+		.right = frame->w + frame->x,
+		.bottom = frame->h + frame->y,
+	};
+
+	AdjustWindowRectEx(&r, WS_OVERLAPPEDWINDOW, FALSE, 0);
+
+	frame->y = r.top;
+	frame->x = r.left;
+	frame->w = r.right - r.left;
+	frame->h = r.bottom - r.top;
+}
+
 MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 {
 	MTY_Window window = -1;
@@ -1641,7 +1659,9 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 	ctx->min_height = desc->minHeight;
 
 	DWORD style = WS_OVERLAPPEDWINDOW;
+
 	ctx->frame = desc->frame;
+	window_adjust_frame(&ctx->frame);
 
 	int32_t w = ctx->frame.w;
 	int32_t h = ctx->frame.h;
@@ -1749,7 +1769,10 @@ void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
 	if (!ctx)
 		return;
 
-	window_set_frame(ctx, frame);
+	ctx->frame = *frame;
+	window_adjust_frame(&ctx->frame);
+
+	window_set_frame(ctx, &ctx->frame);
 }
 
 static bool window_get_monitor_info(HWND hwnd, MONITORINFOEX *info)

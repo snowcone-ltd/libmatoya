@@ -724,11 +724,12 @@ typedef struct {
 	                                 ///<   is selected.
 } MTY_MenuItem;
 
+/// @brief Window size and positioning.
 typedef struct {
-	int32_t x;
-	int32_t y;
-	uint32_t w;
-	uint32_t h;
+	int32_t x;  ///< Window horizontal positioning.
+	int32_t y;  ///< Window vertical positioning.
+	uint32_t w; ///< Window width.
+	uint32_t h; ///< Window height.
 } MTY_Frame;
 
 /// @brief Window creation options.
@@ -796,8 +797,20 @@ MTY_AppIsActive(MTY_App *ctx);
 MTY_EXPORT void
 MTY_AppActivate(MTY_App *ctx, bool active);
 
-MTY_EXPORT void
-MTY_AppTransformFrame(MTY_App *app, bool center, float maxHeight, MTY_Frame *frame);
+/// @brief Fill an MTY_Frame taking the current display configuration into account.
+/// @param ctx The MTY_App.
+/// @param x Window horizontal positioning.
+/// @param y Window vertical positioning.
+/// @param w Window width.
+/// @param h Window height.
+/// @param center Treat `x` and `y` as relative to the primary screen's center point.
+/// @param scale Take the primary screen's scaling factor into consideration.
+/// @param maxHeight Between 0.0f and 1.0f, limit the frame's height to a percentage of the
+///   primary screen's height. The frame's width is adjusted accordingly keeping the original
+///   aspect ratio intact.
+MTY_EXPORT MTY_Frame
+MTY_AppMakeWindowFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, bool center,
+	bool scale, float maxHeight);
 
 /// @brief Set a system tray icon for the app.
 /// @param ctx The MTY_App.
@@ -1058,12 +1071,16 @@ MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc);
 MTY_EXPORT void
 MTY_WindowDestroy(MTY_App *app, MTY_Window window);
 
-/// @brief Get a window's MTY_Frame containing dimensions and positioning.
+/// @brief Get a window's size and positioning.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 MTY_EXPORT MTY_Frame
 MTY_WindowGetFrame(MTY_App *app, MTY_Window window);
 
+/// @brief Set a window's size and positioning.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @param frame An MTY_Frame containing the window's size and positioning.
 MTY_EXPORT void
 MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame);
 

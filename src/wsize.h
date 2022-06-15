@@ -8,9 +8,6 @@
 
 static void wsize_client(float scale, float max_h, uint32_t screen_h, MTY_Frame *frame)
 {
-	if (scale == 0.0f)
-		scale = 1.0f;
-
 	if (max_h > 0.0f && frame->h * scale > max_h * screen_h) {
 		float aspect = (float) frame->w / frame->h;
 		frame->h = lrint(max_h * screen_h);
