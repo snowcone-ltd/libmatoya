@@ -8,7 +8,6 @@
 #include <Carbon/Carbon.h>
 #include <IOKit/pwr_mgt/IOPMLib.h>
 
-#include "wsize.h"
 #include "scale.h"
 #include "keymap.h"
 #include "hid/hid.h"
@@ -198,6 +197,11 @@ static void app_fix_mouse_buttons(App *ctx)
 		[[NSApp keyWindow] performClose:self];
 	}
 
+	- (void)appFullScreen
+	{
+		[[NSApp keyWindow] toggleFullScreen:self];
+	}
+
 	- (void)appRestart
 	{
 		MTY_Event evt = {0};
@@ -249,7 +253,14 @@ static void app_fix_mouse_buttons(App *ctx)
 		[menubar addItem:submenu];
 		menu = [[NSMenu alloc] initWithTitle:@"Window"];
 		[menu addItem:[[NSMenuItem alloc] initWithTitle:@"Minimize" action:@selector(appMinimize) keyEquivalent:@"m"]];
+
+		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Toggle Full Screen" action:@selector(appFullScreen)
+			keyEquivalent:@"f"];
+		[item setKeyEquivalentModifierMask:NSEventModifierFlagCommand | NSEventModifierFlagControl];
+		[menu addItem:item];
+
 		[menu addItem:[[NSMenuItem alloc] initWithTitle:@"Close" action:@selector(appClose) keyEquivalent:@"w"]];
+
 		[submenu setSubmenu:menu];
 
 		[NSApp setMainMenu:menubar];
@@ -291,7 +302,9 @@ static void app_fix_mouse_buttons(App *ctx)
 	@property(strong) App *app;
 	@property MTY_Window window;
 	@property MTY_GFX api;
-	@property bool top;
+	@property bool was_maximized;
+	@property NSRect normal_frame;
+	@property NSRect restore_frame;
 	@property struct gfx_ctx *gfx_ctx;
 @end
 
@@ -333,6 +346,15 @@ static MTY_Window app_find_open_window(MTY_App *app, MTY_Window req)
 	return -1;
 }
 
+static void app_set_presentation(bool fullscreen)
+{
+	NSApplicationPresentationOptions opts = fullscreen ?
+		NSApplicationPresentationHideDock | NSApplicationPresentationHideMenuBar :
+		NSApplicationPresentationDefault;
+
+	[NSApp setPresentationOptions:opts];
+}
+
 static MTY_Event window_event(Window *window, MTY_EventType type)
 {
 	MTY_Event evt = {0};
@@ -340,6 +362,36 @@ static MTY_Event window_event(Window *window, MTY_EventType type)
 	evt.window = window.window;
 
 	return evt;
+}
+
+static bool window_is_fullscreen(Window *window)
+{
+	// NSWindowStyleMaskBorderless == 0
+	return window.styleMask == NSWindowStyleMaskBorderless;
+}
+
+
+// Screen helpers
+
+static CGDirectDisplayID screen_get_display_id(NSScreen *screen)
+{
+	return ((NSNumber *) [screen deviceDescription][@"NSScreenNumber"]).intValue;
+}
+
+static NSScreen *screen_get_primary(void)
+{
+	return [NSScreen screens][0];
+}
+
+static NSScreen *screen_from_display_id(CGDirectDisplayID display_id)
+{
+	NSArray<NSScreen *> *screens = [NSScreen screens];
+
+	for (uint32_t x = 0; x < screens.count; x++)
+		if (display_id == screen_get_display_id(screens[x]))
+			return screens[x];
+
+	return screen_get_primary();
 }
 
 
@@ -517,7 +569,7 @@ static void window_button_event(Window *window, NSEvent *event, NSUInteger index
 
 static void window_warp_cursor(NSWindow *ctx, uint32_t x, int32_t y)
 {
-	CGDirectDisplayID display = ((NSNumber *) [ctx.screen deviceDescription][@"NSScreenNumber"]).intValue;
+	CGDirectDisplayID display = screen_get_display_id(ctx.screen);
 
 	CGFloat scale = mty_screen_scale(ctx.screen);
 	CGFloat client_top = ctx.screen.frame.size.height - ctx.frame.origin.y +
@@ -690,6 +742,14 @@ static void window_mod_event(Window *window, NSEvent *event)
 		return YES;
 	}
 
+	- (NSRect)windowWillUseStandardFrame:(NSWindow*)window defaultFrame:(NSRect)newFrame
+	{
+		if (!NSEqualRects(window.frame, newFrame))
+			self.normal_frame = window.frame;
+
+		return newFrame;
+	}
+
 	- (BOOL)performKeyEquivalent:(NSEvent *)event
 	{
 		NSUInteger mods = NSEventModifierFlagControl | NSEventModifierFlagCommand;
@@ -711,46 +771,29 @@ static void window_mod_event(Window *window, NSEvent *event)
 		return NO;
 	}
 
+	- (void)windowWillClose:(NSNotification *)notification
+	{
+		app_set_presentation(false);
+	}
+
 	- (void)windowDidResignKey:(NSNotification *)notification
 	{
+		app_set_presentation(false);
+
 		MTY_Event evt = window_event(self, MTY_EVENT_FOCUS);
 		evt.focus = false;
-
-		// When in full screen and the window loses focus (changing spaces etc)
-		// we need to set the window level back to normal and change the content size.
-		// Cmd+Tab behavior and rendering can have weird edge case behvavior when the OS
-		// is optimizing the graphics and the window is above the dock
-		if (self.styleMask & NSWindowStyleMaskFullScreen) {
-			[self setLevel:NSNormalWindowLevel];
-
-			// 1px hack for older versions of macOS
-			if (@available(macOS 11.0, *)) {
-			} else {
-				NSSize cur = self.contentView.frame.size;
-				cur.height -= 1.0f;
-
-				[self setContentSize:cur];
-			}
-		}
 
 		self.app.event_func(&evt, self.app.opaque);
 	}
 
 	- (void)windowDidBecomeKey:(NSNotification *)notification
 	{
+		app_set_presentation(window_is_fullscreen(self));
+
 		MTY_Event evt = window_event(self, MTY_EVENT_FOCUS);
 		evt.focus = true;
 
 		self.app.event_func(&evt, self.app.opaque);
-	}
-
-	- (void)windowDidChangeScreen:(NSNotification *)notification
-	{
-		// This event fires at the right time to re-apply the window level above the dock
-		if (self.top && self.isKeyWindow && (self.styleMask & NSWindowStyleMaskFullScreen)) {
-			[self setLevel:NSDockWindowLevel + 1];
-			app_apply_cursor(self.app);
-		}
 	}
 
 	- (void)windowDidResize:(NSNotification *)notification
@@ -857,23 +900,33 @@ static void window_mod_event(Window *window, NSEvent *event)
 		app_apply_cursor(self.app);
 	}
 
-	- (NSApplicationPresentationOptions)window:(NSWindow *)window
-		willUseFullScreenPresentationOptions:(NSApplicationPresentationOptions)proposedOptions
+	- (void)toggleFullScreen:(id)sender
 	{
-		return self.top ? NSApplicationPresentationFullScreen | NSApplicationPresentationHideDock |
-			NSApplicationPresentationHideMenuBar : proposedOptions;
-	}
+		if (window_is_fullscreen(self)) {
+			if (self.isKeyWindow)
+				app_set_presentation(false);
 
-	- (void)windowDidEnterFullScreen:(NSNotification *)notification
-	{
-		if (self.top)
-			[self setLevel:NSDockWindowLevel + 1];
-	}
+			[self setFrame:self.restore_frame display:YES];
+			[self setStyleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
+				NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable];
 
-	- (void)windowWillExitFullScreen:(NSNotification *)notification
-	{
-		self.top = false;
-		[self setLevel:NSNormalWindowLevel];
+		} else {
+			self.restore_frame = self.frame;
+
+			if (![self isZoomed]) {
+				self.was_maximized = false;
+				self.normal_frame = self.restore_frame;
+
+			} else {
+				self.was_maximized = true;
+			}
+
+			[self setStyleMask:NSWindowStyleMaskBorderless];
+			[self setFrame:self.screen.frame display:YES];
+
+			if (self.isKeyWindow)
+				app_set_presentation(true);
+		}
 	}
 @end
 
@@ -1305,59 +1358,45 @@ void MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode)
 
 // Window
 
-static void window_revert_levels(void)
-{
-	NSArray<NSWindow *> *windows = [NSApp windows];
-
-	for (uint32_t x = 0; x < windows.count; x++)
-		[windows[x] setLevel:NSNormalWindowLevel];
-}
-
-MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
+MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, MTY_Window index)
 {
 	MTY_Window window = -1;
 	bool r = true;
 
 	Window *ctx = nil;
 	View *content = nil;
-	NSScreen *screen = [NSScreen mainScreen];
 
-	window = app_find_open_window(app, desc->index);
+	NSScreen *screen = screen_from_display_id(atoi(frame->screen));
+
+	window = app_find_open_window(app, index);
 	if (window == -1) {
 		r = false;
 		MTY_Log("Maximum windows (MTY_WINDOW_MAX) of %u reached", MTY_WINDOW_MAX);
 		goto except;
 	}
 
-	window_revert_levels();
+	MTY_Frame dframe = {0};
 
-	CGSize size = screen.frame.size;
+	if (!frame) {
+		dframe = APP_DEFAULT_FRAME();
+		frame = &dframe;
+	}
 
-	int32_t x = desc->x;
-	int32_t y = -desc->y;
-	int32_t width = size.width;
-	int32_t height = size.height;
-
-	wsize_client(desc, 1.0f, size.height, &x, &y, &width, &height);
-
-	if (desc->origin == MTY_ORIGIN_CENTER)
-		wsize_center(0, 0, size.width, size.height, &x, &y, &width, &height);
-
-	NSRect rect = NSMakeRect(x, y, width, height);
+	NSRect rect = NSMakeRect(frame->x, frame->y, frame->size.w, frame->size.h);
 	NSWindowStyleMask style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
 		NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable;
 
 	ctx = [[Window alloc] initWithContentRect:rect styleMask:style
 		backing:NSBackingStoreBuffered defer:NO screen:screen];
-	ctx.title = [NSString stringWithUTF8String:desc->title ? desc->title : "MTY_Window"];
+	ctx.title = [NSString stringWithUTF8String:title ? title : "MTY_Window"];
 	ctx.window = window;
 	ctx.app = (__bridge App *) app;
 
 	[ctx setDelegate:ctx];
 	[ctx setAcceptsMouseMovedEvents:YES];
 	[ctx setReleasedWhenClosed:NO];
-	[ctx setMinSize:NSMakeSize(desc->minWidth, desc->minHeight)];
-	[ctx setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
+	[ctx setCollectionBehavior:NSWindowCollectionBehaviorFullScreenNone |
+		NSWindowCollectionBehaviorFullScreenDisallowsTiling];
 
 	content = [[View alloc] initWithFrame:[ctx contentRectForFrameRect:ctx.frame]];
 	[content setWantsBestResolutionOpenGLSurface:YES];
@@ -1365,15 +1404,14 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 
 	ctx.app.windows[window] = (__bridge void *) ctx;
 
-	if (!desc->hidden)
-		MTY_WindowActivate(app, window, true);
+	if (frame->type & MTY_WINDOW_MAXIMIZED)
+		[ctx zoom:ctx];
 
-	if (desc->api != MTY_GFX_NONE) {
-		if (!MTY_WindowSetGFX(app, window, desc->api, desc->vsync)) {
-			r = false;
-			goto except;
-		}
-	}
+	if (frame->type & MTY_WINDOW_FULLSCREEN)
+		MTY_WindowSetFullscreen(app, window, true);
+
+	if (!(frame->type & MTY_WINDOW_HIDDEN))
+		MTY_WindowActivate(app, window, true);
 
 	except:
 
@@ -1395,46 +1433,111 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 	[ctx close];
 }
 
-bool MTY_WindowGetSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)
+MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 {
 	Window *ctx = app_get_window(app, window);
 	if (!ctx)
-		return false;
+		return (MTY_Size) {0};
 
-	CGSize size = ctx.contentView.frame.size;
+	NSSize size = ctx.contentView.frame.size;
 	CGFloat scale = mty_screen_scale(ctx.screen);
 
-	*width = lrint(size.width * scale);
-	*height = lrint(size.height * scale);
-
-	return true;
+	return (MTY_Size) {
+		.w = lrint(size.width * scale),
+		.h = lrint(size.height * scale),
+	};
 }
 
-void MTY_WindowGetPosition(MTY_App *app, MTY_Window window, int32_t *x, int32_t *y)
+MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
+{
+	Window *ctx = app_get_window(app, window);
+	if (!ctx)
+		return (MTY_Frame) {0};
+
+	NSRect s = ctx.screen.frame;
+	NSRect w = ctx.frame;
+
+	MTY_WindowType type = MTY_WINDOW_NORMAL;
+
+	if (window_is_fullscreen(ctx)) {
+		w = ctx.normal_frame;
+		type = MTY_WINDOW_FULLSCREEN;
+
+		if (ctx.was_maximized)
+			type |= MTY_WINDOW_MAXIMIZED;
+
+	} else if ([ctx isZoomed]) {
+		w = ctx.normal_frame;
+		type = MTY_WINDOW_MAXIMIZED;
+	}
+
+	NSRect r = [ctx contentRectForFrameRect: (NSRect) {
+		.origin.x = w.origin.x - s.origin.x,
+		.origin.y = w.origin.y - s.origin.y,
+		.size.width = w.size.width,
+		.size.height = w.size.height,
+	}];
+
+	MTY_Frame frame = {
+		.type = type,
+		.x = r.origin.x,
+		.y = r.origin.y,
+		.size.w = r.size.width,
+		.size.h = r.size.height,
+	};
+
+	snprintf(frame.screen, MTY_SCREEN_MAX, "%d", screen_get_display_id(ctx.screen));
+
+	return frame;
+}
+
+void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
 {
 	Window *ctx = app_get_window(app, window);
 	if (!ctx)
 		return;
 
-	*y = lrint(ctx.screen.frame.size.height - ctx.frame.origin.y +
-		ctx.screen.frame.origin.y - ctx.frame.size.height);
+	NSScreen *screen = screen_from_display_id(atoi(frame->screen));
+	NSRect s = screen.frame;
 
-	*x = lrint(ctx.frame.origin.x - ctx.screen.frame.origin.x);
+	NSRect r = [ctx frameRectForContentRect: (NSRect) {
+		.origin.x = frame->x + s.origin.x,
+		.origin.y = frame->y + s.origin.y,
+		.size.width = frame->size.w,
+		.size.height = frame->size.h,
+	}];
+
+	[ctx setFrame:r display:YES];
+
+	if (frame->type & MTY_WINDOW_MAXIMIZED)
+		[ctx zoom:ctx];
+
+	if (frame->type & MTY_WINDOW_FULLSCREEN)
+		MTY_WindowSetFullscreen(app, window, true);
 }
 
-bool MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)
+void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, uint32_t minHeight)
 {
 	Window *ctx = app_get_window(app, window);
 	if (!ctx)
-		return false;
+		return;
 
-	CGSize size = ctx.screen.frame.size;
+	[ctx setMinSize:NSMakeSize(minWidth, minHeight)];
+}
+
+MTY_Size MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window)
+{
+	Window *ctx = app_get_window(app, window);
+	if (!ctx)
+		return (MTY_Size) {0};
+
+	NSSize size = ctx.screen.frame.size;
 	CGFloat scale = mty_screen_scale(ctx.screen);
 
-	*width = lrint(size.width * scale);
-	*height = lrint(size.height * scale);
-
-	return true;
+	return (MTY_Size) {
+		.w = lrint(size.width * scale),
+		.h = lrint(size.height * scale),
+	};
 }
 
 float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
@@ -1455,7 +1558,7 @@ uint32_t MTY_WindowGetRefreshRate(MTY_App *app, MTY_Window window)
 	Window *ctx = app_get_window(app, window);
 
 	if (ctx) {
-		CGDirectDisplayID display = ((NSNumber *) [ctx.screen deviceDescription][@"NSScreenNumber"]).intValue;
+		CGDirectDisplayID display = screen_get_display_id(ctx.screen);
 		CGDisplayModeRef mode = CGDisplayCopyDisplayMode(display);
 
 		if (mode) {
@@ -1519,7 +1622,7 @@ bool MTY_WindowIsFullscreen(MTY_App *app, MTY_Window window)
 	if (!ctx)
 		return false;
 
-	return ctx.styleMask & NSWindowStyleMaskFullScreen;
+	return window_is_fullscreen(ctx);
 }
 
 void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
@@ -1528,12 +1631,10 @@ void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
 	if (!ctx)
 		return;
 
-	bool is_fullscreen = MTY_WindowIsFullscreen(app, window);
+	bool is_fullscreen = window_is_fullscreen(ctx);
 
-	if ((!is_fullscreen && fullscreen) || (is_fullscreen && !fullscreen)) {
-		ctx.top = fullscreen;
+	if ((!is_fullscreen && fullscreen) || (is_fullscreen && !fullscreen))
 		[ctx toggleFullScreen:ctx];
-	}
 }
 
 void MTY_WindowWarpCursor(MTY_App *app, MTY_Window window, uint32_t x, uint32_t y)
@@ -1590,6 +1691,15 @@ void *mty_window_get_native(MTY_App *app, MTY_Window window)
 
 static MTY_Atomic32 APP_GLOCK;
 static char APP_KEYS[MTY_KEY_MAX][16];
+
+MTY_Frame MTY_MakeDefaultFrame(int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
+{
+	NSScreen *screen = screen_get_primary();
+
+	NSSize size = screen.frame.size;
+
+	return mty_window_adjust(size.width, size.height, 1.0f, maxHeight, x, -y, w, h);
+}
 
 static void app_carbon_key(uint16_t kc, char *text, size_t len)
 {
