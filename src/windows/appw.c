@@ -1743,10 +1743,14 @@ MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 		RECT rect = {0};
 
 		if (GetClientRect(ctx->hwnd, &rect)) {
-			frame.x = rect.left;
-			frame.y = rect.top;
-			frame.w = rect.right - rect.left;
-			frame.h = rect.bottom - rect.top;
+			POINT xy = {0};
+
+			if (ClientToScreen(ctx->hwnd, &xy)) {
+				frame.x = xy.x;
+				frame.y = xy.y;
+				frame.w = rect.right - rect.left;
+				frame.h = rect.bottom - rect.top;
+			}
 		}
 	}
 
