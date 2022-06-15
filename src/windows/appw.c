@@ -26,12 +26,9 @@
 struct window {
 	MTY_App *app;
 	MTY_Window window;
+	MTY_Frame frame;
 	MTY_GFX api;
 	HWND hwnd;
-	int32_t x;
-	int32_t y;
-	int32_t width;
-	int32_t height;
 	uint32_t min_width;
 	uint32_t min_height;
 	struct gfx_ctx *gfx_ctx;
@@ -1135,6 +1132,30 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 	app_hwnd_activate(hwnd, active);
 }
 
+void MTY_AppTransformFrame(MTY_App *app, bool center, float maxHeight, MTY_Frame *frame)
+{
+	HWND desktop = GetDesktopWindow();
+	float scale = app_hwnd_get_scale(app, desktop);
+
+	RECT r = {0};
+	GetWindowRect(desktop, &r);
+
+	uint32_t screen_h = r.bottom - r.top;
+	uint32_t screen_w = r.right - r.left;
+	wsize_client(scale, maxHeight, screen_h, frame);
+
+	RECT ar = {0};
+	ar.right = frame->w;
+	ar.bottom = frame->h;
+
+	AdjustWindowRectEx(&ar, WS_OVERLAPPEDWINDOW, FALSE, 0);
+	frame->w = ar.right - ar.left;
+	frame->h = ar.bottom - ar.top;
+
+	if (center)
+		wsize_center(r.left, r.top, screen_w, screen_h, frame);
+}
+
 void MTY_AppSetTray(MTY_App *ctx, const char *tooltip, const MTY_MenuItem *items, uint32_t len)
 {
 	MTY_AppRemoveTray(ctx);
@@ -1619,45 +1640,29 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 	ctx->min_width = desc->minWidth;
 	ctx->min_height = desc->minHeight;
 
-	RECT rect = {0};
 	DWORD style = WS_OVERLAPPEDWINDOW;
-	HWND desktop = GetDesktopWindow();
+	ctx->frame = desc->frame;
 
-	GetWindowRect(desktop, &rect);
-	int32_t desktop_height = rect.bottom - rect.top;
-	int32_t desktop_width = rect.right - rect.left;
-
-	float scale = app_hwnd_get_scale(app, desktop);
-	ctx->width = desktop_width;
-	ctx->height = desktop_height;
-	ctx->x = lrint((float) desc->x * scale);
-	ctx->y = lrint((float) desc->y * scale);
+	int32_t w = ctx->frame.w;
+	int32_t h = ctx->frame.h;
+	int32_t x = ctx->frame.x;
+	int32_t y = ctx->frame.y;
 
 	if (desc->fullscreen) {
 		style = WS_POPUP;
-		ctx->x = rect.left;
-		ctx->y = rect.top;
 
-	} else {
-		wsize_client(desc, scale, desktop_height, &ctx->x, &ctx->y, &ctx->width, &ctx->height);
+		RECT rect = {0};
+		GetWindowRect(GetDesktopWindow(), &rect);
 
-		RECT arect = {0};
-		arect.right = ctx->width;
-		arect.bottom = ctx->height;
-		if (AdjustWindowRectEx(&arect, WS_OVERLAPPEDWINDOW, FALSE, 0)) {
-			ctx->width = arect.right - arect.left;
-			ctx->height = arect.bottom - arect.top;
-		}
-
-		if (desc->origin == MTY_ORIGIN_CENTER)
-			wsize_center(rect.left, rect.top, desktop_width, desktop_height,
-				&ctx->x, &ctx->y, &ctx->width, &ctx->height);
+		x = rect.left;
+		y = rect.top;
+		w = rect.right - rect.left;
+		h = rect.bottom - rect.top;
 	}
 
 	titlew = MTY_MultiToWideD(desc->title ? desc->title : "MTY_Window");
 
-	ctx->hwnd = CreateWindowEx(0, APP_CLASS_NAME, titlew, style,
-		ctx->x, ctx->y, ctx->width, ctx->height, NULL, NULL, app->instance, ctx);
+	ctx->hwnd = CreateWindowEx(0, APP_CLASS_NAME, titlew, style, x, y, w, h, NULL, NULL, app->instance, ctx);
 	if (!ctx->hwnd) {
 		r = false;
 		MTY_Log("'CreateWindowEx' failed with error 0x%X", GetLastError());
@@ -1666,13 +1671,6 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 
 	if (!desc->hidden)
 		app_hwnd_activate(ctx->hwnd, true);
-
-	if (desc->api != MTY_GFX_NONE) {
-		if (!MTY_WindowSetGFX(app, window, desc->api, desc->vsync)) {
-			r = false;
-			goto except;
-		}
-	}
 
 	DragAcceptFiles(ctx->hwnd, TRUE);
 
@@ -1716,33 +1714,42 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 	app->windows[window] = NULL;
 }
 
-bool MTY_WindowGetSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)
+MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 {
-	struct window *ctx = app_get_window(app, window);
-	if (!ctx)
-		return false;
+	MTY_Frame frame = {0};
 
-	RECT rect = {0};
-	if (GetClientRect(ctx->hwnd, &rect)) {
-		*width = rect.right - rect.left;
-		*height = rect.bottom - rect.top;
-		return true;
+	struct window *ctx = app_get_window(app, window);
+
+	if (ctx) {
+		RECT rect = {0};
+
+		if (GetClientRect(ctx->hwnd, &rect)) {
+			frame.x = rect.left;
+			frame.y = rect.top;
+			frame.w = rect.right - rect.left;
+			frame.h = rect.bottom - rect.top;
+		}
 	}
 
-	return false;
+	return frame;
 }
 
-void MTY_WindowGetPosition(MTY_App *app, MTY_Window window, int32_t *x, int32_t *y)
+static void window_set_frame(struct window *ctx, const MTY_Frame *frame)
+{
+	SetWindowLongPtr(ctx->hwnd, GWL_STYLE, WS_VISIBLE | WS_OVERLAPPEDWINDOW);
+	SetWindowPos(ctx->hwnd, HWND_TOP, frame->x, frame->y, frame->w, frame->h, SWP_FRAMECHANGED);
+
+	PostMessage(ctx->hwnd, WM_SETICON, ICON_BIG, GetClassLongPtr(ctx->hwnd, GCLP_HICON));
+	PostMessage(ctx->hwnd, WM_SETICON, ICON_SMALL, GetClassLongPtr(ctx->hwnd, GCLP_HICONSM));
+}
+
+void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
 {
 	struct window *ctx = app_get_window(app, window);
 	if (!ctx)
 		return;
 
-	RECT rect = {0};
-	if (GetWindowRect(ctx->hwnd, &rect)) {
-		*x = rect.left;
-		*y = rect.top;
-	}
+	window_set_frame(ctx, frame);
 }
 
 static bool window_get_monitor_info(HWND hwnd, MONITORINFOEX *info)
@@ -1867,15 +1874,16 @@ void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
 
 	if (fullscreen && !MTY_WindowIsFullscreen(app, window)) {
 		MONITORINFOEX info = {0};
+
 		if (window_get_monitor_info(ctx->hwnd, &info)) {
 			WINDOWPLACEMENT pl = {0};
 			pl.length = sizeof(WINDOWPLACEMENT);
 
 			if (GetWindowPlacement(ctx->hwnd, &pl)) {
-				ctx->x = pl.rcNormalPosition.left;
-				ctx->y = pl.rcNormalPosition.top;
-				ctx->width = pl.rcNormalPosition.right - pl.rcNormalPosition.left;
-				ctx->height = pl.rcNormalPosition.bottom - pl.rcNormalPosition.top;
+				ctx->frame.x = pl.rcNormalPosition.left;
+				ctx->frame.y = pl.rcNormalPosition.top;
+				ctx->frame.w = pl.rcNormalPosition.right - pl.rcNormalPosition.left;
+				ctx->frame.h = pl.rcNormalPosition.bottom - pl.rcNormalPosition.top;
 			}
 
 			uint32_t x = info.rcMonitor.left;
@@ -1888,11 +1896,7 @@ void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
 		}
 
 	} else if (!fullscreen && MTY_WindowIsFullscreen(app, window)) {
-		SetWindowLongPtr(ctx->hwnd, GWL_STYLE, WS_VISIBLE | WS_OVERLAPPEDWINDOW);
-		SetWindowPos(ctx->hwnd, HWND_TOP, ctx->x, ctx->y, ctx->width, ctx->height, SWP_FRAMECHANGED);
-
-		PostMessage(ctx->hwnd, WM_SETICON, ICON_BIG, GetClassLongPtr(ctx->hwnd, GCLP_HICON));
-		PostMessage(ctx->hwnd, WM_SETICON, ICON_SMALL, GetClassLongPtr(ctx->hwnd, GCLP_HICONSM));
+		window_set_frame(ctx, &ctx->frame);
 	}
 }
 

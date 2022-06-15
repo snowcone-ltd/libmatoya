@@ -600,13 +600,6 @@ typedef enum {
 	MTY_SCOPE_MAKE_32 = INT32_MAX,
 } MTY_Scope;
 
-/// @brief Origin point for window positioning.
-typedef enum {
-	MTY_ORIGIN_CENTER   = 0, ///< Position window relative to the center of the screen.
-	MTY_ORIGIN_ABSOLUTE = 1, ///< Position widow relative to the top left corner of the screen.
-	MTY_ORIGIN_MAKE_32  = INT32_MAX,
-} MTY_Origin;
-
 /// @brief Mobile input modes.
 typedef enum {
 	MTY_INPUT_MODE_UNSPECIFIED = 0, ///< No input mode specified.
@@ -731,23 +724,22 @@ typedef struct {
 	                                 ///<   is selected.
 } MTY_MenuItem;
 
+typedef struct {
+	int32_t x;
+	int32_t y;
+	uint32_t w;
+	uint32_t h;
+} MTY_Frame;
+
 /// @brief Window creation options.
 typedef struct {
 	const char *title;  ///< The title of the window.
-	MTY_Origin origin;  ///< The window's origin determining its `x` and `y` position.
-	MTY_GFX api;        ///< Graphics API set on creation.
-	uint32_t width;     ///< Window width.
-	uint32_t height;    ///< Window height.
+	MTY_Frame frame;    ///< Dimensions and positioning.
 	uint32_t minWidth;  ///< Minimum window width.
 	uint32_t minHeight; ///< Minimum window height.
-	uint32_t x;         ///< The window's horizontal position per its `origin`.
-	uint32_t y;         ///< The window's vertical position per its `origin`.
-	float maxHeight;    ///< The maximum height of the window expressed as a percentage of
-	                    ///<   of the screen height.
 	bool fullscreen;    ///< Window is created as a fullscreen window.
 	bool hidden;        ///< Window should be created hidden. If this is set it will not be
 	                    ///<   activated when it is created.
-	bool vsync;         ///< MTY_WindowPresent should wait for monitor's next refresh cycle.
 	MTY_Window index;   ///< Attempt to create the window with the specified index. If the
 	                    ///<   index is already taken, the first available is used.
 } MTY_WindowDesc;
@@ -803,6 +795,9 @@ MTY_AppIsActive(MTY_App *ctx);
 //- #support Windows macOS Linux
 MTY_EXPORT void
 MTY_AppActivate(MTY_App *ctx, bool active);
+
+MTY_EXPORT void
+MTY_AppTransformFrame(MTY_App *app, bool center, float maxHeight, MTY_Frame *frame);
 
 /// @brief Set a system tray icon for the app.
 /// @param ctx The MTY_App.
@@ -1063,23 +1058,14 @@ MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc);
 MTY_EXPORT void
 MTY_WindowDestroy(MTY_App *app, MTY_Window window);
 
-/// @brief Get a window's width and height.
+/// @brief Get a window's MTY_Frame containing dimensions and positioning.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
-/// @param width Set to the width of the client area of the window.
-/// @param height Set to the height of the client area of the window.
-/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
-MTY_EXPORT bool
-MTY_WindowGetSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height);
+MTY_EXPORT MTY_Frame
+MTY_WindowGetFrame(MTY_App *app, MTY_Window window);
 
-/// @brief Get the `x` and `y` coordinates of the window's top left corner.
-/// @details These coordinates include the window border, title bar, and shadows.
-/// @param app The MTY_App.
-/// @param window An MTY_Window.
-/// @param x Set to the horizontal position of the window's left edge.
-/// @param y Set to the vertical position of the window's top edge.
 MTY_EXPORT void
-MTY_WindowGetPosition(MTY_App *app, MTY_Window window, int32_t *x, int32_t *y);
+MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame);
 
 /// @brief Get the width and height of the screen where the window currently resides.
 /// @param app The MTY_App.

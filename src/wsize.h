@@ -6,38 +6,37 @@
 
 #pragma once
 
-static void wsize_client(const MTY_WindowDesc *desc, float scale, int32_t screen_h,
-	int32_t *x, int32_t *y, int32_t *w, int32_t *h)
+static void wsize_client(float scale, float max_h, uint32_t screen_h, MTY_Frame *frame)
 {
-	if (desc->maxHeight > 0.0f && (float) desc->height * scale >
-		desc->maxHeight * (float) screen_h)
-	{
-		float aspect = (float) desc->width / (float) desc->height;
-		*h = lrint(desc->maxHeight * (float) screen_h);
-		*w = lrint((float) *h * aspect);
+	if (scale == 0.0f)
+		scale = 1.0f;
+
+	if (max_h > 0.0f && frame->h * scale > max_h * screen_h) {
+		float aspect = (float) frame->w / frame->h;
+		frame->h = lrint(max_h * screen_h);
+		frame->w = lrint(frame->h * aspect);
 
 	} else {
-		*w = lrint((float) desc->width * scale);
-		*h = lrint((float) desc->height * scale);
+		frame->w = lrint(frame->w * scale);
+		frame->h = lrint(frame->h * scale);
 	}
 }
 
-static void wsize_center(int32_t screen_x, int32_t screen_y, int32_t screen_w, int32_t screen_h,
-	int32_t *x, int32_t *y, int32_t *w, int32_t *h)
+static void wsize_center(int32_t screen_x, int32_t screen_y, uint32_t screen_w, uint32_t screen_h, MTY_Frame *frame)
 {
-	if (screen_w > *w) {
-		*x += (screen_w - *w) / 2;
+	if (screen_w > frame->w) {
+		frame->x += (screen_w - frame->w) / 2;
 
 	} else {
-		*x = screen_x;
-		*w = screen_w;
+		frame->x = screen_x;
+		frame->w = screen_w;
 	}
 
-	if (screen_h > *h) {
-		*y += (screen_h - *h) / 2;
+	if (screen_h > frame->h) {
+		frame->y += (screen_h - frame->h) / 2;
 
 	} else {
-		*y = screen_y;
-		*h = screen_h;
+		frame->y = screen_y;
+		frame->h = screen_h;
 	}
 }
