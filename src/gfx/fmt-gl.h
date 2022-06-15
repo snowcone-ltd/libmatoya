@@ -7,6 +7,7 @@
 static const GLenum FMT_PLANES[MTY_COLOR_FORMAT_MAX][3][3] = {
 	[MTY_COLOR_FORMAT_UNKNOWN]    = {{0,           0,       0},                              {0},                                  {0}},
 	[MTY_COLOR_FORMAT_BGRA]       = {{GL_RGBA,     GL_BGRA, GL_UNSIGNED_BYTE},               {0},                                  {0}},
+	[MTY_COLOR_FORMAT_RGBA]       = {{GL_RGBA,     GL_RGBA, GL_UNSIGNED_BYTE},               {0},                                  {0}},
 	[MTY_COLOR_FORMAT_BGR565]     = {{GL_RGB,      GL_RGB,  GL_UNSIGNED_SHORT_5_6_5},        {0},                                  {0}},
 	[MTY_COLOR_FORMAT_BGRA5551]   = {{GL_RGBA,     GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV},  {0},                                  {0}},
 	[MTY_COLOR_FORMAT_AYUV]       = {{GL_RGBA,     GL_BGRA, GL_UNSIGNED_BYTE},               {0},                                  {0}},

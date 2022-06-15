@@ -19,6 +19,7 @@ static const struct {
 } FMT_INFO[MTY_COLOR_FORMAT_MAX] = {
 	[MTY_COLOR_FORMAT_UNKNOWN]    = {0, 0, 0, 0},
 	[MTY_COLOR_FORMAT_BGRA]       = {1, 4, 0, 0},
+	[MTY_COLOR_FORMAT_RGBA]       = {1, 4, 0, 0},
 	[MTY_COLOR_FORMAT_BGR565]     = {1, 2, 0, 0},
 	[MTY_COLOR_FORMAT_BGRA5551]   = {1, 2, 0, 0},
 	[MTY_COLOR_FORMAT_AYUV]       = {1, 4, 1, 0},

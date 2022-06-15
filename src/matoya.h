@@ -58,16 +58,17 @@ typedef enum {
 typedef enum {
 	MTY_COLOR_FORMAT_UNKNOWN    = 0,  ///< Unknown color format.
 	MTY_COLOR_FORMAT_BGRA       = 1,  ///< 32-bit BGRA, 8 bits per channel.
-	MTY_COLOR_FORMAT_BGR565     = 2,  ///< 16-bit BGR, 5 bits B, 6 bits G, 5 bits R.
-	MTY_COLOR_FORMAT_BGRA5551   = 3,  ///< 16-bit BGRA, 5 bits per BGR, 1 bit A.
-	MTY_COLOR_FORMAT_AYUV       = 4,  ///< 32-bit 4:4:4 AYUV, 8 bits per channel.
-	MTY_COLOR_FORMAT_Y410       = 5,  ///< 32-bit 4:4:4 YUVA, 10 bits per YUV, 2 bits A.
-	MTY_COLOR_FORMAT_Y416       = 6,  ///< 64-bit 4:4:4 YUVA, 16 bits per channel.
-	MTY_COLOR_FORMAT_2PLANES    = 7,  ///< 1 plane Y, 1 plane interleaved UV, 8 bits per channel.
-	MTY_COLOR_FORMAT_3PLANES    = 8,  ///< 3 consecutive planes of YUV, 8 bits per channel.
-	MTY_COLOR_FORMAT_2PLANES_16 = 9,  ///< 1 plane Y, 1 plane interleaved UV, 16 bits per channel.
-	MTY_COLOR_FORMAT_3PLANES_16 = 10, ///< 3 consecutive planes of YUV, 16 bits per channel.
-	MTY_COLOR_FORMAT_MAX        = 11, ///< Maximum number of color formats.
+	MTY_COLOR_FORMAT_RGBA       = 2,  ///< 32-bit RGBA, 8 bits per channel.
+	MTY_COLOR_FORMAT_BGR565     = 3,  ///< 16-bit BGR, 5 bits B, 6 bits G, 5 bits R.
+	MTY_COLOR_FORMAT_BGRA5551   = 4,  ///< 16-bit BGRA, 5 bits per BGR, 1 bit A.
+	MTY_COLOR_FORMAT_AYUV       = 5,  ///< 32-bit 4:4:4 AYUV, 8 bits per channel.
+	MTY_COLOR_FORMAT_Y410       = 6,  ///< 32-bit 4:4:4 YUVA, 10 bits per YUV, 2 bits A.
+	MTY_COLOR_FORMAT_Y416       = 7,  ///< 64-bit 4:4:4 YUVA, 16 bits per channel.
+	MTY_COLOR_FORMAT_2PLANES    = 8,  ///< 1 plane Y, 1 plane interleaved UV, 8 bits per channel.
+	MTY_COLOR_FORMAT_3PLANES    = 9,  ///< 3 consecutive planes of YUV, 8 bits per channel.
+	MTY_COLOR_FORMAT_2PLANES_16 = 10, ///< 1 plane Y, 1 plane interleaved UV, 16 bits per channel.
+	MTY_COLOR_FORMAT_3PLANES_16 = 11, ///< 3 consecutive planes of YUV, 16 bits per channel.
+	MTY_COLOR_FORMAT_MAX        = 12, ///< Maximum number of color formats.
 	MTY_COLOR_FORMAT_MAKE_32    = INT32_MAX,
 } MTY_ColorFormat;
 
