@@ -24,13 +24,14 @@ static bool app_func(void *opaque)
 
 	// Set up a render description for the PNG
 	MTY_RenderDesc desc = {
-		.format = MTY_COLOR_FORMAT_BGRA,
-		.effect = MTY_EFFECT_SCANLINES,
+		.format = MTY_COLOR_FORMAT_RGBA,
+		.filter = MTY_FILTER_LINEAR,
+		.effects = {MTY_EFFECT_SCANLINES},
+		.levels = {0.85f},
 		.imageWidth = ctx->image_w,
 		.imageHeight = ctx->image_h,
 		.cropWidth = ctx->image_w,
 		.cropHeight = ctx->image_h,
-		.aspectRatio = (float) ctx->image_w / (float) ctx->image_h,
 	};
 
 	// Draw the quad
