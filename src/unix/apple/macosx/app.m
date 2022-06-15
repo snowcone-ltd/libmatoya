@@ -14,6 +14,7 @@
 #include "scale.h"
 #include "keymap.h"
 #include "hid/hid.h"
+#include "hid/utils.h"
 
 
 // NSApp
