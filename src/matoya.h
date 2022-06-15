@@ -287,7 +287,8 @@ MTY_FreeRenderState(MTY_RenderState **state);
 //-   many different dependencies under the hood responsible for input handling,
 //-   graphics API context creation, window creation, and event loop processing.
 
-#define MTY_WINDOW_MAX 8 ///< Maximum number of windows that can be created.
+#define MTY_WINDOW_MAX 8  ///< Maximum number of windows that can be created.
+#define MTY_SCREEN_MAX 32 ///< Maximum size of a screen identifier.
 
 #define MTY_DPAD(c) \
 	((c)->axes[MTY_CAXIS_DPAD].value)
@@ -600,13 +601,6 @@ typedef enum {
 	MTY_SCOPE_MAKE_32 = INT32_MAX,
 } MTY_Scope;
 
-/// @brief Origin point for window positioning.
-typedef enum {
-	MTY_ORIGIN_CENTER   = 0, ///< Position window relative to the center of the screen.
-	MTY_ORIGIN_ABSOLUTE = 1, ///< Position widow relative to the top left corner of the screen.
-	MTY_ORIGIN_MAKE_32  = INT32_MAX,
-} MTY_Origin;
-
 /// @brief Mobile input modes.
 typedef enum {
 	MTY_INPUT_MODE_UNSPECIFIED = 0, ///< No input mode specified.
@@ -626,6 +620,15 @@ typedef enum {
 	                               ///<   lost any previously loaded textures and state.
 	MTY_CONTEXT_STATE_MAKE_32 = INT32_MAX,
 } MTY_ContextState;
+
+/// @brief Window modes and behaviors.
+typedef enum {
+	MTY_WINDOW_NORMAL     = 0x0, ///< Normal resizable, bordered window.
+	MTY_WINDOW_HIDDEN     = 0x1, ///< Window is hidden without any visible elements.
+	MTY_WINDOW_FULLSCREEN = 0x2, ///< Window is in fullscreen mode.
+	MTY_WINDOW_MAXIMIZED  = 0x4, ///< Window is maximized (zoomed).
+	MTY_WINDOW_MAKE_32    = INT32_MAX,
+} MTY_WindowType;
 
 /// @brief Key event.
 typedef struct {
@@ -731,26 +734,20 @@ typedef struct {
 	                                 ///<   is selected.
 } MTY_MenuItem;
 
-/// @brief Window creation options.
+/// @brief Size struct containing width and height.
 typedef struct {
-	const char *title;  ///< The title of the window.
-	MTY_Origin origin;  ///< The window's origin determining its `x` and `y` position.
-	MTY_GFX api;        ///< Graphics API set on creation.
-	uint32_t width;     ///< Window width.
-	uint32_t height;    ///< Window height.
-	uint32_t minWidth;  ///< Minimum window width.
-	uint32_t minHeight; ///< Minimum window height.
-	uint32_t x;         ///< The window's horizontal position per its `origin`.
-	uint32_t y;         ///< The window's vertical position per its `origin`.
-	float maxHeight;    ///< The maximum height of the window expressed as a percentage of
-	                    ///<   of the screen height.
-	bool fullscreen;    ///< Window is created as a fullscreen window.
-	bool hidden;        ///< Window should be created hidden. If this is set it will not be
-	                    ///<   activated when it is created.
-	bool vsync;         ///< MTY_WindowPresent should wait for monitor's next refresh cycle.
-	MTY_Window index;   ///< Attempt to create the window with the specified index. If the
-	                    ///<   index is already taken, the first available is used.
-} MTY_WindowDesc;
+	uint32_t w; ///< Width.
+	uint32_t h; ///< Height.
+} MTY_Size;
+
+/// @brief Window size and position.
+typedef struct {
+	MTY_WindowType type;         ///< Window type.
+	MTY_Size size;               ///< Window client (content) size.
+	char screen[MTY_SCREEN_MAX]; ///< Screen identifier.
+	int32_t x;                   ///< Window horizontal offset from the left of `screen`.
+	int32_t y;                   ///< Window vertical offset from the top of `screen`.
+} MTY_Frame;
 
 /// @brief Function called for each event sent to the app.
 /// @param evt The MTY_Event received by the app.
@@ -1040,22 +1037,20 @@ MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode);
 /// @brief Create an MTY_Window, the primary interactive view of an application.
 /// @details An MTY_Window is a child of the MTY_App object, so everywhere a window
 ///   is referenced the MTY_App comes along with it. All functions taking an MTY_Window
-///   as an argument are designed to handle invalid windows, which are integers.\n\n
-///   A window can be created without a graphics context and once can be set later
-///   via MTY_WindowSetGFX. On Apple platforms the graphics context must be set on
-///   the main thread.\n\n
-///   Direct3D 9 has quirks if the context is created on the main thread and is
-///   then used on a secondary thread, so in this case you should create the window on
-///   the main thread without a graphics context and call MTY_WindowSetGFX on the thread
-///   that is doing the rendering.
+///   as an argument are designed to handle invalid windows, which are integers.
 /// @param app The MTY_App.
-/// @param desc The window's creation properties.
+/// @param title The title of the window.
+/// @param frame The window's size and position. Use MTY_MakeDefaultFrame or MTY_WindowGetFrame
+///   to fill a frame more precisely. This function expects unscaled values. May be NULL
+///   for sensible defaults.
+/// @param index Attempt to create the window with the specified index. If the index is already
+///   taken, the first available is used.
 /// @returns On success, a value between 0 and MTY_WINDOW_MAX is returned.\n\n
 ///   On failure, -1 is returned. Call MTY_GetLog for details.\n\n
 ///   The returned MTY_Window may be destroyed with MTY_WindowDestroy, or destroyed
 ///   during MTY_AppDestroy which destroys all windows.
 MTY_EXPORT MTY_Window
-MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc);
+MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, MTY_Window index);
 
 /// @brief Destroy an MTY_Window.
 /// @param app The MTY_App.
@@ -1063,33 +1058,43 @@ MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc);
 MTY_EXPORT void
 MTY_WindowDestroy(MTY_App *app, MTY_Window window);
 
-/// @brief Get a window's width and height.
+/// @brief Get a window's current client area width and height.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
-/// @param width Set to the width of the client area of the window.
-/// @param height Set to the height of the client area of the window.
-/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
-MTY_EXPORT bool
-MTY_WindowGetSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height);
+MTY_EXPORT MTY_Size
+MTY_WindowGetSize(MTY_App *app, MTY_Window window);
 
-/// @brief Get the `x` and `y` coordinates of the window's top left corner.
-/// @details These coordinates include the window border, title bar, and shadows.
+/// @brief Get a window's normalized size and position.
+/// @details This function can be used to query the "restored" size and position of a window
+///   even when it is maximized or in fullscreen mode. It also will always return unscaled values
+///   taking into account the screen's current scaling setting. The returned MTY_Frame can be
+///   passed directly into MTY_WindowCreate or MTY_WindowSetFrame.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
-/// @param x Set to the horizontal position of the window's left edge.
-/// @param y Set to the vertical position of the window's top edge.
+MTY_EXPORT MTY_Frame
+MTY_WindowGetFrame(MTY_App *app, MTY_Window window);
+
+/// @brief Set a window's size and position.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @param frame An MTY_Frame containing the window's size and position. This function expects
+///   unscaled values.
 MTY_EXPORT void
-MTY_WindowGetPosition(MTY_App *app, MTY_Window window, int32_t *x, int32_t *y);
+MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame);
+
+/// @brief Set a window's minimum size.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @param minWidth The window's minimum possible width.
+/// @param minHeight The window's minimum possible height.
+MTY_EXPORT void
+MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, uint32_t minHeight);
 
 /// @brief Get the width and height of the screen where the window currently resides.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
-/// @param width The width of the screen where the window resides.
-/// @param height The height of the screen where the window resides.
-/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
-MTY_EXPORT bool
-MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window, uint32_t *width,
-	uint32_t *height);
+MTY_EXPORT MTY_Size
+MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window);
 
 /// @brief Get the scaling factor of the screen where the window currently resides.
 /// @param app The MTY_App.
@@ -1266,6 +1271,19 @@ MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync);
 /// @param window An MTY_Window.
 MTY_EXPORT MTY_ContextState
 MTY_WindowGetContextState(MTY_App *app, MTY_Window window);
+
+/// @brief Fill an MTY_Frame taking the current display settings into account.
+/// @details The returned MTY_Frame can be passed directly to MTY_WindowCreate or
+///   MTY_WindowSetFrame.
+/// @param x The window's horizontal offset from the center of the primary screen.
+/// @param y The window's vertical offset from the center of the primary screen.
+/// @param w The window's unscaled width.
+/// @param h The window's unscaled height.
+/// @param maxHeight Between 0.0f and 1.0f, limit the frame's height to a percentage of the
+///   primary screen's height. The frame's width is adjusted accordingly keeping the original
+///   aspect ratio intact. This calculation is based on the final scaled height of the window.
+MTY_EXPORT MTY_Frame
+MTY_MakeDefaultFrame(int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight);
 
 /// @brief Get the string representation of a key combination.
 /// @details This function attempts to use the current locale.

@@ -21,6 +21,7 @@
 
 #define None                      0L
 #define NoSymbol                  0L
+#define AnyPropertyType           0L
 #define Bool                      int
 #define True                      1
 #define False                     0
@@ -449,6 +450,9 @@ typedef struct _XIM *XIM;
 typedef struct _XIC *XIC;
 
 static Display *(*XOpenDisplay)(const char *display_name);
+static Screen *(*XScreenOfDisplay)(Display *display, int screen_number);
+static Screen *(*XDefaultScreenOfDisplay)(Display *display);
+static int (*XScreenNumberOfScreen)(Screen *screen);
 static int (*XCloseDisplay)(Display *display);
 static Window (*XDefaultRootWindow)(Display *display);
 static Window (*XRootWindowOfScreen)(Screen *screen);
@@ -461,12 +465,15 @@ static int (*XMapRaised)(Display *display, Window w);
 static int (*XSetInputFocus)(Display *display, Window focus, int revert_to, Time time);
 static int (*XStoreName)(Display *display, Window w, const char *window_name);
 static Status (*XGetWindowAttributes)(Display *display, Window w, XWindowAttributes *window_attributes_return);
+static Bool (*XTranslateCoordinates)(Display *display, Window src_w, Window dest_w, int src_x, int src_y,
+	int *dest_x_return, int *dest_y_return, Window *child_return);
 static KeySym (*XLookupKeysym)(XKeyEvent *key_event, int index);
 static Status (*XSetWMProtocols)(Display *display, Window w, Atom *protocols, int count);
 static Atom (*XInternAtom)(Display *display, const char *atom_name, Bool only_if_exists);
 static int (*XNextEvent)(Display *display, XEvent *event_return);
 static int (*XEventsQueued)(Display *display, int mode);
 static int (*XMoveWindow)(Display *display, Window w, int x, int y);
+static int (*XMoveResizeWindow)(Display *display, Window w, int x, int y, unsigned int width, unsigned int height);
 static int (*XChangeProperty)(Display *display, Window w, Atom property, Atom type, int format, int mode, const unsigned char *data, int nelements);
 static int (*XGetInputFocus)(Display *display, Window *focus_return, int *revert_to_return);
 static char *(*XGetDefault)(Display *display, const char *program, const char *option);
@@ -685,6 +692,9 @@ static bool libX11_global_init(void)
 		}
 
 		LOAD_SYM(LIBX11_SO, XOpenDisplay);
+		LOAD_SYM(LIBX11_SO, XScreenOfDisplay);
+		LOAD_SYM(LIBX11_SO, XDefaultScreenOfDisplay);
+		LOAD_SYM(LIBX11_SO, XScreenNumberOfScreen);
 		LOAD_SYM(LIBX11_SO, XCloseDisplay);
 		LOAD_SYM(LIBX11_SO, XDefaultRootWindow);
 		LOAD_SYM(LIBX11_SO, XRootWindowOfScreen);
@@ -695,12 +705,14 @@ static bool libX11_global_init(void)
 		LOAD_SYM(LIBX11_SO, XSetInputFocus);
 		LOAD_SYM(LIBX11_SO, XStoreName);
 		LOAD_SYM(LIBX11_SO, XGetWindowAttributes);
+		LOAD_SYM(LIBX11_SO, XTranslateCoordinates);
 		LOAD_SYM(LIBX11_SO, XLookupKeysym);
 		LOAD_SYM(LIBX11_SO, XSetWMProtocols);
 		LOAD_SYM(LIBX11_SO, XInternAtom);
 		LOAD_SYM(LIBX11_SO, XNextEvent);
 		LOAD_SYM(LIBX11_SO, XEventsQueued);
 		LOAD_SYM(LIBX11_SO, XMoveWindow);
+		LOAD_SYM(LIBX11_SO, XMoveResizeWindow);
 		LOAD_SYM(LIBX11_SO, XChangeProperty);
 		LOAD_SYM(LIBX11_SO, XGetInputFocus);
 		LOAD_SYM(LIBX11_SO, XGetDefault);
