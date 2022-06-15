@@ -732,19 +732,6 @@ typedef struct {
 	uint32_t h; ///< Window height.
 } MTY_Frame;
 
-/// @brief Window creation options.
-typedef struct {
-	const char *title;  ///< The title of the window.
-	MTY_Frame frame;    ///< Dimensions and positioning.
-	uint32_t minWidth;  ///< Minimum window width.
-	uint32_t minHeight; ///< Minimum window height.
-	bool fullscreen;    ///< Window is created as a fullscreen window.
-	bool hidden;        ///< Window should be created hidden. If this is set it will not be
-	                    ///<   activated when it is created.
-	MTY_Window index;   ///< Attempt to create the window with the specified index. If the
-	                    ///<   index is already taken, the first available is used.
-} MTY_WindowDesc;
-
 /// @brief Function called for each event sent to the app.
 /// @param evt The MTY_Event received by the app.
 /// @param opaque Pointer set via MTY_AppCreate.
@@ -1049,13 +1036,6 @@ MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode);
 /// @details An MTY_Window is a child of the MTY_App object, so everywhere a window
 ///   is referenced the MTY_App comes along with it. All functions taking an MTY_Window
 ///   as an argument are designed to handle invalid windows, which are integers.\n\n
-///   A window can be created without a graphics context and once can be set later
-///   via MTY_WindowSetGFX. On Apple platforms the graphics context must be set on
-///   the main thread.\n\n
-///   Direct3D 9 has quirks if the context is created on the main thread and is
-///   then used on a secondary thread, so in this case you should create the window on
-///   the main thread without a graphics context and call MTY_WindowSetGFX on the thread
-///   that is doing the rendering.
 /// @param app The MTY_App.
 /// @param desc The window's creation properties.
 /// @returns On success, a value between 0 and MTY_WINDOW_MAX is returned.\n\n
@@ -1063,7 +1043,8 @@ MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode);
 ///   The returned MTY_Window may be destroyed with MTY_WindowDestroy, or destroyed
 ///   during MTY_AppDestroy which destroys all windows.
 MTY_EXPORT MTY_Window
-MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc);
+MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, bool fullscreen,
+	bool hidden, MTY_Window index);
 
 /// @brief Destroy an MTY_Window.
 /// @param app The MTY_App.
@@ -1083,6 +1064,14 @@ MTY_WindowGetFrame(MTY_App *app, MTY_Window window);
 /// @param frame An MTY_Frame containing the window's size and positioning.
 MTY_EXPORT void
 MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame);
+
+/// @brief Set a window's minimum size.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @param minWidth The window's minimum possible width.
+/// @param minHeight The window's minimum possible height.
+MTY_EXPORT void
+MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, uint32_t minHeight);
 
 /// @brief Get the width and height of the screen where the window currently resides.
 /// @param app The MTY_App.

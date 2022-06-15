@@ -1636,13 +1636,14 @@ static void window_adjust_frame(MTY_Frame *frame)
 	frame->h = r.bottom - r.top;
 }
 
-MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
+MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, bool fullscreen,
+	bool hidden, MTY_Window index)
 {
 	MTY_Window window = -1;
 	wchar_t *titlew = NULL;
 	bool r = true;
 
-	window = app_find_open_window(app, desc->index);
+	window = app_find_open_window(app, index);
 	if (window == -1) {
 		r = false;
 		MTY_Log("Maximum windows (MTY_WINDOW_MAX) of %u reached", MTY_WINDOW_MAX);
@@ -1655,12 +1656,10 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 	ctx->ri = MTY_Alloc(APP_RI_MAX, 1);
 	ctx->app = app;
 	ctx->window = window;
-	ctx->min_width = desc->minWidth;
-	ctx->min_height = desc->minHeight;
 
 	DWORD style = WS_OVERLAPPEDWINDOW;
 
-	ctx->frame = desc->frame;
+	ctx->frame = *frame;
 	window_adjust_frame(&ctx->frame);
 
 	int32_t w = ctx->frame.w;
@@ -1668,7 +1667,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 	int32_t x = ctx->frame.x;
 	int32_t y = ctx->frame.y;
 
-	if (desc->fullscreen) {
+	if (fullscreen) {
 		style = WS_POPUP;
 
 		RECT rect = {0};
@@ -1680,7 +1679,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 		h = rect.bottom - rect.top;
 	}
 
-	titlew = MTY_MultiToWideD(desc->title ? desc->title : "MTY_Window");
+	titlew = MTY_MultiToWideD(title ? title : "MTY_Window");
 
 	ctx->hwnd = CreateWindowEx(0, APP_CLASS_NAME, titlew, style, x, y, w, h, NULL, NULL, app->instance, ctx);
 	if (!ctx->hwnd) {
@@ -1689,7 +1688,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 		goto except;
 	}
 
-	if (!desc->hidden)
+	if (!hidden)
 		app_hwnd_activate(ctx->hwnd, true);
 
 	DragAcceptFiles(ctx->hwnd, TRUE);
@@ -1773,6 +1772,16 @@ void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
 	window_adjust_frame(&ctx->frame);
 
 	window_set_frame(ctx, &ctx->frame);
+}
+
+void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, uint32_t minHeight)
+{
+	struct window *ctx = app_get_window(app, window);
+	if (!ctx)
+		return;
+
+	ctx->min_width = minWidth;
+	ctx->min_height = minHeight;
 }
 
 static bool window_get_monitor_info(HWND hwnd, MONITORINFOEX *info)
