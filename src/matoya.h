@@ -1037,7 +1037,7 @@ MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode);
 ///   is referenced the MTY_App comes along with it. All functions taking an MTY_Window
 ///   as an argument are designed to handle invalid windows, which are integers.\n\n
 /// @param app The MTY_App.
-/// @param desc The window's creation properties.
+/// XXX TODO
 /// @returns On success, a value between 0 and MTY_WINDOW_MAX is returned.\n\n
 ///   On failure, -1 is returned. Call MTY_GetLog for details.\n\n
 ///   The returned MTY_Window may be destroyed with MTY_WindowDestroy, or destroyed
@@ -1057,6 +1057,9 @@ MTY_WindowDestroy(MTY_App *app, MTY_Window window);
 /// @param window An MTY_Window.
 MTY_EXPORT MTY_Frame
 MTY_WindowGetFrame(MTY_App *app, MTY_Window window);
+
+MTY_EXPORT MTY_Frame
+MTY_WindowGetNormalFrame(MTY_App *app, MTY_Window window);
 
 /// @brief Set a window's size and positioning.
 /// @param app The MTY_App.
