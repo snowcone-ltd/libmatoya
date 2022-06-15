@@ -18,6 +18,7 @@
 #include "jnih.h"
 #include "keymap.h"
 #include "gfx/gl-ctx.h"
+#include "hid/utils.h"
 
 static struct MTY_App {
 	MTY_EventFunc event_func;
