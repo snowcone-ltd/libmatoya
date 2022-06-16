@@ -132,6 +132,14 @@ bool MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync)
 	return gfx_ctx ? true : false;
 }
 
+bool MTY_WindowIsHDRSupported(MTY_App *app, MTY_Window window)
+{
+	struct gfx_ctx *gfx_ctx = NULL;
+	MTY_GFX api = mty_window_get_gfx(app, window, &gfx_ctx);
+
+	return api != MTY_GFX_NONE && GFX_CTX_API[api].hdr_supported(gfx_ctx);
+}
+
 
 // Event utility
 

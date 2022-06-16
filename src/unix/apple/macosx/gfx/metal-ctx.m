@@ -195,3 +195,8 @@ bool mty_metal_ctx_make_current(struct gfx_ctx *gfx_ctx, bool current)
 {
 	return false;
 }
+
+bool mty_metal_ctx_hdr_supported(struct gfx_ctx *gfx_ctx)
+{
+	return false;
+}

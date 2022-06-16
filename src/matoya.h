@@ -1334,6 +1334,13 @@ MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync);
 MTY_EXPORT MTY_ContextState
 MTY_WindowGetContextState(MTY_App *app, MTY_Window window);
 
+/// @brief Tells you whether the window can show HDR content or not.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @returns Returns true if the window can render HDR content, false otherwise.
+MTY_EXPORT bool
+MTY_WindowIsHDRSupported(MTY_App *app, MTY_Window window);
+
 /// @brief Get the string representation of a key combination.
 /// @details This function attempts to use the current locale.
 /// @param mod Combo modifier.

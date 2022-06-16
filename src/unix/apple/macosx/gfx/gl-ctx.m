@@ -197,3 +197,8 @@ bool mty_gl_ctx_make_current(struct gfx_ctx *gfx_ctx, bool current)
 
 	return true;
 }
+
+bool mty_gl_ctx_hdr_supported(struct gfx_ctx *gfx_ctx)
+{
+	return false;
+}
