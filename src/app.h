@@ -9,6 +9,9 @@
 #include "matoya.h"
 #include "gfx/mod-ctx.h"
 
+#define APP_DEFAULT_WINDOW_W 800
+#define APP_DEFAULT_WINDOW_H 600
+
 void mty_window_set_gfx(MTY_App *app, MTY_Window window, MTY_GFX api, struct gfx_ctx *gfx_ctx);
 MTY_GFX mty_window_get_gfx(MTY_App *app, MTY_Window window, struct gfx_ctx **gfx_ctx);
 void *mty_window_get_native(MTY_App *app, MTY_Window window);

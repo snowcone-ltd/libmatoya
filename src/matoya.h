@@ -724,10 +724,10 @@ typedef struct {
 	                                 ///<   is selected.
 } MTY_MenuItem;
 
-/// @brief Window size and positioning.
+/// @brief Window size and position.
 typedef struct {
-	int32_t x;  ///< Window horizontal positioning.
-	int32_t y;  ///< Window vertical positioning.
+	int32_t x;  ///< Window horizontal position.
+	int32_t y;  ///< Window vertical position.
 	uint32_t w; ///< Window width.
 	uint32_t h; ///< Window height.
 } MTY_Frame;
@@ -786,8 +786,8 @@ MTY_AppActivate(MTY_App *ctx, bool active);
 
 /// @brief Fill an MTY_Frame taking the current display configuration into account.
 /// @param ctx The MTY_App.
-/// @param x Window horizontal positioning.
-/// @param y Window vertical positioning.
+/// @param x Window horizontal position.
+/// @param y Window vertical position.
 /// @param w Window width.
 /// @param h Window height.
 /// @param center Treat `x` and `y` as relative to the primary screen's center point.
@@ -1037,7 +1037,13 @@ MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode);
 ///   is referenced the MTY_App comes along with it. All functions taking an MTY_Window
 ///   as an argument are designed to handle invalid windows, which are integers.\n\n
 /// @param app The MTY_App.
-/// XXX TODO
+/// @param title The title of the window.
+/// @param frame The window's size and position. Use MTY_AppMakeWindowFrame to fill an
+///   MTY_Frame more precisely. May be NULL for sensible defaults.
+/// @param fullscreen The window is created in fullscreen mode.
+/// @param hidden The window should be created hidden. If this is set it will not be activated.
+/// @param index Attempt to create the window with the specified index. If the index is already
+///   taken, the first available is used.
 /// @returns On success, a value between 0 and MTY_WINDOW_MAX is returned.\n\n
 ///   On failure, -1 is returned. Call MTY_GetLog for details.\n\n
 ///   The returned MTY_Window may be destroyed with MTY_WindowDestroy, or destroyed
@@ -1052,19 +1058,24 @@ MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, bool f
 MTY_EXPORT void
 MTY_WindowDestroy(MTY_App *app, MTY_Window window);
 
-/// @brief Get a window's size and positioning.
+/// @brief Get a window's size and position.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 MTY_EXPORT MTY_Frame
 MTY_WindowGetFrame(MTY_App *app, MTY_Window window);
 
+/// @brief Get a window's normal (windowed) size and position.
+/// @details This function can be used to query the "restored" size and position of a window
+///   even when it is maximized or in fullscreen mode.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
 MTY_EXPORT MTY_Frame
 MTY_WindowGetNormalFrame(MTY_App *app, MTY_Window window);
 
-/// @brief Set a window's size and positioning.
+/// @brief Set a window's size and position.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
-/// @param frame An MTY_Frame containing the window's size and positioning.
+/// @param frame An MTY_Frame containing the window's size and position.
 MTY_EXPORT void
 MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame);
 

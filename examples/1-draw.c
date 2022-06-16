@@ -49,14 +49,8 @@ int main(int argc, char **argv)
 	if (!ctx.app)
 		return 1;
 
-	MTY_WindowDesc desc = {
-		.title = "My Window",
-		.api = MTY_GFX_GL,
-		.width = 800,
-		.height = 600,
-	};
-
-	MTY_WindowCreate(ctx.app, &desc);
+	MTY_WindowCreate(ctx.app, "My Window", NULL, false, false, 0);
+	MTY_WindowSetGFX(ctx.app, 0, MTY_GFX_GL, true);
 	MTY_WindowMakeCurrent(ctx.app, 0, true);
 
 	// Fetch a PNG from the internet

@@ -1679,6 +1679,15 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	ctx->app = app;
 	ctx->window = window;
 
+	MTY_Frame dframe = {0};
+
+	if (!frame) {
+		dframe = MTY_AppMakeWindowFrame(app, 0, 0, APP_DEFAULT_WINDOW_W,
+			APP_DEFAULT_WINDOW_H, true, true, 0.0f);
+
+		frame = &dframe;
+	}
+
 	DWORD style = WS_OVERLAPPEDWINDOW;
 
 	ctx->frame = window_adjust_frame(frame);
