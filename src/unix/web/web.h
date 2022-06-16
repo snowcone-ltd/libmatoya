@@ -42,7 +42,7 @@ char *web_get_clipboard(void);
 void web_set_clipboard(const char *text);
 void web_set_mem_funcs(WEB_ALLOC alloc, WEB_FREE free);
 void web_get_size(uint32_t *width, uint32_t *height);
-void web_get_position(int32_t *x, int32_t *y);
+void web_get_position(uint32_t *x, uint32_t *y);
 void web_get_screen_size(uint32_t *width, uint32_t *height);
 void web_set_title(const char *title);
 void web_raf(MTY_App *app, MTY_AppFunc func, WEB_CONTROLLER controller, WEB_MOVE move, void *opaque);

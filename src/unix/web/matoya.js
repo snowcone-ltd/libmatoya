@@ -900,8 +900,8 @@ const MTY_WEB_API = {
 		MTY_SetUint32(c_height, MTY.gl.drawingBufferHeight);
 	},
 	web_get_position: function (c_x, c_y) {
-		MTY_SetInt32(c_x, MTY.lastX);
-		MTY_SetInt32(c_y, MTY.lastY);
+		MTY_SetUint32(c_x, MTY.lastX);
+		MTY_SetUint32(c_y, MTY.lastY);
 	},
 	web_get_screen_size: function (c_width, c_height) {
 		MTY_SetUint32(c_width, screen.width);

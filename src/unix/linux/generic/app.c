@@ -702,15 +702,10 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 	MTY_WindowActivate(ctx, 0, active);
 }
 
-MTY_Frame MTY_AppMakeWindowFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, bool center,
-	bool scale, float maxHeight)
+MTY_Frame MTY_AppTransformFrame(MTY_App *ctx, bool center, bool scale, float maxHeight,
+	const MTY_Frame *frame)
 {
-	MTY_Frame frame = {
-		.x = x,
-		.y = y,
-		.w = w,
-		.h = h,
-	};
+	MTY_Frame tframe = *frame;
 
 	Window root = XDefaultRootWindow(ctx->display);
 
@@ -720,12 +715,12 @@ MTY_Frame MTY_AppMakeWindowFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w,
 	uint32_t screen_w = XWidthOfScreen(attr.screen);
 	uint32_t screen_h = XHeightOfScreen(attr.screen);
 	float f = scale ? ctx->scale : 1.0f;
-	wsize_client(f, maxHeight, screen_h, &frame);
+	wsize_client(f, maxHeight, screen_h, &tframe);
 
 	if (center)
-		wsize_center(0, 0, screen_w, screen_h, &frame);
+		wsize_center(0, 0, screen_w, screen_h, &tframe);
 
-	return frame;
+	return tframe;
 }
 
 void MTY_AppSetTray(MTY_App *ctx, const char *tooltip, const MTY_MenuItem *items, uint32_t len)
@@ -1031,12 +1026,13 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	ctx->index = window;
 	app->windows[window] = ctx;
 
-	MTY_Frame dframe = {0};
+	MTY_Frame dframe = {
+		.w = APP_DEFAULT_WINDOW_W,
+		.h = APP_DEFAULT_WINDOW_H,
+	};
 
 	if (!frame) {
-		dframe = MTY_AppMakeWindowFrame(app, 0, 0, APP_DEFAULT_WINDOW_W,
-			APP_DEFAULT_WINDOW_H, true, true, 0.0f);
-
+		dframe = MTY_AppTransformFrame(app, true, true, 0.0f, &dframe);
 		frame = &dframe;
 	}
 

@@ -726,10 +726,11 @@ typedef struct {
 
 /// @brief Window size and position.
 typedef struct {
-	int32_t x;  ///< Window horizontal position.
-	int32_t y;  ///< Window vertical position.
-	uint32_t w; ///< Window width.
-	uint32_t h; ///< Window height.
+	uint8_t screen; ///< Screen index where the window resides.
+	uint32_t x;     ///< Window horizontal position from the left edge of the screen.
+	uint32_t y;     ///< Window vertical position from the top edge of the screen.
+	uint32_t w;     ///< Window client (content) width.
+	uint32_t h;     ///< Window client (content) height.
 } MTY_Frame;
 
 /// @brief Function called for each event sent to the app.
@@ -786,18 +787,15 @@ MTY_AppActivate(MTY_App *ctx, bool active);
 
 /// @brief Fill an MTY_Frame taking the current display configuration into account.
 /// @param ctx The MTY_App.
-/// @param x Window horizontal position.
-/// @param y Window vertical position.
-/// @param w Window width.
-/// @param h Window height.
 /// @param center Treat `x` and `y` as relative to the primary screen's center point.
 /// @param scale Take the primary screen's scaling factor into consideration.
 /// @param maxHeight Between 0.0f and 1.0f, limit the frame's height to a percentage of the
 ///   primary screen's height. The frame's width is adjusted accordingly keeping the original
 ///   aspect ratio intact.
+/// @param frame An MTY_Frame to transform.
 MTY_EXPORT MTY_Frame
-MTY_AppMakeWindowFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, bool center,
-	bool scale, float maxHeight);
+MTY_AppTransformFrame(MTY_App *ctx, bool center, bool scale, float maxHeight,
+	const MTY_Frame *frame);
 
 /// @brief Set a system tray icon for the app.
 /// @param ctx The MTY_App.
@@ -1038,7 +1036,7 @@ MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode);
 ///   as an argument are designed to handle invalid windows, which are integers.\n\n
 /// @param app The MTY_App.
 /// @param title The title of the window.
-/// @param frame The window's size and position. Use MTY_AppMakeWindowFrame to fill an
+/// @param frame The window's size and position. Use MTY_AppTransformFrame to fill an
 ///   MTY_Frame more precisely. May be NULL for sensible defaults.
 /// @param fullscreen The window is created in fullscreen mode.
 /// @param hidden The window should be created hidden. If this is set it will not be activated.
