@@ -1688,9 +1688,9 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 		frame = &dframe;
 	}
 
-	DWORD style = WS_OVERLAPPEDWINDOW;
-
 	ctx->frame = window_adjust_frame(frame);
+
+	DWORD style = WS_OVERLAPPEDWINDOW;
 	int32_t w = ctx->frame.w;
 	int32_t h = ctx->frame.h;
 	int32_t x = ctx->frame.x;

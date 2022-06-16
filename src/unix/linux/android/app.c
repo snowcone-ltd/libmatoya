@@ -753,6 +753,17 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 {
 }
 
+MTY_Frame MTY_AppMakeWindowFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, bool center,
+	bool scale, float maxHeight)
+{
+	return (MTY_Frame) {
+		.x = x,
+		.y = y,
+		.w = w,
+		.h = h,
+	};
+}
+
 void MTY_AppSetTray(MTY_App *ctx, const char *tooltip, const MTY_MenuItem *items, uint32_t len)
 {
 }
@@ -926,7 +937,8 @@ void MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode)
 
 // Window
 
-MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
+MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, bool fullscreen,
+	bool hidden, MTY_Window index)
 {
 	return 0;
 }
@@ -935,9 +947,10 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 {
 }
 
-bool MTY_WindowGetSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)
+MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 {
-	MTY_WindowGetScreenSize(app, window, width, height);
+	MTY_Frame frame = {0};
+	MTY_WindowGetScreenSize(app, window, &frame.w, &frame.h);
 
 	int32_t kb_height = mty_jni_int(MTY_GetJNIEnv(), app->obj, "keyboardHeight", "()I");
 
@@ -945,15 +958,17 @@ bool MTY_WindowGetSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_
 		kb_height = 0;
 
 	mty_gfx_set_kb_height(kb_height);
-	*height -= kb_height;
+	frame.h -= kb_height;
 
-	return true;
+	return frame;
 }
 
-void MTY_WindowGetPosition(MTY_App *app, MTY_Window window, int32_t *x, int32_t *y)
+void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
 {
-	*x = 0;
-	*y = 0;
+}
+
+void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, uint32_t minHeight)
+{
 }
 
 bool MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)

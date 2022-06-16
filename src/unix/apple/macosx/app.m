@@ -1062,6 +1062,26 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 	}
 }
 
+MTY_Frame MTY_AppMakeWindowFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, bool center,
+	bool scale, float maxHeight)
+{
+	MTY_Frame frame = {
+		.x = x,
+		.y = y,
+		.w = w,
+		.h = h,
+	};
+
+	CGSize size = [NSScreen mainScreen].frame.size;
+
+	wsize_client(1.0f, maxHeight, size.h, &frame);
+
+	if (center)
+		wsize_center(0, 0, size.w, size.h, &frame);
+
+	return frame;
+}
+
 void MTY_AppSetTray(MTY_App *ctx, const char *tooltip, const MTY_MenuItem *items, uint32_t len)
 {
 }
@@ -1315,16 +1335,16 @@ static void window_revert_levels(void)
 		[windows[x] setLevel:NSNormalWindowLevel];
 }
 
-MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
+MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, bool fullscreen,
+	bool hidden, MTY_Window index)
 {
 	MTY_Window window = -1;
 	bool r = true;
 
 	Window *ctx = nil;
 	View *content = nil;
-	NSScreen *screen = [NSScreen mainScreen];
 
-	window = app_find_open_window(app, desc->index);
+	window = app_find_open_window(app, index);
 	if (window == -1) {
 		r = false;
 		MTY_Log("Maximum windows (MTY_WINDOW_MAX) of %u reached", MTY_WINDOW_MAX);
@@ -1333,32 +1353,28 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 
 	window_revert_levels();
 
-	CGSize size = screen.frame.size;
+	MTY_Frame dframe = {0};
 
-	int32_t x = desc->x;
-	int32_t y = -desc->y;
-	int32_t width = size.width;
-	int32_t height = size.height;
+	if (!frame) {
+		dframe = MTY_AppMakeWindowFrame(app, 0, 0, APP_DEFAULT_WINDOW_W,
+			APP_DEFAULT_WINDOW_H, true, true, 0.0f);
 
-	wsize_client(desc, 1.0f, size.height, &x, &y, &width, &height);
+		frame = &dframe;
+	}
 
-	if (desc->origin == MTY_ORIGIN_CENTER)
-		wsize_center(0, 0, size.width, size.height, &x, &y, &width, &height);
-
-	NSRect rect = NSMakeRect(x, y, width, height);
+	NSRect rect = NSMakeRect(frame->x, frame->y, frame->w, frame->h);
 	NSWindowStyleMask style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
 		NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable;
 
 	ctx = [[Window alloc] initWithContentRect:rect styleMask:style
-		backing:NSBackingStoreBuffered defer:NO screen:screen];
-	ctx.title = [NSString stringWithUTF8String:desc->title ? desc->title : "MTY_Window"];
+		backing:NSBackingStoreBuffered defer:NO screen:[NSScreen mainScreen]];
+	ctx.title = [NSString stringWithUTF8String:title ? title : "MTY_Window"];
 	ctx.window = window;
 	ctx.app = (__bridge App *) app;
 
 	[ctx setDelegate:ctx];
 	[ctx setAcceptsMouseMovedEvents:YES];
 	[ctx setReleasedWhenClosed:NO];
-	[ctx setMinSize:NSMakeSize(desc->minWidth, desc->minHeight)];
 	[ctx setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
 
 	content = [[View alloc] initWithFrame:[ctx contentRectForFrameRect:ctx.frame]];
@@ -1367,15 +1383,8 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 
 	ctx.app.windows[window] = (__bridge void *) ctx;
 
-	if (!desc->hidden)
+	if (!hidden)
 		MTY_WindowActivate(app, window, true);
-
-	if (desc->api != MTY_GFX_NONE) {
-		if (!MTY_WindowSetGFX(app, window, desc->api, desc->vsync)) {
-			r = false;
-			goto except;
-		}
-	}
 
 	except:
 
@@ -1397,31 +1406,48 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 	[ctx close];
 }
 
-bool MTY_WindowGetSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)
+MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 {
 	Window *ctx = app_get_window(app, window);
 	if (!ctx)
 		return false;
 
+	int32_t x = lrint(ctx.screen.frame.size.height - ctx.frame.origin.y +
+		ctx.screen.frame.origin.y - ctx.frame.size.height);
+
+	int32_t y = lrint(ctx.frame.origin.x - ctx.screen.frame.origin.x);
+
 	CGSize size = ctx.contentView.frame.size;
 	CGFloat scale = mty_screen_scale(ctx.screen);
 
-	*width = lrint(size.width * scale);
-	*height = lrint(size.height * scale);
+	return (MTY_Frame) {
+		.x = x,
+		.y = y,
+		.w = lrint(size.width * scale),
+		.h = lrint(size.height * scale),
+	};
 
 	return true;
 }
 
-void MTY_WindowGetPosition(MTY_App *app, MTY_Window window, int32_t *x, int32_t *y)
+MTY_Frame MTY_WindowGetNormalFrame(MTY_App *app, MTY_Window window)
+{
+	// TODO FIXME
+	return MTY_WindowGetFrame(app, window);
+}
+
+void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
+{
+	// TODO FIXME
+}
+
+void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, uint32_t minHeight)
 {
 	Window *ctx = app_get_window(app, window);
 	if (!ctx)
 		return;
 
-	*y = lrint(ctx.screen.frame.size.height - ctx.frame.origin.y +
-		ctx.screen.frame.origin.y - ctx.frame.size.height);
-
-	*x = lrint(ctx.frame.origin.x - ctx.screen.frame.origin.x);
+	[ctx setMinSize:NSMakeSize(minWidth, minHeight)];
 }
 
 bool MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)

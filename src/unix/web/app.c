@@ -331,6 +331,18 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 {
 }
 
+
+MTY_Frame MTY_AppMakeWindowFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, bool center,
+	bool scale, float maxHeight)
+{
+	return (MTY_Frame) {
+		.x = x,
+		.y = y,
+		.w = w,
+		.h = h,
+	};
+}
+
 void MTY_AppSetTray(MTY_App *ctx, const char *tooltip, const MTY_MenuItem *items, uint32_t len)
 {
 }
@@ -489,9 +501,10 @@ void MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode)
 
 // Window
 
-MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
+MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, bool fullscreen,
+	bool hidden, MTY_Window index)
 {
-	MTY_WindowSetTitle(app, 0, desc->title ? desc->title : "MTY_Window");
+	MTY_WindowSetTitle(app, 0, title ? title : "MTY_Window");
 
 	return 0;
 }
@@ -500,16 +513,26 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 {
 }
 
-bool MTY_WindowGetSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)
+MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 {
-	web_get_size(width, height);
+	MTY_Frame frame = {0};
+	web_get_size(&frame.w, &frame.h);
+	web_get_position(&frame.x, &frame.y);
 
-	return true;
+	return frame;
 }
 
-void MTY_WindowGetPosition(MTY_App *app, MTY_Window window, int32_t *x, int32_t *y)
+MTY_Frame MTY_WindowGetNormalFrame(MTY_App *app, MTY_Window window)
 {
-	web_get_position(x, y);
+	return MTY_WindowGetFrame(app, window);
+}
+
+void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
+{
+}
+
+void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, uint32_t minHeight)
+{
 }
 
 bool MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)
