@@ -104,27 +104,64 @@ typedef enum {
 	MTY_CHROMA_MAKE_32 = INT32_MAX,
 } MTY_Chroma;
 
+/// @brief Defines the color encoding of the raw image. Note that certain color spaces and color formats are tightly coupled with each other.
+typedef enum {
+	MTY_COLOR_SPACE_UNKNOWN      = 0, ///< Unknown color space.
+	MTY_COLOR_SPACE_SRGB         = 1, ///< sRGB/rec709 primaries and a non-linear transfer function
+	                                  ///<   (approx gamma curve of 2.2). Supported by all color formats.
+	MTY_COLOR_SPACE_SCRGB_LINEAR = 2, ///< Microsoft's scRGB wide gamut color space which is based on
+	                                  ///<   sRGB/rec709 primaries and has a linear transfer function.
+	                                  ///<   Only supported by color format MTY_COLOR_FORMAT_RGBA16F.
+	MTY_COLOR_SPACE_HDR10        = 3, ///< Uses the rec2020 color primaries and the rec2100 non-linear
+	                                  ///<   transfer function (ST 2084 perceptual quantizer, aka PQ).
+	                                  ///<   Only supported by color format MTY_COLOR_FORMAT_RGB10A2.
+	MTY_COLOR_SPACE_MAKE_32      = INT32_MAX,
+} MTY_ColorSpace;
+
+/// @brief HDR metadata associated with an image being rendered.
+typedef struct {
+	float color_primary_red[2];          ///< xy coordinates for the red primary of the image's color
+	                                     ///<   space according to the CIE 1931 color space chromaticity diagram.
+	float color_primary_green[2];        ///< xy coordinates for the green primary of the image's
+	                                     ///<   color space according to the CIE 1931 chromaticity diagram.
+	float color_primary_blue[2];         ///< xy coordinates for the blue primary of the image's
+	                                     ///<   color space according to the CIE 1931 chromaticity diagram.
+	float white_point[2];                ///< xy coordinates for the white point of the image's 
+	                                     ///<   color space according to the CIE 1931 chromaticity diagram.
+	float min_luminance;                 ///< Min luminance expected for the colors of the image.
+	float max_luminance;                 ///< Max luminance expected for the colors of the image.
+	float max_content_light_level;       ///< MaxCLL. This is the nit value of the brightest possible
+	                                     ///<   pixel that could ever occur in an image.
+	                                     ///<   If unknown, you can set it to max_luminance.
+	float max_frame_average_light_level; ///< MaxFALL. This is the highest nit value that an image's
+	                                     ///<   average luminance is expected to have.
+	                                     ///<   If unknown, you can set it to MaxCLL.
+} MTY_HDRDesc;
+
 /// @brief Description of a render operation.
 typedef struct {
-	MTY_ColorFormat format; ///< The color format of a raw image.
-	MTY_Rotation rotation;  ///< Rotation applied to the image.
-	MTY_Chroma chroma;      ///< Color subsampling, chroma layout for planar YUV formats.
-	MTY_Filter filter;      ///< Filter applied to the image.
-	MTY_Effect effects[2];  ///< Effects applied to the image.
-	float levels[2];        ///< Intensity of the applied `effects` between `0.0f` and `1.0f`.
-	bool fullRangeYUV;      ///< Use the full 0-255 color range for YUV formats.
-	bool multiplyYUV;       ///< Properly normalize 10-bit YUV formats if not already done.
-	uint32_t imageWidth;    ///< The width in pixels of the image.
-	uint32_t imageHeight;   ///< The height in pixels of the image.
-	uint32_t cropWidth;     ///< Desired crop width of the image from the top left corner.
-	uint32_t cropHeight;    ///< Desired crop height of the image from the top left corner.
-	uint32_t viewWidth;     ///< The width of the viewport.
-	uint32_t viewHeight;    ///< The height of the viewport.
-	float aspectRatio;      ///< Desired aspect ratio of the image. The renderer will letterbox
-	                        ///<   the image to maintain the specified aspect ratio.
-	float scale;            ///< Multiplier applied to the dimensions of the image, producing an
-	                        ///<   minimized or magnified image. This can be set to 0
-	                        ///<   if unnecessary.
+	MTY_ColorFormat format;    ///< The color format of a raw image.
+	MTY_ColorSpace colorspace; ///< Defines the color encoding of the image.
+	MTY_Rotation rotation;     ///< Rotation applied to the image.
+	MTY_Chroma chroma;         ///< Color subsampling, chroma layout for planar YUV formats.
+	MTY_Filter filter;         ///< Filter applied to the image.
+	MTY_Effect effects[2];     ///< Effects applied to the image.
+	float levels[2];           ///< Intensity of the applied `effects` between `0.0f` and `1.0f`.
+	bool fullRangeYUV;         ///< Use the full 0-255 color range for YUV formats.
+	bool multiplyYUV;          ///< Properly normalize 10-bit YUV formats if not already done.
+	uint32_t imageWidth;       ///< The width in pixels of the image.
+	uint32_t imageHeight;      ///< The height in pixels of the image.
+	uint32_t cropWidth;        ///< Desired crop width of the image from the top left corner.
+	uint32_t cropHeight;       ///< Desired crop height of the image from the top left corner.
+	uint32_t viewWidth;        ///< The width of the viewport.
+	uint32_t viewHeight;       ///< The height of the viewport.
+	float aspectRatio;         ///< Desired aspect ratio of the image. The renderer will letterbox
+	                           ///<   the image to maintain the specified aspect ratio.
+	float scale;               ///< Multiplier applied to the dimensions of the image, producing an
+	                           ///<   minimized or magnified image. This can be set to 0
+	                           ///<   if unnecessary.
+	bool hdrDescSpecified;     ///< Is HDR metadata provided. Only relevant if format + colorspace indicate an HDR image.
+	MTY_HDRDesc hdrDesc;       ///< HDR metadata for the image. Only relevant if format + colorspace indicate an HDR image.
 } MTY_RenderDesc;
 
 /// @brief A point with an `x` and `y` coordinate.
@@ -179,6 +216,7 @@ typedef struct {
 	uint32_t idxTotalLength; ///< Total number of indices in all command lists.
 	uint32_t vtxTotalLength; ///< Total number of vertices in all command lists.
 	bool clear;              ///< Surface should be cleared before drawing.
+	bool hdr;                ///< UI in SDR will be composited on top of an HDR quad.
 } MTY_DrawData;
 
 /// @brief Create an MTY_Renderer capable of executing drawing commands.

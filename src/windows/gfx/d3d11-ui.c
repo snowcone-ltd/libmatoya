@@ -32,6 +32,8 @@ struct d3d11_ui {
 	ID3D11InputLayout *il;
 	ID3D11Buffer *cb;
 	ID3D11Resource *cb_res;
+	ID3D11Buffer *cbps;
+	ID3D11Resource *cbps_res;
 	ID3D11PixelShader *ps;
 	ID3D11SamplerState *sampler;
 	ID3D11RasterizerState *rs;
@@ -41,6 +43,12 @@ struct d3d11_ui {
 
 struct d3d11_ui_cb {
 	float proj[4][4];
+};
+
+struct d3d11_ui_cbps {
+	uint32_t hdr;
+	float hdr_brighten_factor;
+	float __pad[2]; // must align to 16 bytes
 };
 
 struct gfx_ui *mty_d3d11_ui_create(MTY_Device *device)
@@ -86,6 +94,24 @@ struct gfx_ui *mty_d3d11_ui_create(MTY_Device *device)
 	}
 
 	e = ID3D11Buffer_QueryInterface(ctx->cb, &IID_ID3D11Resource, &ctx->cb_res);
+	if (e != S_OK) {
+		MTY_Log("'ID3D11Buffer_QueryInterface' failed with HRESULT 0x%X", e);
+		goto except;
+	}
+
+	// Pre create a constant buffer used for storing the pixel shader data
+	D3D11_BUFFER_DESC desc_cbps = {0};
+	desc_cbps.ByteWidth = sizeof(struct d3d11_ui_cbps);
+	desc_cbps.Usage = D3D11_USAGE_DYNAMIC;
+	desc_cbps.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	desc_cbps.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	e = ID3D11Device_CreateBuffer(_device, &desc_cbps, NULL, &ctx->cbps);
+	if (e != S_OK) {
+		MTY_Log("'ID3D11Device_CreateBuffer' failed with HRESULT 0x%X", e);
+		goto except;
+	}
+
+	e = ID3D11Buffer_QueryInterface(ctx->cbps, &IID_ID3D11Resource, &ctx->cbps_res);
 	if (e != S_OK) {
 		MTY_Log("'ID3D11Buffer_QueryInterface' failed with HRESULT 0x%X", e);
 		goto except;
@@ -277,6 +303,19 @@ bool mty_d3d11_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context 
 	memcpy(&cb->proj, proj, sizeof(proj));
 	ID3D11DeviceContext_Unmap(_context, ctx->cb_res, 0);
 
+	// Update pixel shader constant buffer data
+	struct d3d11_ui_cbps cbps = {0};
+	cbps.hdr = (uint32_t) dd->hdr;
+	cbps.hdr_brighten_factor = 3.75f; // XXX: this is something that we should allow the user to configure via client settings
+
+	D3D11_MAPPED_SUBRESOURCE cbps_map = {0};
+	e = ID3D11DeviceContext_Map(_context, ctx->cbps_res, 0, D3D11_MAP_WRITE_DISCARD, 0, &cbps_map);
+	if (e != S_OK)
+		goto except;
+
+	memcpy(cbps_map.pData, &cbps, sizeof(struct d3d11_ui_cbps));
+	ID3D11DeviceContext_Unmap(_context, ctx->cbps_res, 0);
+
 	// Set render target (wraps the texture)
 	if (_dest) {
 		e = ID3D11Texture2D_QueryInterface(_dest, &IID_ID3D11Resource, &tex_res);
@@ -317,6 +356,7 @@ bool mty_d3d11_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context 
 	ID3D11DeviceContext_VSSetShader(_context, ctx->vs, NULL, 0);
 	ID3D11DeviceContext_VSSetConstantBuffers(_context, 0, 1, &ctx->cb);
 	ID3D11DeviceContext_PSSetShader(_context, ctx->ps, NULL, 0);
+	ID3D11DeviceContext_PSSetConstantBuffers(_context, 0, 1, &ctx->cbps);
 	ID3D11DeviceContext_PSSetSamplers(_context, 0, 1, &ctx->sampler);
 
 	const float blend_factor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -479,6 +519,12 @@ void mty_d3d11_ui_destroy(struct gfx_ui **gfx_ui)
 
 	if (ctx->cb)
 		ID3D11Buffer_Release(ctx->cb);
+
+	if (ctx->cbps_res)
+		ID3D11Resource_Release(ctx->cbps_res);
+
+	if (ctx->cbps)
+		ID3D11Buffer_Release(ctx->cbps);
 
 	if (ctx->il)
 		ID3D11InputLayout_Release(ctx->il);

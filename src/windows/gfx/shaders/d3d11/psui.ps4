@@ -4,16 +4,55 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
+#include "hdr10.hlsl"
+
 struct PS_INPUT {
 	float4 pos : SV_POSITION;
 	float4 col : COLOR0;
 	float2 uv  : TEXCOORD0;
 };
 
+cbuffer VS_CONSTANT_BUFFER : register(b0) {
+	uint hdr;
+	float hdr_brighten_factor;
+};
+
 sampler sampler0;
 Texture2D texture0;
 
+static const float SDR_MAX_NITS = 80.0f; // the reference sRGB luminance is 80 nits (aka the brightness of paper white)
+
+// Courtesy of https://github.com/obsproject/obs-studio/pull/6157/files#diff-81ee756f47c3a2fbb9f9fa0a858d79c4da89db97d8ae79fbd643c9533fba177b
+static const float3x3 REC709_TO_REC2020 =
+{
+	{0.6274040f, 0.3292820f, 0.0433136f},
+	{0.0690970f, 0.9195400f, 0.0113612f},
+	{0.0163916f, 0.0880132f, 0.8955950f}
+};
+
+float3 srgb_to_linear(float3 color)
+{
+	// Fast approximation of sRGB's transfer function
+	return pow(abs(saturate(color)), 2.2f);
+}
+
+float3 srgb_linear_to_rec2020_linear(float3 color)
+{
+	return mul(REC709_TO_REC2020, color);
+}
+
 float4 main(PS_INPUT input) : SV_Target
 {
-	return input.col * texture0.Sample(sampler0, input.uv);
+	float4 ui = input.col * texture0.Sample(sampler0, input.uv);
+
+	if (hdr) {
+		float3 ui_rgb = ui.rgb;
+		ui_rgb = srgb_to_linear(ui_rgb); // UI texture is encoded non-linearly in sRGB, so we need to first linearize it
+		ui_rgb = srgb_linear_to_rec2020_linear(ui_rgb);
+		ui_rgb *= hdr_brighten_factor; // 1.0 in sRGB is 80 nits which is the reference SDR luminance but most SDR displays will actually render 1.0 at around 200-300 nits for improved viewing; we mimic this by brightening the UI texture by a configurable constant
+		ui_rgb = rec2020_linear_to_rec2020_pq(ui_rgb, SDR_MAX_NITS);
+		ui.rgb = ui_rgb;
+	}
+
+	return ui;
 }

@@ -36,7 +36,7 @@ struct d3d12_psvars {
 	uint32_t planes;
 	uint32_t rotation;
 	uint32_t conversion;
-	uint32_t pad1;
+	uint32_t colorspace;
 };
 
 struct d3d12_res {
@@ -552,6 +552,7 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	cb.planes = FMT_INFO[ctx->format].planes;
 	cb.rotation = desc->rotation;
 	cb.conversion = FMT_CONVERSION(ctx->format, desc->fullRangeYUV, desc->multiplyYUV);
+	cb.colorspace = desc->colorspace;
 
 	uint8_t *data = NULL;
 	HRESULT e = ID3D12Resource_Map(ctx->cb, 0, NULL, &data);

@@ -33,7 +33,7 @@ struct d3d11_psvars {
 	uint32_t planes;
 	uint32_t rotation;
 	uint32_t conversion;
-	uint32_t pad1;
+	uint32_t colorspace;
 };
 
 struct d3d11_res {
@@ -376,6 +376,7 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	cb.planes = FMT_INFO[ctx->format].planes;
 	cb.rotation = desc->rotation;
 	cb.conversion = FMT_CONVERSION(ctx->format, desc->fullRangeYUV, desc->multiplyYUV);
+	cb.colorspace = desc->colorspace;
 
 	D3D11_MAPPED_SUBRESOURCE res = {0};
 	e = ID3D11DeviceContext_Map(_context, ctx->psbres, 0, D3D11_MAP_WRITE_DISCARD, 0, &res);
