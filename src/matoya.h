@@ -726,9 +726,8 @@ typedef struct {
 
 /// @brief Window size and position.
 typedef struct {
-	uint8_t screen; ///< Screen index where the window resides.
-	uint32_t x;     ///< Window horizontal position from the left edge of the screen.
-	uint32_t y;     ///< Window vertical position from the top edge of the screen.
+	int32_t x;      ///< Window horizontal position from the left edge of the primary screen.
+	int32_t y;      ///< Window vertical position from the top edge of the primary screen.
 	uint32_t w;     ///< Window client (content) width.
 	uint32_t h;     ///< Window client (content) height.
 } MTY_Frame;

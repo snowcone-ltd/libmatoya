@@ -668,10 +668,9 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 			evt.type = MTY_EVENT_SHUTDOWN;
 			break;
 		case WM_GETMINMAXINFO: {
-			float scale = app_hwnd_get_scale(app, hwnd);
 			MINMAXINFO *info = (MINMAXINFO *) lparam;
-			info->ptMinTrackSize.x = lrint((float) ctx->min_width * scale);
-			info->ptMinTrackSize.y = lrint((float) ctx->min_height * scale);
+			info->ptMinTrackSize.x = ctx->min_width;
+			info->ptMinTrackSize.y = ctx->min_height;
 			creturn = true;
 			r = 0;
 			break;
@@ -1816,8 +1815,16 @@ void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, ui
 	if (!ctx)
 		return;
 
-	ctx->min_width = minWidth;
-	ctx->min_height = minHeight;
+	RECT wr = {0};
+	GetWindowRect(ctx->hwnd, &wr);
+
+	RECT cr = {0};
+	GetClientRect(ctx->hwnd, &cr);
+
+	float scale = app_hwnd_get_scale(app, ctx->hwnd);
+
+	ctx->min_width = wr.right - wr.left - cr.right + lrint(minWidth * scale);
+	ctx->min_height = wr.bottom - wr.top - cr.bottom + lrint(minHeight * scale);
 }
 
 static bool window_get_monitor_info(HWND hwnd, MONITORINFOEX *info)
