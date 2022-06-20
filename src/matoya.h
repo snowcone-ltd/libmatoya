@@ -1045,7 +1045,7 @@ MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode);
 ///   during MTY_AppDestroy which destroys all windows.
 MTY_EXPORT MTY_Window
 MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, bool fullscreen,
-	bool hidden, MTY_Window index);
+	bool maximized, bool hidden, MTY_Window index);
 
 /// @brief Destroy an MTY_Window.
 /// @param app The MTY_App.
@@ -1065,7 +1065,7 @@ MTY_WindowGetFrame(MTY_App *app, MTY_Window window);
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 MTY_EXPORT MTY_Frame
-MTY_WindowGetNormalFrame(MTY_App *app, MTY_Window window);
+MTY_WindowGetPlacement(MTY_App *app, MTY_Window window, bool *maximized);
 
 /// @brief Set a window's size and position.
 /// @param app The MTY_App.
