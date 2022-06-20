@@ -1062,14 +1062,14 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 	}
 }
 
-MTY_Frame MTY_AppTransformFrame(MTY_App *ctx, bool center, bool scale, float maxHeight,
-	const MTY_Frame *frame)
+MTY_Frame MTY_AppTransformFrame(MTY_App *ctx, bool center, float maxHeight, const MTY_Frame *frame)
 {
 	MTY_Frame tframe = *frame;
 
 	CGSize size = [NSScreen mainScreen].frame.size;
 
-	wsize_client(1.0f, maxHeight, size.h, &tframe);
+	if (maxHeight > 0.0f)
+		wsize_max_height(1.0f, maxHeight, size.h, &tframe);
 
 	if (center)
 		wsize_center(0, 0, size.w, size.h, &tframe);
@@ -1354,7 +1354,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	};
 
 	if (!frame) {
-		dframe = MTY_AppTransformFrame(app, true, true, 0.0f, &dframe);
+		dframe = MTY_AppTransformFrame(app, true, 0.0f, &dframe);
 		frame = &dframe;
 	}
 

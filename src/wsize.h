@@ -6,19 +6,12 @@
 
 #pragma once
 
-static void wsize_client(float scale, float max_h, uint32_t screen_h, MTY_Frame *frame)
+static void wsize_max_height(float scale, float max_h, uint32_t screen_h, MTY_Frame *frame)
 {
-	frame->x = lrint(frame->x * scale);
-	frame->y = lrint(frame->y * scale);
-
-	if (max_h > 0.0f && frame->h * scale > max_h * screen_h) {
+	if (frame->h * scale > max_h * screen_h) {
 		float aspect = (float) frame->w / frame->h;
 		frame->h = lrint(max_h * screen_h);
 		frame->w = lrint(frame->h * aspect);
-
-	} else {
-		frame->w = lrint(frame->w * scale);
-		frame->h = lrint(frame->h * scale);
 	}
 }
 

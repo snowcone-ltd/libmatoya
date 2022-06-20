@@ -787,14 +787,12 @@ MTY_AppActivate(MTY_App *ctx, bool active);
 /// @brief Fill an MTY_Frame taking the current display configuration into account.
 /// @param ctx The MTY_App.
 /// @param center Treat `x` and `y` as relative to the primary screen's center point.
-/// @param scale Take the primary screen's scaling factor into consideration.
 /// @param maxHeight Between 0.0f and 1.0f, limit the frame's height to a percentage of the
 ///   primary screen's height. The frame's width is adjusted accordingly keeping the original
 ///   aspect ratio intact.
 /// @param frame An MTY_Frame to transform.
 MTY_EXPORT MTY_Frame
-MTY_AppTransformFrame(MTY_App *ctx, bool center, bool scale, float maxHeight,
-	const MTY_Frame *frame);
+MTY_AppTransformFrame(MTY_App *ctx, bool center, float maxHeight, const MTY_Frame *frame);
 
 /// @brief Set a system tray icon for the app.
 /// @param ctx The MTY_App.

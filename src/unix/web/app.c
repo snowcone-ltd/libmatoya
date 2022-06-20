@@ -332,8 +332,7 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 }
 
 
-MTY_Frame MTY_AppTransformFrame(MTY_App *ctx, bool center, bool scale, float maxHeight,
-	const MTY_Frame *frame)
+MTY_Frame MTY_AppTransformFrame(MTY_App *ctx, bool center, float maxHeight, const MTY_Frame *frame)
 {
 	return *frame;
 }

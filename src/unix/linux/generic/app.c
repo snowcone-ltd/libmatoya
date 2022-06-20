@@ -702,8 +702,7 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 	MTY_WindowActivate(ctx, 0, active);
 }
 
-MTY_Frame MTY_AppTransformFrame(MTY_App *ctx, bool center, bool scale, float maxHeight,
-	const MTY_Frame *frame)
+MTY_Frame MTY_AppTransformFrame(MTY_App *ctx, bool center, float maxHeight, const MTY_Frame *frame)
 {
 	MTY_Frame tframe = *frame;
 
@@ -712,13 +711,15 @@ MTY_Frame MTY_AppTransformFrame(MTY_App *ctx, bool center, bool scale, float max
 	XWindowAttributes attr = {0};
 	XGetWindowAttributes(ctx->display, root, &attr);
 
-	uint32_t screen_w = XWidthOfScreen(attr.screen);
 	uint32_t screen_h = XHeightOfScreen(attr.screen);
-	float f = scale ? ctx->scale : 1.0f;
-	wsize_client(f, maxHeight, screen_h, &tframe);
 
-	if (center)
+	if (maxHeight > 0.0f)
+		wsize_max_height(ctx->scale, maxHeight, screen_h, &tframe);
+
+	if (center) {
+		uint32_t screen_w = XWidthOfScreen(attr.screen);
 		wsize_center(0, 0, screen_w, screen_h, &tframe);
+	}
 
 	return tframe;
 }
@@ -1032,7 +1033,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	};
 
 	if (!frame) {
-		dframe = MTY_AppTransformFrame(app, true, true, 0.0f, &dframe);
+		dframe = MTY_AppTransformFrame(app, true, 0.0f, &dframe);
 		frame = &dframe;
 	}
 
