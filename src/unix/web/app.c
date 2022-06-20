@@ -516,7 +516,7 @@ MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 	return frame;
 }
 
-MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window, bool *maximized)
+MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window)
 {
 	return MTY_WindowGetFrame(app, window);
 }

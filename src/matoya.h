@@ -726,6 +726,7 @@ typedef struct {
 
 /// @brief Window size and position.
 typedef struct {
+	bool maximized; ///< Window is in a maximized state.
 	int32_t x;      ///< Window horizontal position from the left edge of the primary screen.
 	int32_t y;      ///< Window vertical position from the top edge of the primary screen.
 	uint32_t w;     ///< Window client (content) width.
@@ -1045,7 +1046,7 @@ MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode);
 ///   during MTY_AppDestroy which destroys all windows.
 MTY_EXPORT MTY_Window
 MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, bool fullscreen,
-	bool maximized, bool hidden, MTY_Window index);
+	bool hidden, MTY_Window index);
 
 /// @brief Destroy an MTY_Window.
 /// @param app The MTY_App.
@@ -1065,7 +1066,7 @@ MTY_WindowGetFrame(MTY_App *app, MTY_Window window);
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 MTY_EXPORT MTY_Frame
-MTY_WindowGetPlacement(MTY_App *app, MTY_Window window, bool *maximized);
+MTY_WindowGetPlacement(MTY_App *app, MTY_Window window);
 
 /// @brief Set a window's size and position.
 /// @param app The MTY_App.
