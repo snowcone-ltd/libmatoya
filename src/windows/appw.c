@@ -1131,27 +1131,17 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 	app_hwnd_activate(hwnd, active);
 }
 
-MTY_Frame MTY_AppTransformFrame(MTY_App *ctx, bool center, float maxHeight, const MTY_Frame *frame)
+MTY_Frame MTY_AppMakeFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
 {
-	MTY_Frame tframe = *frame;
-
 	RECT r = {0};
 	HWND desktop = GetDesktopWindow();
 	GetWindowRect(desktop, &r);
 
 	uint32_t screen_h = r.bottom - r.top;
+	uint32_t screen_w = r.right - r.left;
+	float scale = app_hwnd_get_scale(ctx, desktop);
 
-	if (maxHeight > 0.0f) {
-		float scale = app_hwnd_get_scale(ctx, desktop);
-		wsize_max_height(scale, maxHeight, screen_h, &tframe.size);
-	}
-
-	if (center) {
-		uint32_t screen_w = r.right - r.left;
-		wsize_center(r.left, r.top, screen_w, screen_h, &tframe);
-	}
-
-	return tframe;
+	return wsize_default(0, 0, screen_w, screen_h, scale, maxHeight, x, y, w, h);
 }
 
 void MTY_AppSetTray(MTY_App *ctx, const char *tooltip, const MTY_MenuItem *items, uint32_t len)
@@ -1682,13 +1672,10 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	ctx->app = app;
 	ctx->window = window;
 
-	MTY_Frame dframe = {
-		.size.w = APP_DEFAULT_WINDOW_W,
-		.size.h = APP_DEFAULT_WINDOW_H,
-	};
+	MTY_Frame dframe = {0};
 
 	if (!frame) {
-		dframe = MTY_AppTransformFrame(app, true, 0.0f, &dframe);
+		dframe = MTY_AppMakeFrame(app, 0, 0, APP_DEFAULT_WINDOW_W, APP_DEFAULT_WINDOW_H, 1.0f);
 		frame = &dframe;
 	}
 

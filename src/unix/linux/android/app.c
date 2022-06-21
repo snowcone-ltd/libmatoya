@@ -753,9 +753,14 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 {
 }
 
-MTY_Frame MTY_AppTransformFrame(MTY_App *ctx, bool center, float maxHeight, const MTY_Frame *frame)
+MTY_Frame MTY_AppMakeFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
 {
-	return *frame;
+	return (MTY_Frame) {
+		.x = x,
+		.y = y,
+		.size.w = w,
+		.size.h = h,
+	};
 }
 
 void MTY_AppSetTray(MTY_App *ctx, const char *tooltip, const MTY_MenuItem *items, uint32_t len)

@@ -702,26 +702,17 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 	MTY_WindowActivate(ctx, 0, active);
 }
 
-MTY_Frame MTY_AppTransformFrame(MTY_App *ctx, bool center, float maxHeight, const MTY_Frame *frame)
+MTY_Frame MTY_AppMakeFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
 {
-	MTY_Frame tframe = *frame;
-
 	Window root = XDefaultRootWindow(ctx->display);
 
 	XWindowAttributes attr = {0};
 	XGetWindowAttributes(ctx->display, root, &attr);
 
 	uint32_t screen_h = XHeightOfScreen(attr.screen);
+	uint32_t screen_w = XWidthOfScreen(attr.screen);
 
-	if (maxHeight > 0.0f)
-		wsize_max_height(ctx->scale, maxHeight, screen_h, &tframe.size);
-
-	if (center) {
-		uint32_t screen_w = XWidthOfScreen(attr.screen);
-		wsize_center(0, 0, screen_w, screen_h, &tframe);
-	}
-
-	return tframe;
+	return wsize_default(0, 0, screen_w, screen_h, ctx->scale, maxHeight, x, y, w, h);
 }
 
 void MTY_AppSetTray(MTY_App *ctx, const char *tooltip, const MTY_MenuItem *items, uint32_t len)
@@ -1026,13 +1017,10 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	ctx->index = window;
 	app->windows[window] = ctx;
 
-	MTY_Frame dframe = {
-		.size.w = APP_DEFAULT_WINDOW_W,
-		.size.h = APP_DEFAULT_WINDOW_H,
-	};
+	MTY_Frame dframe = {0};
 
 	if (!frame) {
-		dframe = MTY_AppTransformFrame(app, true, 0.0f, &dframe);
+		dframe = MTY_AppMakeFrame(app, 0, 0, APP_DEFAULT_WINDOW_W, APP_DEFAULT_WINDOW_H, 1.0f);
 		frame = &dframe;
 	}
 
@@ -1102,9 +1090,20 @@ MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 
 MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window)
 {
-	// TODO FIXME
+	struct window *ctx = app_get_window(app, window);
+	if (!ctx)
+		return (MTY_Frame) {0};
+
+	XWindowAttributes attr = {0};
+	XGetWindowAttributes(app->display, ctx->window, &attr);
+
+	// TODO FIXME Need WindowType filled accurately
+
 	return (MTY_Frame) {
-		.size = MTY_WindowGetSize(app, window),
+		.x = attr.x,
+		.y = attr.y,
+		.size.w = attr.width,
+		.size.h = attr.height,
 	};
 }
 

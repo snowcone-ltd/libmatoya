@@ -6,30 +6,35 @@
 
 #pragma once
 
-static void wsize_max_height(float scale, float max_h, uint32_t screen_h, MTY_Size *size)
+static MTY_Frame wsize_default(int32_t screen_x, int32_t screen_y, uint32_t screen_w, uint32_t screen_h,
+	float scale, float max_h, int32_t x, int32_t y, uint32_t w, uint32_t h)
 {
-	if (size->h * scale > max_h * screen_h) {
-		float aspect = (float) size->w / size->h;
-		size->h = lrint(max_h * screen_h);
-		size->w = lrint(size->h * aspect);
+	if (h * scale > max_h * screen_h) {
+		float aspect = (float) w / h;
+		h = lrint(max_h * screen_h);
+		w = lrint(h * aspect);
 	}
-}
 
-static void wsize_center(int32_t screen_x, int32_t screen_y, uint32_t screen_w, uint32_t screen_h, MTY_Frame *frame)
-{
-	if (screen_w > frame->size.w) {
-		frame->x += (screen_w - frame->size.w) / 2;
+	if (screen_w > w) {
+		x += (screen_w - w) / 2;
 
 	} else {
-		frame->x = screen_x;
-		frame->size.w = screen_w;
+		x = screen_x;
+		w = screen_w;
 	}
 
-	if (screen_h > frame->size.h) {
-		frame->y += (screen_h - frame->size.h) / 2;
+	if (screen_h > h) {
+		y += (screen_h - h) / 2;
 
 	} else {
-		frame->y = screen_y;
-		frame->size.h = screen_h;
+		y = screen_y;
+		h = screen_h;
 	}
+
+	return (MTY_Frame) {
+		.x = x,
+		.y = y,
+		.size.w = w,
+		.size.h = h,
+	};
 }

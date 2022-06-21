@@ -807,7 +807,7 @@ MTY_AppActivate(MTY_App *ctx, bool active);
 ///   aspect ratio intact.
 /// @param frame An MTY_Frame to transform.
 MTY_EXPORT MTY_Frame
-MTY_AppTransformFrame(MTY_App *ctx, bool center, float maxHeight, const MTY_Frame *frame);
+MTY_AppMakeFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight);
 
 /// @brief Set a system tray icon for the app.
 /// @param ctx The MTY_App.
@@ -1048,8 +1048,8 @@ MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode);
 ///   as an argument are designed to handle invalid windows, which are integers.\n\n
 /// @param app The MTY_App.
 /// @param title The title of the window.
-/// @param frame The window's size and position. Use MTY_AppTransformFrame to fill an
-///   MTY_Frame more precisely. May be NULL for sensible defaults.
+/// @param frame The window's size and position. Use MTY_AppMakeFrame or MTY_WindowGetPlacement
+///   to fill a frame more precisely. May be NULL for sensible defaults.
 /// @param index Attempt to create the window with the specified index. If the index is already
 ///   taken, the first available is used.
 /// @returns On success, a value between 0 and MTY_WINDOW_MAX is returned.\n\n

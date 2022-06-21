@@ -1062,19 +1062,11 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 	}
 }
 
-MTY_Frame MTY_AppTransformFrame(MTY_App *ctx, bool center, float maxHeight, const MTY_Frame *frame)
+MTY_Frame MTY_AppMakeFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
 {
-	MTY_Frame tframe = *frame;
-
 	CGSize size = [NSScreen mainScreen].frame.size;
 
-	if (maxHeight > 0.0f)
-		wsize_max_height(1.0f, maxHeight, size.height, &tframe.size);
-
-	if (center)
-		wsize_center(0, 0, size.width, size.height, &tframe);
-
-	return tframe;
+	return wsize_default(0, 0, size.width, size.height, 1.0f, maxHeight, x, -y, w, h);
 }
 
 void MTY_AppSetTray(MTY_App *ctx, const char *tooltip, const MTY_MenuItem *items, uint32_t len)
@@ -1347,13 +1339,10 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 
 	window_revert_levels();
 
-	MTY_Frame dframe = {
-		.size.w = APP_DEFAULT_WINDOW_W,
-		.size.h = APP_DEFAULT_WINDOW_H,
-	};
+	MTY_Frame dframe = {0};
 
 	if (!frame) {
-		dframe = MTY_AppTransformFrame(app, true, 0.0f, &dframe);
+		dframe = MTY_AppMakeFrame(app, 0, 0, APP_DEFAULT_WINDOW_W, APP_DEFAULT_WINDOW_H, 1.0f);
 		frame = &dframe;
 	}
 
@@ -1362,7 +1351,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 		NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable;
 
 	ctx = [[Window alloc] initWithContentRect:rect styleMask:style
-		backing:NSBackingStoreBuffered defer:NO screen:[NSScreen mainScreen]];
+		backing:NSBackingStoreBuffered defer:NO];
 	ctx.title = [NSString stringWithUTF8String:title ? title : "MTY_Window"];
 	ctx.window = window;
 	ctx.app = (__bridge App *) app;
@@ -1407,13 +1396,6 @@ MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 	if (!ctx)
 		return (MTY_Size) {0};
 
-	/* TODO FIXME May need this for placement
-	int32_t x = lrint(ctx.screen.frame.size.height - ctx.frame.origin.y +
-		ctx.screen.frame.origin.y - ctx.frame.size.height);
-
-	int32_t y = lrint(ctx.frame.origin.x - ctx.screen.frame.origin.x);
-	*/
-
 	CGSize size = ctx.contentView.frame.size;
 	CGFloat scale = mty_screen_scale(ctx.screen);
 
@@ -1425,9 +1407,23 @@ MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 
 MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window)
 {
-	// TODO FIXME
+	CGSize size = ctx.contentView.frame.size;
+	CGPoint origin = ctx.contentView.frame.origin;
+
+	/* TODO FIXME May need this for placement, this is from top-left corner
+	int32_t x = lrint(ctx.screen.frame.size.height - ctx.frame.origin.y +
+		ctx.screen.frame.origin.y - ctx.frame.size.height);
+
+	int32_t y = lrint(ctx.frame.origin.x - ctx.screen.frame.origin.x);
+	*/
+
+	// TODO FIXME Need WindowType filled accurately
+
 	return (MTY_Frame) {
-		.size = MTY_WindowGetSize(app, window),
+		.x = origin.x,
+		.y = origin.y,
+		.size.w = size.width,
+		.size.h = size.height,
 	};
 }
 
