@@ -1624,27 +1624,6 @@ void MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode)
 
 // Window
 
-static RECT window_frame_to_rect(const MTY_Frame *frame)
-{
-	return (RECT) {
-		.top = frame->y,
-		.left = frame->x,
-		.right = frame->size.w + frame->x,
-		.bottom = frame->size.h + frame->y,
-	};
-}
-
-static MTY_Frame window_rect_to_frame(const RECT *r, MTY_WindowType type)
-{
-	return (MTY_Frame) {
-		.type = type,
-		.y = r->top,
-		.x = r->left,
-		.size.w = r->right - r->left,
-		.size.h = r->bottom - r->top,
-	};
-}
-
 static void window_denormalize_rect(MTY_App *app, HMONITOR mon, RECT *r)
 {
 	float scale = app_get_scale(app, mon);
@@ -1657,19 +1636,6 @@ static void window_denormalize_rect(MTY_App *app, HMONITOR mon, RECT *r)
 	AdjustWindowRect(r, WS_OVERLAPPEDWINDOW, FALSE);
 }
 
-static void window_normalize_rect(MTY_App *app, HWND hwnd, RECT *r)
-{
-	RECT ar = {0};
-	AdjustWindowRect(&ar, WS_OVERLAPPEDWINDOW, FALSE);
-
-	float scale = app_get_scale(app, monitor_from_hwnd(hwnd));
-
-	r->top = lrint((r->top - ar.top) / scale);
-	r->right = lrint((r->right - ar.right) / scale);
-	r->bottom = lrint((r->bottom - ar.bottom) / scale);
-	r->left = lrint((r->left - ar.left) / scale);
-}
-
 static void window_set_placement(MTY_App *app, HMONITOR mon, HWND hwnd, const MTY_Frame *frame)
 {
 	WINDOWPLACEMENT p = {.length = sizeof(WINDOWPLACEMENT)};
@@ -1677,7 +1643,13 @@ static void window_set_placement(MTY_App *app, HMONITOR mon, HWND hwnd, const MT
 	p.showCmd = frame->type & MTY_WINDOW_HIDDEN ? SW_HIDE :
 		frame->type & MTY_WINDOW_MAXIMIZED ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
 
-	p.rcNormalPosition = window_frame_to_rect(frame);
+	p.rcNormalPosition = (RECT) {
+		.top = frame->y,
+		.left = frame->x,
+		.right = frame->size.w + frame->x,
+		.bottom = frame->size.h + frame->y,
+	};
+
 	window_denormalize_rect(app, mon, &p.rcNormalPosition);
 
 	SetWindowPlacement(hwnd, &p);
@@ -1806,6 +1778,19 @@ MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 	};
 }
 
+static void window_normalize_rect(MTY_App *app, HWND hwnd, RECT *r)
+{
+	RECT ar = {0};
+	AdjustWindowRect(&ar, WS_OVERLAPPEDWINDOW, FALSE);
+
+	float scale = app_get_scale(app, monitor_from_hwnd(hwnd));
+
+	r->top = lrint((r->top - ar.top) / scale);
+	r->right = lrint((r->right - ar.right) / scale);
+	r->bottom = lrint((r->bottom - ar.bottom) / scale);
+	r->left = lrint((r->left - ar.left) / scale);
+}
+
 static MTY_Frame window_get_placement(MTY_App *app, HWND hwnd)
 {
 	WINDOWPLACEMENT p = {.length = sizeof(WINDOWPLACEMENT)};
@@ -1816,7 +1801,13 @@ static MTY_Frame window_get_placement(MTY_App *app, HWND hwnd)
 	MTY_WindowType type = p.showCmd == SW_SHOWMAXIMIZED ?
 		MTY_WINDOW_MAXIMIZED : MTY_WINDOW_NORMAL;
 
-	return window_rect_to_frame(&p.rcNormalPosition, type);
+	return (MTY_Frame) {
+		.type = type,
+		.y = p.rcNormalPosition.top,
+		.x = p.rcNormalPosition.left,
+		.size.w = p.rcNormalPosition.right - p.rcNormalPosition.left,
+		.size.h = p.rcNormalPosition.bottom - p.rcNormalPosition.top,
+	};
 }
 
 MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window)
