@@ -931,8 +931,7 @@ void MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode)
 
 // Window
 
-MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, bool fullscreen,
-	bool hidden, MTY_Window index)
+MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, MTY_Window index)
 {
 	return 0;
 }
@@ -941,10 +940,9 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 {
 }
 
-MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
+MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 {
-	MTY_Frame frame = {0};
-	MTY_WindowGetScreenSize(app, window, &frame.w, &frame.h);
+	MTY_Size size = MTY_WindowGetScreenSize(app, window);
 
 	int32_t kb_height = mty_jni_int(MTY_GetJNIEnv(), app->obj, "keyboardHeight", "()I");
 
@@ -952,13 +950,16 @@ MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 		kb_height = 0;
 
 	mty_gfx_set_kb_height(kb_height);
-	frame.h -= kb_height;
+	size.h -= kb_height;
 
-	return frame;
+	return size;
 }
 
 MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window)
 {
+	return (MTY_Frame) {
+		.size = MTY_WindowGetSize(app, window),
+	};
 }
 
 void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
@@ -969,11 +970,12 @@ void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, ui
 {
 }
 
-bool MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)
+MTY_Size MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window)
 {
-	mty_gfx_size(width, height);
+	MTY_Size size = {0};
+	mty_gfx_size(&size.w, &size.h);
 
-	return true;
+	return size;
 }
 
 float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)

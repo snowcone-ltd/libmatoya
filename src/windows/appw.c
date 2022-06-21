@@ -1143,7 +1143,7 @@ MTY_Frame MTY_AppTransformFrame(MTY_App *ctx, bool center, float maxHeight, cons
 
 	if (maxHeight > 0.0f) {
 		float scale = app_hwnd_get_scale(ctx, desktop);
-		wsize_max_height(scale, maxHeight, screen_h, &tframe);
+		wsize_max_height(scale, maxHeight, screen_h, &tframe.size);
 	}
 
 	if (center) {
@@ -1618,14 +1618,23 @@ void MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode)
 
 static RECT window_frame_to_rect(const MTY_Frame *frame)
 {
-	return (RECT)
-		{.top = frame->y, .left = frame->x, .right = frame->w + frame->x, .bottom = frame->h + frame->y};
+	return (RECT) {
+		.top = frame->y,
+		.left = frame->x,
+		.right = frame->size.w + frame->x,
+		.bottom = frame->size.h + frame->y,
+	};
 }
 
-static MTY_Frame window_rect_to_frame(const RECT *r, bool maximized)
+static MTY_Frame window_rect_to_frame(const RECT *r, MTY_WindowType type)
 {
-	return (MTY_Frame)
-		{.maximized = maximized, .y = r->top, .x = r->left, .w = r->right - r->left, .h = r->bottom - r->top};
+	return (MTY_Frame) {
+		.type = type,
+		.y = r->top,
+		.x = r->left,
+		.size.w = r->right - r->left,
+		.size.h = r->bottom - r->top,
+	};
 }
 
 static void window_denormalize_rect(MTY_App *app, HWND hwnd, RECT *r)
@@ -1653,8 +1662,7 @@ static void window_normalize_rect(MTY_App *app, HWND hwnd, RECT *r)
 	r->left = lrint((r->left - ar.left) / scale);
 }
 
-MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, bool fullscreen,
-	bool hidden, MTY_Window index)
+MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, MTY_Window index)
 {
 	MTY_Window window = -1;
 	wchar_t *titlew = NULL;
@@ -1675,8 +1683,8 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	ctx->window = window;
 
 	MTY_Frame dframe = {
-		.w = APP_DEFAULT_WINDOW_W,
-		.h = APP_DEFAULT_WINDOW_H,
+		.size.w = APP_DEFAULT_WINDOW_W,
+		.size.h = APP_DEFAULT_WINDOW_H,
 	};
 
 	if (!frame) {
@@ -1685,11 +1693,12 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	}
 
 	WINDOWPLACEMENT p = {.length = sizeof(WINDOWPLACEMENT)};
-	p.showCmd = hidden ? SW_HIDE : frame->maximized ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
+	p.showCmd = frame->type & MTY_WINDOW_HIDDEN ? SW_HIDE :
+		frame->type & MTY_WINDOW_MAXIMIZED ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
 	p.rcNormalPosition = window_frame_to_rect(frame);
 
 	window_denormalize_rect(app, GetDesktopWindow(), &p.rcNormalPosition);
-	ctx->frame = window_rect_to_frame(&p.rcNormalPosition, frame->maximized);
+	ctx->frame = window_rect_to_frame(&p.rcNormalPosition, frame->type & ~MTY_WINDOW_HIDDEN);
 
 	DWORD style = WS_OVERLAPPEDWINDOW;
 	int32_t w = CW_USEDEFAULT;
@@ -1697,7 +1706,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	int32_t x = CW_USEDEFAULT;
 	int32_t y = CW_USEDEFAULT;
 
-	if (fullscreen) {
+	if (frame->type & MTY_WINDOW_FULLSCREEN) {
 		style = WS_POPUP;
 
 		// TODO FIXME use the x,y in frame to position on the correct monitor
@@ -1719,15 +1728,15 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 		goto except;
 	}
 
-	if (fullscreen) {
-		if (!hidden)
+	if (frame->type & MTY_WINDOW_FULLSCREEN) {
+		if (!(frame->type & MTY_WINDOW_HIDDEN))
 			ShowWindow(ctx->hwnd, SW_SHOWNORMAL);
 
 	} else {
 		SetWindowPlacement(ctx->hwnd, &p);
 	}
 
-	if (!hidden)
+	if (!(frame->type & MTY_WINDOW_HIDDEN))
 		SetForegroundWindow(ctx->hwnd);
 
 	DragAcceptFiles(ctx->hwnd, TRUE);
@@ -1772,19 +1781,16 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 	app->windows[window] = NULL;
 }
 
-MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
+MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 {
 	struct window *ctx = app_get_window(app, window);
 	if (!ctx)
-		return (MTY_Frame) {0};
+		return (MTY_Size) {0};
 
 	RECT r = {0};
 	GetClientRect(ctx->hwnd, &r);
-	ClientToScreen(ctx->hwnd, (POINT *) &r);
 
-	return (MTY_Frame) {
-		.x = r.left,
-		.y = r.top,
+	return (MTY_Size) {
 		.w = r.right,
 		.h = r.bottom,
 	};
@@ -1797,7 +1803,10 @@ static MTY_Frame window_get_placement(MTY_App *app, HWND hwnd)
 
 	window_normalize_rect(app, hwnd, &p.rcNormalPosition);
 
-	return window_rect_to_frame(&p.rcNormalPosition, p.showCmd == SW_SHOWMAXIMIZED);
+	MTY_WindowType type = p.showCmd == SW_SHOWMAXIMIZED ?
+		MTY_WINDOW_MAXIMIZED : MTY_WINDOW_NORMAL;
+
+	return window_rect_to_frame(&p.rcNormalPosition, type);
 }
 
 MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window)
@@ -1816,11 +1825,11 @@ static void window_set_placement(MTY_App *app, HWND hwnd, const MTY_Frame *frame
 {
 	WINDOWPLACEMENT p = {.length = sizeof(WINDOWPLACEMENT)};
 	p.rcNormalPosition = window_frame_to_rect(frame);
-	p.showCmd = frame->maximized ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
+	p.showCmd = frame->type & MTY_WINDOW_MAXIMIZED ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
 	window_denormalize_rect(app, hwnd, &p.rcNormalPosition);
 
 	LONG_PTR ptr = WS_OVERLAPPEDWINDOW;
-	if (frame->maximized)
+	if (frame->type & MTY_WINDOW_MAXIMIZED)
 		ptr |= WS_MAXIMIZE;
 
 	SetWindowLongPtr(hwnd, GWL_STYLE, ptr);
@@ -1865,21 +1874,21 @@ static bool window_get_monitor_info(HWND hwnd, MONITORINFOEX *info)
 	return false;
 }
 
-bool MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)
+MTY_Size MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window)
 {
 	struct window *ctx = app_get_window(app, window);
 	if (!ctx)
-		return false;
+		return (MTY_Size) {0};
 
 	MONITORINFOEX info = {0};
-	if (window_get_monitor_info(ctx->hwnd, &info)) {
-		*width = info.rcMonitor.right - info.rcMonitor.left;
-		*height = info.rcMonitor.bottom - info.rcMonitor.top;
 
-		return true;
-	}
+	if (window_get_monitor_info(ctx->hwnd, &info))
+		return (MTY_Size) {
+			.w = info.rcMonitor.right - info.rcMonitor.left,
+			.h = info.rcMonitor.bottom - info.rcMonitor.top,
+		};
 
-	return false;
+	return (MTY_Size) {0};
 }
 
 float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
@@ -1971,6 +1980,7 @@ void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
 
 		if (window_get_monitor_info(ctx->hwnd, &info)) {
 			ctx->frame = window_get_placement(app, ctx->hwnd);
+			ctx->frame.type |= MTY_WINDOW_FULLSCREEN;
 
 			uint32_t x = info.rcMonitor.left;
 			uint32_t y = info.rcMonitor.top;

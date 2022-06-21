@@ -495,8 +495,7 @@ void MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode)
 
 // Window
 
-MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, bool fullscreen,
-	bool hidden, MTY_Window index)
+MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, MTY_Window index)
 {
 	MTY_WindowSetTitle(app, 0, title ? title : "MTY_Window");
 
@@ -507,18 +506,19 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 {
 }
 
-MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
+MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 {
-	MTY_Frame frame = {0};
-	web_get_size(&frame.w, &frame.h);
-	web_get_position(&frame.x, &frame.y);
+	MTY_Size size = {0};
+	web_get_size(&size.w, &size.h);
 
-	return frame;
+	return size;
 }
 
 MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window)
 {
-	return MTY_WindowGetFrame(app, window);
+	return (MTY_Frame) {
+		.size = MTY_WindowGetSize(app, window),
+	};
 }
 
 void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
@@ -529,11 +529,12 @@ void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, ui
 {
 }
 
-bool MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)
+MTY_Size MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window)
 {
-	web_get_screen_size(width, height);
+	MTY_Size size = {0};
+	web_get_screen_size(&size.w, &size.h);
 
-	return true;
+	return size;
 }
 
 float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)

@@ -1402,34 +1402,34 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 	[ctx close];
 }
 
-MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
+MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 {
 	Window *ctx = app_get_window(app, window);
 	if (!ctx)
-		return false;
+		return (MTY_Size) {0};
 
+	/* TODO FIXME May need this for placement
 	int32_t x = lrint(ctx.screen.frame.size.height - ctx.frame.origin.y +
 		ctx.screen.frame.origin.y - ctx.frame.size.height);
 
 	int32_t y = lrint(ctx.frame.origin.x - ctx.screen.frame.origin.x);
+	*/
 
 	CGSize size = ctx.contentView.frame.size;
 	CGFloat scale = mty_screen_scale(ctx.screen);
 
-	return (MTY_Frame) {
-		.x = x,
-		.y = y,
+	return (MTY_Size) {
 		.w = lrint(size.width * scale),
 		.h = lrint(size.height * scale),
 	};
-
-	return true;
 }
 
 MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window)
 {
 	// TODO FIXME
-	return MTY_WindowGetFrame(app, window);
+	return (MTY_Frame) {
+		.size = MTY_WindowGetSize(app, window),
+	};
 }
 
 void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
@@ -1446,19 +1446,19 @@ void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, ui
 	[ctx setMinSize:NSMakeSize(minWidth, minHeight)];
 }
 
-bool MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)
+MTY_Size MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window)
 {
 	Window *ctx = app_get_window(app, window);
 	if (!ctx)
-		return false;
+		return (MTY_Size) {0};
 
 	CGSize size = ctx.screen.frame.size;
 	CGFloat scale = mty_screen_scale(ctx.screen);
 
-	*width = lrint(size.width * scale);
-	*height = lrint(size.height * scale);
-
-	return true;
+	return (MTY_Size) {
+		.w = lrint(size.width * scale),
+		.h = lrint(size.height * scale),
+	};
 }
 
 float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)

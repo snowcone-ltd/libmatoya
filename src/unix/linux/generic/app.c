@@ -714,7 +714,7 @@ MTY_Frame MTY_AppTransformFrame(MTY_App *ctx, bool center, float maxHeight, cons
 	uint32_t screen_h = XHeightOfScreen(attr.screen);
 
 	if (maxHeight > 0.0f)
-		wsize_max_height(ctx->scale, maxHeight, screen_h, &tframe);
+		wsize_max_height(ctx->scale, maxHeight, screen_h, &tframe.size);
 
 	if (center) {
 		uint32_t screen_w = XWidthOfScreen(attr.screen);
@@ -1011,8 +1011,7 @@ static void window_set_up_wm(MTY_App *app, Window w)
 	XSetWMProtocols(app->display, w, protos, 2);
 }
 
-MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, bool fullscreen,
-	bool hidden, MTY_Window index)
+MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, MTY_Window index)
 {
 	bool r = true;
 	struct window *ctx = MTY_Alloc(1, sizeof(struct window));
@@ -1028,8 +1027,8 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	app->windows[window] = ctx;
 
 	MTY_Frame dframe = {
-		.w = APP_DEFAULT_WINDOW_W,
-		.h = APP_DEFAULT_WINDOW_H,
+		.size.w = APP_DEFAULT_WINDOW_W,
+		.size.h = APP_DEFAULT_WINDOW_H,
 	};
 
 	if (!frame) {
@@ -1044,7 +1043,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	swa.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask |
 		ButtonReleaseMask | PointerMotionMask | FocusChangeMask | StructureNotifyMask;
 
-	ctx->window = XCreateWindow(app->display, root, 0, 0, frame->w, frame->h, 0, app->vis->depth,
+	ctx->window = XCreateWindow(app->display, root, 0, 0, frame->size.w, frame->size.h, 0, app->vis->depth,
 		InputOutput, app->vis->visual, CWColormap | CWEventMask, &swa);
 
 	ctx->ic = XCreateIC(app->im, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
@@ -1086,18 +1085,16 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 	app->windows[window] = NULL;
 }
 
-MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
+MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 {
 	struct window *ctx = app_get_window(app, window);
 	if (!ctx)
-		return (MTY_Frame) {0};
+		return (MTY_Size) {0};
 
 	XWindowAttributes attr = {0};
 	XGetWindowAttributes(app->display, ctx->window, &attr);
 
-	return (MTY_Frame) {
-		.x = attr.x,
-		.y = attr.y,
+	return (MTY_Size) {
 		.w = attr.width,
 		.h = attr.height,
 	};
@@ -1106,7 +1103,9 @@ MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window)
 {
 	// TODO FIXME
-	return MTY_WindowGetFrame(app, window);
+	return (MTY_Frame) {
+		.size = MTY_WindowGetSize(app, window),
+	};
 }
 
 void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
@@ -1130,19 +1129,19 @@ void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, ui
 	XFree(shints);
 }
 
-bool MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)
+MTY_Size MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window)
 {
 	struct window *ctx = app_get_window(app, window);
 	if (!ctx)
-		return false;
+		return (MTY_Size) {0};
 
 	XWindowAttributes attr = {0};
 	XGetWindowAttributes(app->display, ctx->window, &attr);
 
-	*width = XWidthOfScreen(attr.screen);
-	*height = XHeightOfScreen(attr.screen);
-
-	return true;
+	return (MTY_Size) {
+		.w = XWidthOfScreen(attr.screen),
+		.h = XHeightOfScreen(attr.screen),
+	};
 }
 
 float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
