@@ -59,7 +59,7 @@ int main(int argc, char **argv)
 	if (!ctx.app)
 		return 1;
 
-	MTY_WindowCreate(ctx.app, "My Window", NULL, false, false, 0);
+	MTY_WindowCreate(ctx.app, "My Window", NULL, 0);
 
 	void *png = NULL;
 	size_t png_size = 0;

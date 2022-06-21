@@ -37,7 +37,7 @@ int main(int argc, char **argv)
 		return 1;
 
 	// Create a window
-	MTY_WindowCreate(ctx.app, "My Window", NULL, false, false, 0);
+	MTY_WindowCreate(ctx.app, "My Window", NULL, 0);
 
 	// In the case of MTY_GFX_GL, the GL context has to be made current on the
 	// thread that's doing the drawing

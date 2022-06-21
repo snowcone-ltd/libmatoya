@@ -49,7 +49,7 @@ int main(int argc, char **argv)
 	if (!ctx.app)
 		return 1;
 
-	MTY_WindowCreate(ctx.app, "My Window", NULL, false, false, 0);
+	MTY_WindowCreate(ctx.app, "My Window", NULL, 0);
 	MTY_WindowSetGFX(ctx.app, 0, MTY_GFX_GL, true);
 	MTY_WindowMakeCurrent(ctx.app, 0, true);
 
