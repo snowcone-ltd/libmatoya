@@ -1069,10 +1069,10 @@ MTY_Frame MTY_AppTransformFrame(MTY_App *ctx, bool center, float maxHeight, cons
 	CGSize size = [NSScreen mainScreen].frame.size;
 
 	if (maxHeight > 0.0f)
-		wsize_max_height(1.0f, maxHeight, size.h, &tframe);
+		wsize_max_height(1.0f, maxHeight, size.height, &tframe.size);
 
 	if (center)
-		wsize_center(0, 0, size.w, size.h, &tframe);
+		wsize_center(0, 0, size.width, size.height, &tframe);
 
 	return tframe;
 }
@@ -1330,8 +1330,7 @@ static void window_revert_levels(void)
 		[windows[x] setLevel:NSNormalWindowLevel];
 }
 
-MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, bool fullscreen,
-	bool hidden, MTY_Window index)
+MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, MTY_Window index)
 {
 	MTY_Window window = -1;
 	bool r = true;
@@ -1349,8 +1348,8 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	window_revert_levels();
 
 	MTY_Frame dframe = {
-		.w = APP_DEFAULT_WINDOW_W,
-		.h = APP_DEFAULT_WINDOW_H,
+		.size.w = APP_DEFAULT_WINDOW_W,
+		.size.h = APP_DEFAULT_WINDOW_H,
 	};
 
 	if (!frame) {
@@ -1358,7 +1357,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 		frame = &dframe;
 	}
 
-	NSRect rect = NSMakeRect(frame->x, frame->y, frame->w, frame->h);
+	NSRect rect = NSMakeRect(frame->x, frame->y, frame->size.w, frame->size.h);
 	NSWindowStyleMask style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
 		NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable;
 
@@ -1379,7 +1378,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 
 	ctx.app.windows[window] = (__bridge void *) ctx;
 
-	if (!hidden)
+	if (!(frame->type & MTY_WINDOW_HIDDEN))
 		MTY_WindowActivate(app, window, true);
 
 	except:
