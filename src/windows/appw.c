@@ -1707,16 +1707,17 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	int32_t y = CW_USEDEFAULT;
 
 	if (frame->type & MTY_WINDOW_FULLSCREEN) {
+		POINT pt = {.x = frame->x, .y = frame->y};
+		HMONITOR mon = MonitorFromPoint(pt, MONITOR_DEFAULTTONEAREST);
+
+		MONITORINFO info = {.cbSize = sizeof(MONITORINFO)};
+		GetMonitorInfo(mon, &info);
+
 		style = WS_POPUP;
-
-		// TODO FIXME use the x,y in frame to position on the correct monitor
-		RECT rect = {0};
-		GetWindowRect(GetDesktopWindow(), &rect);
-
-		x = rect.left;
-		y = rect.top;
-		w = rect.right - rect.left;
-		h = rect.bottom - rect.top;
+		x = info.rcMonitor.left;
+		y = info.rcMonitor.top;
+		w = info.rcMonitor.right - info.rcMonitor.left;
+		h = info.rcMonitor.bottom - info.rcMonitor.top;
 	}
 
 	titlew = MTY_MultiToWideD(title ? title : "MTY_Window");
@@ -1861,17 +1862,14 @@ void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, ui
 	ctx->min_height = r.bottom - r.top;
 }
 
-static bool window_get_monitor_info(HWND hwnd, MONITORINFOEX *info)
+static MONITORINFOEX window_get_monitor_info(HWND hwnd)
 {
 	HMONITOR mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
 
-	if (mon) {
-		info->cbSize = sizeof(MONITORINFOEX);
+	MONITORINFOEX info = {.cbSize = sizeof(MONITORINFOEX)};
+	GetMonitorInfo(mon, (MONITORINFO *) &info);
 
-		return GetMonitorInfo(mon, (MONITORINFO *) info);
-	}
-
-	return false;
+	return info;
 }
 
 MTY_Size MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window)
@@ -1880,15 +1878,12 @@ MTY_Size MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window)
 	if (!ctx)
 		return (MTY_Size) {0};
 
-	MONITORINFOEX info = {0};
+	MONITORINFOEX info = window_get_monitor_info(ctx->hwnd);
 
-	if (window_get_monitor_info(ctx->hwnd, &info))
-		return (MTY_Size) {
-			.w = info.rcMonitor.right - info.rcMonitor.left,
-			.h = info.rcMonitor.bottom - info.rcMonitor.top,
-		};
-
-	return (MTY_Size) {0};
+	return (MTY_Size) {
+		.w = info.rcMonitor.right - info.rcMonitor.left,
+		.h = info.rcMonitor.bottom - info.rcMonitor.top,
+	};
 }
 
 float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
@@ -1906,13 +1901,11 @@ uint32_t MTY_WindowGetRefreshRate(MTY_App *app, MTY_Window window)
 	if (!ctx)
 		return 60;
 
-	MONITORINFOEX info = {0};
-	if (window_get_monitor_info(ctx->hwnd, &info)) {
-		DEVMODE mode = {.dmSize = sizeof(DEVMODE)};
+	MONITORINFOEX info = window_get_monitor_info(ctx->hwnd);
+	DEVMODE mode = {.dmSize = sizeof(DEVMODE)};
 
-		if (EnumDisplaySettings(info.szDevice, ENUM_CURRENT_SETTINGS, &mode))
-			return mode.dmDisplayFrequency;
-	}
+	if (EnumDisplaySettings(info.szDevice, ENUM_CURRENT_SETTINGS, &mode))
+		return mode.dmDisplayFrequency;
 
 	return 60;
 }
@@ -1976,20 +1969,18 @@ void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
 		return;
 
 	if (fullscreen && !MTY_WindowIsFullscreen(app, window)) {
-		MONITORINFOEX info = {0};
+		MONITORINFOEX info = window_get_monitor_info(ctx->hwnd);
 
-		if (window_get_monitor_info(ctx->hwnd, &info)) {
-			ctx->frame = window_get_placement(app, ctx->hwnd);
-			ctx->frame.type |= MTY_WINDOW_FULLSCREEN;
+		ctx->frame = window_get_placement(app, ctx->hwnd);
+		ctx->frame.type |= MTY_WINDOW_FULLSCREEN;
 
-			uint32_t x = info.rcMonitor.left;
-			uint32_t y = info.rcMonitor.top;
-			uint32_t w = info.rcMonitor.right - info.rcMonitor.left;
-			uint32_t h = info.rcMonitor.bottom - info.rcMonitor.top;
+		uint32_t x = info.rcMonitor.left;
+		uint32_t y = info.rcMonitor.top;
+		uint32_t w = info.rcMonitor.right - info.rcMonitor.left;
+		uint32_t h = info.rcMonitor.bottom - info.rcMonitor.top;
 
-			SetWindowLongPtr(ctx->hwnd, GWL_STYLE, WS_VISIBLE | WS_POPUP);
-			SetWindowPos(ctx->hwnd, HWND_TOP, x, y, w, h, SWP_FRAMECHANGED);
-		}
+		SetWindowLongPtr(ctx->hwnd, GWL_STYLE, WS_VISIBLE | WS_POPUP);
+		SetWindowPos(ctx->hwnd, HWND_TOP, x, y, w, h, SWP_FRAMECHANGED);
 
 	} else if (!fullscreen && MTY_WindowIsFullscreen(app, window)) {
 		window_set_placement(app, ctx->hwnd, &ctx->frame);
