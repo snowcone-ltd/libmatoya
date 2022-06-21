@@ -1407,8 +1407,12 @@ MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 
 MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window)
 {
+	Window *ctx = app_get_window(app, window);
+	if (!ctx)
+		return (MTY_Frame) {0};
+
 	CGSize size = ctx.contentView.frame.size;
-	CGPoint origin = ctx.contentView.frame.origin;
+	CGPoint origin = ctx.frame.origin;
 
 	/* TODO FIXME May need this for placement, this is from top-left corner
 	int32_t x = lrint(ctx.screen.frame.size.height - ctx.frame.origin.y +
@@ -1418,6 +1422,11 @@ MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window)
 	*/
 
 	// TODO FIXME Need WindowType filled accurately
+
+	MTY_WindowType type = 0;
+
+	if (ctx.styleMask & NSWindowStyleMaskFullScreen)
+		type |= MTY_WINDOW_FULLSCREEN;
 
 	return (MTY_Frame) {
 		.x = origin.x,
