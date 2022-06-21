@@ -1949,6 +1949,19 @@ bool MTY_WindowIsFullscreen(MTY_App *app, MTY_Window window)
 	return GetWindowLongPtr(ctx->hwnd, GWL_STYLE) & WS_POPUP;
 }
 
+static void window_set_fullscreen(HWND hwnd)
+{
+	MONITORINFOEX info = window_get_monitor_info(hwnd);
+
+	uint32_t x = info.rcMonitor.left;
+	uint32_t y = info.rcMonitor.top;
+	uint32_t w = info.rcMonitor.right - info.rcMonitor.left;
+	uint32_t h = info.rcMonitor.bottom - info.rcMonitor.top;
+
+	SetWindowLongPtr(hwnd, GWL_STYLE, WS_VISIBLE | WS_POPUP);
+	SetWindowPos(hwnd, HWND_TOP, x, y, w, h, SWP_FRAMECHANGED);
+}
+
 void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
 {
 	struct window *ctx = app_get_window(app, window);
@@ -1956,18 +1969,10 @@ void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
 		return;
 
 	if (fullscreen && !MTY_WindowIsFullscreen(app, window)) {
-		MONITORINFOEX info = window_get_monitor_info(ctx->hwnd);
-
 		ctx->frame = window_get_placement(app, ctx->hwnd);
 		ctx->frame.type |= MTY_WINDOW_FULLSCREEN;
 
-		uint32_t x = info.rcMonitor.left;
-		uint32_t y = info.rcMonitor.top;
-		uint32_t w = info.rcMonitor.right - info.rcMonitor.left;
-		uint32_t h = info.rcMonitor.bottom - info.rcMonitor.top;
-
-		SetWindowLongPtr(ctx->hwnd, GWL_STYLE, WS_VISIBLE | WS_POPUP);
-		SetWindowPos(ctx->hwnd, HWND_TOP, x, y, w, h, SWP_FRAMECHANGED);
+		window_set_fullscreen(ctx->hwnd);
 
 	} else if (!fullscreen && MTY_WindowIsFullscreen(app, window)) {
 		window_set_placement(app, ctx->hwnd, &ctx->frame);
