@@ -753,16 +753,6 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 {
 }
 
-MTY_Frame MTY_AppMakeFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
-{
-	return (MTY_Frame) {
-		.x = x,
-		.y = y,
-		.size.w = w,
-		.size.h = h,
-	};
-}
-
 void MTY_AppSetTray(MTY_App *ctx, const char *tooltip, const MTY_MenuItem *items, uint32_t len)
 {
 }
@@ -960,7 +950,7 @@ MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 	return size;
 }
 
-MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window)
+MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 {
 	return (MTY_Frame) {
 		.size = MTY_WindowGetSize(app, window),
@@ -1054,6 +1044,16 @@ void *mty_window_get_native(MTY_App *app, MTY_Window window)
 
 
 // Misc
+
+MTY_Frame MTY_MakeDefaultFrame(int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
+{
+	return (MTY_Frame) {
+		.x = x,
+		.y = y,
+		.size.w = w,
+		.size.h = h,
+	};
+}
 
 void MTY_HotkeyToString(MTY_Mod mod, MTY_Key key, char *str, size_t len)
 {

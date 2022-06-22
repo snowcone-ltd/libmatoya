@@ -1062,13 +1062,6 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 	}
 }
 
-MTY_Frame MTY_AppMakeFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
-{
-	CGSize size = [NSScreen mainScreen].frame.size;
-
-	return wsize_default(0, 0, size.width, size.height, 1.0f, maxHeight, x, -y, w, h);
-}
-
 void MTY_AppSetTray(MTY_App *ctx, const char *tooltip, const MTY_MenuItem *items, uint32_t len)
 {
 }
@@ -1342,7 +1335,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	MTY_Frame dframe = {0};
 
 	if (!frame) {
-		dframe = MTY_AppMakeFrame(app, 0, 0, APP_DEFAULT_WINDOW_W, APP_DEFAULT_WINDOW_H, 1.0f);
+		dframe = MTY_MakeDefaultFrame(0, 0, APP_DEFAULT_WINDOW_W, APP_DEFAULT_WINDOW_H, 1.0f);
 		frame = &dframe;
 	}
 
@@ -1405,7 +1398,7 @@ MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 	};
 }
 
-MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window)
+MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 {
 	Window *ctx = app_get_window(app, window);
 	if (!ctx)
@@ -1618,6 +1611,13 @@ void *mty_window_get_native(MTY_App *app, MTY_Window window)
 
 static MTY_Atomic32 APP_GLOCK;
 static char APP_KEYS[MTY_KEY_MAX][16];
+
+MTY_Frame MTY_MakeDefaultFrame(int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
+{
+	CGSize size = [NSScreen mainScreen].frame.size;
+
+	return wsize_default(0, 0, size.width, size.height, 1.0f, maxHeight, x, -y, w, h);
+}
 
 static void app_carbon_key(uint16_t kc, char *text, size_t len)
 {

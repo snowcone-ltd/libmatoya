@@ -318,15 +318,19 @@ static void app_kb_to_hotkey(MTY_App *app, MTY_Event *evt)
 	}
 }
 
+static float app_get_scale(Display *display)
+{
+	const char *dpi = XGetDefault(display, "Xft", "dpi");
+	float scale = dpi ? atoi(dpi) / 96.0f : 1.0f;
+
+	return scale == 0.0f ? 1.0f : scale;
+}
+
 static void app_refresh_scale(MTY_App *ctx)
 {
 	Display *display = XOpenDisplay(NULL);
 
-	const char *dpi = XGetDefault(display, "Xft", "dpi");
-	ctx->scale = dpi ? (float) atoi(dpi) / 96.0f : 1.0f;
-
-	if (ctx->scale == 0.0f)
-		ctx->scale = 1.0f;
+	ctx->scale = app_get_scale(display);
 
 	XCloseDisplay(display);
 }
@@ -702,19 +706,6 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 	MTY_WindowActivate(ctx, 0, active);
 }
 
-MTY_Frame MTY_AppMakeFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
-{
-	Window root = XDefaultRootWindow(ctx->display);
-
-	XWindowAttributes attr = {0};
-	XGetWindowAttributes(ctx->display, root, &attr);
-
-	uint32_t screen_h = XHeightOfScreen(attr.screen);
-	uint32_t screen_w = XWidthOfScreen(attr.screen);
-
-	return wsize_default(0, 0, screen_w, screen_h, ctx->scale, maxHeight, x, y, w, h);
-}
-
 void MTY_AppSetTray(MTY_App *ctx, const char *tooltip, const MTY_MenuItem *items, uint32_t len)
 {
 }
@@ -1020,7 +1011,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	MTY_Frame dframe = {0};
 
 	if (!frame) {
-		dframe = MTY_AppMakeFrame(app, 0, 0, APP_DEFAULT_WINDOW_W, APP_DEFAULT_WINDOW_H, 1.0f);
+		dframe = MTY_MakeDefaultFrame(0, 0, APP_DEFAULT_WINDOW_W, APP_DEFAULT_WINDOW_H, 1.0f);
 		frame = &dframe;
 	}
 
@@ -1088,7 +1079,7 @@ MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 	};
 }
 
-MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window)
+MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 {
 	struct window *ctx = app_get_window(app, window);
 	if (!ctx)
@@ -1353,6 +1344,24 @@ void *mty_window_get_native(MTY_App *app, MTY_Window window)
 
 static MTY_Atomic32 APP_GLOCK;
 static char APP_KEYS[MTY_KEY_MAX][16];
+
+MTY_Frame MTY_MakeDefaultFrame(int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
+{
+	Display *display = XOpenDisplay(NULL);
+	Window root = XDefaultRootWindow(display);
+
+	float scale = app_get_scale(display);
+
+	XWindowAttributes attr = {0};
+	XGetWindowAttributes(display, root, &attr);
+
+	uint32_t screen_h = XHeightOfScreen(attr.screen);
+	uint32_t screen_w = XWidthOfScreen(attr.screen);
+
+	XCloseDisplay(display);
+
+	return wsize_default(0, 0, screen_w, screen_h, scale, maxHeight, x, y, w, h);
+}
 
 static void app_hotkey_init(void)
 {

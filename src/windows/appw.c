@@ -1170,18 +1170,6 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 	MTY_WindowActivate(ctx, 0, active);
 }
 
-MTY_Frame MTY_AppMakeFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
-{
-	HMONITOR mon = monitor_primary();
-	MONITORINFOEX info = monitor_get_info(mon);
-
-	uint32_t screen_h = info.rcMonitor.bottom - info.rcMonitor.top;
-	uint32_t screen_w = info.rcMonitor.right - info.rcMonitor.left;
-	float scale = monitor_get_scale(mon);
-
-	return wsize_default(0, 0, screen_w, screen_h, scale, maxHeight, x, y, w, h);
-}
-
 void MTY_AppSetTray(MTY_App *ctx, const char *tooltip, const MTY_MenuItem *items, uint32_t len)
 {
 	MTY_AppRemoveTray(ctx);
@@ -1699,7 +1687,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	MTY_Frame dframe = {0};
 
 	if (!frame) {
-		dframe = MTY_AppMakeFrame(app, 0, 0, APP_DEFAULT_WINDOW_W, APP_DEFAULT_WINDOW_H, 1.0f);
+		dframe = MTY_MakeDefaultFrame(0, 0, APP_DEFAULT_WINDOW_W, APP_DEFAULT_WINDOW_H, 1.0f);
 		frame = &dframe;
 	}
 
@@ -1835,7 +1823,7 @@ static MTY_Frame window_get_placement(MTY_App *app, HWND hwnd)
 	return frame;
 }
 
-MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window)
+MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 {
 	struct window *ctx = app_get_window(app, window);
 	if (!ctx)
@@ -2069,6 +2057,18 @@ void *mty_window_get_native(MTY_App *app, MTY_Window window)
 
 
 // Misc
+
+MTY_Frame MTY_MakeDefaultFrame(int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
+{
+	HMONITOR mon = monitor_primary();
+	MONITORINFOEX info = monitor_get_info(mon);
+
+	uint32_t screen_h = info.rcMonitor.bottom - info.rcMonitor.top;
+	uint32_t screen_w = info.rcMonitor.right - info.rcMonitor.left;
+	float scale = monitor_get_scale(mon);
+
+	return wsize_default(0, 0, screen_w, screen_h, scale, maxHeight, x, y, w, h);
+}
 
 static bool app_key_to_str(MTY_Key key, char *str, size_t len)
 {

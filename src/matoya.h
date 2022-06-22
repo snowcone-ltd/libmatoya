@@ -801,16 +801,6 @@ MTY_AppIsActive(MTY_App *ctx);
 MTY_EXPORT void
 MTY_AppActivate(MTY_App *ctx, bool active);
 
-/// @brief Fill an MTY_Frame taking the current display configuration into account.
-/// @param ctx The MTY_App.
-/// @param center Treat `x` and `y` as relative to the primary screen's center point.
-/// @param maxHeight Between 0.0f and 1.0f, limit the frame's height to a percentage of the
-///   primary screen's height. The frame's width is adjusted accordingly keeping the original
-///   aspect ratio intact.
-/// @param frame An MTY_Frame to transform.
-MTY_EXPORT MTY_Frame
-MTY_AppMakeFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight);
-
 /// @brief Set a system tray icon for the app.
 /// @param ctx The MTY_App.
 /// @param tooltip Text that appears when the tray icon is hovered.
@@ -1050,7 +1040,7 @@ MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode);
 ///   as an argument are designed to handle invalid windows, which are integers.\n\n
 /// @param app The MTY_App.
 /// @param title The title of the window.
-/// @param frame The window's size and position. Use MTY_AppMakeFrame or MTY_WindowGetPlacement
+/// @param frame The window's size and position. Use MTY_AppMakeFrame or MTY_WindowGetFrame
 ///   to fill a frame more precisely. May be NULL for sensible defaults.
 /// @param index Attempt to create the window with the specified index. If the index is already
 ///   taken, the first available is used.
@@ -1079,7 +1069,7 @@ MTY_WindowGetSize(MTY_App *app, MTY_Window window);
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 MTY_EXPORT MTY_Frame
-MTY_WindowGetPlacement(MTY_App *app, MTY_Window window);
+MTY_WindowGetFrame(MTY_App *app, MTY_Window window);
 
 /// @brief Set a window's size and position.
 /// @param app The MTY_App.
@@ -1277,6 +1267,14 @@ MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync);
 /// @param window An MTY_Window.
 MTY_EXPORT MTY_ContextState
 MTY_WindowGetContextState(MTY_App *app, MTY_Window window);
+
+/// @brief Fill an MTY_Frame taking the current display configuration into account.
+/// @param maxHeight Between 0.0f and 1.0f, limit the frame's height to a percentage of the
+///   primary screen's height. The frame's width is adjusted accordingly keeping the original
+///   aspect ratio intact.
+/// @param frame An MTY_Frame to transform.
+MTY_EXPORT MTY_Frame
+MTY_MakeDefaultFrame(int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight);
 
 /// @brief Get the string representation of a key combination.
 /// @details This function attempts to use the current locale.
