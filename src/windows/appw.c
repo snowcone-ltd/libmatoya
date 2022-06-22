@@ -29,6 +29,7 @@ struct window {
 	MTY_Frame frame;
 	MTY_GFX api;
 	HWND hwnd;
+	bool was_zoomed;
 	uint32_t min_width;
 	uint32_t min_height;
 	struct gfx_ctx *gfx_ctx;
@@ -161,19 +162,6 @@ static MTY_Window app_find_open_window(MTY_App *app, MTY_Window req)
 static bool app_hwnd_visible(HWND hwnd)
 {
 	return IsWindowVisible(hwnd) && !IsIconic(hwnd);
-}
-
-static void app_hwnd_activate(HWND hwnd, bool active)
-{
-	if (active) {
-		if (!app_hwnd_visible(hwnd))
-			ShowWindow(hwnd, SW_RESTORE);
-
-		SetForegroundWindow(hwnd);
-
-	} else {
-		ShowWindow(hwnd, SW_HIDE);
-	}
 }
 
 static bool app_hwnd_active(HWND hwnd)
@@ -1179,11 +1167,7 @@ bool MTY_AppIsActive(MTY_App *ctx)
 
 void MTY_AppActivate(MTY_App *ctx, bool active)
 {
-	HWND hwnd = app_get_main_hwnd(ctx);
-	if (!hwnd)
-		return;
-
-	app_hwnd_activate(hwnd, active);
+	MTY_WindowActivate(ctx, 0, active);
 }
 
 MTY_Frame MTY_AppMakeFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
@@ -1678,7 +1662,7 @@ static void window_set_placement(HMONITOR mon, HWND hwnd, const MTY_Frame *frame
 	WINDOWPLACEMENT p = {.length = sizeof(WINDOWPLACEMENT)};
 
 	p.showCmd = frame->type & MTY_WINDOW_HIDDEN ? SW_HIDE :
-		frame->type & MTY_WINDOW_MAXIMIZED ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
+		frame->type & MTY_WINDOW_MAXIMIZED ? SW_MAXIMIZE : SW_NORMAL;
 
 	p.rcNormalPosition = (RECT) {
 		.top = frame->y,
@@ -1721,6 +1705,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 
 	HMONITOR mon = monitor_from_screen(frame->screen);
 	ctx->frame = *frame;
+	ctx->was_zoomed = frame->type & MTY_WINDOW_MAXIMIZED;
 
 	DWORD style = WS_OVERLAPPEDWINDOW;
 	int32_t w = CW_USEDEFAULT;
@@ -1749,7 +1734,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 
 	if (frame->type & MTY_WINDOW_FULLSCREEN) {
 		if (!(frame->type & MTY_WINDOW_HIDDEN))
-			ShowWindow(ctx->hwnd, SW_SHOWNORMAL);
+			ShowWindow(ctx->hwnd, SW_NORMAL);
 
 	} else {
 		window_set_placement(mon, ctx->hwnd, frame);
@@ -1834,7 +1819,7 @@ static MTY_Frame window_get_placement(MTY_App *app, HWND hwnd)
 	r.bottom = lrint((r.bottom - ar.bottom) / scale) - mi.rcWork.top;
 	r.left = lrint((r.left - ar.left) / scale) - mi.rcWork.left;
 
-	MTY_WindowType type = p.showCmd == SW_SHOWMAXIMIZED ?
+	MTY_WindowType type = p.showCmd == SW_MAXIMIZE ?
 		MTY_WINDOW_MAXIMIZED : MTY_WINDOW_NORMAL;
 
 	MTY_Frame frame = {
@@ -1983,7 +1968,16 @@ void MTY_WindowActivate(MTY_App *app, MTY_Window window, bool active)
 	if (!ctx)
 		return;
 
-	app_hwnd_activate(ctx->hwnd, active);
+	if (active) {
+		if (!app_hwnd_visible(ctx->hwnd))
+			ShowWindow(ctx->hwnd, ctx->was_zoomed ? SW_MAXIMIZE : SW_RESTORE);
+
+		SetForegroundWindow(ctx->hwnd);
+
+	} else {
+		ctx->was_zoomed = IsZoomed(ctx->hwnd);
+		ShowWindow(ctx->hwnd, SW_HIDE);
+	}
 }
 
 bool MTY_WindowExists(MTY_App *app, MTY_Window window)
