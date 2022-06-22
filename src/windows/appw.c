@@ -958,7 +958,7 @@ static MONITORINFOEX monitor_get_info(HMONITOR mon)
 	return info;
 }
 
-static BOOL monitor_enum(HMONITOR mon, HDC p2, RECT *p3, LPARAM p4)
+static BOOL WINAPI monitor_enum(HMONITOR mon, HDC p2, RECT *p3, LPARAM p4)
 {
 	struct monitor_cb_info *info = (struct monitor_cb_info *) p4;
 	MONITORINFOEX mi = monitor_get_info(mon);
