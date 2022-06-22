@@ -92,7 +92,6 @@ struct MTY_App {
 		uint32_t len;
 	} tray;
 
-	HRESULT (WINAPI *GetDpiForMonitor)(HMONITOR hmonitor, MONITOR_DPI_TYPE dpiType, UINT *dpiX, UINT *dpiY);
 	BOOL (WINAPI *GetPointerType)(UINT32 pointerId, POINTER_INPUT_TYPE *pointerType);
 	BOOL (WINAPI *GetPointerPenInfo)(UINT32 pointerId, POINTER_PEN_INFO *penInfo);
 };
@@ -175,18 +174,6 @@ static void app_hwnd_activate(HWND hwnd, bool active)
 	} else {
 		ShowWindow(hwnd, SW_HIDE);
 	}
-}
-
-static float app_get_scale(MTY_App *ctx, HMONITOR mon)
-{
-	if (!ctx->GetDpiForMonitor)
-		return 1.0f;
-
-	UINT x = 0;
-	UINT y = 0;
-	ctx->GetDpiForMonitor(mon, MDT_EFFECTIVE_DPI, &x, &y);
-
-	return x / 96.0f;
 }
 
 static bool app_hwnd_active(HWND hwnd)
@@ -926,11 +913,36 @@ static LRESULT CALLBACK app_hwnd_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM
 
 // Monitor helpers
 
-static HMONITOR monitor_from_point(int32_t x, int32_t y)
-{
-	POINT pt = {.x = x, .y = y};
+struct monitor_cb_info {
+	HMONITOR mon;
+	const WCHAR *screen;
+};
 
-	return MonitorFromPoint(pt, MONITOR_DEFAULTTONEAREST);
+static __declspec(thread) HRESULT (WINAPI *_GetDpiForMonitor)(HMONITOR hmonitor,
+	MONITOR_DPI_TYPE dpiType, UINT *dpiX, UINT *dpiY);
+
+static float monitor_get_scale(HMONITOR mon)
+{
+	if (!_GetDpiForMonitor) {
+		HMODULE shcore = GetModuleHandle(L"shcore.dll");
+		_GetDpiForMonitor = (void *) GetProcAddress(shcore, "GetDpiForMonitor");
+
+		if (!_GetDpiForMonitor)
+			return 1.0f;
+	}
+
+	UINT x = 0;
+	UINT y = 0;
+	_GetDpiForMonitor(mon, MDT_EFFECTIVE_DPI, &x, &y);
+
+	return x / 96.0f;
+}
+
+static HMONITOR monitor_primary(void)
+{
+	POINT pt = {0};
+
+	return MonitorFromPoint(pt, MONITOR_DEFAULTTOPRIMARY);
 }
 
 static HMONITOR monitor_from_hwnd(HWND hwnd)
@@ -944,6 +956,33 @@ static MONITORINFOEX monitor_get_info(HMONITOR mon)
 	GetMonitorInfo(mon, (MONITORINFO *) &info);
 
 	return info;
+}
+
+static BOOL monitor_enum(HMONITOR mon, HDC p2, RECT *p3, LPARAM p4)
+{
+	struct monitor_cb_info *info = (struct monitor_cb_info *) p4;
+	MONITORINFOEX mi = monitor_get_info(mon);
+
+	if (!wcscmp(info->screen, mi.szDevice)) {
+		info->mon = mon;
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+static HMONITOR monitor_from_screen(const char *screen)
+{
+	if (!screen || !screen[0])
+		return monitor_primary();
+
+	struct monitor_cb_info info = {
+		.screen = MTY_MultiToWideDL(screen),
+	};
+
+	EnumDisplayMonitors(NULL, NULL, monitor_enum, (LPARAM) &info);
+
+	return info.mon ? info.mon : monitor_primary();
 }
 
 
@@ -1031,8 +1070,6 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	ctx->tb_msg = RegisterWindowMessage(L"TaskbarCreated");
 
 	HMODULE user32 = GetModuleHandle(L"user32.dll");
-	HMODULE shcore = GetModuleHandle(L"shcore.dll");
-	ctx->GetDpiForMonitor = (void *) GetProcAddress(shcore, "GetDpiForMonitor");
 	ctx->GetPointerPenInfo = (void *) GetProcAddress(user32, "GetPointerPenInfo");
 	ctx->GetPointerType = (void *) GetProcAddress(user32, "GetPointerType");
 
@@ -1151,13 +1188,12 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 
 MTY_Frame MTY_AppMakeFrame(MTY_App *ctx, int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
 {
-	RECT r = {0};
-	HWND desktop = GetDesktopWindow();
-	GetWindowRect(desktop, &r);
+	HMONITOR mon = monitor_primary();
+	MONITORINFOEX info = monitor_get_info(mon);
 
-	uint32_t screen_h = r.bottom - r.top;
-	uint32_t screen_w = r.right - r.left;
-	float scale = app_get_scale(ctx, monitor_from_hwnd(desktop));
+	uint32_t screen_h = info.rcMonitor.bottom - info.rcMonitor.top;
+	uint32_t screen_w = info.rcMonitor.right - info.rcMonitor.left;
+	float scale = monitor_get_scale(mon);
 
 	return wsize_default(0, 0, screen_w, screen_h, scale, maxHeight, x, y, w, h);
 }
@@ -1624,19 +1660,20 @@ void MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode)
 
 // Window
 
-static void window_denormalize_rect(MTY_App *app, HMONITOR mon, RECT *r)
+static void window_denormalize_rect(HMONITOR mon, RECT *r)
 {
-	float scale = app_get_scale(app, mon);
+	MONITORINFOEX mi = monitor_get_info(mon);
+	float scale = monitor_get_scale(mon);
 
-	r->top = lrint(r->top * scale);
-	r->right = lrint(r->right * scale);
-	r->bottom = lrint(r->bottom * scale);
-	r->left = lrint(r->left * scale);
+	r->top = lrint(r->top * scale) + mi.rcWork.top;
+	r->right = lrint(r->right * scale) + mi.rcWork.left;
+	r->bottom = lrint(r->bottom * scale) + mi.rcWork.top;
+	r->left = lrint(r->left * scale) + mi.rcWork.left;
 
 	AdjustWindowRect(r, WS_OVERLAPPEDWINDOW, FALSE);
 }
 
-static void window_set_placement(MTY_App *app, HMONITOR mon, HWND hwnd, const MTY_Frame *frame)
+static void window_set_placement(HMONITOR mon, HWND hwnd, const MTY_Frame *frame)
 {
 	WINDOWPLACEMENT p = {.length = sizeof(WINDOWPLACEMENT)};
 
@@ -1650,7 +1687,7 @@ static void window_set_placement(MTY_App *app, HMONITOR mon, HWND hwnd, const MT
 		.bottom = frame->size.h + frame->y,
 	};
 
-	window_denormalize_rect(app, mon, &p.rcNormalPosition);
+	window_denormalize_rect(mon, &p.rcNormalPosition);
 
 	SetWindowPlacement(hwnd, &p);
 }
@@ -1682,7 +1719,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 		frame = &dframe;
 	}
 
-	HMONITOR mon = monitor_from_point(frame->x, frame->y);
+	HMONITOR mon = monitor_from_screen(frame->screen);
 	ctx->frame = *frame;
 
 	DWORD style = WS_OVERLAPPEDWINDOW;
@@ -1715,7 +1752,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 			ShowWindow(ctx->hwnd, SW_SHOWNORMAL);
 
 	} else {
-		window_set_placement(app, mon, ctx->hwnd, frame);
+		window_set_placement(mon, ctx->hwnd, frame);
 	}
 
 	if (!(frame->type & MTY_WINDOW_HIDDEN))
@@ -1778,36 +1815,39 @@ MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 	};
 }
 
-static void window_normalize_rect(MTY_App *app, HWND hwnd, RECT *r)
-{
-	RECT ar = {0};
-	AdjustWindowRect(&ar, WS_OVERLAPPEDWINDOW, FALSE);
-
-	float scale = app_get_scale(app, monitor_from_hwnd(hwnd));
-
-	r->top = lrint((r->top - ar.top) / scale);
-	r->right = lrint((r->right - ar.right) / scale);
-	r->bottom = lrint((r->bottom - ar.bottom) / scale);
-	r->left = lrint((r->left - ar.left) / scale);
-}
-
 static MTY_Frame window_get_placement(MTY_App *app, HWND hwnd)
 {
 	WINDOWPLACEMENT p = {.length = sizeof(WINDOWPLACEMENT)};
 	GetWindowPlacement(hwnd, &p);
 
-	window_normalize_rect(app, hwnd, &p.rcNormalPosition);
+	RECT r = p.rcNormalPosition;
+
+	RECT ar = {0};
+	AdjustWindowRect(&ar, WS_OVERLAPPEDWINDOW, FALSE);
+
+	HMONITOR mon = monitor_from_hwnd(hwnd);
+	MONITORINFOEX mi = monitor_get_info(mon);
+	float scale = monitor_get_scale(mon);
+
+	r.top = lrint((r.top - ar.top) / scale) - mi.rcWork.top;
+	r.right = lrint((r.right - ar.right) / scale) - mi.rcWork.left;
+	r.bottom = lrint((r.bottom - ar.bottom) / scale) - mi.rcWork.top;
+	r.left = lrint((r.left - ar.left) / scale) - mi.rcWork.left;
 
 	MTY_WindowType type = p.showCmd == SW_SHOWMAXIMIZED ?
 		MTY_WINDOW_MAXIMIZED : MTY_WINDOW_NORMAL;
 
-	return (MTY_Frame) {
+	MTY_Frame frame = {
 		.type = type,
-		.y = p.rcNormalPosition.top,
-		.x = p.rcNormalPosition.left,
-		.size.w = p.rcNormalPosition.right - p.rcNormalPosition.left,
-		.size.h = p.rcNormalPosition.bottom - p.rcNormalPosition.top,
+		.y = r.top,
+		.x = r.left,
+		.size.w = r.right - r.left,
+		.size.h = r.bottom - r.top,
 	};
+
+	snprintf(frame.screen, MTY_SCREEN_MAX, "%s", MTY_WideToMultiDL(mi.szDevice));
+
+	return frame;
 }
 
 MTY_Frame MTY_WindowGetPlacement(MTY_App *app, MTY_Window window)
@@ -1828,7 +1868,7 @@ void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
 	if (!ctx)
 		return;
 
-	HMONITOR mon = monitor_from_point(frame->x, frame->y);
+	HMONITOR mon = monitor_from_screen(frame->screen);
 
 	if (frame->type & MTY_WINDOW_FULLSCREEN) {
 		ctx->frame = *frame;
@@ -1849,7 +1889,7 @@ void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
 			ptr |= WS_MAXIMIZE;
 
 		SetWindowLongPtr(ctx->hwnd, GWL_STYLE, ptr);
-		window_set_placement(app, mon, ctx->hwnd, frame);
+		window_set_placement(mon, ctx->hwnd, frame);
 
 		PostMessage(ctx->hwnd, WM_SETICON, ICON_BIG, GetClassLongPtr(ctx->hwnd, GCLP_HICON));
 		PostMessage(ctx->hwnd, WM_SETICON, ICON_SMALL, GetClassLongPtr(ctx->hwnd, GCLP_HICONSM));
@@ -1864,7 +1904,7 @@ void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, ui
 
 	RECT r = {.right = minWidth, .bottom = minHeight};
 	HMONITOR mon = monitor_from_hwnd(ctx->hwnd);
-	window_denormalize_rect(app, mon, &r);
+	window_denormalize_rect(mon, &r);
 
 	ctx->min_width = r.right - r.left;
 	ctx->min_height = r.bottom - r.top;
@@ -1890,7 +1930,7 @@ float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
 	if (!ctx)
 		return 1.0f;
 
-	return app_get_scale(app, monitor_from_hwnd(ctx->hwnd));
+	return monitor_get_scale(monitor_from_hwnd(ctx->hwnd));
 }
 
 uint32_t MTY_WindowGetRefreshRate(MTY_App *app, MTY_Window window)

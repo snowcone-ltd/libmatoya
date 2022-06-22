@@ -287,7 +287,8 @@ MTY_FreeRenderState(MTY_RenderState **state);
 //-   many different dependencies under the hood responsible for input handling,
 //-   graphics API context creation, window creation, and event loop processing.
 
-#define MTY_WINDOW_MAX 8 ///< Maximum number of windows that can be created.
+#define MTY_WINDOW_MAX 8  ///< Maximum number of windows that can be created.
+#define MTY_SCREEN_MAX 32 ///< Maximum size of screen identifier.
 
 #define MTY_DPAD(c) \
 	((c)->axes[MTY_CAXIS_DPAD].value)
@@ -741,10 +742,11 @@ typedef struct {
 
 /// @brief Window size and position.
 typedef struct {
-	MTY_WindowType type; ///< Window type.
-	MTY_Size size;       ///< Window client (content) size.
-	int32_t x;           ///< Window horizontal position from left edge of the primary screen.
-	int32_t y;           ///< Window vertical position from top edge of the primary screen.
+	MTY_WindowType type;         ///< Window type.
+	MTY_Size size;               ///< Window client (content) size.
+	char screen[MTY_SCREEN_MAX]; ///< Screen identifier.
+	int32_t x;                   ///< Window horizontal position from left edge of specified `screen`.
+	int32_t y;                   ///< Window vertical position from top edge of specified `screen`.
 } MTY_Frame;
 
 /// @brief Function called for each event sent to the app.
