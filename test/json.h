@@ -112,7 +112,7 @@ static void json_last_item(void)
 	MTY_JSONObjDeleteItem(root, "last");
 	MTY_JSONObjSetItem(root, "last", MTY_JSONObjCreate());
 	
-	MTY_JSONDestroy(root);
+	MTY_JSONDestroy(&root);
 }
 
 static bool json_main(void)
