@@ -1790,18 +1790,27 @@ MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 
 static MTY_Frame window_get_placement(MTY_App *app, HWND hwnd)
 {
-	WINDOWPLACEMENT p = {.length = sizeof(WINDOWPLACEMENT)};
-	GetWindowPlacement(hwnd, &p);
-
-	RECT r = p.rcNormalPosition;
-
-	RECT ar = {0};
-	AdjustWindowRect(&ar, WS_OVERLAPPEDWINDOW, FALSE);
-
 	HMONITOR mon = monitor_from_hwnd(hwnd);
 	MONITORINFOEX mi = monitor_get_info(mon);
 	float scale = monitor_get_scale(mon);
 
+	// Get Window placement in workspace coordinates -- the top/left
+	// are the outer edge of the window including borders and title bar
+	WINDOWPLACEMENT p = {.length = sizeof(WINDOWPLACEMENT)};
+	GetWindowPlacement(hwnd, &p);
+
+	// Figure out the border and title bar size based on where the window
+	// currently resides. This is important for correct DPI normalization
+	RECT ar = p.rcNormalPosition;
+	AdjustWindowRect(&ar, WS_OVERLAPPEDWINDOW, FALSE);
+	ar.top -= p.rcNormalPosition.top;
+	ar.right -= p.rcNormalPosition.right;
+	ar.bottom -= p.rcNormalPosition.bottom;
+	ar.left -= p.rcNormalPosition.left;
+
+	// Normalize the window to RECT taking into account DPI scaling and
+	// the coordinates of the work area of the current monitor
+	RECT r = p.rcNormalPosition;
 	r.top = lrint((r.top - ar.top) / scale) - mi.rcWork.top;
 	r.right = lrint((r.right - ar.right) / scale) - mi.rcWork.left;
 	r.bottom = lrint((r.bottom - ar.bottom) / scale) - mi.rcWork.top;
