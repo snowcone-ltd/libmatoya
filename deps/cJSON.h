@@ -1539,9 +1539,14 @@ CJSON_PUBLIC(cJSON *) cJSON_DetachItemViaPointer(cJSON *parent, cJSON *const ite
 		/* not the first element */
 		item->prev->next = item->next;
 	}
+
 	if (item->next != NULL) {
 		/* not the last element */
 		item->next->prev = item->prev;
+
+	} else {
+		/* the last element */
+		parent->child->prev = item->prev;
 	}
 
 	if (item == parent->child) {
