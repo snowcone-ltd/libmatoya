@@ -95,6 +95,8 @@ struct MTY_App {
 
 	BOOL (WINAPI *GetPointerType)(UINT32 pointerId, POINTER_INPUT_TYPE *pointerType);
 	BOOL (WINAPI *GetPointerPenInfo)(UINT32 pointerId, POINTER_PEN_INFO *penInfo);
+	BOOL (WINAPI *AdjustWindowRectExForDpi)(LPRECT lpRect, DWORD dwStyle, BOOL bMenu,
+		DWORD dwExStyle, UINT dpi);
 };
 
 
@@ -178,6 +180,16 @@ static void app_register_raw_input(USHORT usage_page, USHORT usage, DWORD flags,
 	rid.hwndTarget = hwnd;
 	if (!RegisterRawInputDevices(&rid, 1, sizeof(RAWINPUTDEVICE)))
 		MTY_Log("'RegisterRawInputDevices' failed with error 0x%X", GetLastError());
+}
+
+static void app_adjust_window_rect(MTY_App *app, float scale, RECT *r)
+{
+	if (app->AdjustWindowRectExForDpi) {
+		app->AdjustWindowRectExForDpi(r, WS_OVERLAPPEDWINDOW, FALSE, 0, lrint(scale * 96));
+
+	} else {
+		AdjustWindowRect(r, WS_OVERLAPPEDWINDOW, FALSE);
+	}
 }
 
 
@@ -1060,6 +1072,7 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	HMODULE user32 = GetModuleHandle(L"user32.dll");
 	ctx->GetPointerPenInfo = (void *) GetProcAddress(user32, "GetPointerPenInfo");
 	ctx->GetPointerType = (void *) GetProcAddress(user32, "GetPointerType");
+	ctx->AdjustWindowRectExForDpi = (void *) GetProcAddress(user32, "AdjustWindowRectExForDpi");
 
 	ImmDisableIME(0);
 
@@ -1632,7 +1645,7 @@ void MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode)
 
 // Window
 
-static void window_denormalize_rect(HMONITOR mon, RECT *r)
+static void window_denormalize_rect(MTY_App *app, HMONITOR mon, RECT *r)
 {
 	MONITORINFOEX mi = monitor_get_info(mon);
 	float scale = monitor_get_scale(mon);
@@ -1642,10 +1655,10 @@ static void window_denormalize_rect(HMONITOR mon, RECT *r)
 	r->bottom = lrint(r->bottom * scale) + mi.rcWork.top;
 	r->left = lrint(r->left * scale) + mi.rcWork.left;
 
-	AdjustWindowRect(r, WS_OVERLAPPEDWINDOW, FALSE);
+	app_adjust_window_rect(app, scale, r);
 }
 
-static void window_set_placement(HMONITOR mon, HWND hwnd, const MTY_Frame *frame)
+static void window_set_placement(MTY_App *app, HMONITOR mon, HWND hwnd, const MTY_Frame *frame)
 {
 	WINDOWPLACEMENT p = {.length = sizeof(WINDOWPLACEMENT)};
 
@@ -1659,7 +1672,7 @@ static void window_set_placement(HMONITOR mon, HWND hwnd, const MTY_Frame *frame
 		.bottom = frame->size.h + frame->y,
 	};
 
-	window_denormalize_rect(mon, &p.rcNormalPosition);
+	window_denormalize_rect(app, mon, &p.rcNormalPosition);
 
 	SetWindowPlacement(hwnd, &p);
 }
@@ -1725,7 +1738,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 			ShowWindow(ctx->hwnd, SW_NORMAL);
 
 	} else {
-		window_set_placement(mon, ctx->hwnd, frame);
+		window_set_placement(app, mon, ctx->hwnd, frame);
 	}
 
 	if (!(frame->type & MTY_WINDOW_HIDDEN))
@@ -1800,21 +1813,18 @@ static MTY_Frame window_get_placement(MTY_App *app, HWND hwnd)
 	GetWindowPlacement(hwnd, &p);
 
 	// Figure out the border and title bar size based on where the window
-	// currently resides. This is important for correct DPI normalization
-	RECT ar = p.rcNormalPosition;
-	AdjustWindowRect(&ar, WS_OVERLAPPEDWINDOW, FALSE);
-	ar.top -= p.rcNormalPosition.top;
-	ar.right -= p.rcNormalPosition.right;
-	ar.bottom -= p.rcNormalPosition.bottom;
-	ar.left -= p.rcNormalPosition.left;
+	// currently resides, normalized for 1.0 scale (96 DPI).
+	RECT ar = {0};
+	app_adjust_window_rect(app, 1.0f, &ar);
 
-	// Normalize the window to RECT taking into account DPI scaling and
-	// the coordinates of the work area of the current monitor
+	// Normalize the window to RECT taking into account scaling,
+	// the coordinates of the work area of the current monitor, and
+	// the adjusted window RECT from above
 	RECT r = p.rcNormalPosition;
-	r.top = lrint((r.top - ar.top) / scale) - mi.rcWork.top;
-	r.right = lrint((r.right - ar.right) / scale) - mi.rcWork.left;
-	r.bottom = lrint((r.bottom - ar.bottom) / scale) - mi.rcWork.top;
-	r.left = lrint((r.left - ar.left) / scale) - mi.rcWork.left;
+	r.top = lrint(r.top / scale) - mi.rcWork.top - ar.top;
+	r.right = lrint(r.right / scale) - mi.rcWork.left - ar.right;
+	r.bottom = lrint(r.bottom / scale) - mi.rcWork.top - ar.bottom;
+	r.left = lrint(r.left / scale) - mi.rcWork.left - ar.left;
 
 	MTY_WindowType type = p.showCmd == SW_MAXIMIZE ?
 		MTY_WINDOW_MAXIMIZED : MTY_WINDOW_NORMAL;
@@ -1871,7 +1881,7 @@ void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
 			ptr |= WS_MAXIMIZE;
 
 		SetWindowLongPtr(ctx->hwnd, GWL_STYLE, ptr);
-		window_set_placement(mon, ctx->hwnd, frame);
+		window_set_placement(app, mon, ctx->hwnd, frame);
 
 		PostMessage(ctx->hwnd, WM_SETICON, ICON_BIG, GetClassLongPtr(ctx->hwnd, GCLP_HICON));
 		PostMessage(ctx->hwnd, WM_SETICON, ICON_SMALL, GetClassLongPtr(ctx->hwnd, GCLP_HICONSM));
@@ -1886,7 +1896,7 @@ void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, ui
 
 	RECT r = {.right = minWidth, .bottom = minHeight};
 	HMONITOR mon = monitor_from_hwnd(ctx->hwnd);
-	window_denormalize_rect(mon, &r);
+	window_denormalize_rect(app, mon, &r);
 
 	ctx->min_width = r.right - r.left;
 	ctx->min_height = r.bottom - r.top;
