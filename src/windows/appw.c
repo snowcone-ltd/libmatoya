@@ -1652,10 +1652,10 @@ static void window_denormalize_rect(MTY_App *app, HMONITOR mon, RECT *r)
 
 	app_adjust_window_rect(app, r);
 
-	r->top = lrint(r->top * scale) + mi.rcWork.top;
-	r->right = lrint(r->right * scale) + mi.rcWork.left;
-	r->bottom = lrint(r->bottom * scale) + mi.rcWork.top;
-	r->left = lrint(r->left * scale) + mi.rcWork.left;
+	r->top = lrint(r->top / scale) + mi.rcWork.top;
+	r->right = lrint(r->right) + mi.rcWork.left;
+	r->bottom = lrint(r->bottom) + mi.rcWork.top;
+	r->left = lrint(r->left / scale) + mi.rcWork.left;
 }
 
 static void window_set_placement(MTY_App *app, HMONITOR mon, HWND hwnd, const MTY_Frame *frame)
@@ -1821,10 +1821,10 @@ static MTY_Frame window_get_placement(MTY_App *app, HWND hwnd)
 	// the coordinates of the work area of the current monitor, and
 	// the adjusted window RECT from above
 	RECT r = p.rcNormalPosition;
-	r.top = lrint(r.top / scale) - mi.rcWork.top - ar.top;
-	r.right = lrint(r.right / scale) - mi.rcWork.left - ar.right;
-	r.bottom = lrint(r.bottom / scale) - mi.rcWork.top - ar.bottom;
-	r.left = lrint(r.left / scale) - mi.rcWork.left - ar.left;
+	r.top = lrint(r.top * scale) - mi.rcWork.top - ar.top;
+	r.right = lrint(r.right) - mi.rcWork.left - ar.right;
+	r.bottom = lrint(r.bottom) - mi.rcWork.top - ar.bottom;
+	r.left = lrint(r.left * scale) - mi.rcWork.left - ar.left;
 
 	MTY_WindowType type = p.showCmd == SW_MAXIMIZE ?
 		MTY_WINDOW_MAXIMIZED : MTY_WINDOW_NORMAL;
