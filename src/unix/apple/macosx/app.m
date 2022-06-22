@@ -1616,7 +1616,7 @@ MTY_Frame MTY_MakeDefaultFrame(int32_t x, int32_t y, uint32_t w, uint32_t h, flo
 {
 	CGSize size = [NSScreen mainScreen].frame.size;
 
-	return wsize_default(0, 0, size.width, size.height, 1.0f, maxHeight, x, -y, w, h);
+	return wsize_default(size.width, size.height, 1.0f, maxHeight, x, -y, w, h);
 }
 
 static void app_carbon_key(uint16_t kc, char *text, size_t len)

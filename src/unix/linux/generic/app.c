@@ -1360,7 +1360,7 @@ MTY_Frame MTY_MakeDefaultFrame(int32_t x, int32_t y, uint32_t w, uint32_t h, flo
 
 	XCloseDisplay(display);
 
-	return wsize_default(0, 0, screen_w, screen_h, scale, maxHeight, x, y, w, h);
+	return wsize_default(screen_w, screen_h, scale, maxHeight, x, y, w, h);
 }
 
 static void app_hotkey_init(void)

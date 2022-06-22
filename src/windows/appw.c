@@ -182,10 +182,10 @@ static void app_register_raw_input(USHORT usage_page, USHORT usage, DWORD flags,
 		MTY_Log("'RegisterRawInputDevices' failed with error 0x%X", GetLastError());
 }
 
-static void app_adjust_window_rect(MTY_App *app, float scale, RECT *r)
+static void app_adjust_window_rect(MTY_App *app, RECT *r)
 {
 	if (app->AdjustWindowRectExForDpi) {
-		app->AdjustWindowRectExForDpi(r, WS_OVERLAPPEDWINDOW, FALSE, 0, lrint(scale * 96));
+		app->AdjustWindowRectExForDpi(r, WS_OVERLAPPEDWINDOW, FALSE, 0, 96);
 
 	} else {
 		AdjustWindowRect(r, WS_OVERLAPPEDWINDOW, FALSE);
@@ -1650,12 +1650,12 @@ static void window_denormalize_rect(MTY_App *app, HMONITOR mon, RECT *r)
 	MONITORINFOEX mi = monitor_get_info(mon);
 	float scale = monitor_get_scale(mon);
 
+	app_adjust_window_rect(app, r);
+
 	r->top = lrint(r->top * scale) + mi.rcWork.top;
 	r->right = lrint(r->right * scale) + mi.rcWork.left;
 	r->bottom = lrint(r->bottom * scale) + mi.rcWork.top;
 	r->left = lrint(r->left * scale) + mi.rcWork.left;
-
-	app_adjust_window_rect(app, scale, r);
 }
 
 static void window_set_placement(MTY_App *app, HMONITOR mon, HWND hwnd, const MTY_Frame *frame)
@@ -1815,7 +1815,7 @@ static MTY_Frame window_get_placement(MTY_App *app, HWND hwnd)
 	// Figure out the border and title bar size based on where the window
 	// currently resides, normalized for 1.0 scale (96 DPI).
 	RECT ar = {0};
-	app_adjust_window_rect(app, 1.0f, &ar);
+	app_adjust_window_rect(app, &ar);
 
 	// Normalize the window to RECT taking into account scaling,
 	// the coordinates of the work area of the current monitor, and
@@ -2086,7 +2086,7 @@ MTY_Frame MTY_MakeDefaultFrame(int32_t x, int32_t y, uint32_t w, uint32_t h, flo
 	uint32_t screen_w = info.rcMonitor.right - info.rcMonitor.left;
 	float scale = monitor_get_scale(mon);
 
-	return wsize_default(0, 0, screen_w, screen_h, scale, maxHeight, x, y, w, h);
+	return wsize_default(screen_w, screen_h, scale, maxHeight, x, y, w, h);
 }
 
 static bool app_key_to_str(MTY_Key key, char *str, size_t len)

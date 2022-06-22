@@ -6,7 +6,7 @@
 
 #pragma once
 
-static MTY_Frame wsize_default(int32_t screen_x, int32_t screen_y, uint32_t screen_w, uint32_t screen_h,
+static MTY_Frame wsize_default(uint32_t screen_w, uint32_t screen_h,
 	float scale, float max_h, int32_t x, int32_t y, uint32_t w, uint32_t h)
 {
 	if (h * scale > max_h * screen_h) {
@@ -15,19 +15,19 @@ static MTY_Frame wsize_default(int32_t screen_x, int32_t screen_y, uint32_t scre
 		w = lrint(h * aspect);
 	}
 
-	if (screen_w > w) {
-		x += (screen_w - w) / 2;
+	if (screen_w > w * scale) {
+		x += lrint((screen_w - w * scale) / 2 / scale);
 
 	} else {
-		x = screen_x;
+		x = 0;
 		w = screen_w;
 	}
 
-	if (screen_h > h) {
-		y += (screen_h - h) / 2;
+	if (screen_h > h * scale) {
+		y += lrint((screen_h - h * scale) / 2 / scale);
 
 	} else {
-		y = screen_y;
+		y = 0;
 		h = screen_h;
 	}
 
