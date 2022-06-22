@@ -105,12 +105,12 @@ static bool json_torture(void)
 // This will crash if it fails.
 static void json_last_item(void)
 {
-    const MTY_JSON *root = MTY_JSONObjCreate();
-    MTY_JSONObjSetItem(root, "child", MTY_JSONObjCreate());
+	const MTY_JSON *root = MTY_JSONObjCreate();
+	MTY_JSONObjSetItem(root, "child", MTY_JSONObjCreate());
 
-    MTY_JSONObjSetItem(root, "last", MTY_JSONObjCreate());
-    MTY_JSONObjDeleteItem(root, "last");
-    MTY_JSONObjSetItem(root, "last", MTY_JSONObjCreate());
+	MTY_JSONObjSetItem(root, "last", MTY_JSONObjCreate());
+	MTY_JSONObjDeleteItem(root, "last");
+	MTY_JSONObjSetItem(root, "last", MTY_JSONObjCreate());
 	
 	MTY_JSONDestroy(root);
 }
