@@ -294,6 +294,8 @@ static void app_fix_mouse_buttons(App *ctx)
 	@property MTY_Window window;
 	@property MTY_GFX api;
 	@property bool top;
+	@property bool was_maximized;
+	@property NSRect normal_frame;
 	@property struct gfx_ctx *gfx_ctx;
 @end
 
@@ -712,6 +714,14 @@ static void window_mod_event(Window *window, NSEvent *event)
 		return YES;
 	}
 
+	- (NSRect)windowWillUseStandardFrame:(NSWindow*)window defaultFrame:(NSRect)newFrame
+	{
+		if (!NSEqualRects(window.frame, newFrame))
+			self.normal_frame = window.frame;
+
+		return newFrame;
+	}
+
 	- (BOOL)performKeyEquivalent:(NSEvent *)event
 	{
 		NSUInteger mods = NSEventModifierFlagControl | NSEventModifierFlagCommand;
@@ -882,6 +892,14 @@ static void window_mod_event(Window *window, NSEvent *event)
 	- (NSApplicationPresentationOptions)window:(NSWindow *)window
 		willUseFullScreenPresentationOptions:(NSApplicationPresentationOptions)proposedOptions
 	{
+		if (![self isZoomed]) {
+			self.normal_frame = window.frame;
+			self.was_maximized = false;
+
+		} else {
+			self.was_maximized = true;
+		}
+
 		return self.top ? NSApplicationPresentationFullScreen | NSApplicationPresentationHideDock |
 			NSApplicationPresentationHideMenuBar : proposedOptions;
 	}
@@ -1382,6 +1400,9 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 
 	ctx.app.windows[window] = (__bridge void *) ctx;
 
+	if (frame->type & MTY_WINDOW_MAXIMIZED)
+		[ctx zoom:ctx];
+
 	if (frame->type & MTY_WINDOW_FULLSCREEN)
 		MTY_WindowSetFullscreen(app, window, true);
 
@@ -1432,6 +1453,22 @@ MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 	CGRect s = ctx.screen.frame;
 	CGRect w = ctx.frame;
 
+	MTY_WindowType type = MTY_WINDOW_NORMAL;
+
+	if ([ctx isZoomed]) {
+		w = ctx.normal_frame;
+
+		if (ctx.styleMask & NSWindowStyleMaskFullScreen) {
+			type = MTY_WINDOW_FULLSCREEN;
+
+			if (ctx.was_maximized)
+				type |= MTY_WINDOW_MAXIMIZED;
+
+		} else {
+			type = MTY_WINDOW_MAXIMIZED;
+		}
+	}
+
 	CGRect r = {
 		.origin.x = w.origin.x - s.origin.x,
 		.origin.y = w.origin.y - s.origin.y,
@@ -1441,8 +1478,6 @@ MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 
 	r = [ctx contentRectForFrameRect:r];
 
-	MTY_WindowType type = ctx.styleMask & NSWindowStyleMaskFullScreen ?
-		MTY_WINDOW_FULLSCREEN : MTY_WINDOW_NORMAL;
 
 	MTY_Frame frame = {
 		.type = type,
