@@ -993,6 +993,34 @@ static void window_set_up_wm(MTY_App *app, Window w)
 	XSetWMProtocols(app->display, w, protos, 2);
 }
 
+static MTY_Frame window_denormalize_frame(const MTY_Frame *frame, float scale)
+{
+	int32_t px_h = lrint(frame->size.h * (scale - 1));
+	int32_t px_w = lrint(frame->size.w * (scale - 1));
+
+	MTY_Frame dframe = *frame;
+	dframe.x -= px_w / 2;
+	dframe.y -= px_h / 2;
+	dframe.size.w += px_w;
+	dframe.size.h += px_h;
+
+	return dframe;
+}
+
+static MTY_Frame window_normalize_frame(const MTY_Frame *frame, float scale)
+{
+	int32_t px_h = lrint(frame->size.h * (1 - (1 / scale)));
+	int32_t px_w = lrint(frame->size.w * (1 - (1 / scale)));
+
+	MTY_Frame nframe = *frame;
+	nframe.x += px_w / 2;
+	nframe.y += px_h / 2;
+	nframe.size.w -= px_w;
+	nframe.size.h -= px_h;
+
+	return nframe;
+}
+
 MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, MTY_Window index)
 {
 	bool r = true;
@@ -1015,7 +1043,11 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 		frame = &dframe;
 	}
 
-	Window root = XDefaultRootWindow(app->display);
+	dframe = window_denormalize_frame(frame, app->scale);
+	frame = &dframe;
+
+	Screen *screen = XScreenOfDisplay(app->display, atoi(frame->screen));
+	Window root = XRootWindowOfScreen(screen);
 
 	XSetWindowAttributes swa = {0};
 	swa.colormap = XCreateColormap(app->display, root, app->vis->visual, AllocNone);
@@ -1079,6 +1111,24 @@ MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 	};
 }
 
+static void window_adjust_frame(Display *display, Window window, MTY_Frame *frame)
+{
+	Atom type;
+	int format;
+	unsigned char *value = NULL;
+	unsigned long bytes, n;
+
+	if (XGetWindowProperty(display, window, XInternAtom(display, "_NET_FRAME_EXTENTS", False),
+		0, 4, False, AnyPropertyType, &type, &format, &n, &bytes, &value) == Success)
+	{
+		if (n == 4) {
+			long *extents = (long *) value;
+			frame->x -= extents[0]; // Left
+			frame->y -= extents[2]; // Top
+		}
+	}
+}
+
 MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 {
 	struct window *ctx = app_get_window(app, window);
@@ -1088,19 +1138,40 @@ MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 	XWindowAttributes attr = {0};
 	XGetWindowAttributes(app->display, ctx->window, &attr);
 
-	// TODO FIXME Need WindowType filled accurately
+	int32_t screen = XScreenNumberOfScreen(attr.screen);
 
-	return (MTY_Frame) {
-		.x = attr.x,
-		.y = attr.y,
+	MTY_Frame frame = {
+		.type = MTY_WINDOW_NORMAL,
 		.size.w = attr.width,
 		.size.h = attr.height,
 	};
+
+	Window child = None;
+	XTranslateCoordinates(app->display, ctx->window, attr.root, 0, 0, &frame.x, &frame.y, &child);
+	window_adjust_frame(app->display, ctx->window, &frame);
+
+	snprintf(frame.screen, MTY_SCREEN_MAX, "%d", screen);
+
+	return window_normalize_frame(&frame, app->scale);
 }
 
 void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
 {
-	// TODO FIXME
+	struct window *ctx = app_get_window(app, window);
+	if (!ctx)
+		return;
+
+	MTY_Frame dframe = window_denormalize_frame(frame, app->scale);
+
+	XWindowAttributes attr = {0};
+	XGetWindowAttributes(app->display, ctx->window, &attr);
+
+	// X11 can not programmatically move windows between screens
+	if (XScreenNumberOfScreen(attr.screen) != atoi(dframe.screen))
+		return;
+
+	XMoveResizeWindow(app->display, ctx->window, dframe.x, dframe.y, dframe.size.w, dframe.size.h);
+	XSync(app->display, False);
 }
 
 void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, uint32_t minHeight)
@@ -1225,8 +1296,6 @@ void MTY_WindowActivate(MTY_App *app, MTY_Window window, bool active)
 
 		XSetInputFocus(app->display, ctx->window, RevertToNone, CurrentTime);
 
-		XSync(app->display, False);
-
 	} else {
 		XWithdrawWindow(app->display, ctx->window);
 	}
@@ -1348,15 +1417,12 @@ static char APP_KEYS[MTY_KEY_MAX][16];
 MTY_Frame MTY_MakeDefaultFrame(int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
 {
 	Display *display = XOpenDisplay(NULL);
-	Window root = XDefaultRootWindow(display);
+	Screen *screen = XDefaultScreenOfDisplay(display);
 
 	float scale = app_get_scale(display);
 
-	XWindowAttributes attr = {0};
-	XGetWindowAttributes(display, root, &attr);
-
-	uint32_t screen_h = XHeightOfScreen(attr.screen);
-	uint32_t screen_w = XWidthOfScreen(attr.screen);
+	uint32_t screen_h = XHeightOfScreen(screen);
+	uint32_t screen_w = XWidthOfScreen(screen);
 
 	XCloseDisplay(display);
 
