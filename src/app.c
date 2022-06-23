@@ -7,6 +7,7 @@
 #include "app.h"
 
 #include <stdio.h>
+#include <math.h>
 
 
 // GFX
