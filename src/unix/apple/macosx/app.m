@@ -1403,8 +1403,9 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	if (frame->type & MTY_WINDOW_MAXIMIZED)
 		[ctx zoom:ctx];
 
-	if (frame->type & MTY_WINDOW_FULLSCREEN)
-		MTY_WindowSetFullscreen(app, window, true);
+	// TODO FIXME Bad behavior with multiple windows
+	//if (frame->type & MTY_WINDOW_FULLSCREEN)
+	//	MTY_WindowSetFullscreen(app, window, true);
 
 	if (!(frame->type & MTY_WINDOW_HIDDEN))
 		MTY_WindowActivate(app, window, true);
@@ -1510,8 +1511,12 @@ void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
 
 	[ctx setFrame:[ctx frameRectForContentRect:r] display:YES];
 
-	if (frame->type & MTY_WINDOW_FULLSCREEN)
-		MTY_WindowSetFullscreen(app, window, true);
+	if (frame->type & MTY_WINDOW_MAXIMIZED)
+		[ctx zoom:ctx];
+
+	// TODO FIXME Bad behavior with multiple windows
+	//if (frame->type & MTY_WINDOW_FULLSCREEN)
+	//	MTY_WindowSetFullscreen(app, window, true);
 }
 
 void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, uint32_t minHeight)
