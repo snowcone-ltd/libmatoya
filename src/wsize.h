@@ -15,16 +15,16 @@ static MTY_Frame wsize_default(uint32_t screen_w, uint32_t screen_h,
 		w = lrint(h * aspect);
 	}
 
-	if (screen_w > w * scale) {
-		x += lrint((screen_w - w * scale) / 2 / scale);
+	if (screen_w > w) {
+		x += (screen_w - w) / 2;
 
 	} else {
 		x = 0;
 		w = screen_w;
 	}
 
-	if (screen_h > h * scale) {
-		y += lrint((screen_h - h * scale) / 2 / scale);
+	if (screen_h > h) {
+		y += (screen_h - h) / 2;
 
 	} else {
 		y = 0;

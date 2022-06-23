@@ -182,10 +182,10 @@ static void app_register_raw_input(USHORT usage_page, USHORT usage, DWORD flags,
 		MTY_Log("'RegisterRawInputDevices' failed with error 0x%X", GetLastError());
 }
 
-static void app_adjust_window_rect(MTY_App *app, RECT *r)
+static void app_adjust_window_rect(MTY_App *app, float scale, RECT *r)
 {
 	if (app->AdjustWindowRectExForDpi) {
-		app->AdjustWindowRectExForDpi(r, WS_OVERLAPPEDWINDOW, FALSE, 0, 96);
+		app->AdjustWindowRectExForDpi(r, WS_OVERLAPPEDWINDOW, FALSE, 0, lrint(scale * 96));
 
 	} else {
 		AdjustWindowRect(r, WS_OVERLAPPEDWINDOW, FALSE);
@@ -1650,12 +1650,17 @@ static void window_denormalize_rect(MTY_App *app, HMONITOR mon, RECT *r)
 	MONITORINFOEX mi = monitor_get_info(mon);
 	float scale = monitor_get_scale(mon);
 
-	app_adjust_window_rect(app, r);
+	app_adjust_window_rect(app, scale, r);
 
-	r->top = lrint(r->top / scale) + mi.rcWork.top;
-	r->right = lrint(r->right) + mi.rcWork.left;
-	r->bottom = lrint(r->bottom) + mi.rcWork.top;
-	r->left = lrint(r->left / scale) + mi.rcWork.left;
+	int32_t w = r->right - r->left;
+	int32_t h = r->bottom - r->top;
+	int32_t px_h = lrint(scale * h - h) / 2;
+	int32_t px_w = lrint(scale * w - w) / 2;
+
+	r->top = r->top - px_h + mi.rcWork.top;
+	r->right = r->right + px_w + mi.rcWork.left;
+	r->bottom = r->bottom + px_h + mi.rcWork.top;
+	r->left = r->left - px_w + mi.rcWork.left;
 }
 
 static void window_set_placement(MTY_App *app, HMONITOR mon, HWND hwnd, const MTY_Frame *frame)
@@ -1807,24 +1812,23 @@ static MTY_Frame window_get_placement(MTY_App *app, HWND hwnd)
 	MONITORINFOEX mi = monitor_get_info(mon);
 	float scale = monitor_get_scale(mon);
 
-	// Get Window placement in workspace coordinates -- the top/left
-	// are the outer edge of the window including borders and title bar
 	WINDOWPLACEMENT p = {.length = sizeof(WINDOWPLACEMENT)};
 	GetWindowPlacement(hwnd, &p);
 
-	// Figure out the border and title bar size based on where the window
-	// currently resides, normalized for 1.0 scale (96 DPI).
 	RECT ar = {0};
-	app_adjust_window_rect(app, &ar);
+	app_adjust_window_rect(app, scale, &ar);
 
-	// Normalize the window to RECT taking into account scaling,
-	// the coordinates of the work area of the current monitor, and
-	// the adjusted window RECT from above
 	RECT r = p.rcNormalPosition;
-	r.top = lrint(r.top * scale) - mi.rcWork.top - ar.top;
-	r.right = lrint(r.right) - mi.rcWork.left - ar.right;
-	r.bottom = lrint(r.bottom) - mi.rcWork.top - ar.bottom;
-	r.left = lrint(r.left * scale) - mi.rcWork.left - ar.left;
+
+	int32_t w = r.right - r.left;
+	int32_t h = r.bottom - r.top;
+	int32_t px_h = lrint(h - h / scale) / 2;
+	int32_t px_w = lrint(w - w / scale) / 2;
+
+	r.top = r.top + px_h - mi.rcWork.top - ar.top;
+	r.right = r.right - px_w - mi.rcWork.left - ar.right;
+	r.bottom = r.bottom - px_h - mi.rcWork.top - ar.bottom;
+	r.left = r.left + px_w - mi.rcWork.left - ar.left;
 
 	MTY_WindowType type = p.showCmd == SW_MAXIMIZE ?
 		MTY_WINDOW_MAXIMIZED : MTY_WINDOW_NORMAL;
