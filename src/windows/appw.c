@@ -1654,8 +1654,8 @@ static void window_denormalize_rect(MTY_App *app, HMONITOR mon, RECT *r)
 
 	int32_t w = r->right - r->left;
 	int32_t h = r->bottom - r->top;
-	int32_t px_h = lrint(scale * h - h) / 2;
-	int32_t px_w = lrint(scale * w - w) / 2;
+	int32_t px_h = lrint(h * (scale - 1)) / 2;
+	int32_t px_w = lrint(w * (scale - 1)) / 2;
 
 	r->top = r->top - px_h + mi.rcWork.top;
 	r->right = r->right + px_w + mi.rcWork.left;
@@ -1822,8 +1822,8 @@ static MTY_Frame window_get_placement(MTY_App *app, HWND hwnd)
 
 	int32_t w = r.right - r.left;
 	int32_t h = r.bottom - r.top;
-	int32_t px_h = lrint(h - h / scale) / 2;
-	int32_t px_w = lrint(w - w / scale) / 2;
+	int32_t px_h = lrint(h * (1 - (1 / scale))) / 2;
+	int32_t px_w = lrint(w * (1 - (1 / scale))) / 2;
 
 	r.top = r.top + px_h - mi.rcWork.top - ar.top;
 	r.right = r.right - px_w - mi.rcWork.left - ar.right;
