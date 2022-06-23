@@ -450,7 +450,6 @@ typedef struct _XIM *XIM;
 typedef struct _XIC *XIC;
 
 static Display *(*XOpenDisplay)(const char *display_name);
-
 static Screen *(*XScreenOfDisplay)(Display *display, int screen_number);
 static Screen *(*XDefaultScreenOfDisplay)(Display *display);
 static int (*XScreenNumberOfScreen)(Screen *screen);

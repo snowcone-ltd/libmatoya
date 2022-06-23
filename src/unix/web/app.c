@@ -331,7 +331,6 @@ void MTY_AppActivate(MTY_App *ctx, bool active)
 {
 }
 
-
 void MTY_AppSetTray(MTY_App *ctx, const char *tooltip, const MTY_MenuItem *items, uint32_t len)
 {
 }

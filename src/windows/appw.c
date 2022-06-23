@@ -17,7 +17,6 @@
 #include <dbt.h>
 
 #include "xip.h"
-#include "wsize.h"
 #include "hid/hid.h"
 
 #define APP_CLASS_NAME L"MTY_Window"
@@ -1705,7 +1704,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	MTY_Frame dframe = {0};
 
 	if (!frame) {
-		dframe = MTY_MakeDefaultFrame(0, 0, APP_DEFAULT_WINDOW_W, APP_DEFAULT_WINDOW_H, 1.0f);
+		dframe = APP_DEFAULT_FRAME();
 		frame = &dframe;
 	}
 
@@ -2090,7 +2089,7 @@ MTY_Frame MTY_MakeDefaultFrame(int32_t x, int32_t y, uint32_t w, uint32_t h, flo
 	uint32_t screen_w = info.rcMonitor.right - info.rcMonitor.left;
 	float scale = monitor_get_scale(mon);
 
-	return wsize_default(screen_w, screen_h, scale, maxHeight, x, y, w, h);
+	return mty_window_adjust(screen_w, screen_h, scale, maxHeight, x, y, w, h);
 }
 
 static bool app_key_to_str(MTY_Key key, char *str, size_t len)

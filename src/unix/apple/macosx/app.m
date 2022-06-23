@@ -10,7 +10,6 @@
 #include <Carbon/Carbon.h>
 #include <IOKit/pwr_mgt/IOPMLib.h>
 
-#include "wsize.h"
 #include "scale.h"
 #include "keymap.h"
 #include "hid/hid.h"
@@ -361,7 +360,6 @@ static NSScreen *screen_from_display_id(CGDirectDisplayID display_id)
 	for (uint32_t x = 0; x < screens.count; x++)
 		if (display_id == screen_get_display_id(screens[x]))
 			return screens[x];
-
 
 	return screens[0];
 }
@@ -1375,7 +1373,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	MTY_Frame dframe = {0};
 
 	if (!frame) {
-		dframe = MTY_MakeDefaultFrame(0, 0, APP_DEFAULT_WINDOW_W, APP_DEFAULT_WINDOW_H, 1.0f);
+		dframe = APP_DEFAULT_FRAME();
 		frame = &dframe;
 	}
 
@@ -1703,7 +1701,7 @@ MTY_Frame MTY_MakeDefaultFrame(int32_t x, int32_t y, uint32_t w, uint32_t h, flo
 
 	CGSize size = screen.frame.size;
 
-	return wsize_default(size.width, size.height, 1.0f, maxHeight, x, -y, w, h);
+	return mty_window_adjust(size.width, size.height, 1.0f, maxHeight, x, -y, w, h);
 }
 
 static void app_carbon_key(uint16_t kc, char *text, size_t len)

@@ -133,6 +133,42 @@ bool MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync)
 }
 
 
+// Window sizing
+
+MTY_Frame mty_window_adjust(uint32_t screen_w, uint32_t screen_h, float scale, float max_h,
+	int32_t x, int32_t y, uint32_t w, uint32_t h)
+{
+	if (h * scale > max_h * screen_h) {
+		float aspect = (float) w / h;
+		h = lrint(max_h * screen_h);
+		w = lrint(h * aspect);
+	}
+
+	if (screen_w > w) {
+		x += (screen_w - w) / 2;
+
+	} else {
+		x = 0;
+		w = screen_w;
+	}
+
+	if (screen_h > h) {
+		y += (screen_h - h) / 2;
+
+	} else {
+		y = 0;
+		h = screen_h;
+	}
+
+	return (MTY_Frame) {
+		.x = x,
+		.y = y,
+		.size.w = w,
+		.size.h = h,
+	};
+}
+
+
 // Event utility
 
 void MTY_PrintEvent(const MTY_Event *evt)
