@@ -1343,6 +1343,8 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	Window *ctx = nil;
 	View *content = nil;
 
+	NSScreen *screen = screen_from_display_id(atoi(frame->screen));
+
 	window = app_find_open_window(app, index);
 	if (window == -1) {
 		r = false;
@@ -1358,8 +1360,6 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 		dframe = MTY_MakeDefaultFrame(0, 0, APP_DEFAULT_WINDOW_W, APP_DEFAULT_WINDOW_H, 1.0f);
 		frame = &dframe;
 	}
-
-	NSScreen *screen = screen_from_display_id(frame->screen);
 
 	NSRect rect = NSMakeRect(frame->x, frame->y, frame->size.w, frame->size.h);
 	NSWindowStyleMask style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
@@ -1435,13 +1435,13 @@ MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 	CGRect r = {
 		.origin.x = w.origin.x - s.origin.x,
 		.origin.y = w.origin.y - s.origin.y,
-		.size.w = w.size.w,
-		.size.h = w.size.h,
+		.size.width = w.size.width,
+		.size.height = w.size.height,
 	};
 
-	r = [NSWindow contentRectForFrameRect:r];
+	r = [ctx contentRectForFrameRect:r];
 
-	MTY_WindowType = ctx.styleMask & NSWindowStyleMaskFullScreen ?
+	MTY_WindowType type = ctx.styleMask & NSWindowStyleMaskFullScreen ?
 		MTY_WINDOW_FULLSCREEN : MTY_WINDOW_NORMAL;
 
 	MTY_Frame frame = {
@@ -1463,17 +1463,17 @@ void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
 	if (!ctx)
 		return;
 
-	NSScreen *screen = screen_from_display_id(frame->screen);
+	NSScreen *screen = screen_from_display_id(atoi(frame->screen));
 	CGRect s = screen.frame;
 
 	CGRect r = {
 		.origin.x = frame->x + s.origin.x,
 		.origin.y = frame->y + s.origin.y,
-		.size.w = frame->w,
-		.size.h = frame->h,
+		.size.width = frame->size.w,
+		.size.height = frame->size.h,
 	};
 
-	[ctx setFrame:[NSWindow frameRectForContentRect:r] display:YES];
+	[ctx setFrame:[ctx frameRectForContentRect:r] display:YES];
 
 	if (frame->type & MTY_WINDOW_FULLSCREEN)
 		MTY_WindowSetFullscreen(app, window, true);
