@@ -345,6 +345,26 @@ static MTY_Event window_event(Window *window, MTY_EventType type)
 }
 
 
+// Screen helpers
+
+static CGDirectDisplayID screen_get_display_id(NSScreen *screen)
+{
+	return ((NSNumber *) [screen deviceDescription][@"NSScreenNumber"]).intValue;
+}
+
+static NSScreen *screen_from_display_id(CGDirectDisplayID display_id)
+{
+	NSArray<NSScreen *> *screens = [NSScreen screens];
+
+	for (uint32_t x = 0; x < screens.count; x++)
+		if (display_id == screen_get_display_id(screens[x]))
+			return screens[x];
+
+
+	return screens[0];
+}
+
+
 // Mouse movement / position helpers
 
 static NSPoint window_mouse_pos(NSWindow *window)
@@ -519,7 +539,7 @@ static void window_button_event(Window *window, NSEvent *event, NSUInteger index
 
 static void window_warp_cursor(NSWindow *ctx, uint32_t x, int32_t y)
 {
-	CGDirectDisplayID display = ((NSNumber *) [ctx.screen deviceDescription][@"NSScreenNumber"]).intValue;
+	CGDirectDisplayID display = screen_get_display_id(ctx.screen);
 
 	CGFloat scale = mty_screen_scale(ctx.screen);
 	CGFloat client_top = ctx.screen.frame.size.height - ctx.frame.origin.y +
@@ -1339,12 +1359,14 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 		frame = &dframe;
 	}
 
+	NSScreen *screen = screen_from_display_id(frame->screen);
+
 	NSRect rect = NSMakeRect(frame->x, frame->y, frame->size.w, frame->size.h);
 	NSWindowStyleMask style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
 		NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable;
 
 	ctx = [[Window alloc] initWithContentRect:rect styleMask:style
-		backing:NSBackingStoreBuffered defer:NO];
+		backing:NSBackingStoreBuffered defer:NO screen:screen];
 	ctx.title = [NSString stringWithUTF8String:title ? title : "MTY_Window"];
 	ctx.window = window;
 	ctx.app = (__bridge App *) app;
@@ -1359,6 +1381,9 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	[ctx setContentView:content];
 
 	ctx.app.windows[window] = (__bridge void *) ctx;
+
+	if (frame->type & MTY_WINDOW_FULLSCREEN)
+		MTY_WindowSetFullscreen(app, window, true);
 
 	if (!(frame->type & MTY_WINDOW_HIDDEN))
 		MTY_WindowActivate(app, window, true);
@@ -1404,34 +1429,54 @@ MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 	if (!ctx)
 		return (MTY_Frame) {0};
 
-	CGSize size = ctx.contentView.frame.size;
-	CGPoint origin = ctx.frame.origin;
+	CGRect s = ctx.screen.frame;
+	CGRect w = ctx.frame;
 
-	/* TODO FIXME May need this for placement, this is from top-left corner
-	int32_t x = lrint(ctx.screen.frame.size.height - ctx.frame.origin.y +
-		ctx.screen.frame.origin.y - ctx.frame.size.height);
-
-	int32_t y = lrint(ctx.frame.origin.x - ctx.screen.frame.origin.x);
-	*/
-
-	// TODO FIXME Need WindowType filled accurately
-
-	MTY_WindowType type = 0;
-
-	if (ctx.styleMask & NSWindowStyleMaskFullScreen)
-		type |= MTY_WINDOW_FULLSCREEN;
-
-	return (MTY_Frame) {
-		.x = origin.x,
-		.y = origin.y,
-		.size.w = size.width,
-		.size.h = size.height,
+	CGRect r = {
+		.origin.x = w.origin.x - s.origin.x,
+		.origin.y = w.origin.y - s.origin.y,
+		.size.w = w.size.w,
+		.size.h = w.size.h,
 	};
+
+	r = [NSWindow contentRectForFrameRect:r];
+
+	MTY_WindowType = ctx.styleMask & NSWindowStyleMaskFullScreen ?
+		MTY_WINDOW_FULLSCREEN : MTY_WINDOW_NORMAL;
+
+	MTY_Frame frame = {
+		.type = type,
+		.x = r.origin.x,
+		.y = r.origin.y,
+		.size.w = r.size.width,
+		.size.h = r.size.height,
+	};
+
+	snprintf(frame.screen, MTY_SCREEN_MAX, "%d", screen_get_display_id(ctx.screen));
+
+	return frame;
 }
 
 void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
 {
-	// TODO FIXME
+	Window *ctx = app_get_window(app, window);
+	if (!ctx)
+		return;
+
+	NSScreen *screen = screen_from_display_id(frame->screen);
+	CGRect s = screen.frame;
+
+	CGRect r = {
+		.origin.x = frame->x + s.origin.x,
+		.origin.y = frame->y + s.origin.y,
+		.size.w = frame->w,
+		.size.h = frame->h,
+	};
+
+	[ctx setFrame:[NSWindow frameRectForContentRect:r] display:YES];
+
+	if (frame->type & MTY_WINDOW_FULLSCREEN)
+		MTY_WindowSetFullscreen(app, window, true);
 }
 
 void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, uint32_t minHeight)
@@ -1476,7 +1521,7 @@ uint32_t MTY_WindowGetRefreshRate(MTY_App *app, MTY_Window window)
 	Window *ctx = app_get_window(app, window);
 
 	if (ctx) {
-		CGDirectDisplayID display = ((NSNumber *) [ctx.screen deviceDescription][@"NSScreenNumber"]).intValue;
+		CGDirectDisplayID display = screen_get_display_id(ctx.screen);
 		CGDisplayModeRef mode = CGDisplayCopyDisplayMode(display);
 
 		if (mode) {
@@ -1614,7 +1659,9 @@ static char APP_KEYS[MTY_KEY_MAX][16];
 
 MTY_Frame MTY_MakeDefaultFrame(int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
 {
-	CGSize size = [NSScreen mainScreen].frame.size;
+	NSScreen *screen = screen_from_display_id(0);
+
+	CGSize size = screen.frame.size;
 
 	return wsize_default(size.width, size.height, 1.0f, maxHeight, x, -y, w, h);
 }
