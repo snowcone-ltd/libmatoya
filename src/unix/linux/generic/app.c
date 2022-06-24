@@ -24,6 +24,9 @@ struct window {
 	MTY_Window index;
 	XIC ic;
 	MTY_GFX api;
+	MTY_Frame frame;
+	int32_t last_width;
+	int32_t last_height;
 	struct gfx_ctx *gfx_ctx;
 	struct xinfo info;
 };
@@ -61,11 +64,6 @@ struct MTY_App {
 	char *clip;
 	float scale;
 
-	int32_t last_width;
-	int32_t last_height;
-	int32_t last_pos_x;
-	int32_t last_pos_y;
-
 	uint64_t state;
 	uint64_t prev_state;
 };
@@ -99,7 +97,7 @@ static MTY_Window app_find_window(MTY_App *ctx, Window xwindow)
 			return x;
 	}
 
-	return 0;
+	return -1;
 }
 
 static struct window *app_get_active_window(MTY_App *ctx)
@@ -116,6 +114,69 @@ static struct window *app_get_active_window(MTY_App *ctx)
 	}
 
 	return NULL;
+}
+
+
+// Window manager helpers
+
+static bool window_in_wm_state(Display *display, Window w, const char *state1, const char *state2)
+{
+	Atom type;
+	int format;
+	unsigned char *value = NULL;
+	unsigned long bytes, n;
+
+	bool b1 = !state1;
+	bool b2 = !state2;
+
+	Atom a1 = state1 ? XInternAtom(display, state1, False) : None;
+	Atom a2 = state2 ? XInternAtom(display, state2, False) : None;
+
+	if (XGetWindowProperty(display, w, XInternAtom(display, "_NET_WM_STATE", False),
+		0, 1024, False, XA_ATOM, &type, &format, &n, &bytes, &value) == Success)
+	{
+		Atom *atoms = (Atom *) value;
+
+		for (unsigned long x = 0; x < n; x++) {
+			if (!b1 && atoms[x] == a1)
+				b1 = true;
+
+			if (!b2 && atoms[x] == a2)
+				b2 = true;
+		}
+	}
+
+	return b1 && b2;
+}
+
+static void window_wm_event(Display *display, Window w, int action, const char *state1, const char *state2)
+{
+	XWindowAttributes attr = {0};
+	XGetWindowAttributes(display, w, &attr);
+
+	XEvent evt = {0};
+	evt.type = ClientMessage;
+	evt.xclient.message_type = XInternAtom(display, "_NET_WM_STATE", False);
+	evt.xclient.format = 32;
+	evt.xclient.window = w;
+	evt.xclient.data.l[0] = action;
+	evt.xclient.data.l[1] = state1 ? XInternAtom(display, state1, False) : 0;
+	evt.xclient.data.l[2] = state2 ? XInternAtom(display, state2, False) : 0;
+
+	XSendEvent(display, XRootWindowOfScreen(attr.screen), 0,
+		SubstructureNotifyMask | SubstructureRedirectMask, &evt);
+
+	XSync(display, False);
+}
+
+static bool window_is_fullscreen(Display *display, Window w)
+{
+	return window_in_wm_state(display, w, "_NET_WM_STATE_FULLSCREEN", NULL);
+}
+
+static bool window_is_maximized(Display *display, Window w)
+{
+	return window_in_wm_state(display, w, "_NET_WM_STATE_MAXIMIZED_VERT", "_NET_WM_STATE_MAXIMIZED_HORZ");
 }
 
 
@@ -448,19 +509,31 @@ static void app_event(MTY_App *ctx, XEvent *event)
 			app_refresh_scale(ctx);
 			ctx->state++;
 			break;
-		case ConfigureNotify:
-			if (ctx->last_width != event->xconfigure.width || ctx->last_height != event->xconfigure.height) {
+		case ConfigureNotify: {
+			const XConfigureEvent *xc = &event->xconfigure;
+
+			struct window *win = app_get_window(ctx, app_find_window(ctx, xc->window));
+			if (!win)
+				break;
+
+			if (win->last_width != xc->width || win->last_height != xc->height) {
 				evt.type = MTY_EVENT_SIZE;
-				ctx->last_width = event->xconfigure.width;
-				ctx->last_height = event->xconfigure.height;
+				win->last_width = xc->width;
+				win->last_height = xc->height;
+
+				if (!window_is_maximized(ctx->display, xc->window)) {
+					win->frame.size.w = xc->width;
+					win->frame.size.h = xc->height;
+				}
 			}
 
-			if (ctx->last_pos_x != event->xconfigure.x || ctx->last_pos_y != event->xconfigure.y) {
+			if (xc->send_event && (win->frame.x != xc->x || win->frame.y != xc->y)) {
 				evt.type = MTY_EVENT_MOVE;
-				ctx->last_pos_x = event->xconfigure.x;
-				ctx->last_pos_y = event->xconfigure.y;
+				win->frame.x = xc->x;
+				win->frame.y = xc->y;
 			}
 			break;
+		}
 		case FocusIn:
 		case FocusOut:
 			// Do not respond to NotifyGrab or NotifyUngrab
@@ -1062,6 +1135,10 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	XMapRaised(app->display, ctx->window);
 	XMoveWindow(app->display, ctx->window, frame->x, frame->y);
 
+	if (frame->type & MTY_WINDOW_MAXIMIZED)
+		window_wm_event(app->display, ctx->window, _NET_WM_STATE_ADD,
+			"_NET_WM_STATE_MAXIMIZED_HORZ", "_NET_WM_STATE_MAXIMIZED_VERT");
+
 	MTY_WindowSetTitle(app, window, title ? title : "MTY_Window");
 
 	window_set_up_wm(app, ctx->window);
@@ -1139,14 +1216,20 @@ MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 
 	int32_t screen = XScreenNumberOfScreen(attr.screen);
 
-	MTY_Frame frame = {
-		.type = MTY_WINDOW_NORMAL,
-		.size.w = attr.width,
-		.size.h = attr.height,
-	};
+	MTY_Frame frame = {0};
 
-	Window child = None;
-	XTranslateCoordinates(app->display, ctx->window, attr.root, 0, 0, &frame.x, &frame.y, &child);
+	if (window_is_maximized(app->display, ctx->window)) {
+		frame = ctx->frame;
+		frame.type |= MTY_WINDOW_MAXIMIZED;
+
+	} else {
+		frame.size.w = attr.width;
+		frame.size.h = attr.height;
+
+		Window child = None;
+		XTranslateCoordinates(app->display, ctx->window, attr.root, 0, 0, &frame.x, &frame.y, &child);
+	}
+
 	window_adjust_frame(app->display, ctx->window, &frame);
 
 	snprintf(frame.screen, MTY_SCREEN_MAX, "%d", screen);
@@ -1313,22 +1396,7 @@ bool MTY_WindowIsFullscreen(MTY_App *app, MTY_Window window)
 	if (!ctx)
 		return false;
 
-	Atom type;
-	int format;
-	unsigned char *value = NULL;
-	unsigned long bytes, n;
-
-	if (XGetWindowProperty(app->display, ctx->window, XInternAtom(app->display, "_NET_WM_STATE", False),
-		0, 1024, False, XA_ATOM, &type, &format, &n, &bytes, &value) == Success)
-	{
-		Atom *atoms = (Atom *) value;
-
-		for (unsigned long x = 0; x < n; x++)
-			if (atoms[x] == XInternAtom(app->display, "_NET_WM_STATE_FULLSCREEN", False))
-				return true;
-	}
-
-	return false;
+	return window_is_fullscreen(app->display, ctx->window);
 }
 
 void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
@@ -1337,23 +1405,8 @@ void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
 	if (!ctx)
 		return;
 
-	if (fullscreen != MTY_WindowIsFullscreen(app, window)) {
-		XWindowAttributes attr = {0};
-		XGetWindowAttributes(app->display, ctx->window, &attr);
-
-		XEvent evt = {0};
-		evt.type = ClientMessage;
-		evt.xclient.message_type = XInternAtom(app->display, "_NET_WM_STATE", False);
-		evt.xclient.format = 32;
-		evt.xclient.window = ctx->window;
-		evt.xclient.data.l[0] = _NET_WM_STATE_TOGGLE;
-		evt.xclient.data.l[1] = XInternAtom(app->display, "_NET_WM_STATE_FULLSCREEN", False);
-
-		XSendEvent(app->display, XRootWindowOfScreen(attr.screen), 0,
-			SubstructureNotifyMask | SubstructureRedirectMask, &evt);
-
-		XSync(app->display, False);
-	}
+	if (fullscreen != MTY_WindowIsFullscreen(app, window))
+		window_wm_event(app->display, ctx->window, _NET_WM_STATE_TOGGLE, "NET_WM_STATE_FULLSCREEN", NULL);
 }
 
 void MTY_WindowWarpCursor(MTY_App *app, MTY_Window window, uint32_t x, uint32_t y)
