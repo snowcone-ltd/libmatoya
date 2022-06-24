@@ -119,18 +119,14 @@ static struct window *app_get_active_window(MTY_App *ctx)
 
 // Window manager helpers
 
-static bool window_in_wm_state(Display *display, Window w, const char *state1, const char *state2)
+static uint8_t window_wm_state(Display *display, Window w)
 {
 	Atom type;
 	int format;
 	unsigned char *value = NULL;
 	unsigned long bytes, n;
 
-	bool b1 = !state1;
-	bool b2 = !state2;
-
-	Atom a1 = state1 ? XInternAtom(display, state1, False) : None;
-	Atom a2 = state2 ? XInternAtom(display, state2, False) : None;
+	uint8_t state = 0;
 
 	if (XGetWindowProperty(display, w, XInternAtom(display, "_NET_WM_STATE", False),
 		0, 1024, False, XA_ATOM, &type, &format, &n, &bytes, &value) == Success)
@@ -138,15 +134,18 @@ static bool window_in_wm_state(Display *display, Window w, const char *state1, c
 		Atom *atoms = (Atom *) value;
 
 		for (unsigned long x = 0; x < n; x++) {
-			if (!b1 && atoms[x] == a1)
-				b1 = true;
+			if (atoms[x] == XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False))
+				state |= 0x1;
 
-			if (!b2 && atoms[x] == a2)
-				b2 = true;
+			if (atoms[x] == XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False))
+				state |= 0x2;
+
+			if (atoms[x] == XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False))
+				state |= 0x4;
 		}
 	}
 
-	return b1 && b2;
+	return state;
 }
 
 static void window_wm_event(Display *display, Window w, int action, const char *state1, const char *state2)
@@ -167,16 +166,6 @@ static void window_wm_event(Display *display, Window w, int action, const char *
 		SubstructureNotifyMask | SubstructureRedirectMask, &evt);
 
 	XSync(display, False);
-}
-
-static bool window_is_fullscreen(Display *display, Window w)
-{
-	return window_in_wm_state(display, w, "_NET_WM_STATE_FULLSCREEN", NULL);
-}
-
-static bool window_is_maximized(Display *display, Window w)
-{
-	return window_in_wm_state(display, w, "_NET_WM_STATE_MAXIMIZED_VERT", "_NET_WM_STATE_MAXIMIZED_HORZ");
 }
 
 
@@ -521,7 +510,7 @@ static void app_event(MTY_App *ctx, XEvent *event)
 				win->last_width = xc->width;
 				win->last_height = xc->height;
 
-				if (!window_is_maximized(ctx->display, xc->window)) {
+				if (window_wm_state(ctx->display, xc->window) == 0) {
 					win->frame.size.w = xc->width;
 					win->frame.size.h = xc->height;
 				}
@@ -1139,6 +1128,9 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 		window_wm_event(app->display, ctx->window, _NET_WM_STATE_ADD,
 			"_NET_WM_STATE_MAXIMIZED_HORZ", "_NET_WM_STATE_MAXIMIZED_VERT");
 
+	if (frame->type & MTY_WINDOW_FULLSCREEN)
+		window_wm_event(app->display, ctx->window, _NET_WM_STATE_ADD, "_NET_WM_STATE_FULLSCREEN", NULL);
+
 	MTY_WindowSetTitle(app, window, title ? title : "MTY_Window");
 
 	window_set_up_wm(app, ctx->window);
@@ -1218,9 +1210,16 @@ MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 
 	MTY_Frame frame = {0};
 
-	if (window_is_maximized(app->display, ctx->window)) {
+	uint8_t wm_state = window_wm_state(app->display, ctx->window);
+
+	if (wm_state != 0) {
 		frame = ctx->frame;
-		frame.type |= MTY_WINDOW_MAXIMIZED;
+
+		if (wm_state & 0x1)
+			frame.type |= MTY_WINDOW_FULLSCREEN;
+
+		if (wm_state & 0x6)
+			frame.type |= MTY_WINDOW_MAXIMIZED;
 
 	} else {
 		frame.size.w = attr.width;
@@ -1253,6 +1252,14 @@ void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
 		return;
 
 	XMoveResizeWindow(app->display, ctx->window, dframe.x, dframe.y, dframe.size.w, dframe.size.h);
+
+	if (dframe.type & MTY_WINDOW_MAXIMIZED)
+		window_wm_event(app->display, ctx->window, _NET_WM_STATE_ADD,
+			"_NET_WM_STATE_MAXIMIZED_HORZ", "_NET_WM_STATE_MAXIMIZED_VERT");
+
+	if (dframe.type & MTY_WINDOW_FULLSCREEN)
+		window_wm_event(app->display, ctx->window, _NET_WM_STATE_ADD, "_NET_WM_STATE_FULLSCREEN", NULL);
+
 	XSync(app->display, False);
 }
 
@@ -1396,7 +1403,7 @@ bool MTY_WindowIsFullscreen(MTY_App *app, MTY_Window window)
 	if (!ctx)
 		return false;
 
-	return window_is_fullscreen(app->display, ctx->window);
+	return window_wm_state(app->display, ctx->window) & 0x1;
 }
 
 void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
@@ -1406,7 +1413,7 @@ void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
 		return;
 
 	if (fullscreen != MTY_WindowIsFullscreen(app, window))
-		window_wm_event(app->display, ctx->window, _NET_WM_STATE_TOGGLE, "NET_WM_STATE_FULLSCREEN", NULL);
+		window_wm_event(app->display, ctx->window, _NET_WM_STATE_TOGGLE, "_NET_WM_STATE_FULLSCREEN", NULL);
 }
 
 void MTY_WindowWarpCursor(MTY_App *app, MTY_Window window, uint32_t x, uint32_t y)
