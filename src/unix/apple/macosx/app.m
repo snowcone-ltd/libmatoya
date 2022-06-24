@@ -353,6 +353,11 @@ static CGDirectDisplayID screen_get_display_id(NSScreen *screen)
 	return ((NSNumber *) [screen deviceDescription][@"NSScreenNumber"]).intValue;
 }
 
+static NSScreen *screen_get_primary(void)
+{
+	return [NSScreen screens][0];
+}
+
 static NSScreen *screen_from_display_id(CGDirectDisplayID display_id)
 {
 	NSArray<NSScreen *> *screens = [NSScreen screens];
@@ -361,7 +366,7 @@ static NSScreen *screen_from_display_id(CGDirectDisplayID display_id)
 		if (display_id == screen_get_display_id(screens[x]))
 			return screens[x];
 
-	return screens[0];
+	return screen_get_primary();
 }
 
 
@@ -1434,7 +1439,7 @@ MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 	if (!ctx)
 		return (MTY_Size) {0};
 
-	CGSize size = ctx.contentView.frame.size;
+	NSSize size = ctx.contentView.frame.size;
 	CGFloat scale = mty_screen_scale(ctx.screen);
 
 	return (MTY_Size) {
@@ -1449,8 +1454,8 @@ MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 	if (!ctx)
 		return (MTY_Frame) {0};
 
-	CGRect s = ctx.screen.frame;
-	CGRect w = ctx.frame;
+	NSRect s = ctx.screen.frame;
+	NSRect w = ctx.frame;
 
 	MTY_WindowType type = MTY_WINDOW_NORMAL;
 
@@ -1468,15 +1473,12 @@ MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 		}
 	}
 
-	CGRect r = {
+	NSRect r = [ctx contentRectForFrameRect: (NSRect) {
 		.origin.x = w.origin.x - s.origin.x,
 		.origin.y = w.origin.y - s.origin.y,
 		.size.width = w.size.width,
 		.size.height = w.size.height,
-	};
-
-	r = [ctx contentRectForFrameRect:r];
-
+	}];
 
 	MTY_Frame frame = {
 		.type = type,
@@ -1498,16 +1500,16 @@ void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
 		return;
 
 	NSScreen *screen = screen_from_display_id(atoi(frame->screen));
-	CGRect s = screen.frame;
+	NSRect s = screen.frame;
 
-	CGRect r = {
+	NSRect r = [ctx frameRectForContentRect: (NSRect) {
 		.origin.x = frame->x + s.origin.x,
 		.origin.y = frame->y + s.origin.y,
 		.size.width = frame->size.w,
 		.size.height = frame->size.h,
-	};
+	}]
 
-	[ctx setFrame:[ctx frameRectForContentRect:r] display:YES];
+	[ctx setFrame:r display:YES];
 
 	if (frame->type & MTY_WINDOW_MAXIMIZED)
 		[ctx zoom:ctx];
@@ -1532,7 +1534,7 @@ MTY_Size MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window)
 	if (!ctx)
 		return (MTY_Size) {0};
 
-	CGSize size = ctx.screen.frame.size;
+	NSSize size = ctx.screen.frame.size;
 	CGFloat scale = mty_screen_scale(ctx.screen);
 
 	return (MTY_Size) {
@@ -1697,9 +1699,9 @@ static char APP_KEYS[MTY_KEY_MAX][16];
 
 MTY_Frame MTY_MakeDefaultFrame(int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
 {
-	NSScreen *screen = screen_from_display_id(0);
+	NSScreen *screen = screen_get_primary();
 
-	CGSize size = screen.frame.size;
+	NSSize size = screen.frame.size;
 
 	return mty_window_adjust(size.width, size.height, 1.0f, maxHeight, x, -y, w, h);
 }
