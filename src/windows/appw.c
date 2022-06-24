@@ -1703,7 +1703,6 @@ static void window_set_placement(MTY_App *app, HMONITOR mon, HWND hwnd, const MT
 MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, MTY_Window index)
 {
 	MTY_Window window = -1;
-	wchar_t *titlew = NULL;
 	bool r = true;
 
 	window = app_find_open_window(app, index);
@@ -1727,9 +1726,10 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 		frame = &dframe;
 	}
 
-	HMONITOR mon = monitor_from_screen(frame->screen);
 	ctx->frame = *frame;
 	ctx->was_zoomed = frame->type & MTY_WINDOW_MAXIMIZED;
+
+	HMONITOR mon = monitor_from_screen(frame->screen);
 
 	DWORD style = WS_OVERLAPPEDWINDOW;
 	int32_t w = CW_USEDEFAULT;
@@ -1747,7 +1747,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 		h = info.rcMonitor.bottom - info.rcMonitor.top;
 	}
 
-	titlew = MTY_MultiToWideD(title ? title : "MTY_Window");
+	const WCHAR *titlew = MTY_MultiToWideDL(title ? title : "MTY_Window");
 
 	ctx->hwnd = CreateWindowEx(0, APP_CLASS_NAME, titlew, style, x, y, w, h, NULL, NULL, app->instance, ctx);
 	if (!ctx->hwnd) {
@@ -1775,8 +1775,6 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	}
 
 	except:
-
-	MTY_Free(titlew);
 
 	if (!r) {
 		MTY_WindowDestroy(app, window);
@@ -1832,20 +1830,16 @@ static MTY_Frame window_get_placement(MTY_App *app, HWND hwnd)
 	WINDOWPLACEMENT p = {.length = sizeof(WINDOWPLACEMENT)};
 	GetWindowPlacement(hwnd, &p);
 
-	RECT r = p.rcNormalPosition;
-	window_normalize_rect(app, mon, &r);
-
-	MTY_WindowType type = p.showCmd == SW_MAXIMIZE ?
-		MTY_WINDOW_MAXIMIZED : MTY_WINDOW_NORMAL;
+	window_normalize_rect(app, mon, &p.rcNormalPosition);
 
 	MTY_Frame frame = {
-		.type = type,
-		.y = r.top,
-		.x = r.left,
-		.size.w = r.right - r.left,
-		.size.h = r.bottom - r.top,
+		.y = p.rcNormalPosition.top,
+		.x = p.rcNormalPosition.left,
+		.size.w = p.rcNormalPosition.right - p.rcNormalPosition.left,
+		.size.h = p.rcNormalPosition.bottom - p.rcNormalPosition.top,
 	};
 
+	frame.type = p.showCmd == SW_MAXIMIZE ? MTY_WINDOW_MAXIMIZED : MTY_WINDOW_NORMAL;
 	snprintf(frame.screen, MTY_SCREEN_MAX, "%s", MTY_WideToMultiDL(mi.szDevice));
 
 	return frame;
@@ -1955,9 +1949,7 @@ void MTY_WindowSetTitle(MTY_App *app, MTY_Window window, const char *title)
 	if (!ctx)
 		return;
 
-	wchar_t *titlew = MTY_MultiToWideD(title);
-	SetWindowText(ctx->hwnd, titlew);
-	MTY_Free(titlew);
+	SetWindowText(ctx->hwnd, MTY_MultiToWideDL(title));
 }
 
 bool MTY_WindowIsVisible(MTY_App *app, MTY_Window window)
@@ -2130,11 +2122,7 @@ void MTY_HotkeyToString(MTY_Mod mod, MTY_Key key, char *str, size_t len)
 
 void MTY_SetAppID(const char *id)
 {
-	WCHAR *wid = MTY_MultiToWideD(id);
-
-	SetCurrentProcessExplicitAppUserModelID(wid);
-
-	MTY_Free(wid);
+	SetCurrentProcessExplicitAppUserModelID(MTY_MultiToWideDL(id));
 }
 
 void *MTY_GLGetProcAddress(const char *name)
