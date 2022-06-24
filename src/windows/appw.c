@@ -1662,6 +1662,25 @@ static void window_denormalize_rect(MTY_App *app, HMONITOR mon, RECT *r)
 	r->left = r->left - px_w + mi.rcWork.left;
 }
 
+static void window_normalize_rect(MTY_App *app, HMONITOR mon, RECT *r)
+{
+	MONITORINFOEX mi = monitor_get_info(mon);
+	float scale = monitor_get_scale(mon);
+
+	RECT ar = {0};
+	app_adjust_window_rect(app, scale, &ar);
+
+	int32_t w = r->right - r->left;
+	int32_t h = r->bottom - r->top;
+	int32_t px_h = lrint(h * (1 - (1 / scale))) / 2;
+	int32_t px_w = lrint(w * (1 - (1 / scale))) / 2;
+
+	r->top = r->top + px_h - mi.rcWork.top - ar.top;
+	r->right = r->right - px_w - mi.rcWork.left - ar.right;
+	r->bottom = r->bottom - px_h - mi.rcWork.top - ar.bottom;
+	r->left = r->left + px_w - mi.rcWork.left - ar.left;
+}
+
 static void window_set_placement(MTY_App *app, HMONITOR mon, HWND hwnd, const MTY_Frame *frame)
 {
 	WINDOWPLACEMENT p = {.length = sizeof(WINDOWPLACEMENT)};
@@ -1809,25 +1828,12 @@ static MTY_Frame window_get_placement(MTY_App *app, HWND hwnd)
 {
 	HMONITOR mon = monitor_from_hwnd(hwnd);
 	MONITORINFOEX mi = monitor_get_info(mon);
-	float scale = monitor_get_scale(mon);
 
 	WINDOWPLACEMENT p = {.length = sizeof(WINDOWPLACEMENT)};
 	GetWindowPlacement(hwnd, &p);
 
-	RECT ar = {0};
-	app_adjust_window_rect(app, scale, &ar);
-
 	RECT r = p.rcNormalPosition;
-
-	int32_t w = r.right - r.left;
-	int32_t h = r.bottom - r.top;
-	int32_t px_h = lrint(h * (1 - (1 / scale))) / 2;
-	int32_t px_w = lrint(w * (1 - (1 / scale))) / 2;
-
-	r.top = r.top + px_h - mi.rcWork.top - ar.top;
-	r.right = r.right - px_w - mi.rcWork.left - ar.right;
-	r.bottom = r.bottom - px_h - mi.rcWork.top - ar.bottom;
-	r.left = r.left + px_w - mi.rcWork.left - ar.left;
+	window_normalize_rect(app, mon, &r);
 
 	MTY_WindowType type = p.showCmd == SW_MAXIMIZE ?
 		MTY_WINDOW_MAXIMIZED : MTY_WINDOW_NORMAL;
