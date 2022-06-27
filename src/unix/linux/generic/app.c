@@ -16,7 +16,6 @@
 
 #include "dl/libX11.h"
 #include "hid/utils.h"
-#include "wsize.h"
 #include "evdev.h"
 #include "keymap.h"
 
@@ -25,6 +24,9 @@ struct window {
 	MTY_Window index;
 	XIC ic;
 	MTY_GFX api;
+	MTY_Frame frame;
+	int32_t last_width;
+	int32_t last_height;
 	struct gfx_ctx *gfx_ctx;
 	struct xinfo info;
 };
@@ -62,11 +64,6 @@ struct MTY_App {
 	char *clip;
 	float scale;
 
-	int32_t last_width;
-	int32_t last_height;
-	int32_t last_pos_x;
-	int32_t last_pos_y;
-
 	uint64_t state;
 	uint64_t prev_state;
 };
@@ -100,7 +97,7 @@ static MTY_Window app_find_window(MTY_App *ctx, Window xwindow)
 			return x;
 	}
 
-	return 0;
+	return -1;
 }
 
 static struct window *app_get_active_window(MTY_App *ctx)
@@ -117,6 +114,58 @@ static struct window *app_get_active_window(MTY_App *ctx)
 	}
 
 	return NULL;
+}
+
+
+// Window manager helpers
+
+static uint8_t window_wm_state(Display *display, Window w)
+{
+	Atom type;
+	int format;
+	unsigned char *value = NULL;
+	unsigned long bytes, n;
+
+	uint8_t state = 0;
+
+	if (XGetWindowProperty(display, w, XInternAtom(display, "_NET_WM_STATE", False),
+		0, 1024, False, XA_ATOM, &type, &format, &n, &bytes, &value) == Success)
+	{
+		Atom *atoms = (Atom *) value;
+
+		for (unsigned long x = 0; x < n; x++) {
+			if (atoms[x] == XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False))
+				state |= 0x1;
+
+			if (atoms[x] == XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False))
+				state |= 0x2;
+
+			if (atoms[x] == XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False))
+				state |= 0x4;
+		}
+	}
+
+	return state;
+}
+
+static void window_wm_event(Display *display, Window w, int action, const char *state1, const char *state2)
+{
+	XWindowAttributes attr = {0};
+	XGetWindowAttributes(display, w, &attr);
+
+	XEvent evt = {0};
+	evt.type = ClientMessage;
+	evt.xclient.message_type = XInternAtom(display, "_NET_WM_STATE", False);
+	evt.xclient.format = 32;
+	evt.xclient.window = w;
+	evt.xclient.data.l[0] = action;
+	evt.xclient.data.l[1] = state1 ? XInternAtom(display, state1, False) : 0;
+	evt.xclient.data.l[2] = state2 ? XInternAtom(display, state2, False) : 0;
+
+	XSendEvent(display, XRootWindowOfScreen(attr.screen), 0,
+		SubstructureNotifyMask | SubstructureRedirectMask, &evt);
+
+	XSync(display, False);
 }
 
 
@@ -318,15 +367,19 @@ static void app_kb_to_hotkey(MTY_App *app, MTY_Event *evt)
 	}
 }
 
+static float app_get_scale(Display *display)
+{
+	const char *dpi = XGetDefault(display, "Xft", "dpi");
+	float scale = dpi ? atoi(dpi) / 96.0f : 1.0f;
+
+	return scale == 0.0f ? 1.0f : scale;
+}
+
 static void app_refresh_scale(MTY_App *ctx)
 {
 	Display *display = XOpenDisplay(NULL);
 
-	const char *dpi = XGetDefault(display, "Xft", "dpi");
-	ctx->scale = dpi ? (float) atoi(dpi) / 96.0f : 1.0f;
-
-	if (ctx->scale == 0.0f)
-		ctx->scale = 1.0f;
+	ctx->scale = app_get_scale(display);
 
 	XCloseDisplay(display);
 }
@@ -445,19 +498,31 @@ static void app_event(MTY_App *ctx, XEvent *event)
 			app_refresh_scale(ctx);
 			ctx->state++;
 			break;
-		case ConfigureNotify:
-			if (ctx->last_width != event->xconfigure.width || ctx->last_height != event->xconfigure.height) {
+		case ConfigureNotify: {
+			const XConfigureEvent *xc = &event->xconfigure;
+
+			struct window *win = app_get_window(ctx, app_find_window(ctx, xc->window));
+			if (!win)
+				break;
+
+			if (win->last_width != xc->width || win->last_height != xc->height) {
 				evt.type = MTY_EVENT_SIZE;
-				ctx->last_width = event->xconfigure.width;
-				ctx->last_height = event->xconfigure.height;
+				win->last_width = xc->width;
+				win->last_height = xc->height;
+
+				if (window_wm_state(ctx->display, xc->window) == 0) {
+					win->frame.size.w = xc->width;
+					win->frame.size.h = xc->height;
+				}
 			}
 
-			if (ctx->last_pos_x != event->xconfigure.x || ctx->last_pos_y != event->xconfigure.y) {
+			if (xc->send_event && (win->frame.x != xc->x || win->frame.y != xc->y)) {
 				evt.type = MTY_EVENT_MOVE;
-				ctx->last_pos_x = event->xconfigure.x;
-				ctx->last_pos_y = event->xconfigure.y;
+				win->frame.x = xc->x;
+				win->frame.y = xc->y;
 			}
 			break;
+		}
 		case FocusIn:
 		case FocusOut:
 			// Do not respond to NotifyGrab or NotifyUngrab
@@ -958,15 +1023,10 @@ void MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode)
 
 // Window
 
-static void window_set_up_wm(MTY_App *app, Window w, const MTY_WindowDesc *desc)
+static void window_set_up_wm(MTY_App *app, Window w)
 {
 	// This function sets up misc things associated with the standardized _NET_WM
 	// system for communicating with the window manager
-
-	XSizeHints *shints = XAllocSizeHints();
-	shints->flags = PMinSize;
-	shints->min_width = desc->minWidth;
-	shints->min_height = desc->minHeight;
 
 	XWMHints *wmhints = XAllocWMHints();
 	wmhints->input = True;
@@ -977,9 +1037,8 @@ static void window_set_up_wm(MTY_App *app, Window w, const MTY_WindowDesc *desc)
 	chints->res_name = app->class_name;
 	chints->res_class = app->class_name;
 
-	XSetWMProperties(app->display, w, NULL, NULL, NULL, 0, shints, wmhints, chints);
+	XSetWMProperties(app->display, w, NULL, NULL, NULL, 0, NULL, wmhints, chints);
 
-	XFree(shints);
 	XFree(wmhints);
 	XFree(chints);
 
@@ -995,12 +1054,40 @@ static void window_set_up_wm(MTY_App *app, Window w, const MTY_WindowDesc *desc)
 	XSetWMProtocols(app->display, w, protos, 2);
 }
 
-MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
+static MTY_Frame window_denormalize_frame(const MTY_Frame *frame, float scale)
+{
+	int32_t px_h = lrint(frame->size.h * (scale - 1));
+	int32_t px_w = lrint(frame->size.w * (scale - 1));
+
+	MTY_Frame dframe = *frame;
+	dframe.x -= px_w / 2;
+	dframe.y -= px_h / 2;
+	dframe.size.w += px_w;
+	dframe.size.h += px_h;
+
+	return dframe;
+}
+
+static MTY_Frame window_normalize_frame(const MTY_Frame *frame, float scale)
+{
+	int32_t px_h = lrint(frame->size.h * (1 - (1 / scale)));
+	int32_t px_w = lrint(frame->size.w * (1 - (1 / scale)));
+
+	MTY_Frame nframe = *frame;
+	nframe.x += px_w / 2;
+	nframe.y += px_h / 2;
+	nframe.size.w -= px_w;
+	nframe.size.h -= px_h;
+
+	return nframe;
+}
+
+MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, MTY_Window index)
 {
 	bool r = true;
 	struct window *ctx = MTY_Alloc(1, sizeof(struct window));
 
-	MTY_Window window = app_find_open_window(app, desc->index);
+	MTY_Window window = app_find_open_window(app, index);
 	if (window == -1) {
 		r = false;
 		MTY_Log("Maximum windows (MTY_WINDOW_MAX) of %u reached", MTY_WINDOW_MAX);
@@ -1010,51 +1097,47 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
 	ctx->index = window;
 	app->windows[window] = ctx;
 
-	Window root = XDefaultRootWindow(app->display);
+	MTY_Frame dframe = {0};
+
+	if (!frame) {
+		dframe = APP_DEFAULT_FRAME();
+		frame = &dframe;
+	}
+
+	dframe = window_denormalize_frame(frame, app->scale);
+	frame = &dframe;
+
+	Screen *screen = XScreenOfDisplay(app->display, atoi(frame->screen));
+	Window root = XRootWindowOfScreen(screen);
 
 	XSetWindowAttributes swa = {0};
 	swa.colormap = XCreateColormap(app->display, root, app->vis->visual, AllocNone);
 	swa.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask |
 		ButtonReleaseMask | PointerMotionMask | FocusChangeMask | StructureNotifyMask;
 
-	XWindowAttributes attr = {0};
-	XGetWindowAttributes(app->display, root, &attr);
-
-	int32_t desktop_width = XWidthOfScreen(attr.screen);
-	int32_t desktop_height = XHeightOfScreen(attr.screen);
-	int32_t width = desktop_width;
-	int32_t height = desktop_height;
-	int32_t x = lrint((float) desc->x * app->scale);
-	int32_t y = lrint((float) desc->y * app->scale);
-
-	wsize_client(desc, app->scale, desktop_height, &x, &y, &width, &height);
-
-	if (desc->origin == MTY_ORIGIN_CENTER)
-		wsize_center(0, 0, desktop_width, desktop_height, &x, &y, &width, &height);
-
-	ctx->window = XCreateWindow(app->display, root, 0, 0, width, height, 0, app->vis->depth,
+	ctx->window = XCreateWindow(app->display, root, 0, 0, frame->size.w, frame->size.h, 0, app->vis->depth,
 		InputOutput, app->vis->visual, CWColormap | CWEventMask, &swa);
 
 	ctx->ic = XCreateIC(app->im, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
 		XNClientWindow, ctx->window, NULL);
 
 	XMapRaised(app->display, ctx->window);
-	XMoveWindow(app->display, ctx->window, x, y);
+	XMoveWindow(app->display, ctx->window, frame->x, frame->y);
 
-	MTY_WindowSetTitle(app, window, desc->title ? desc->title : "MTY_Window");
+	if (frame->type & MTY_WINDOW_MAXIMIZED)
+		window_wm_event(app->display, ctx->window, _NET_WM_STATE_ADD,
+			"_NET_WM_STATE_MAXIMIZED_HORZ", "_NET_WM_STATE_MAXIMIZED_VERT");
 
-	window_set_up_wm(app, ctx->window, desc);
+	if (frame->type & MTY_WINDOW_FULLSCREEN)
+		window_wm_event(app->display, ctx->window, _NET_WM_STATE_ADD, "_NET_WM_STATE_FULLSCREEN", NULL);
+
+	MTY_WindowSetTitle(app, window, title ? title : "MTY_Window");
+
+	window_set_up_wm(app, ctx->window);
 
 	ctx->info.display = app->display;
 	ctx->info.vis = app->vis;
 	ctx->info.window = ctx->window;
-
-	if (desc->api != MTY_GFX_NONE) {
-		if (!MTY_WindowSetGFX(app, window, desc->api, desc->vsync)) {
-			r = false;
-			goto except;
-		}
-	}
 
 	except:
 
@@ -1081,47 +1164,134 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 	app->windows[window] = NULL;
 }
 
-bool MTY_WindowGetSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)
+MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 {
 	struct window *ctx = app_get_window(app, window);
 	if (!ctx)
-		return false;
+		return (MTY_Size) {0};
 
 	XWindowAttributes attr = {0};
 	XGetWindowAttributes(app->display, ctx->window, &attr);
 
-	*width = attr.width;
-	*height = attr.height;
-
-	return true;
+	return (MTY_Size) {
+		.w = attr.width,
+		.h = attr.height,
+	};
 }
 
-void MTY_WindowGetPosition(MTY_App *app, MTY_Window window, int32_t *x, int32_t *y)
+static void window_adjust_frame(Display *display, Window window, MTY_Frame *frame)
+{
+	Atom type;
+	int format;
+	unsigned char *value = NULL;
+	unsigned long bytes, n;
+
+	if (XGetWindowProperty(display, window, XInternAtom(display, "_NET_FRAME_EXTENTS", False),
+		0, 4, False, AnyPropertyType, &type, &format, &n, &bytes, &value) == Success)
+	{
+		if (n == 4) {
+			long *extents = (long *) value;
+			frame->x -= extents[0]; // Left
+			frame->y -= extents[2]; // Top
+		}
+	}
+}
+
+MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
+{
+	struct window *ctx = app_get_window(app, window);
+	if (!ctx)
+		return (MTY_Frame) {0};
+
+	XWindowAttributes attr = {0};
+	XGetWindowAttributes(app->display, ctx->window, &attr);
+
+	int32_t screen = XScreenNumberOfScreen(attr.screen);
+
+	MTY_Frame frame = {0};
+
+	uint8_t wm_state = window_wm_state(app->display, ctx->window);
+
+	if (wm_state != 0) {
+		frame = ctx->frame;
+
+		if (wm_state & 0x1)
+			frame.type |= MTY_WINDOW_FULLSCREEN;
+
+		if (wm_state & 0x6)
+			frame.type |= MTY_WINDOW_MAXIMIZED;
+
+	} else {
+		frame.size.w = attr.width;
+		frame.size.h = attr.height;
+
+		Window child = None;
+		XTranslateCoordinates(app->display, ctx->window, attr.root, 0, 0, &frame.x, &frame.y, &child);
+	}
+
+	window_adjust_frame(app->display, ctx->window, &frame);
+
+	snprintf(frame.screen, MTY_SCREEN_MAX, "%d", screen);
+
+	return window_normalize_frame(&frame, app->scale);
+}
+
+void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
 {
 	struct window *ctx = app_get_window(app, window);
 	if (!ctx)
 		return;
 
+	MTY_Frame dframe = window_denormalize_frame(frame, app->scale);
+
 	XWindowAttributes attr = {0};
 	XGetWindowAttributes(app->display, ctx->window, &attr);
 
-	*x = attr.x;
-	*y = attr.y;
+	// X11 can not programmatically move windows between screens
+	if (XScreenNumberOfScreen(attr.screen) != atoi(dframe.screen))
+		return;
+
+	XMoveResizeWindow(app->display, ctx->window, dframe.x, dframe.y, dframe.size.w, dframe.size.h);
+
+	if (dframe.type & MTY_WINDOW_MAXIMIZED)
+		window_wm_event(app->display, ctx->window, _NET_WM_STATE_ADD,
+			"_NET_WM_STATE_MAXIMIZED_HORZ", "_NET_WM_STATE_MAXIMIZED_VERT");
+
+	if (dframe.type & MTY_WINDOW_FULLSCREEN)
+		window_wm_event(app->display, ctx->window, _NET_WM_STATE_ADD, "_NET_WM_STATE_FULLSCREEN", NULL);
+
+	XSync(app->display, False);
 }
 
-bool MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)
+void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, uint32_t minHeight)
 {
 	struct window *ctx = app_get_window(app, window);
 	if (!ctx)
-		return false;
+		return;
+
+	XSizeHints *shints = XAllocSizeHints();
+	shints->flags = PMinSize;
+	shints->min_width = minWidth;
+	shints->min_height = minHeight;
+
+	XSetWMProperties(app->display, ctx->window, NULL, NULL, NULL, 0, shints, NULL, NULL);
+
+	XFree(shints);
+}
+
+MTY_Size MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window)
+{
+	struct window *ctx = app_get_window(app, window);
+	if (!ctx)
+		return (MTY_Size) {0};
 
 	XWindowAttributes attr = {0};
 	XGetWindowAttributes(app->display, ctx->window, &attr);
 
-	*width = XWidthOfScreen(attr.screen);
-	*height = XHeightOfScreen(attr.screen);
-
-	return true;
+	return (MTY_Size) {
+		.w = XWidthOfScreen(attr.screen),
+		.h = XHeightOfScreen(attr.screen),
+	};
 }
 
 float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
@@ -1215,8 +1385,6 @@ void MTY_WindowActivate(MTY_App *app, MTY_Window window, bool active)
 
 		XSetInputFocus(app->display, ctx->window, RevertToNone, CurrentTime);
 
-		XSync(app->display, False);
-
 	} else {
 		XWithdrawWindow(app->display, ctx->window);
 	}
@@ -1235,22 +1403,7 @@ bool MTY_WindowIsFullscreen(MTY_App *app, MTY_Window window)
 	if (!ctx)
 		return false;
 
-	Atom type;
-	int format;
-	unsigned char *value = NULL;
-	unsigned long bytes, n;
-
-	if (XGetWindowProperty(app->display, ctx->window, XInternAtom(app->display, "_NET_WM_STATE", False),
-		0, 1024, False, XA_ATOM, &type, &format, &n, &bytes, &value) == Success)
-	{
-		Atom *atoms = (Atom *) value;
-
-		for (unsigned long x = 0; x < n; x++)
-			if (atoms[x] == XInternAtom(app->display, "_NET_WM_STATE_FULLSCREEN", False))
-				return true;
-	}
-
-	return false;
+	return window_wm_state(app->display, ctx->window) & 0x1;
 }
 
 void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
@@ -1259,23 +1412,8 @@ void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
 	if (!ctx)
 		return;
 
-	if (fullscreen != MTY_WindowIsFullscreen(app, window)) {
-		XWindowAttributes attr = {0};
-		XGetWindowAttributes(app->display, ctx->window, &attr);
-
-		XEvent evt = {0};
-		evt.type = ClientMessage;
-		evt.xclient.message_type = XInternAtom(app->display, "_NET_WM_STATE", False);
-		evt.xclient.format = 32;
-		evt.xclient.window = ctx->window;
-		evt.xclient.data.l[0] = _NET_WM_STATE_TOGGLE;
-		evt.xclient.data.l[1] = XInternAtom(app->display, "_NET_WM_STATE_FULLSCREEN", False);
-
-		XSendEvent(app->display, XRootWindowOfScreen(attr.screen), 0,
-			SubstructureNotifyMask | SubstructureRedirectMask, &evt);
-
-		XSync(app->display, False);
-	}
+	if (fullscreen != MTY_WindowIsFullscreen(app, window))
+		window_wm_event(app->display, ctx->window, _NET_WM_STATE_TOGGLE, "_NET_WM_STATE_FULLSCREEN", NULL);
 }
 
 void MTY_WindowWarpCursor(MTY_App *app, MTY_Window window, uint32_t x, uint32_t y)
@@ -1334,6 +1472,21 @@ void *mty_window_get_native(MTY_App *app, MTY_Window window)
 
 static MTY_Atomic32 APP_GLOCK;
 static char APP_KEYS[MTY_KEY_MAX][16];
+
+MTY_Frame MTY_MakeDefaultFrame(int32_t x, int32_t y, uint32_t w, uint32_t h, float maxHeight)
+{
+	Display *display = XOpenDisplay(NULL);
+	Screen *screen = XDefaultScreenOfDisplay(display);
+
+	float scale = app_get_scale(display);
+
+	uint32_t screen_h = XHeightOfScreen(screen);
+	uint32_t screen_w = XWidthOfScreen(screen);
+
+	XCloseDisplay(display);
+
+	return mty_window_adjust(screen_w, screen_h, scale, maxHeight, x, y, w, h);
+}
 
 static void app_hotkey_init(void)
 {

@@ -24,13 +24,14 @@ static bool app_func(void *opaque)
 
 	// Set up a render description for the PNG
 	MTY_RenderDesc desc = {
-		.format = MTY_COLOR_FORMAT_BGRA,
-		.effect = MTY_EFFECT_SCANLINES,
+		.format = MTY_COLOR_FORMAT_RGBA,
+		.filter = MTY_FILTER_LINEAR,
+		.effects = {MTY_EFFECT_SCANLINES},
+		.levels = {0.85f},
 		.imageWidth = ctx->image_w,
 		.imageHeight = ctx->image_h,
 		.cropWidth = ctx->image_w,
 		.cropHeight = ctx->image_h,
-		.aspectRatio = (float) ctx->image_w / (float) ctx->image_h,
 	};
 
 	// Draw the quad
@@ -48,14 +49,8 @@ int main(int argc, char **argv)
 	if (!ctx.app)
 		return 1;
 
-	MTY_WindowDesc desc = {
-		.title = "My Window",
-		.api = MTY_GFX_GL,
-		.width = 800,
-		.height = 600,
-	};
-
-	MTY_WindowCreate(ctx.app, &desc);
+	MTY_WindowCreate(ctx.app, "My Window", NULL, 0);
+	MTY_WindowSetGFX(ctx.app, 0, MTY_GFX_GL, true);
 	MTY_WindowMakeCurrent(ctx.app, 0, true);
 
 	// Fetch a PNG from the internet

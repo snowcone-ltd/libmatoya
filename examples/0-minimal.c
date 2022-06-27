@@ -37,17 +37,11 @@ int main(int argc, char **argv)
 		return 1;
 
 	// Create a window
-	MTY_WindowDesc desc = {
-		.title = "My Window",
-		.api = MTY_GFX_GL,
-		.width = 800,
-		.height = 600,
-	};
-
-	MTY_WindowCreate(ctx.app, &desc);
+	MTY_WindowCreate(ctx.app, "My Window", NULL, 0);
 
 	// In the case of MTY_GFX_GL, the GL context has to be made current on the
 	// thread that's doing the drawing
+	MTY_WindowSetGFX(ctx.app, 0, MTY_GFX_GL, true);
 	MTY_WindowMakeCurrent(ctx.app, 0, true);
 
 	// Run the app -- blocks until your app_func returns false
