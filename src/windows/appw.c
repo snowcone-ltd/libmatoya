@@ -84,7 +84,7 @@ struct MTY_App {
 		bool menu_open;
 
 		struct menu_item {
-			WCHAR *label;
+			wchar_t *label;
 			uint32_t trayID;
 			MTY_MenuItemCheckedFunc checked;
 		} *items;
@@ -914,7 +914,7 @@ static LRESULT CALLBACK app_hwnd_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM
 
 struct monitor_cb_info {
 	HMONITOR mon;
-	const WCHAR *screen;
+	wchar_t screen[MTY_SCREEN_MAX];
 };
 
 static __declspec(thread) HRESULT (WINAPI *_GetDpiForMonitor)(HMONITOR hmonitor,
@@ -975,9 +975,8 @@ static HMONITOR monitor_from_screen(const char *screen)
 	if (!screen || !screen[0])
 		return monitor_primary();
 
-	struct monitor_cb_info info = {
-		.screen = MTY_MultiToWideDL(screen),
-	};
+	struct monitor_cb_info info = {0};
+	MTY_MultiToWide(screen, info.screen, MTY_SCREEN_MAX);
 
 	EnumDisplayMonitors(NULL, NULL, monitor_enum, (LPARAM) &info);
 
@@ -1705,6 +1704,8 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	MTY_Window window = -1;
 	bool r = true;
 
+	wchar_t *titlew = NULL;
+
 	window = app_find_open_window(app, index);
 	if (window == -1) {
 		r = false;
@@ -1747,7 +1748,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 		h = info.rcMonitor.bottom - info.rcMonitor.top;
 	}
 
-	const WCHAR *titlew = MTY_MultiToWideDL(title ? title : "MTY_Window");
+	titlew = MTY_MultiToWideD(title ? title : "MTY_Window");
 
 	ctx->hwnd = CreateWindowEx(0, APP_CLASS_NAME, titlew, style, x, y, w, h, NULL, NULL, app->instance, ctx);
 	if (!ctx->hwnd) {
@@ -1775,6 +1776,8 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	}
 
 	except:
+
+	MTY_Free(titlew);
 
 	if (!r) {
 		MTY_WindowDestroy(app, window);
@@ -1949,7 +1952,11 @@ void MTY_WindowSetTitle(MTY_App *app, MTY_Window window, const char *title)
 	if (!ctx)
 		return;
 
-	SetWindowText(ctx->hwnd, MTY_MultiToWideDL(title));
+	wchar_t *titlew = MTY_MultiToWideD(title);
+
+	SetWindowText(ctx->hwnd, titlew);
+
+	MTY_Free(titlew);
 }
 
 bool MTY_WindowIsVisible(MTY_App *app, MTY_Window window)
@@ -2122,7 +2129,11 @@ void MTY_HotkeyToString(MTY_Mod mod, MTY_Key key, char *str, size_t len)
 
 void MTY_SetAppID(const char *id)
 {
-	SetCurrentProcessExplicitAppUserModelID(MTY_MultiToWideDL(id));
+	wchar_t *idw = MTY_MultiToWideD(id);
+
+	SetCurrentProcessExplicitAppUserModelID(idw);
+
+	MTY_Free(idw);
 }
 
 void *MTY_GLGetProcAddress(const char *name)
