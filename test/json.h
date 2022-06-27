@@ -63,7 +63,7 @@ static bool json_torture(void)
 		int32_t pn = (intptr_t) n & 0xFFFFFF;
 
 		if (pn % 4 == 0) {
-			if (!MTY_JSONObjIsValNull(root, n->value))
+			if (MTY_JSONObjGetValType(root, n->value) != MTY_JSON_NULL)
 				test_failed("JSON Value: null");
 
 		} else if (pn % 4 == 1) {
@@ -102,11 +102,28 @@ static bool json_torture(void)
 	return true;
 }
 
+// This will crash if it fails.
+static void json_last_item(void)
+{
+	const MTY_JSON *root = MTY_JSONObjCreate();
+	MTY_JSONObjSetItem(root, "child", MTY_JSONObjCreate());
+
+	MTY_JSONObjSetItem(root, "last", MTY_JSONObjCreate());
+	MTY_JSONObjDeleteItem(root, "last");
+	MTY_JSONObjSetItem(root, "last", MTY_JSONObjCreate());
+	
+	MTY_JSONDestroy(&root);
+}
+
 static bool json_main(void)
 {
-	for (uint8_t x = 0; x < 5; x++)
+	for (uint8_t x = 0; x < 5; x++) {
 		if (!json_torture())
 			return false;
+		
+		json_last_item();
+	}
+	
 
 	test_passed("JSON");
 

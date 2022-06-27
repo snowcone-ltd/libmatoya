@@ -34,6 +34,7 @@ OBJS = \
 	src\memory.obj \
 	src\queue.obj \
 	src\render.obj \
+	src\resample.obj \
 	src\system.obj \
 	src\thread.obj \
 	src\tlocal.obj \

@@ -14,6 +14,7 @@
 #include "scale.h"
 #include "keymap.h"
 #include "hid/hid.h"
+#include "hid/utils.h"
 
 
 // NSApp
@@ -25,6 +26,7 @@
 	@property MTY_AppFunc app_func;
 	@property MTY_EventFunc event_func;
 	@property MTY_Hash *hotkey;
+	@property MTY_Hash *deduper;
 	@property MTY_DetachState detach;
 	@property void *opaque;
 	@property void *kb_mode;
@@ -972,8 +974,8 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 	evt.type = MTY_EVENT_CONTROLLER;
 
 	if (mty_hid_driver_state(device, buf, size, &evt.controller)) {
-		// Prevent gamepad input while in the background
-		if (evt.type != MTY_EVENT_NONE && MTY_AppIsActive((MTY_App *) opaque))
+		// Prevent gamepad input while in the background, dedupe
+		if (MTY_AppIsActive((MTY_App *) opaque) && mty_hid_dedupe(ctx.deduper, &evt.controller))
 			ctx.event_func(&evt, ctx.opaque);
 	}
 }
@@ -1008,6 +1010,7 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 
 	ctx.windows = MTY_Alloc(MTY_WINDOW_MAX, sizeof(void *));
 	ctx.hotkey = MTY_HashCreate(0);
+	ctx.deduper = MTY_HashCreate(0);
 
 	ctx.cb_seq = [[NSPasteboard generalPasteboard] changeCount];
 
@@ -1048,6 +1051,10 @@ void MTY_AppDestroy(MTY_App **app)
 	MTY_Hash *h = ctx.hotkey;
 	MTY_HashDestroy(&h, NULL);
 	ctx.hotkey = NULL;
+
+	h = ctx.deduper;
+	MTY_HashDestroy(&h, MTY_Free);
+	ctx.deduper = NULL;
 
 	[NSApp terminate:ctx];
 	*app = NULL;
@@ -1471,6 +1478,25 @@ float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
 	// macOS scales the display as though it switches resolutions,
 	// so all we need to report is the high DPI device multiplier
 	return mty_screen_scale(ctx.screen);
+}
+
+uint32_t MTY_WindowGetRefreshRate(MTY_App *app, MTY_Window window)
+{
+	uint32_t r = 60;
+
+	Window *ctx = app_get_window(app, window);
+
+	if (ctx) {
+		CGDirectDisplayID display = ((NSNumber *) [ctx.screen deviceDescription][@"NSScreenNumber"]).intValue;
+		CGDisplayModeRef mode = CGDisplayCopyDisplayMode(display);
+
+		if (mode) {
+			r = lrint(CGDisplayModeGetRefreshRate(mode));
+			CGDisplayModeRelease(mode);
+		}
+	}
+
+	return r;
 }
 
 void MTY_WindowSetTitle(MTY_App *app, MTY_Window window, const char *title)

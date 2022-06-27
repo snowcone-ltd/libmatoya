@@ -195,7 +195,7 @@ MTY_Audio *MTY_AudioCreate(uint32_t sampleRate, uint32_t minBuffer, uint32_t max
 	ctx->min_buffer = minBuffer * frames_per_ms;
 	ctx->max_buffer = maxBuffer * frames_per_ms;
 
-	HRESULT e = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+	HRESULT e = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
 	if (e != S_FALSE && e != S_OK) {
 		MTY_Log("'CoInitializeEx' failed with HRESULT 0x%X", e);
 		goto except;

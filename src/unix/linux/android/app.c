@@ -18,6 +18,7 @@
 #include "jnih.h"
 #include "keymap.h"
 #include "gfx/gl-ctx.h"
+#include "hid/utils.h"
 
 static struct MTY_App {
 	MTY_EventFunc event_func;
@@ -32,6 +33,7 @@ static struct MTY_App {
 
 	MTY_Queue *events;
 	MTY_Hash *ctrls;
+	MTY_Hash *deduper;
 	MTY_Mutex *ctrl_mutex;
 	MTY_Thread *log_thread;
 	MTY_Thread *thread;
@@ -161,6 +163,7 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1start(JNIEnv *env, jobj
 
 	CTX.events = MTY_QueueCreate(500, sizeof(MTY_Event));
 	CTX.ctrls = MTY_HashCreate(0);
+	CTX.deduper = MTY_HashCreate(0);
 	CTX.ctrl_mutex = MTY_MutexCreate();
 
 	CTX.log_thread_running = true;
@@ -186,6 +189,7 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1stop(JNIEnv *env, jobje
 
 	MTY_ThreadDestroy(&CTX.log_thread);
 	MTY_MutexDestroy(&CTX.ctrl_mutex);
+	MTY_HashDestroy(&CTX.deduper, MTY_Free);
 	MTY_HashDestroy(&CTX.ctrls, MTY_Free);
 	MTY_QueueDestroy(&CTX.events);
 
@@ -548,7 +552,9 @@ static void app_push_controller_event(MTY_App *ctx, const MTY_ControllerEvent *c
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_CONTROLLER;
 	evt.controller = *c;
-	app_push_event(ctx, &evt);
+
+	if (mty_hid_dedupe(ctx->deduper, &evt.controller))
+		app_push_event(ctx, &evt);
 }
 
 JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1button(JNIEnv *env, jobject obj,
