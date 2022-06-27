@@ -1507,7 +1507,7 @@ void MTY_WindowSetFrame(MTY_App *app, MTY_Window window, const MTY_Frame *frame)
 		.origin.y = frame->y + s.origin.y,
 		.size.width = frame->size.w,
 		.size.height = frame->size.h,
-	}]
+	}];
 
 	[ctx setFrame:r display:YES];
 
