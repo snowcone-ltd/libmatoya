@@ -1998,6 +1998,15 @@ MTY_JSONArraySetItem(MTY_JSON *json, uint32_t index, const MTY_JSON *value);
 MTY_EXPORT void
 MTY_JSONArrayAppendItem(MTY_JSON *json, const MTY_JSON *value);
 
+/// @brief Get the full string from a JSON object.
+/// @param json An MTY_JSON object.
+/// @param key Key to lookup.
+/// @returns Returns the string value of the `key` if it exists. This reference
+///   is valid only as long as the `json` item and `key` are also valid.\n\n
+///   If the `key` does not exist, or is not a string, NULL is returned.
+MTY_EXPORT const char *
+MTY_JSONObjGetFullString(const MTY_JSON *json, const char *key);
+
 /// @brief Get a string value from a JSON object.
 /// @param json An MTY_JSON object.
 /// @param key Key to lookup.

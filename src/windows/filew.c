@@ -87,8 +87,17 @@ bool MTY_MoveFile(const char *src, const char *dst)
 	wchar_t *dstw = MTY_MultiToWideD(dst);
 
 	if (!MoveFileEx(srcw, dstw, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
-		MTY_Log("'MoveFileEx' failed with error 0x%X", GetLastError());
-		r = false;
+		DWORD last_error = GetLastError();
+		if (MTY_FileExists(dst))
+			MTY_DeleteFile(dst);
+
+		if (MTY_CopyFile(src, dst)) {
+			MTY_DeleteFile(src);
+			r = true;
+		}
+
+		if (!r)
+			MTY_Log("'MoveFileEx' failed with error 0x%X - 0x%X", last_error, GetLastError());
 	}
 
 	MTY_Free(srcw);

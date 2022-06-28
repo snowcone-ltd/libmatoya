@@ -192,6 +192,16 @@ void MTY_JSONArrayAppendItem(MTY_JSON *json, const MTY_JSON *value)
 
 // Typed getters and setters
 
+static const char *json_to_fullstring(const MTY_JSON *json)
+{
+	cJSON *cj = (cJSON *) json;
+
+	if (!cj || !cJSON_IsString(cj))
+		return NULL;
+
+	return cj->valuestring;
+}
+
 static bool json_to_string(const MTY_JSON *json, char *value, size_t size)
 {
 	cJSON *cj = (cJSON *) json;
@@ -276,6 +286,11 @@ static MTY_JSONType json_type(const MTY_JSON *json)
 		cJSON_IsObject(cj) ? MTY_JSON_OBJECT :
 		cJSON_IsBool(cj) ? MTY_JSON_BOOL :
 		MTY_JSON_NULL;
+}
+
+const char *MTY_JSONObjGetFullString(const MTY_JSON *json, const char *key)
+{
+	return json_to_fullstring(MTY_JSONObjGetItem(json, key));
 }
 
 bool MTY_JSONObjGetString(const MTY_JSON *json, const char *key, char *val, size_t size)
