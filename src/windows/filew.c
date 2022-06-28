@@ -87,6 +87,7 @@ bool MTY_MoveFile(const char *src, const char *dst)
 	wchar_t *dstw = MTY_MultiToWideD(dst);
 
 	if (!MoveFileEx(srcw, dstw, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+		r = false;
 		DWORD last_error = GetLastError();
 		if (MTY_FileExists(dst))
 			MTY_DeleteFile(dst);
