@@ -37,7 +37,7 @@ uint32_t MTY_GetPlatformNoWeb(void)
 
 void MTY_HandleProtocol(const char *uri, void *token)
 {
-	jobject obj = mty_window_get_native(NULL, 0);
+	jobject obj = mty_app_get_obj();
 
 	if (obj) {
 		JNIEnv *env = MTY_GetJNIEnv();

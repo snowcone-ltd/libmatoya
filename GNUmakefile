@@ -2,13 +2,19 @@ UNAME_S = $(shell uname -s)
 ARCH = $(shell uname -m)
 NAME = libmatoya
 
-.SUFFIXES: .vert .frag
+.SUFFIXES: .vert .frag .fragvk .vertvk
 
 .vert.h:
 	@hexdump -ve '1/1 "0x%.2x,"' $< | (echo 'static const GLchar VERT[]={' && cat && echo '0x00};') > $@
 
 .frag.h:
 	@hexdump -ve '1/1 "0x%.2x,"' $< | (echo 'static const GLchar FRAG[]={' && cat && echo '0x00};') > $@
+
+.vertvk.h:
+	@deps/bin/glslangValidator -S vert -V --vn VERT $< -o $@
+
+.fragvk.h:
+	@deps/bin/glslangValidator -S frag -V --vn FRAG $< -o $@
 
 .m.o:
 	$(CC) $(OCFLAGS)  -c -o $@ $<
@@ -33,8 +39,6 @@ OBJS = \
 	src/version.o \
 	src/gfx/gl/gl.o \
 	src/gfx/gl/gl-ui.o \
-	src/gfx/vk/vk.o \
-	src/gfx/vk/vk-ui.o \
 	src/hid/utils.o \
 	src/unix/file.o \
 	src/unix/image.o \
@@ -63,11 +67,13 @@ FLAGS = \
 	-Wshadow \
 	-Wno-switch \
 	-Wno-unused-parameter \
+	-Wno-missing-field-initializers \
 	-std=c99 \
 	-fPIC
 
 ifdef DEBUG
 FLAGS := $(FLAGS) -O0 -g
+DEFS := $(DEFS) -DMTY_VK_DEBUG
 else
 FLAGS := $(FLAGS) -O3 -g0 -fvisibility=hidden
 endif
@@ -108,6 +114,10 @@ else
 ifeq ($(UNAME_S), Linux)
 
 OBJS := $(OBJS) \
+	src/gfx/vk/vk.o \
+	src/gfx/vk/vk-ctx.o \
+	src/gfx/vk/vkproc.o \
+	src/gfx/vk/vk-ui.o \
 	src/net/async.o \
 	src/net/gzip.o \
 	src/net/http.o \
@@ -125,6 +135,15 @@ OBJS := $(OBJS) \
 	src/unix/linux/x11/system.o \
 	src/unix/linux/x11/tls.o \
 	src/unix/linux/x11/gfx/gl-ctx.o
+
+SHADERS := $(SHADERS) \
+	src/gfx/vk/shaders/fs.h \
+	src/gfx/vk/shaders/vs.h \
+	src/gfx/vk/shaders/fsui.h \
+	src/gfx/vk/shaders/vsui.h
+
+DEFS := $(DEFS) \
+	-DMTY_VK_XLIB
 
 TARGET = linux
 INCLUDES := $(INCLUDES) -Isrc/unix/linux -Isrc/unix/linux/x11
@@ -219,7 +238,7 @@ objs: $(OBJS)
 
 # developer.android.com/ndk/downloads -> ~/android-ndk-xxx
 
-ANDROID_NDK = $(HOME)/android-ndk-r23c
+ANDROID_NDK = $(HOME)/android-ndk-r25
 
 android: clean clear $(SHADERS)
 	@$(ANDROID_NDK)/ndk-build -j4 \

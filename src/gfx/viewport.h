@@ -12,13 +12,13 @@ static void mty_viewport(const MTY_RenderDesc *desc, float *vp_x, float *vp_y, f
 {
 	uint32_t w = desc->cropWidth;
 	uint32_t h = desc->cropHeight;
-	float ar = desc->aspectRatio > 0.0f ? desc->aspectRatio : (float) w / h;
+	float ar = desc->aspectRatio > 0 ? desc->aspectRatio : h > 0 ? (float) w / h : 1;
 
 	if (desc->rotation == MTY_ROTATION_90 || desc->rotation == MTY_ROTATION_270) {
 		uint32_t tmp = h;
 		h = w;
 		w = tmp;
-		ar = 1.0f / ar;
+		ar = 1 / ar;
 	}
 
 	uint32_t scaled_w = lrint(desc->scale * w);
@@ -40,6 +40,6 @@ static void mty_viewport(const MTY_RenderDesc *desc, float *vp_x, float *vp_y, f
 		*vp_w = roundf(*vp_h * ar);
 	}
 
-	*vp_x = roundf(((float) desc->viewWidth - *vp_w) / 2.0f);
-	*vp_y = roundf(((float) desc->viewHeight - *vp_h) / 2.0f);
+	*vp_x = roundf(((float) desc->viewWidth - *vp_w) / 2);
+	*vp_y = roundf(((float) desc->viewHeight - *vp_h) / 2);
 }

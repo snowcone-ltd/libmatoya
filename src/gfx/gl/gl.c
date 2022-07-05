@@ -156,7 +156,7 @@ struct gfx *mty_gl_create(MTY_Device *device)
 	except:
 
 	if (!r)
-		mty_gl_destroy((struct gfx **) &ctx);
+		mty_gl_destroy((struct gfx **) &ctx, device);
 
 	return (struct gfx *) ctx;
 }
@@ -275,7 +275,7 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	return true;
 }
 
-void mty_gl_destroy(struct gfx **gfx)
+void mty_gl_destroy(struct gfx **gfx, MTY_Device *device)
 {
 	if (!gfx || !*gfx)
 		return;

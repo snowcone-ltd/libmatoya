@@ -329,7 +329,7 @@ struct gfx *mty_d3d12_create(MTY_Device *device)
 	except:
 
 	if (e != S_OK)
-		mty_d3d12_destroy((struct gfx **) &ctx);
+		mty_d3d12_destroy((struct gfx **) &ctx, device);
 
 	return (struct gfx *) ctx;
 }
@@ -584,7 +584,7 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	return true;
 }
 
-void mty_d3d12_destroy(struct gfx **gfx)
+void mty_d3d12_destroy(struct gfx **gfx, MTY_Device *device)
 {
 	if (!gfx || !*gfx)
 		return;

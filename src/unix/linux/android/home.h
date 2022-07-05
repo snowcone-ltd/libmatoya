@@ -13,7 +13,7 @@ static bool home_get_dir(char *dir, size_t size)
 {
 	JNIEnv *env = MTY_GetJNIEnv();
 
-	jobject obj = mty_window_get_native(NULL, 0);
+	jobject obj = mty_app_get_obj();
 	if (!obj)
 		return false;
 
