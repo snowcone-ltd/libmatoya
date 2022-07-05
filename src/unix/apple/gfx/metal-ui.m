@@ -236,6 +236,6 @@ void mty_metal_ui_destroy(struct gfx_ui **gfx_ui)
 	ctx->vb = nil;
 	ctx->ib = nil;
 
-	free(ctx);
+	MTY_Free(ctx);
 	*gfx_ui = NULL;
 }

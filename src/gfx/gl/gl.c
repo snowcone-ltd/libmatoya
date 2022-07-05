@@ -11,11 +11,11 @@ GFX_PROTOTYPES(_gl_)
 
 #include "glproc.h"
 #include "gfx/viewport.h"
-#include "gfx/fmt-gl.h"
+#include "gfx/gl/fmt-gl.h"
 #include "gfx/fmt.h"
 
-#include "shaders/gl/vs.h"
-#include "shaders/gl/fs.h"
+#include "shaders/vs.h"
+#include "shaders/fs.h"
 
 #define GL_NUM_STAGING 3
 

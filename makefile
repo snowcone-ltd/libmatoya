@@ -40,8 +40,10 @@ OBJS = \
 	src\tlocal.obj \
 	src\tls.obj \
 	src\version.obj \
-	src\gfx\gl.obj \
-	src\gfx\gl-ui.obj \
+	src\gfx\gl\gl.obj \
+	src\gfx\gl\gl-ui.obj \
+	src\gfx\vk\vk.obj \
+	src\gfx\vk\vk-ui.obj \
 	src\hid\hid.obj \
 	src\hid\utils.obj \
 	src\net\async.obj \
@@ -77,10 +79,10 @@ OBJS = \
 
 
 SHADERS = \
-	src\gfx\shaders\gl\fs.h \
-	src\gfx\shaders\gl\vs.h \
-	src\gfx\shaders\gl\fsui.h \
-	src\gfx\shaders\gl\vsui.h \
+	src\gfx\gl\shaders\fs.h \
+	src\gfx\gl\shaders\vs.h \
+	src\gfx\gl\shaders\fsui.h \
+	src\gfx\gl\shaders\vsui.h \
 	src\windows\gfx\shaders\d3d11\ps.h \
 	src\windows\gfx\shaders\d3d11\vs.h \
 	src\windows\gfx\shaders\d3d11\psui.h \
