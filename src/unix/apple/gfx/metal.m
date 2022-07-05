@@ -131,7 +131,7 @@ struct gfx *mty_metal_create(MTY_Device *device)
 	except:
 
 	if (!r)
-		mty_metal_destroy((struct gfx **) &ctx);
+		mty_metal_destroy((struct gfx **) &ctx, device);
 
 	return (struct gfx *) ctx;
 }
@@ -264,7 +264,7 @@ bool mty_metal_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	return true;
 }
 
-void mty_metal_destroy(struct gfx **gfx)
+void mty_metal_destroy(struct gfx **gfx, MTY_Device *device)
 {
 	if (!gfx || !*gfx)
 		return;

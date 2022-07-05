@@ -108,9 +108,9 @@ bool MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync)
 		mty_window_set_gfx(app, window, MTY_GFX_NONE, NULL);
 	}
 
-	void *native = mty_window_get_native(app, window);
+	if (api != MTY_GFX_NONE && MTY_WindowExists(app, window)) {
+		void *native = mty_window_get_native(app, window);
 
-	if (native && api != MTY_GFX_NONE) {
 		gfx_ctx = GFX_CTX_API[api].create(native, vsync);
 
 		// Fallback

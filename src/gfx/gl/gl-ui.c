@@ -118,7 +118,7 @@ struct gfx_ui *mty_gl_ui_create(MTY_Device *device)
 	except:
 
 	if (!r)
-		mty_gl_ui_destroy((struct gfx_ui **) &ctx);
+		mty_gl_ui_destroy((struct gfx_ui **) &ctx, device);
 
 	return (struct gfx_ui *) ctx;
 }
@@ -238,7 +238,8 @@ bool mty_gl_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context *co
 	return true;
 }
 
-void *mty_gl_ui_create_texture(MTY_Device *device, const void *rgba, uint32_t width, uint32_t height)
+void *mty_gl_ui_create_texture(struct gfx_ui *gfx_ui, MTY_Device *device, const void *rgba,
+	uint32_t width, uint32_t height)
 {
 	GLuint texture = 0;
 
@@ -255,7 +256,7 @@ void *mty_gl_ui_create_texture(MTY_Device *device, const void *rgba, uint32_t wi
 	return (void *) (uintptr_t) texture;
 }
 
-void mty_gl_ui_destroy_texture(void **texture)
+void mty_gl_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, MTY_Device *device)
 {
 	if (!texture || !*texture)
 		return;
@@ -266,7 +267,7 @@ void mty_gl_ui_destroy_texture(void **texture)
 	*texture = NULL;
 }
 
-void mty_gl_ui_destroy(struct gfx_ui **gfx_ui)
+void mty_gl_ui_destroy(struct gfx_ui **gfx_ui, MTY_Device *device)
 {
 	if (!gfx_ui || !*gfx_ui)
 		return;

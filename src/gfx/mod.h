@@ -18,7 +18,7 @@ struct gfx;
 
 #define GFX_DECLARE_API(api, wrap) \
 	struct gfx *wrap(api, create)(MTY_Device *device); \
-	void wrap(api, destroy)(struct gfx **gfx); \
+	void wrap(api, destroy)(struct gfx **gfx, MTY_Device *device); \
 	bool wrap(api, render)(struct gfx *gfx, MTY_Device *device, MTY_Context *context, \
 		const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest); \
 	void *wrap(api, get_state)(MTY_Device *device, MTY_Context *context); \

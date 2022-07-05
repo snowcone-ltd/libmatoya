@@ -447,6 +447,8 @@ struct _XrmHashBucketRec;
 typedef struct _XIM *XIM;
 typedef struct _XIC *XIC;
 
+#if !defined(LIBX11_NO_FUNCS)
+
 static Display *(*XOpenDisplay)(const char *display_name);
 static Screen *(*XScreenOfDisplay)(Display *display, int screen_number);
 static Screen *(*XDefaultScreenOfDisplay)(Display *display);
@@ -524,6 +526,8 @@ static int (*XResetScreenSaver)(Display *display);
 
 static Bool (*XkbSetDetectableAutoRepeat)(Display *dpy, Bool detectable, Bool *supported);
 
+#endif
+
 
 // XI2 interface
 
@@ -567,7 +571,11 @@ typedef struct {
 	double *raw_values;
 } XIRawEvent;
 
+#if !defined(LIBX11_NO_FUNCS)
+
 static int (*XISelectEvents)(Display *dpy, Window win, XIEventMask *masks, int num_masks);
+
+#endif
 
 
 // Xcursor interface
@@ -588,18 +596,26 @@ typedef struct _XcursorImage {
 	XcursorPixel *pixels;
 } XcursorImage;
 
+#if !defined(LIBX11_NO_FUNCS)
+
 static XcursorImage *(*XcursorImageCreate)(int width, int height);
 static Cursor (*XcursorImageLoadCursor)(Display *dpy, const XcursorImage *image);
 static void (*XcursorImageDestroy)(XcursorImage *image);
+
+#endif
 
 
 // Xrandr interface
 
 typedef struct _XRRScreenConfiguration XRRScreenConfiguration;
 
+#if !defined(LIBX11_NO_FUNCS)
+
 static XRRScreenConfiguration *(*XRRGetScreenInfo)(Display *dpy, Window window);
 static void (*XRRFreeScreenConfigInfo)(XRRScreenConfiguration *config);
 static short (*XRRConfigCurrentRate)(XRRScreenConfiguration *config);
+
+#endif
 
 
 // GLX interface
@@ -629,6 +645,8 @@ enum _GLX_CONFIGS {
 typedef XID GLXDrawable;
 typedef struct GLXContext * GLXContext;
 
+#if !defined(LIBX11_NO_FUNCS)
+
 static void *(*glXGetProcAddress)(const GLubyte *procName);
 static void (*glXSwapBuffers)(Display *dpy, GLXDrawable drawable);
 static XVisualInfo *(*glXChooseVisual)(Display *dpy, int screen, int *attribList);
@@ -636,6 +654,8 @@ static GLXContext (*glXCreateContext)(Display *dpy, XVisualInfo *vis, GLXContext
 static Bool (*glXMakeCurrent)(Display *dpy, GLXDrawable drawable, GLXContext ctx);
 static void (*glXDestroyContext)(Display *dpy, GLXContext ctx);
 static GLXContext (*glXGetCurrentContext)(void);
+
+#endif
 
 
 // Helper window struct
@@ -648,6 +668,8 @@ struct xinfo {
 
 
 // Runtime open
+
+#if !defined(LIBX11_NO_FUNCS)
 
 static MTY_Atomic32 LIBX11_LOCK;
 static MTY_SO *LIBGL_SO;
@@ -784,3 +806,5 @@ static bool libX11_global_init(void)
 
 	return LIBX11_INIT;
 }
+
+#endif

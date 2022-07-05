@@ -10,11 +10,19 @@ FLAGS = \
 	-Wno-switch \
 	-Wno-unused-parameter \
 	-Wno-atomic-alignment \
+	-Wno-missing-field-initializers \
 	-std=c99 \
 	-fPIC
 
+DEFS = \
+	-D_POSIX_C_SOURCE=200112L \
+	-DMTY_VK_ANDROID \
+	-DMTY_GL_ES \
+	-DMTY_GL_EXTERNAL
+
 ifdef DEBUG
 FLAGS := $(FLAGS) -O0 -g
+DEFS := $(DEFS) -DMTY_VK_DEBUG
 else
 FLAGS := $(FLAGS) -O3 -g0 -fvisibility=hidden
 endif
@@ -28,11 +36,6 @@ LOCAL_C_INCLUDES := \
 	src/unix \
 	src/unix/linux \
 	src/unix/linux/android
-
-DEFS = \
-	-D_POSIX_C_SOURCE=200112L \
-	-DMTY_GL_ES \
-	-DMTY_GL_EXTERNAL
 
 LOCAL_CFLAGS = $(DEFS) $(FLAGS)
 
@@ -57,6 +60,8 @@ LOCAL_SRC_FILES := \
 	src/gfx/gl/gl.c \
 	src/gfx/gl/gl-ui.c \
 	src/gfx/vk/vk.c \
+	src/gfx/vk/vk-ctx.c \
+	src/gfx/vk/vkproc.c \
 	src/gfx/vk/vk-ui.c \
 	src/hid/utils.c \
 	src/net/async.c \

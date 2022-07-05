@@ -12,6 +12,8 @@
 
 #include <android/log.h>
 #include <android/input.h>
+#include <android/native_window.h>
+#include <android/native_window_jni.h>
 
 #include "jnih.h"
 #include "keymap.h"
@@ -33,6 +35,8 @@ static struct MTY_App {
 	MTY_Hash *ctrls;
 	MTY_Hash *deduper;
 	MTY_Mutex *ctrl_mutex;
+	MTY_Mutex *gfx_mutex;
+	MTY_Cond *gfx_cond;
 	MTY_Thread *log_thread;
 	MTY_Thread *thread;
 	MTY_InputMode input;
@@ -41,6 +45,13 @@ static struct MTY_App {
 	bool check_scroller;
 	bool log_thread_running;
 	bool should_detach;
+
+	ANativeWindow *window;
+	MTY_Atomic32 state_ctr;
+	bool window_reinit;
+	uint32_t width;
+	uint32_t height;
+	uint32_t kb_height;
 
 	MTY_GFX api;
 	struct gfx_ctx *gfx_ctx;
@@ -157,12 +168,12 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1start(JNIEnv *env, jobj
 	CTX.input = MTY_INPUT_MODE_TOUCHSCREEN;
 	CTX.obj = (*env)->NewGlobalRef(env, obj);
 
-	mty_gfx_global_init();
-
 	CTX.events = MTY_QueueCreate(500, sizeof(MTY_Event));
 	CTX.ctrls = MTY_HashCreate(0);
 	CTX.deduper = MTY_HashCreate(0);
 	CTX.ctrl_mutex = MTY_MutexCreate();
+	CTX.gfx_mutex = MTY_MutexCreate();
+	CTX.gfx_cond = MTY_CondCreate();
 
 	CTX.log_thread_running = true;
 	CTX.log_thread = MTY_ThreadCreate(app_log_thread, &CTX);
@@ -186,12 +197,14 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1stop(JNIEnv *env, jobje
 	printf("\n"); // Poke the pipe
 
 	MTY_ThreadDestroy(&CTX.log_thread);
+	MTY_CondDestroy(&CTX.gfx_cond);
+	MTY_MutexDestroy(&CTX.gfx_mutex);
 	MTY_MutexDestroy(&CTX.ctrl_mutex);
 	MTY_HashDestroy(&CTX.deduper, MTY_Free);
 	MTY_HashDestroy(&CTX.ctrls, MTY_Free);
 	MTY_QueueDestroy(&CTX.events);
 
-	mty_gfx_global_destroy();
+	mty_gl_ctx_global_destroy();
 
 	(*env)->DeleteGlobalRef(env, CTX.obj);
 
@@ -201,15 +214,51 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1stop(JNIEnv *env, jobje
 
 // JNI surface events
 
-JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1resize(JNIEnv *env, jobject obj,
+JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_gfx_1resize(JNIEnv *env, jobject obj,
 	jint w, jint h)
 {
-	mty_gfx_set_dims(w, h);
+	mty_gfx_lock();
+
+	CTX.width = w;
+	CTX.height = h;
+
+	MTY_Atomic32Set(&CTX.state_ctr, 2);
 
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_SIZE;
 
 	app_push_event(&CTX, &evt);
+
+	mty_gfx_unlock();
+}
+
+JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_gfx_1set_1surface(JNIEnv *env, jobject obj,
+	jobject surface)
+{
+	mty_gfx_lock();
+
+	CTX.window = ANativeWindow_fromSurface(env, surface);
+
+	if (CTX.window) {
+		CTX.window_reinit = true;
+		MTY_CondSignal(CTX.gfx_cond);
+	}
+
+	mty_gfx_unlock();
+}
+
+JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_gfx_1unset_1surface(JNIEnv *env, jobject obj)
+{
+	mty_gfx_lock();
+
+	mty_gl_ctx_destroy_egl_surface();
+
+	if (CTX.window)
+		ANativeWindow_release(CTX.window);
+
+	CTX.window = NULL;
+
+	mty_gfx_unlock();
 }
 
 
@@ -922,6 +971,60 @@ void MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode)
 }
 
 
+// App Private
+
+void *mty_app_get_obj(void)
+{
+	return (void *) (uintptr_t) CTX.obj;
+}
+
+uint32_t mty_app_get_kb_height(void)
+{
+	return CTX.kb_height;
+}
+
+void mty_gfx_size(uint32_t *width, uint32_t *height)
+{
+	*width = CTX.width;
+	*height = CTX.height;
+}
+
+bool mty_gfx_is_ready(void)
+{
+	return CTX.window != NULL;
+}
+
+void mty_gfx_lock(void)
+{
+	MTY_MutexLock(CTX.gfx_mutex);
+}
+
+void mty_gfx_unlock(void)
+{
+	MTY_MutexUnlock(CTX.gfx_mutex);
+}
+
+void *mty_gfx_wait_for_window(int32_t timeout)
+{
+	mty_gfx_lock();
+
+	if (CTX.window)
+		return CTX.window;
+
+	if (MTY_CondWait(CTX.gfx_cond, CTX.gfx_mutex, timeout))
+		return CTX.window;
+
+	mty_gfx_unlock();
+
+	return NULL;
+}
+
+void mty_gfx_done_with_window(void)
+{
+	mty_gfx_unlock();
+}
+
+
 // Window
 
 MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, MTY_Window index)
@@ -939,11 +1042,13 @@ MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 
 	int32_t kb_height = mty_jni_int(MTY_GetJNIEnv(), app->obj, "keyboardHeight", "()I");
 
-	if (kb_height == -1)
+	if (kb_height < 0)
 		kb_height = 0;
 
-	mty_gfx_set_kb_height(kb_height);
-	size.h -= kb_height;
+	app->kb_height = kb_height;
+
+	if (size.h > app->kb_height)
+		size.h -= app->kb_height;
 
 	return size;
 }
@@ -1015,7 +1120,22 @@ void MTY_WindowWarpCursor(MTY_App *app, MTY_Window window, uint32_t x, uint32_t 
 
 MTY_ContextState MTY_WindowGetContextState(MTY_App *app, MTY_Window window)
 {
-	return mty_gfx_state();
+	MTY_ContextState state = MTY_CONTEXT_STATE_NORMAL;
+
+	mty_gfx_lock();
+
+	if (app->window_reinit) {
+		state = MTY_CONTEXT_STATE_NEW;
+		app->window_reinit = false;
+
+	} else if (MTY_Atomic32Get(&app->state_ctr) > 0) {
+		MTY_Atomic32Add(&app->state_ctr, -1);
+		state = MTY_CONTEXT_STATE_REFRESH;
+	}
+
+	mty_gfx_unlock();
+
+	return state;
 }
 
 
@@ -1037,7 +1157,9 @@ MTY_GFX mty_window_get_gfx(MTY_App *app, MTY_Window window, struct gfx_ctx **gfx
 
 void *mty_window_get_native(MTY_App *app, MTY_Window window)
 {
-	return (void *) (uintptr_t) CTX.obj;
+	// Function calls internally rely on 'app' and 'window' being ignored
+
+	return CTX.window;
 }
 
 

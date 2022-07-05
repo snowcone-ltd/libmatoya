@@ -50,15 +50,16 @@ static void render_destroy_api(MTY_Renderer *ctx)
 	if (ctx->api == MTY_GFX_NONE)
 		return;
 
-	GFX_API[ctx->api].destroy(&ctx->gfx);
-	GFX_UI_API[ctx->api].destroy(&ctx->gfx_ui);
+	GFX_API[ctx->api].destroy(&ctx->gfx, ctx->device);
 
 	uint64_t i = 0;
 	int64_t id = 0;
 	while (MTY_HashGetNextKeyInt(ctx->textures, &i, &id)) {
 		void *texture = MTY_HashPopInt(ctx->textures, id);
-		GFX_UI_API[ctx->api].destroy_texture(&texture);
+		GFX_UI_API[ctx->api].destroy_texture(ctx->gfx_ui, &texture, ctx->device);
 	}
+
+	GFX_UI_API[ctx->api].destroy(&ctx->gfx_ui, ctx->device);
 
 	ctx->api = MTY_GFX_NONE;
 	ctx->device = NULL;
@@ -139,10 +140,10 @@ bool MTY_RendererSetUITexture(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device
 
 	void *texture = MTY_HashPopInt(ctx->textures, id);
 	if (texture)
-		GFX_UI_API[api].destroy_texture(&texture);
+		GFX_UI_API[api].destroy_texture(ctx->gfx_ui, &texture, ctx->device);
 
 	if (rgba) {
-		texture = GFX_UI_API[api].create_texture(device, rgba, width, height);
+		texture = GFX_UI_API[api].create_texture(ctx->gfx_ui, device, rgba, width, height);
 		MTY_HashSetInt(ctx->textures, id, texture);
 	}
 

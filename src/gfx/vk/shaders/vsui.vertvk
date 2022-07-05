@@ -1,0 +1,25 @@
+// This Source Code Form is subject to the terms of the MIT License.
+// If a copy of the MIT License was not distributed with this file,
+// You can obtain one at https://spdx.org/licenses/MIT.html.
+
+#version 450
+
+layout(location = 0) in vec2 pos;
+layout(location = 1) in vec2 uv;
+layout(location = 2) in vec4 col;
+
+layout(location = 0) out vec2 frag_uv;
+layout(location = 1) out vec4 frag_col;
+
+layout(push_constant) uniform pc {
+	vec2 scale;
+	vec2 translate;
+};
+
+void main(void)
+{
+	gl_Position = vec4(pos * scale + translate, 0, 1);
+
+	frag_uv = uv;
+	frag_col = col;
+}

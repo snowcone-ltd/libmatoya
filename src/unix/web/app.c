@@ -600,7 +600,7 @@ MTY_GFX mty_window_get_gfx(MTY_App *app, MTY_Window window, struct gfx_ctx **gfx
 
 void *mty_window_get_native(MTY_App *app, MTY_Window window)
 {
-	return (void *) (uintptr_t) 0xCDD;
+	return NULL;
 }
 
 
