@@ -117,17 +117,17 @@ OBJS := $(OBJS) \
 	src/net/ws.o \
 	src/unix/net/request.o \
 	src/unix/linux/dialog.o \
-	src/unix/linux/generic/aes-gcm.o \
-	src/unix/linux/generic/app.o \
-	src/unix/linux/generic/audio.o \
-	src/unix/linux/generic/crypto.o \
-	src/unix/linux/generic/evdev.o \
-	src/unix/linux/generic/system.o \
-	src/unix/linux/generic/tls.o \
-	src/unix/linux/generic/gfx/gl-ctx.o
+	src/unix/linux/x11/aes-gcm.o \
+	src/unix/linux/x11/app.o \
+	src/unix/linux/x11/audio.o \
+	src/unix/linux/x11/crypto.o \
+	src/unix/linux/x11/evdev.o \
+	src/unix/linux/x11/system.o \
+	src/unix/linux/x11/tls.o \
+	src/unix/linux/x11/gfx/gl-ctx.o
 
 TARGET = linux
-INCLUDES := $(INCLUDES) -Isrc/unix/linux -Isrc/unix/linux/generic
+INCLUDES := $(INCLUDES) -Isrc/unix/linux -Isrc/unix/linux/x11
 endif
 
 #############
