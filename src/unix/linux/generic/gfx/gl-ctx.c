@@ -7,7 +7,7 @@
 #include "gfx/mod-ctx.h"
 GFX_CTX_PROTOTYPES(_gl_)
 
-#include "gfx/glproc.h"
+#include "gfx/gl/glproc.h"
 #include "dl/libX11.h"
 
 struct gl_ctx {
