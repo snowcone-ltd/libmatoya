@@ -11,7 +11,7 @@ GFX_CTX_PROTOTYPES(_gl_)
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
 
-#include "gfx/glproc.h"
+#include "gfx/gl/glproc.h"
 
 static struct gl_ctx {
 	ANativeWindow *window;

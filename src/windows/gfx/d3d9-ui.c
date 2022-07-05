@@ -295,6 +295,6 @@ void mty_d3d9_ui_destroy(struct gfx_ui **gfx_ui)
 	if (ctx->ib)
 		IDirect3DIndexBuffer9_Release(ctx->ib);
 
-	free(ctx);
+	MTY_Free(ctx);
 	*gfx_ui = NULL;
 }

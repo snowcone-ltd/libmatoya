@@ -484,6 +484,6 @@ void mty_d3d11_ui_destroy(struct gfx_ui **gfx_ui)
 	if (ctx->vs)
 		ID3D11VertexShader_Release(ctx->vs);
 
-	free(ctx);
+	MTY_Free(ctx);
 	*gfx_ui = NULL;
 }

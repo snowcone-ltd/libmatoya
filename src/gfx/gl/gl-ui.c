@@ -15,8 +15,8 @@ GFX_UI_PROTOTYPES(_gl_)
 
 #include "glproc.h"
 
-#include "shaders/gl/vsui.h"
-#include "shaders/gl/fsui.h"
+#include "shaders/vsui.h"
+#include "shaders/fsui.h"
 
 struct gl_ui {
 	GLuint prog;
@@ -296,6 +296,6 @@ void mty_gl_ui_destroy(struct gfx_ui **gfx_ui)
 	if (ctx->prog)
 		glDeleteProgram(ctx->prog);
 
-	free(ctx);
+	MTY_Free(ctx);
 	*gfx_ui = NULL;
 }

@@ -31,8 +31,10 @@ OBJS = \
 	src/tlocal.o \
 	src/tls.o \
 	src/version.o \
-	src/gfx/gl.o \
-	src/gfx/gl-ui.o \
+	src/gfx/gl/gl.o \
+	src/gfx/gl/gl-ui.o \
+	src/gfx/vk/vk.o \
+	src/gfx/vk/vk-ui.o \
 	src/hid/utils.o \
 	src/unix/file.o \
 	src/unix/image.o \
@@ -42,10 +44,10 @@ OBJS = \
 	src/unix/time.o
 
 SHADERS = \
-	src/gfx/shaders/gl/fs.h \
-	src/gfx/shaders/gl/vs.h \
-	src/gfx/shaders/gl/fsui.h \
-	src/gfx/shaders/gl/vsui.h
+	src/gfx/gl/shaders/fs.h \
+	src/gfx/gl/shaders/vs.h \
+	src/gfx/gl/shaders/fsui.h \
+	src/gfx/gl/shaders/vsui.h
 
 INCLUDES = \
 	-Ideps \
