@@ -3246,7 +3246,7 @@ typedef enum {
 	MTY_OS_WINDOWS = 0x01000000, ///< Microsoft Windows.
 	MTY_OS_MACOS   = 0x02000000, ///< Apple macOS.
 	MTY_OS_ANDROID = 0x04000000, ///< Android.
-	MTY_OS_LINUX   = 0x08000000, ///< Generic Linux.
+	MTY_OS_LINUX   = 0x08000000, ///< Linux with X11 windowing system.
 	MTY_OS_WEB     = 0x10000000, ///< Browser environment.
 	MTY_OS_IOS     = 0x20000000, ///< Apple iOS.
 	MTY_OS_TVOS    = 0x40000000, ///< Apple tvOS.
