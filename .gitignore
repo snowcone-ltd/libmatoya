@@ -8,5 +8,6 @@
 /bin
 
 **/gfx/shaders/*/*.h
+**/gfx/*/shaders/*.h
 
 .DS_Store

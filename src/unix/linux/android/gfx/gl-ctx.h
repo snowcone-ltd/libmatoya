@@ -8,10 +8,5 @@
 
 #include "matoya.h"
 
-void mty_gfx_global_init(void);
-void mty_gfx_global_destroy(void);
-void mty_gfx_set_dims(uint32_t width, uint32_t height);
-bool mty_gfx_is_ready(void);
-void mty_gfx_size(uint32_t *width, uint32_t *height);
-void mty_gfx_set_kb_height(int32_t height);
-MTY_ContextState mty_gfx_state(void);
+void mty_gl_ctx_global_destroy(void);
+void mty_gl_ctx_destroy_egl_surface(void);

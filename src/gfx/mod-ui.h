@@ -23,13 +23,14 @@ struct gfx_ui;
 
 #define GFX_UI_DECLARE_API(api, wrap) \
 	struct gfx_ui *wrap(api, create)(MTY_Device *device); \
-	void wrap(api, destroy)(struct gfx_ui **gfx_ui); \
+	void wrap(api, destroy)(struct gfx_ui **gfx_ui, MTY_Device *device); \
 	bool wrap(api, render)(struct gfx_ui *gfx_ui, MTY_Device *device, \
 		MTY_Context *context, const MTY_DrawData *dd, MTY_Hash *cache, \
 		MTY_Surface *dest); \
-	void *wrap(api, create_texture)(MTY_Device *device, const void *rgba, \
-		uint32_t width, uint32_t height); \
-	void wrap(api, destroy_texture)(void **texture);
+	void *wrap(api, create_texture)(struct gfx_ui *gfx_ui, MTY_Device *device, \
+		const void *rgba, uint32_t width, uint32_t height); \
+	void wrap(api, destroy_texture)(struct gfx_ui *gfx_ui, void **texture, \
+		MTY_Device *device);
 
 #define GFX_UI_PROTOTYPES(api) \
 	GFX_UI_DECLARE_API(api, GFX_UI_PROTO)
