@@ -527,7 +527,7 @@ static void window_pen_event(Window *window, NSEvent *event)
 
 	// While BARREL is held, TOUCHING must also be set
 	if (event.buttonMask & NSEventButtonMaskPenLowerSide) {
-		evt.pen.flags |= MTY_PEN_FLAG_BARREL;
+		evt.pen.flags |= MTY_PEN_FLAG_BARREL_1;
 		evt.pen.flags |= MTY_PEN_FLAG_TOUCHING;
 	}
 

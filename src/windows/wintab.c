@@ -10,6 +10,7 @@ typedef BOOL(API *WTCLOSE)(HCTX);
 typedef BOOL(API *WTPACKET)(HCTX, UINT, LPVOID);
 typedef BOOL(API *WTEXTGET)(HCTX, UINT, LPVOID);
 typedef BOOL(API *WTEXTSET)(HCTX, UINT, LPVOID);
+typedef BOOL(API *WTOVERLAP)(HCTX, BOOL);
 
 static struct wt {
 	MTY_SO *instance;
@@ -20,6 +21,7 @@ static struct wt {
 	WTPACKET packet;
 	WTEXTGET ext_get;
 	WTEXTSET ext_set;
+	WTOVERLAP overlap;
 } wt;
 
 struct wintab
@@ -31,6 +33,7 @@ struct wintab
 
 	int32_t max_pressure;
 	bool override;
+	bool pen_in_range;
 	bool has_double_clicked;
 };
 
@@ -83,13 +86,15 @@ static void wintab_override_extension(struct wintab *ctx, uint8_t tablet_i, uint
 	}
 }
 
-struct wintab *wintab_create(HWND hwnd)
+struct wintab *wintab_create(HWND hwnd, bool override)
 {
 	bool r = false;
 
 	struct wintab *ctx = MTY_Alloc(1, sizeof(struct wintab));
 	if (!ctx)
 		goto except;
+
+	ctx->override = override;
 
 	// Symbols are preserved between runtime destructions, so we only initialize them once
 	if (!wt.instance) {
@@ -107,6 +112,7 @@ struct wintab *wintab_create(HWND hwnd)
 		MAP(WTPACKET, Packet, packet);
 		MAP(WTEXTGET, ExtGet, ext_get);
 		MAP(WTEXTSET, ExtSet, ext_set);
+		MAP(WTOVERLAP, Overlap, overlap);
 
 		// We check that the driver running is currently running
 		if (!wt.info(0, 0, NULL))
@@ -164,10 +170,10 @@ struct wintab *wintab_create(HWND hwnd)
 	return ctx;
 }
 
-void wintab_recreate(struct wintab **ctx, HWND hwnd)
+void wintab_recreate(struct wintab **ctx, HWND hwnd, bool override)
 {
 	wintab_destroy(ctx, false);
-	*ctx = wintab_create(hwnd);
+	*ctx = wintab_create(hwnd, override);
 }
 
 void wintab_destroy(struct wintab **wintab, bool unload_symbols)
@@ -191,9 +197,9 @@ void wintab_destroy(struct wintab **wintab, bool unload_symbols)
 	*wintab = NULL;
 }
 
-void wintab_override_controls(struct wintab *ctx, bool override)
+void wintab_overlap_context(struct wintab *ctx, bool overlap)
 {
-	ctx->override = override;
+	wt.overlap(ctx->context, overlap);
 }
 
 void wintab_get_packet(struct wintab *ctx, WPARAM wparam, LPARAM lparam, void *pkt)
@@ -201,9 +207,9 @@ void wintab_get_packet(struct wintab *ctx, WPARAM wparam, LPARAM lparam, void *p
 	wt.packet((HCTX) lparam, (UINT) wparam, pkt);
 }
 
-void wintab_on_packet(struct wintab *ctx, MTY_Event *evt, const PACKET *pkt, MTY_Window window, bool *double_clicked)
+void wintab_on_packet(struct wintab *ctx, MTY_Event *evt, const PACKET *pkt, MTY_Window window)
 {
-	*double_clicked = false;
+	bool double_clicked = false;
 	bool has_double_clicked = ctx->has_double_clicked;
 
 	evt->type = MTY_EVENT_PEN;
@@ -243,20 +249,43 @@ void wintab_on_packet(struct wintab *ctx, MTY_Event *evt, const PACKET *pkt, MTY
 		if ((left_click || right_click) && pressed)
 			evt->pen.flags |= MTY_PEN_FLAG_TOUCHING;
 
-		if (right_click && (pressed || prev_pressed))
-			evt->pen.flags |= MTY_PEN_FLAG_BARREL;
-
 		if (double_click)
-			ctx->has_double_clicked = *double_clicked = pressed;
+			ctx->has_double_clicked = double_clicked = pressed;
+
+		if (pressed || prev_pressed)
+			evt->pen.flags |= 
+				i == 0 ? MTY_PEN_FLAG_TIP :
+				i == 1 ? MTY_PEN_FLAG_BARREL_1 :
+				i == 2 ? MTY_PEN_FLAG_BARREL_2 :
+				0;
 	}
 
 	if (evt->pen.flags & MTY_PEN_FLAG_TOUCHING && evt->pen.flags & MTY_PEN_FLAG_INVERTED)
 		evt->pen.flags |= MTY_PEN_FLAG_ERASER;
 
+	if (double_clicked && !has_double_clicked)
+		evt->pen.flags |= MTY_PEN_FLAG_DOUBLE_CLICK;
+
 	ctx->prev_evt     = evt->pen;
 	ctx->prev_buttons = pkt->pkButtons;
+}
 
-	*double_clicked = *double_clicked && !has_double_clicked;
+static uint16_t wintab_transform_position(DWORD position)
+{
+	// The position value isn't documented, so here is what we discovered:
+	// * Default logical range is 0-72 and application-specific settings range is 182-255
+	// * In case of custom settings, we convert the position back to the 0-72 range to guarantee consistent event values
+	// * If the position is not within one of those known ranges, we prefer returning 0 to avoid undesired behaviors
+
+	if (position > UINT8_MAX) {
+		return 0;
+
+	} else if (position >= 73) {
+		return (uint16_t) ((int16_t) position - UINT8_MAX + 73);
+	
+	} else {
+		return (uint16_t) position;
+	}
 }
 
 void wintab_on_packetext(struct wintab *ctx, MTY_Event *evt, const PACKETEXT *pktext)
@@ -275,7 +304,7 @@ void wintab_on_packetext(struct wintab *ctx, MTY_Event *evt, const PACKETEXT *pk
 		evt->wintab.type     = MTY_WINTAB_TYPE_RING;
 		evt->wintab.control  = curr_ring->nControl;
 		evt->wintab.state    = curr_ring->nMode;
-		evt->wintab.position = (uint16_t) curr_ring->nPosition;
+		evt->wintab.position = wintab_transform_position(curr_ring->nPosition);
 	}
 
 	const SLIDERDATA *curr_strip = &pktext->pkTouchStrip;
@@ -284,7 +313,7 @@ void wintab_on_packetext(struct wintab *ctx, MTY_Event *evt, const PACKETEXT *pk
 		evt->wintab.type     = MTY_WINTAB_TYPE_STRIP;
 		evt->wintab.control  = curr_strip->nControl;
 		evt->wintab.state    = curr_strip->nMode;
-		evt->wintab.position = (uint16_t) curr_strip->nPosition;
+		evt->wintab.position = wintab_transform_position(curr_strip->nPosition);
 	}
 
 	ctx->prev_pktext = *pktext;
@@ -294,11 +323,18 @@ bool wintab_on_proximity(struct wintab *ctx, MTY_Event *evt, LPARAM lparam)
 {
 	bool pen_in_range = LOWORD(lparam) != 0;
 
-	if (!pen_in_range) {
+	if (!pen_in_range && ctx->pen_in_range) {
 		evt->type = MTY_EVENT_PEN;
 		evt->pen = ctx->prev_evt;
 		evt->pen.flags |= MTY_PEN_FLAG_LEAVE;
 	}
 
-	return pen_in_range;
+	ctx->pen_in_range = pen_in_range;
+
+	return ctx->pen_in_range;
+}
+
+void wintab_on_infochange(struct wintab **ctx, HWND hwnd)
+{
+	wintab_recreate(ctx, hwnd, ctx && *ctx && (*ctx)->override);
 }
