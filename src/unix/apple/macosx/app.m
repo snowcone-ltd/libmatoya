@@ -974,6 +974,11 @@ static void window_mod_event(Window *window, NSEvent *event)
 		return YES;
 	}
 
+	- (void)rightMouseDown:(NSEvent *)event
+	{
+		window_button_event(event.window, event, event.buttonNumber, true);
+	}
+
 	- (void)updateTrackingAreas
 	{
 		if (self.area)
