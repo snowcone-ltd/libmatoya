@@ -1,1 +1,1 @@
-../linux/generic/home.h
+../linux/x11/home.h
