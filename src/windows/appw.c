@@ -1659,6 +1659,10 @@ static void window_denormalize_rect(MTY_App *app, HMONITOR mon, RECT *r)
 	r->right = r->right + px_w + mi.rcWork.left;
 	r->bottom = r->bottom + px_h + mi.rcWork.top;
 	r->left = r->left - px_w + mi.rcWork.left;
+
+	// Ensure the title bar is visible
+	if (r->top < mi.rcWork.top)
+		r->top = mi.rcWork.top;
 }
 
 static void window_normalize_rect(MTY_App *app, HMONITOR mon, RECT *r)
