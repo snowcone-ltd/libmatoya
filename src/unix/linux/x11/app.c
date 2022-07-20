@@ -1065,6 +1065,10 @@ static MTY_Frame window_denormalize_frame(const MTY_Frame *frame, float scale)
 	dframe.size.w += px_w;
 	dframe.size.h += px_h;
 
+	// Ensure the title bar is visible
+	if (dframe.y < 0)
+		dframe.y = 0;
+
 	return dframe;
 }
 
