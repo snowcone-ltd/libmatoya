@@ -1394,7 +1394,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	Window *ctx = nil;
 	View *content = nil;
 
-	NSScreen *screen = screen_from_display_id(atoi(frame->screen));
+	NSScreen *screen = [NSScreen mainScreen];
 
 	window = app_find_open_window(app, index);
 	if (window == -1) {
