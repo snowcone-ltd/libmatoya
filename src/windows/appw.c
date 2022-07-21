@@ -1104,7 +1104,9 @@ static float monitor_get_scale(HMONITOR mon)
 
 	UINT x = 0;
 	UINT y = 0;
-	_GetDpiForMonitor(mon, MDT_EFFECTIVE_DPI, &x, &y);
+	HRESULT e = _GetDpiForMonitor(mon, MDT_EFFECTIVE_DPI, &x, &y);
+	if (e != S_OK || x == 0)
+		return 1.0f;
 
 	return x / 96.0f;
 }
