@@ -373,7 +373,7 @@ static void app_ri_relative_mouse(MTY_App *app, HWND hwnd, const RAWINPUT *ri, M
 			// It seems that touch input reports lastX and lastY as screen coordinates,
 			// not normalized coordinates between 0-65535 as the documentation says
 			if (!app->touch_active) {
-				bool virt = (mouse->usFlags & MOUSE_VIRTUAL_DESKTOP) ? true : false;
+				bool virt = (mouse->usFlags & MOUSE_VIRTUAL_DESKTOP) == MOUSE_VIRTUAL_DESKTOP;
 				int32_t w = GetSystemMetrics(virt ? SM_CXVIRTUALSCREEN : SM_CXSCREEN);
 				int32_t h = GetSystemMetrics(virt ? SM_CYVIRTUALSCREEN : SM_CYSCREEN);
 				x = (int32_t) (((float) mouse->lLastX / 65535.0f) * w);
@@ -553,7 +553,7 @@ static void app_apply_keyboard_state(MTY_App *app, bool focus)
 
 static bool app_button_is_pressed(MTY_Button button)
 {
-	return (GetAsyncKeyState(APP_MOUSE_MAP[button]) & 0x8000) ? true : false;
+	return (GetAsyncKeyState(APP_MOUSE_MAP[button]) & 0x8000) == 0x8000;
 }
 
 static void app_fix_mouse_buttons(MTY_App *ctx)
@@ -2001,7 +2001,7 @@ void MTY_WindowActivate(MTY_App *app, MTY_Window window, bool active)
 
 bool MTY_WindowExists(MTY_App *app, MTY_Window window)
 {
-	return app_get_window(app, window) ? true : false;
+	return app_get_window(app, window) != NULL;
 }
 
 bool MTY_WindowIsFullscreen(MTY_App *app, MTY_Window window)

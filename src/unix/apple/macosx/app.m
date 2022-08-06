@@ -1614,7 +1614,7 @@ void MTY_WindowActivate(MTY_App *app, MTY_Window window, bool active)
 
 bool MTY_WindowExists(MTY_App *app, MTY_Window window)
 {
-	return app_get_window(app, window) ? true : false;
+	return app_get_window(app, window) != NULL;
 }
 
 bool MTY_WindowIsFullscreen(MTY_App *app, MTY_Window window)

@@ -149,12 +149,12 @@ bool MTY_RendererSetUITexture(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device
 		MTY_HashSetInt(ctx->textures, id, texture);
 	}
 
-	return texture ? true : false;
+	return texture != NULL;
 }
 
 bool MTY_RendererHasUITexture(MTY_Renderer *ctx, uint32_t id)
 {
-	return MTY_HashGetInt(ctx->textures, id) ? true : false;
+	return MTY_HashGetInt(ctx->textures, id) != NULL;
 }
 
 uint32_t MTY_GetAvailableGFX(MTY_GFX *apis)
