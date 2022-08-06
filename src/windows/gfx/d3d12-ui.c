@@ -179,7 +179,7 @@ struct gfx_ui *mty_d3d12_ui_create(MTY_Device *device)
 
 	// Dummy clear texture
 	void *rgba = MTY_Alloc(256 * 256, 4);
-	ctx->clear_tex = mty_d3d12_ui_create_texture(device, rgba, 256, 256);
+	ctx->clear_tex = mty_d3d12_ui_create_texture((struct gfx_ui *) ctx, device, rgba, 256, 256);
 	MTY_Free(rgba);
 
 	if (!ctx->clear_tex) {
@@ -190,7 +190,7 @@ struct gfx_ui *mty_d3d12_ui_create(MTY_Device *device)
 	except:
 
 	if (e != S_OK)
-		mty_d3d12_ui_destroy((struct gfx_ui **) &ctx);
+		mty_d3d12_ui_destroy((struct gfx_ui **) &ctx, device);
 
 	return (struct gfx_ui *) ctx;
 }
@@ -431,7 +431,8 @@ bool mty_d3d12_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context 
 	return true;
 }
 
-void *mty_d3d12_ui_create_texture(MTY_Device *device, const void *rgba, uint32_t width, uint32_t height)
+void *mty_d3d12_ui_create_texture(struct gfx_ui *gfx_ui, MTY_Device *device, const void *rgba,
+	uint32_t width, uint32_t height)
 {
 	struct d3d12_ui_texture *tex = MTY_Alloc(1, sizeof(struct d3d12_ui_texture));
 
@@ -522,12 +523,12 @@ void *mty_d3d12_ui_create_texture(MTY_Device *device, const void *rgba, uint32_t
 	except:
 
 	if (e != S_OK)
-		mty_d3d12_ui_destroy_texture(&tex);
+		mty_d3d12_ui_destroy_texture(gfx_ui, &tex, device);
 
 	return tex;
 }
 
-void mty_d3d12_ui_destroy_texture(void **texture)
+void mty_d3d12_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, MTY_Device *device)
 {
 	if (!texture || !*texture)
 		return;
@@ -547,7 +548,7 @@ void mty_d3d12_ui_destroy_texture(void **texture)
 	*texture = NULL;
 }
 
-void mty_d3d12_ui_destroy(struct gfx_ui **gfx_ui)
+void mty_d3d12_ui_destroy(struct gfx_ui **gfx_ui, MTY_Device *device)
 {
 	if (!gfx_ui || !*gfx_ui)
 		return;
@@ -555,7 +556,7 @@ void mty_d3d12_ui_destroy(struct gfx_ui **gfx_ui)
 	struct d3d12_ui *ctx = (struct d3d12_ui *) *gfx_ui;
 
 	if (ctx->clear_tex)
-		mty_d3d12_ui_destroy_texture(&ctx->clear_tex);
+		mty_d3d12_ui_destroy_texture(*gfx_ui, &ctx->clear_tex, device);
 
 	if (ctx->vb.res)
 		ID3D12Resource_Release(ctx->vb.res);

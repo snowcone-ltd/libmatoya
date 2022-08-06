@@ -7,3 +7,5 @@ test/* linguist-vendored
 *.vs3 linguist-language=HLSL
 *.ps4 linguist-language=HLSL
 *.vs4 linguist-language=HLSL
+*.fragvk linguist-language=GLSL
+*.vertvk linguist-language=GLSL

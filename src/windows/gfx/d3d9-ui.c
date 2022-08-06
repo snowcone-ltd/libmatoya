@@ -229,7 +229,8 @@ bool mty_d3d9_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context *
 	return true;
 }
 
-void *mty_d3d9_ui_create_texture(MTY_Device *device, const void *rgba, uint32_t width, uint32_t height)
+void *mty_d3d9_ui_create_texture(struct gfx_ui *gfx_ui, MTY_Device *device, const void *rgba,
+	uint32_t width, uint32_t height)
 {
 	IDirect3DDevice9 *_device = (IDirect3DDevice9 *) device;
 
@@ -273,7 +274,7 @@ void *mty_d3d9_ui_create_texture(MTY_Device *device, const void *rgba, uint32_t 
 	return texture;
 }
 
-void mty_d3d9_ui_destroy_texture(void **texture)
+void mty_d3d9_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, MTY_Device *device)
 {
 	if (!texture || !*texture)
 		return;
@@ -284,7 +285,7 @@ void mty_d3d9_ui_destroy_texture(void **texture)
 	*texture = NULL;
 }
 
-void mty_d3d9_ui_destroy(struct gfx_ui **gfx_ui)
+void mty_d3d9_ui_destroy(struct gfx_ui **gfx_ui, MTY_Device *device)
 {
 	if (!gfx_ui || !*gfx_ui)
 		return;

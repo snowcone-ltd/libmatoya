@@ -1,0 +1,177 @@
+// Copyright (c) Christopher D. Dickson <cdd@matoya.group>
+//
+// This Source Code Form is subject to the terms of the MIT License.
+// If a copy of the MIT License was not distributed with this file,
+// You can obtain one at https://spdx.org/licenses/MIT.html.
+
+#version 450
+
+layout(location = 0) in vec2 texcoord;
+
+layout(location = 0) out vec4 fragcolor;
+
+layout(binding = 0) uniform sampler2D tex0;
+layout(binding = 1) uniform sampler2D tex1;
+layout(binding = 2) uniform sampler2D tex2;
+
+layout(binding = 3) uniform cb
+{
+	float width;
+	float height;
+	float vp_height;
+	float pad0;
+	uvec4 effects;
+	vec4 levels;
+	uint planes;
+	uint rotation;
+	uint conversion;
+	uint pad1;
+};
+
+void yuv_to_rgba(uint conversion, float y, float u, float v, out vec4 rgba)
+{
+	// 10-bit -> 16-bit
+	if ((conversion & 0x4) == 0x4) {
+		y *= 64.0;
+		u *= 64.0;
+		v *= 64.0;
+	}
+
+	// Full range
+	if ((conversion & 0x1) == 0x1) {
+		// 10-bit
+		if ((conversion & 0x2) == 0x2) {
+			u -= (512.0 / 1023.0);
+			v -= (512.0 / 1023.0);
+
+		} else {
+			u -= (128.0 / 255.0);
+			v -= (128.0 / 255.0);
+		}
+
+	// Limited
+	} else {
+		// 10-bit
+		if ((conversion & 0x2) == 0x2) {
+			y = (y - 64.0 / 1023.0) * (1023.0 / 876.0);
+			u = (u - 512.0 / 1023.0) * (1023.0 / 896.0);
+			v = (v - 512.0 / 1023.0) * (1023.0 / 896.0);
+
+		} else {
+			y = (y - 16.0 / 255.0) * (255.0 / 219.0);
+			u = (u - 128.0 / 255.0) * (255.0 / 224.0);
+			v = (v - 128.0 / 255.0) * (255.0 / 224.0);
+		}
+	}
+
+	float kr = 0.2126;
+	float kb = 0.0722;
+
+	float r = y + (2.0 - 2.0 * kr) * v;
+	float b = y + (2.0 - 2.0 * kb) * u;
+	float g = (y - kr * r - kb * b) / (1.0 - kr - kb);
+
+	rgba = vec4(r, g, b, 1.0);
+}
+
+void sample_rgba(uint planes, uint conversion, vec2 uv, out vec4 rgba)
+{
+	vec4 pixel0 = texture(tex0, uv);
+
+	if (planes == 2) {
+		vec4 pixel1 = texture(tex1, uv);
+		float y = pixel0.r;
+		float u = pixel1.r;
+		float v = pixel1.g;
+
+		yuv_to_rgba(conversion, y, u, v, rgba);
+
+	} else if (planes == 3) {
+		float y = pixel0.r;
+		float u = texture(tex1, uv).r;
+		float v = texture(tex2, uv).r;
+
+		yuv_to_rgba(conversion, y, u, v, rgba);
+
+	} else if ((conversion & 0x8) == 0x8) {
+		// AYUV
+		float y = pixel0.r;
+		float u = pixel0.g;
+		float v = pixel0.b;
+
+		// Y410
+		if ((conversion & 0x2) == 0x2) {
+			y = pixel0.g;
+			u = pixel0.b;
+			v = pixel0.r;
+		}
+
+		yuv_to_rgba(conversion, y, u, v, rgba);
+
+	} else {
+		rgba = pixel0;
+	}
+}
+
+void sharpen(float w, float h, float level, inout vec2 uv)
+{
+	vec2 res = vec2(w, h);
+	vec2 p = uv * res;
+	vec2 c = floor(p) + 0.5;
+	vec2 dist = p - c;
+
+	if (level >= 0.5) {
+		dist = 16.0 * dist * dist * dist * dist * dist;
+
+	} else {
+		dist = 4.0 * dist * dist * dist;
+	}
+
+	uv = (c + dist) / res;
+}
+
+void scanline(float y, float h, float level, inout vec4 rgba)
+{
+	float n = floor(h / 240.0);
+
+	if (mod(floor(y * h), n) < n / 2.0)
+		rgba *= level;
+}
+
+void rotate(uint rotation, inout vec2 uv)
+{
+	// Rotation
+	if (rotation == 1 || rotation == 3) {
+		float tmp = uv[0];
+		uv[0] = uv[1];
+		uv[1] = tmp;
+	}
+
+	// Flipped vertically
+	if (rotation == 1 || rotation == 2)
+		uv[1] = 1.0 - uv[1];
+
+	// Flipped horizontally
+	if (rotation == 2 || rotation == 3)
+		uv[0] = 1.0 - uv[0];
+}
+
+void main(void)
+{
+	// Rotate
+	vec2 uv = texcoord;
+	rotate(rotation, uv);
+
+	// Sharpen
+	for (uint x = 0; x < 2; x++)
+		if (effects[x] == 2)
+			sharpen(width, height, levels[x], uv);
+
+	// Sample
+	sample_rgba(planes, conversion, uv, fragcolor);
+
+	// Effects
+	for (uint y = 0; y < 2; y++)
+		if (effects[y] == 1)
+			scanline(texcoord.y, vp_height, levels[y], fragcolor);
+}
