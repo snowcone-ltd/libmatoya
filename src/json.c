@@ -92,7 +92,7 @@ bool MTY_JSONObjKeyExists(const MTY_JSON *json, const char *key)
 	if (!json)
 		return false;
 
-	return cJSON_GetObjectItemCaseSensitive((cJSON *) json, key) ? true : false;
+	return cJSON_GetObjectItemCaseSensitive((cJSON *) json, key) != NULL;
 }
 
 const char *MTY_JSONObjGetKey(const MTY_JSON *json, uint32_t index)
@@ -147,7 +147,7 @@ bool MTY_JSONArrayIndexExists(const MTY_JSON *json, uint32_t index)
 	if (!json)
 		return false;
 
-	return cJSON_GetArrayItem((cJSON *) json, index) ? true : false;
+	return cJSON_GetArrayItem((cJSON *) json, index) != NULL;
 }
 
 void MTY_JSONArrayDeleteItem(MTY_JSON *json, uint32_t index)

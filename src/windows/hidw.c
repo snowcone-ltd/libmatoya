@@ -114,7 +114,7 @@ static struct hid_dev *hid_device_create(HANDLE device)
 		goto except;
 	}
 
-	ctx->is_xinput = wcsstr(ctx->name, L"IG_") ? true : false;
+	ctx->is_xinput = wcsstr(ctx->name, L"IG_") != NULL;
 	ctx->state = MTY_Alloc(HID_STATE_MAX, 1);
 
 	except:
