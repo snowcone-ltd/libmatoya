@@ -129,7 +129,7 @@ bool MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync)
 		}
 	}
 
-	return gfx_ctx ? true : false;
+	return gfx_ctx != NULL;
 }
 
 

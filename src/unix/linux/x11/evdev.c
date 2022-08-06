@@ -309,7 +309,7 @@ static void evdev_joystick_event(struct evdev *ctx, int32_t fd, EVDEV_REPORT rep
 			if (cb >= MTY_CBUTTON_MAX)
 				return;
 
-			c->buttons[cb] = event.value ? true : false;
+			c->buttons[cb] = event.value != 0;
 			report(edev, ctx->opaque);
 		}
 

@@ -787,7 +787,7 @@ const MTY_WEB_API = {
 		}
 	},
 	web_get_fullscreen: function () {
-		return document.fullscreenElement ? true : false;
+		return document.fullscreenElement != null;
 	},
 	web_set_mem_funcs: function (alloc, free) {
 		MTY.alloc = alloc;

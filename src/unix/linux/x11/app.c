@@ -719,7 +719,7 @@ void MTY_AppRun(MTY_App *ctx)
 
 			app_apply_keyboard_grab(ctx, win);
 			app_apply_mouse_grab(ctx, win);
-			app_apply_cursor(ctx, win ? true : false);
+			app_apply_cursor(ctx, win != NULL);
 			XSync(ctx->display, False);
 
 			ctx->prev_state = ctx->state;
@@ -757,7 +757,7 @@ void MTY_AppSetTimeout(MTY_App *ctx, uint32_t timeout)
 
 bool MTY_AppIsActive(MTY_App *ctx)
 {
-	return app_get_active_window(ctx) ? true : false;
+	return app_get_active_window(ctx) != NULL;
 }
 
 void MTY_AppActivate(MTY_App *ctx, bool active)
@@ -856,7 +856,7 @@ void MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative)
 		struct window *win = app_get_active_window(ctx);
 
 		app_apply_mouse_grab(ctx, win);
-		app_apply_cursor(ctx, win ? true : false);
+		app_apply_cursor(ctx, win != NULL);
 		XSync(ctx->display, False);
 	}
 }
@@ -1396,7 +1396,7 @@ void MTY_WindowActivate(MTY_App *app, MTY_Window window, bool active)
 
 bool MTY_WindowExists(MTY_App *app, MTY_Window window)
 {
-	return app_get_window(app, window) ? true : false;
+	return app_get_window(app, window) != NULL;
 }
 
 bool MTY_WindowIsFullscreen(MTY_App *app, MTY_Window window)
