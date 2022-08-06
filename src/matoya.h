@@ -181,6 +181,7 @@ typedef struct {
 	bool clear;              ///< Surface should be cleared before drawing.
 } MTY_DrawData;
 
+/// @brief Vulkan specific device handles.
 typedef struct {
 	void *device;                               ///< VkDevice
 	const void *physicalDeviceMemoryProperties; ///< VkPhysicalDeviceMemoryProperties
