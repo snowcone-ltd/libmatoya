@@ -11,6 +11,20 @@
 
 #include "gfx/mod-support.h"
 
+// https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules
+struct gfx_uniforms {
+	float width;
+	float height;
+	float vp_height;
+	float pad0;
+	uint32_t effects[4];
+	float levels[4];
+	uint32_t planes;
+	uint32_t rotation;
+	uint32_t conversion;
+	uint32_t pad1;
+};
+
 struct gfx;
 
 #define GFX_PROTO(api, name) mty##api##name

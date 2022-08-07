@@ -20,20 +20,6 @@ static
 
 #define D3D11_NUM_STAGING 3
 
-// https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules
-struct d3d11_psvars {
-	float width;
-	float height;
-	float vp_height;
-	float pad0;
-	uint32_t effects[4];
-	float levels[4];
-	uint32_t planes;
-	uint32_t rotation;
-	uint32_t conversion;
-	uint32_t pad1;
-};
-
 struct d3d11_res {
 	DXGI_FORMAT format;
 	ID3D11Resource *resource;
@@ -116,7 +102,7 @@ struct gfx *mty_d3d11_create(MTY_Device *device)
 	}
 
 	D3D11_BUFFER_DESC psbd = {0};
-	psbd.ByteWidth = sizeof(struct d3d11_psvars);
+	psbd.ByteWidth = sizeof(struct gfx_uniforms);
 	psbd.Usage = D3D11_USAGE_DYNAMIC;
 	psbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	psbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -363,7 +349,7 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 		if (ctx->staging[x].srv)
 			ID3D11DeviceContext_PSSetShaderResources(_context, x, 1, &ctx->staging[x].srv);
 
-	struct d3d11_psvars cb = {0};
+	struct gfx_uniforms cb = {0};
 	cb.width = (float) desc->cropWidth;
 	cb.height = (float) desc->cropHeight;
 	cb.vp_height = (float) vp.Height;
@@ -382,7 +368,7 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 		goto except;
 	}
 
-	memcpy(res.pData, &cb, sizeof(struct d3d11_psvars));
+	memcpy(res.pData, &cb, sizeof(struct gfx_uniforms));
 	ID3D11DeviceContext_Unmap(_context, ctx->psbres, 0);
 	ID3D11DeviceContext_PSSetConstantBuffers(_context, 0, 1, &ctx->psb);
 
