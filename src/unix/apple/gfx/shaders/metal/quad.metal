@@ -34,7 +34,7 @@ struct cb {
 vertex struct vs_out vs(struct vtx v [[stage_in]])
 {
 	struct vs_out out;
-	out.position = float4(float2(v.position), 0, 1);
+	out.position = float4(v.position, 0, 1);
 	out.texcoord = v.texcoord;
 
 	return out;
