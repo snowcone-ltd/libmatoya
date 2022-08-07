@@ -129,11 +129,8 @@ bool mty_gl_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context *co
 	struct gl_ui *ctx = (struct gl_ui *) gfx_ui;
 	GLuint _dest = dest ? *((GLuint *) dest) : 0;
 
-	int32_t fb_width = lrint(dd->displaySize.x);
-	int32_t fb_height = lrint(dd->displaySize.y);
-
 	// Prevent rendering under invalid scenarios
-	if (fb_width <= 0 || fb_height <= 0 || dd->cmdListLength == 0)
+	if (dd->displaySize.x <= 0 || dd->displaySize.y <= 0 || dd->cmdListLength == 0)
 		return false;
 
 	// Update the vertex shader's proj data based on the current display size
@@ -142,23 +139,18 @@ bool mty_gl_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context *co
 	float T = 0;
 	float B = dd->displaySize.y;
 	float proj[4][4] = {
-		{2.0f,  0.0f,  0.0f,  0.0f},
-		{0.0f,  2.0f,  0.0f,  0.0f},
-		{0.0f,  0.0f, -1.0f,  0.0f},
-		{0.0f,  0.0f,  0.0f,  1.0f},
+		{2.0f / (R-L),  0.0f,          0.0f, 0.0f},
+		{0.0f,          2.0f / (T-B),  0.0f, 0.0f},
+		{0.0f,          0.0f,         -1.0f, 0.0f},
+		{(R+L) / (L-R), (T+B) / (B-T), 0.0f, 1.0f},
 	};
-
-	proj[0][0] /= R - L;
-	proj[1][1] /= T - B;
-	proj[3][0] = (R + L) / (L - R);
-	proj[3][1] = (T + B) / (B - T);
 
 	// Bind texture to draw framebuffer
 	if (_dest)
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _dest);
 
 	// Set viewport based on display size
-	glViewport(0, GL_UI_ORIGIN_Y, fb_width, fb_height);
+	glViewport(0, GL_UI_ORIGIN_Y, lrint(dd->displaySize.x), lrint(dd->displaySize.y));
 
 	// Clear render target to black
 	if (dd->clear) {
@@ -194,8 +186,8 @@ bool mty_gl_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context *co
 		sizeof(MTY_Vtx), (GLvoid *) offsetof(MTY_Vtx, col));
 
 	// Draw
-	for (uint32_t n = 0; n < dd->cmdListLength; n++) {
-		MTY_CmdList *cmdList = &dd->cmdList[n];
+	for (uint32_t x = 0; x < dd->cmdListLength; x++) {
+		MTY_CmdList *cmdList = &dd->cmdList[x];
 
 		// Copy vertex, index buffer data
 		glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr) cmdList->vtxLength * sizeof(MTY_Vtx),
@@ -204,24 +196,22 @@ bool mty_gl_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context *co
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr) cmdList->idxLength * sizeof(uint16_t),
 			cmdList->idx, GL_STREAM_DRAW);
 
-		for (uint32_t i = 0; i < cmdList->cmdLength; i++) {
-			MTY_Cmd *pcmd = &cmdList->cmd[i];
-
-			// Use the clip to apply scissor
-			MTY_Rect r = pcmd->clip;
+		for (uint32_t y = 0; y < cmdList->cmdLength; y++) {
+			const MTY_Cmd *pcmd = &cmdList->cmd[y];
+			const MTY_Rect *c = &pcmd->clip;
 
 			// Make sure the rect is actually in the viewport
-			if (r.left < fb_width && r.top < fb_height && r.right >= 0.0f && r.bottom >= 0.0f) {
+			if (c->left < dd->displaySize.x && c->top < dd->displaySize.y && c->right >= 0 && c->bottom >= 0) {
 
-				// Adjust for origin (from lower left corner)
-				r.top -= GL_UI_ORIGIN_Y;
-				r.bottom -= GL_UI_ORIGIN_Y;
+				// Adjust for origin (from lower left corner), apply scissor
+				float top = c->top - GL_UI_ORIGIN_Y;
+				float bottom = c->bottom - GL_UI_ORIGIN_Y;
 
 				glScissor(
-					lrint(r.left),
-					lrint(fb_height - r.bottom),
-					lrint(r.right - r.left),
-					lrint(r.bottom - r.top)
+					lrint(c->left),
+					lrint(dd->displaySize.y - bottom),
+					lrint(c->right - c->left),
+					lrint(bottom - top)
 				);
 
 				// Optionally sample from a texture (fonts, images)

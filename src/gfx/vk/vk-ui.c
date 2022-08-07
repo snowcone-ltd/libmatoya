@@ -456,18 +456,19 @@ bool mty_vk_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context *co
 		MTY_CmdList *cmdList = &dd->cmdList[x];
 
 		for (uint32_t y = 0; y < cmdList->cmdLength; y++) {
-			MTY_Cmd *pcmd = &cmdList->cmd[y];
-			MTY_Rect *c = &pcmd->clip;
+			const MTY_Cmd *pcmd = &cmdList->cmd[y];
+			const MTY_Rect *c = &pcmd->clip;
 
 			// Make sure the rect is actually in the viewport
 			if (c->left < dd->displaySize.x && c->top < dd->displaySize.y && c->right >= 0 && c->bottom >= 0) {
+
+				// Use the clip to apply scissor
 				VkRect2D scissor = {
 					.offset.x = lrint(c->left),
 					.offset.y = lrint(c->top),
 					.extent.width = lrint(c->right - c->left),
 					.extent.height = lrint(c->bottom - c->top),
 				};
-
 				vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 				// Optionally sample from a texture (fonts, images)
