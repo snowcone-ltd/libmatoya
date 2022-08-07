@@ -10,7 +10,7 @@
 	#endif
 #endif
 
-varying vec2 vs_texcoord;
+varying vec2 frag_texcoord;
 
 uniform sampler2D tex0;
 uniform sampler2D tex1;
@@ -180,7 +180,7 @@ void main(void)
 	get_bit(cbits, 1, conversion[0]);
 
 	// Rotate
-	vec2 uv = vs_texcoord;
+	vec2 uv = frag_texcoord;
 	rotate(rotation, uv);
 
 	// Sharpen
@@ -194,5 +194,5 @@ void main(void)
 	// Effects
 	for (int y = 0; y < 2; y++)
 		if (effects[y] == 1.0)
-			scanline(vs_texcoord.y, vp_height, levels[y], gl_FragColor);
+			scanline(frag_texcoord.y, vp_height, levels[y], gl_FragColor);
 }
