@@ -468,8 +468,10 @@ void mty_d3d12_ctx_present(struct gfx_ctx *gfx_ctx)
 		ID3D12CommandQueue_ExecuteCommandLists(core->cq, 1, &cl);
 		ID3D12CommandList_Release(cl);
 
-		UINT flags = !ctx->vsync ? DXGI_PRESENT_ALLOW_TEARING : 0;
-		e = IDXGISwapChain3_Present(core->swap_chain3, 1, flags);
+		UINT interval = ctx->vsync ? 1 : 0;
+		UINT flags = ctx->vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING;
+
+		e = IDXGISwapChain3_Present(core->swap_chain3, interval, flags);
 
 		if (DXGI_FATAL(e)) {
 			MTY_Log("'IDXGISwapChain3_Present' failed with HRESULT 0x%X", e);
