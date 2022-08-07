@@ -19,7 +19,7 @@ struct gfx_ctx;
 #define GFX_CTX_DECLARE_API(api, wrap) \
 	struct gfx_ctx *wrap(api, create)(void *native_window, bool vsync); \
 	void wrap(api, destroy)(struct gfx_ctx **gfx_ctx); \
-	void wrap(api, present)(struct gfx_ctx *gfx_ctx, uint32_t num_frames); \
+	void wrap(api, present)(struct gfx_ctx *gfx_ctx); \
 	MTY_Device *wrap(api, get_device)(struct gfx_ctx *gfx_ctx); \
 	MTY_Context *wrap(api, get_context)(struct gfx_ctx *gfx_ctx); \
 	MTY_Surface *wrap(api, get_surface)(struct gfx_ctx *gfx_ctx); \

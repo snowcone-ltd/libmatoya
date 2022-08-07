@@ -1248,11 +1248,8 @@ MTY_WindowMakeCurrent(MTY_App *app, MTY_Window window, bool current);
 /// @brief Present all pending draw operations.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
-/// @param numFrames The number of frames to wait before presenting, otherwise known
-///   as the swap interval. Specifying 0 frames means do not wait, 1 means the next
-///   frame, and so on.
 MTY_EXPORT void
-MTY_WindowPresent(MTY_App *app, MTY_Window window, uint32_t numFrames);
+MTY_WindowPresent(MTY_App *app, MTY_Window window);
 
 /// @brief Get the current graphics API in use by the window.
 /// @param app The MTY_App.

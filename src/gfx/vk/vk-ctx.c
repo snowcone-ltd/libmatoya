@@ -634,7 +634,7 @@ MTY_Surface *mty_vk_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	return (MTY_Surface *) sc->bb;
 }
 
-void mty_vk_ctx_present(struct gfx_ctx *gfx_ctx, uint32_t interval)
+void mty_vk_ctx_present(struct gfx_ctx *gfx_ctx)
 {
 	struct vk_ctx *ctx = (struct vk_ctx *) gfx_ctx;
 

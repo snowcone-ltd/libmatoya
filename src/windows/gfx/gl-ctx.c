@@ -13,8 +13,6 @@ struct gl_ctx {
 	HGLRC gl;
 	HDC dc;
 	MTY_Renderer *renderer;
-	BOOL (WINAPI *wglSwapIntervalEXT)(int inverval);
-	uint32_t interval;
 	uint32_t width;
 	uint32_t height;
 	uint32_t fb0;
@@ -77,9 +75,12 @@ struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
 		goto except;
 	}
 
-	ctx->wglSwapIntervalEXT = (void *) wglGetProcAddress("wglSwapIntervalEXT");
-	if (!ctx->wglSwapIntervalEXT)
+	BOOL (WINAPI *wglSwapIntervalEXT)(int inverval) = (void *) wglGetProcAddress("wglSwapIntervalEXT");
+	if (!wglSwapIntervalEXT)
 		MTY_Log("'wglGetProcAddress' failed to find 'wglSwapIntervalEXT'");
+
+	if (wglSwapIntervalEXT)
+		wglSwapIntervalEXT(vsync ? 1 : 0);
 
 	wglMakeCurrent(NULL, NULL);
 
@@ -133,16 +134,9 @@ MTY_Surface *mty_gl_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	return (MTY_Surface *) &ctx->fb0;
 }
 
-void mty_gl_ctx_present(struct gfx_ctx *gfx_ctx, uint32_t interval)
+void mty_gl_ctx_present(struct gfx_ctx *gfx_ctx)
 {
 	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
-
-	if (ctx->wglSwapIntervalEXT && interval != ctx->interval) {
-		if (!ctx->wglSwapIntervalEXT(interval))
-			MTY_Log("'wglSwapIntervalEXT' failed with error 0x%X", GetLastError());
-
-		ctx->interval = interval;
-	}
 
 	if (!wglSwapLayerBuffers(ctx->dc, WGL_SWAP_MAIN_PLANE))
 		MTY_Log("'wglSwapLayerBuffers' failed with error 0x%X", GetLastError());

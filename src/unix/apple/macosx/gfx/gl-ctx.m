@@ -15,7 +15,6 @@ struct gl_ctx {
 	NSWindow *window;
 	NSOpenGLContext *gl;
 	MTY_Renderer *renderer;
-	uint32_t interval;
 	uint32_t fb0;
 	CGSize size;
 
@@ -61,6 +60,13 @@ struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
 
 	NSOpenGLPixelFormat *pf = [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
 	ctx->gl = [[NSOpenGLContext alloc] initWithFormat:pf shareContext:nil];
+
+	[ctx->gl makeCurrentContext];
+
+	GLint interval = vsync ? 1 : 0;
+	[ctx->gl setValues:&interval forParameter:NSOpenGLCPSwapInterval];
+
+	[NSOpenGLContext clearCurrentContext];
 
 	gl_ctx_mt_block(^{
 		[ctx->gl setView:ctx->window.contentView];
@@ -124,18 +130,11 @@ MTY_Surface *mty_gl_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	return (MTY_Surface *) &ctx->fb0;
 }
 
-void mty_gl_ctx_present(struct gfx_ctx *gfx_ctx, uint32_t interval)
+void mty_gl_ctx_present(struct gfx_ctx *gfx_ctx)
 {
 	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
 
-	display_link_delay(&ctx->dlink, interval);
-
-	// For vsync (inveral == 0)
-	interval = interval > 0 ? 1 : 0;
-	if (interval != ctx->interval) {
-		[ctx->gl setValues:(GLint *) &interval forParameter:NSOpenGLCPSwapInterval];
-		ctx->interval = interval;
-	}
+	display_link_delay(&ctx->dlink, 1);
 
 	[ctx->gl flushBuffer];
 	glFinish();

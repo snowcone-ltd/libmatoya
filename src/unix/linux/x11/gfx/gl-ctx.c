@@ -15,8 +15,6 @@ struct gl_ctx {
 	GLXContext gl;
 	MTY_Renderer *renderer;
 	uint32_t fb0;
-	uint32_t interval;
-	void (*glXSwapIntervalEXT)(Display *dpy, GLXDrawable drawable, int interval);
 };
 
 static void gl_ctx_get_size(struct gl_ctx *ctx, uint32_t *width, uint32_t *height)
@@ -54,7 +52,11 @@ struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
 
 	glXMakeCurrent(ctx->display, ctx->window, ctx->gl);
 
-	ctx->glXSwapIntervalEXT = glXGetProcAddress((const unsigned char *) "glXSwapIntervalEXT");
+	void (*glXSwapIntervalEXT)(Display *dpy, GLXDrawable drawable, int interval)
+		= glXGetProcAddress((const unsigned char *) "glXSwapIntervalEXT");
+
+	if (glXSwapIntervalEXT)
+		glXSwapIntervalEXT(ctx->display, ctx->window, vsync ? 1 : 0);
 
 	glXMakeCurrent(ctx->display, None, NULL);
 
@@ -101,14 +103,9 @@ MTY_Surface *mty_gl_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	return (MTY_Surface *) &ctx->fb0;
 }
 
-void mty_gl_ctx_present(struct gfx_ctx *gfx_ctx, uint32_t interval)
+void mty_gl_ctx_present(struct gfx_ctx *gfx_ctx)
 {
 	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
-
-	if (ctx->glXSwapIntervalEXT && interval != ctx->interval) {
-		ctx->glXSwapIntervalEXT(ctx->display, ctx->window, interval);
-		ctx->interval = interval;
-	}
 
 	glXSwapBuffers(ctx->display, ctx->window);
 	glFinish();
