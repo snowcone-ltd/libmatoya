@@ -19,7 +19,6 @@ const MTY = {
 	cursorId: 0,
 	cursorCache: {},
 	cursorClass: '',
-	frameCtr: 0,
 	defaultCursor: false,
 	synthesizeEsc: true,
 	relative: false,
