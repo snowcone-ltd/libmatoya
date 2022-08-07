@@ -86,13 +86,13 @@ bool MTY_WindowMakeCurrent(MTY_App *app, MTY_Window window, bool current)
 	return api != MTY_GFX_NONE && GFX_CTX_API[api].make_current(gfx_ctx, current);
 }
 
-void MTY_WindowPresent(MTY_App *app, MTY_Window window, uint32_t numFrames)
+void MTY_WindowPresent(MTY_App *app, MTY_Window window)
 {
 	struct gfx_ctx *gfx_ctx = NULL;
 	MTY_GFX api = mty_window_get_gfx(app, window, &gfx_ctx);
 
 	if (api != MTY_GFX_NONE)
-		GFX_CTX_API[api].present(gfx_ctx, numFrames);
+		GFX_CTX_API[api].present(gfx_ctx);
 }
 
 MTY_GFX MTY_WindowGetGFX(MTY_App *app, MTY_Window window)
