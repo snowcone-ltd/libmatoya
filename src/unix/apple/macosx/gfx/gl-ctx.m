@@ -8,7 +8,6 @@ GFX_CTX_PROTOTYPES(_gl_)
 #include <Cocoa/Cocoa.h>
 #include <OpenGL/gl.h>
 
-#include "display-link.h"
 #include "scale.h"
 
 struct gl_ctx {
@@ -17,8 +16,6 @@ struct gl_ctx {
 	MTY_Renderer *renderer;
 	uint32_t fb0;
 	CGSize size;
-
-	struct display_link dlink;
 };
 
 static CGSize gl_ctx_get_size(struct gl_ctx *ctx)
@@ -87,8 +84,6 @@ void mty_gl_ctx_destroy(struct gfx_ctx **gfx_ctx)
 	if (ctx->gl)
 		[ctx->gl clearDrawable];
 
-	display_link_destroy(&ctx->dlink);
-
 	ctx->gl = nil;
 	ctx->window = nil;
 
@@ -133,8 +128,6 @@ MTY_Surface *mty_gl_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 void mty_gl_ctx_present(struct gfx_ctx *gfx_ctx)
 {
 	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
-
-	display_link_delay(&ctx->dlink, 1);
 
 	[ctx->gl flushBuffer];
 	glFinish();
