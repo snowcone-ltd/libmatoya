@@ -17,19 +17,6 @@ GFX_PROTOTYPES(_metal_)
 
 #define METAL_NUM_STAGING 3
 
-struct metal_cb {
-	float width;
-	float height;
-	float vp_height;
-	float pad0;
-	uint32_t effects[4];
-	float levels[4];
-	uint32_t planes;
-	uint32_t rotation;
-	uint32_t conversion;
-	uint32_t pad1;
-};
-
 struct metal_res {
 	MTLPixelFormat format;
 	id<MTLTexture> texture;
@@ -39,7 +26,7 @@ struct metal_res {
 
 struct metal {
 	MTY_ColorFormat format;
-	struct metal_cb fcb;
+	struct gfx_uniforms fcb;
 	struct metal_res staging[METAL_NUM_STAGING];
 	id<MTLLibrary> library;
 	id<MTLFunction> fs;
@@ -254,7 +241,7 @@ bool mty_metal_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	ctx->fcb.planes = FMT_INFO[ctx->format].planes;
 	ctx->fcb.rotation = desc->rotation;
 	ctx->fcb.conversion = FMT_CONVERSION(ctx->format, desc->fullRangeYUV, desc->multiplyYUV);
-	[re setFragmentBytes:&ctx->fcb length:sizeof(struct metal_cb) atIndex:0];
+	[re setFragmentBytes:&ctx->fcb length:sizeof(struct gfx_uniforms) atIndex:0];
 
 	// Draw
 	[re drawIndexedPrimitives:MTLPrimitiveTypeTriangleStrip indexCount:6
