@@ -96,11 +96,8 @@ bool mty_metal_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context 
 	id<MTLCommandQueue> cq = (__bridge id<MTLCommandQueue>) context;
 	id<MTLTexture> _dest = (__bridge id<MTLTexture>) dest;
 
-	int32_t fb_width = lrint(dd->displaySize.x);
-	int32_t fb_height = lrint(dd->displaySize.y);
-
 	// Prevent rendering under invalid scenarios
-	if (fb_width <= 0 || fb_height <= 0 || dd->cmdListLength == 0)
+	if (dd->displaySize.x <= 0 || dd->displaySize.y <= 0 || dd->cmdListLength == 0)
 		return false;
 
 	// Resize vertex and index buffers if necessary
@@ -150,26 +147,26 @@ bool mty_metal_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context 
 	uint32_t vertexOffset = 0;
 	uint32_t indexOffset = 0;
 
-	for (uint32_t n = 0; n < dd->cmdListLength; n++) {
-		const MTY_CmdList *cmdList = &dd->cmdList[n];
+	for (uint32_t x = 0; x < dd->cmdListLength; x++) {
+		const MTY_CmdList *cmdList = &dd->cmdList[x];
 
 		// Copy vertex, index buffer data
 		memcpy((uint8_t *) ctx->vb.contents + vertexOffset, cmdList->vtx, cmdList->vtxLength * sizeof(MTY_Vtx));
 		memcpy((uint8_t *) ctx->ib.contents + indexOffset, cmdList->idx, cmdList->idxLength * sizeof(uint16_t));
 
-		for (uint32_t cmd_i = 0; cmd_i < cmdList->cmdLength; cmd_i++) {
-			const MTY_Cmd *pcmd = &cmdList->cmd[cmd_i];
-
-			// Use the clip to apply scissor
-			MTY_Rect r = pcmd->clip;
+		for (uint32_t y = 0; y < cmdList->cmdLength; y++) {
+			const MTY_Cmd *pcmd = &cmdList->cmd[y];
+			const MTY_Rect *c = &pcmd->clip;
 
 			// Make sure the rect is actually in the viewport
-			if (r.left < fb_width && r.top < fb_height && r.right >= 0.0f && r.bottom >= 0.0f) {
+			if (c->left < dd->displaySize.x && c->top < dd->displaySize.y && c->right >= 0 && c->bottom >= 0) {
+
+				// Use the clip to apply scissor
 				MTLScissorRect scissorRect = {
-					.x = lrint(r.left),
-					.y = lrint(r.top),
-					.width = lrint(r.right - r.left),
-					.height = lrint(r.bottom - r.top)
+					.x = lrint(c->left),
+					.y = lrint(c->top),
+					.width = lrint(c->right - c->left),
+					.height = lrint(c->bottom - c->top)
 				};
 				[re setScissorRect:scissorRect];
 
