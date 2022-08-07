@@ -238,8 +238,8 @@ bool mty_d3d11_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context 
 	MTY_Vtx *vtx_dst = (MTY_Vtx *) vtx_map.pData;
 	uint16_t *idx_dst = (uint16_t *) idx_map.pData;
 
-	for (uint32_t n = 0; n < dd->cmdListLength; n++) {
-		MTY_CmdList *cmdList = &dd->cmdList[n];
+	for (uint32_t x = 0; x < dd->cmdListLength; x++) {
+		MTY_CmdList *cmdList = &dd->cmdList[x];
 
 		memcpy(vtx_dst, cmdList->vtx, cmdList->vtxLength * sizeof(MTY_Vtx));
 		memcpy(idx_dst, cmdList->idx, cmdList->idxLength * sizeof(uint16_t));
@@ -257,16 +257,11 @@ bool mty_d3d11_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context 
 	float T = 0;
 	float B = dd->displaySize.y;
 	float proj[4][4] = {
-		{2.0f, 0.0f, 0.0f, 0.0f},
-		{0.0f, 2.0f, 0.0f, 0.0f},
-		{0.0f, 0.0f, 0.5f, 0.0f},
-		{0.0f, 0.0f, 0.5f, 1.0f},
+		{2.0f / (R-L),  0.0f,          0.0f, 0.0f},
+		{0.0f,          2.0f / (T-B),  0.0f, 0.0f},
+		{0.0f,          0.0f,          0.5f, 0.0f},
+		{(R+L) / (L-R), (T+B) / (B-T), 0.5f, 1.0f},
 	};
-
-	proj[0][0] /= R - L;
-	proj[1][1] /= T - B;
-	proj[3][0] = (R + L) / (L - R);
-	proj[3][1] = (T + B) / (B - T);
 
 	D3D11_MAPPED_SUBRESOURCE cb_map = {0};
 	e = ID3D11DeviceContext_Map(_context, ctx->cb_res, 0, D3D11_MAP_WRITE_DISCARD, 0, &cb_map);
@@ -328,21 +323,23 @@ bool mty_d3d11_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context 
 	uint32_t idxOffset = 0;
 	uint32_t vtxOffset = 0;
 
-	for (uint32_t n = 0; n < dd->cmdListLength; n++) {
-		MTY_CmdList *cmdList = &dd->cmdList[n];
+	for (uint32_t x = 0; x < dd->cmdListLength; x++) {
+		MTY_CmdList *cmdList = &dd->cmdList[x];
 
-		for (uint32_t cmd_i = 0; cmd_i < cmdList->cmdLength; cmd_i++) {
-			MTY_Cmd *pcmd = &cmdList->cmd[cmd_i];
-
-			// Use the clip to apply scissor
-			D3D11_RECT r = {0};
-			r.left = lrint(pcmd->clip.left);
-			r.top = lrint(pcmd->clip.top);
-			r.right = lrint(pcmd->clip.right);
-			r.bottom = lrint(pcmd->clip.bottom);
+		for (uint32_t y = 0; y < cmdList->cmdLength; y++) {
+			const MTY_Cmd *pcmd = &cmdList->cmd[y];
+			const MTY_Rect *c = &pcmd->clip;
 
 			// Make sure the rect is actually in the viewport
-			if (r.left < dd->displaySize.x && r.top < dd->displaySize.y && r.right >= 0.0f && r.bottom >= 0.0f) {
+			if (c->left < dd->displaySize.x && c->top < dd->displaySize.y && c->right >= 0 && c->bottom >= 0) {
+
+				// Use the clip to apply scissor
+				D3D11_RECT r = {
+					.left = lrint(c->left),
+					.top = lrint(c->top),
+					.right = lrint(c->right),
+					.bottom = lrint(c->bottom),
+				};
 				ID3D11DeviceContext_RSSetScissorRects(_context, 1, &r);
 
 				// Optionally sample from a texture (fonts, images)
