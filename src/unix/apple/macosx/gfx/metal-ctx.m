@@ -132,12 +132,12 @@ MTY_Surface *mty_metal_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	return (__bridge MTY_Surface *) ctx->back_buffer.texture;
 }
 
-void mty_metal_ctx_present(struct gfx_ctx *gfx_ctx, uint32_t interval)
+void mty_metal_ctx_present(struct gfx_ctx *gfx_ctx)
 {
 	struct metal_ctx *ctx = (struct metal_ctx *) gfx_ctx;
 
 	if (ctx->back_buffer) {
-		display_link_delay(&ctx->dlink, interval);
+		display_link_delay(&ctx->dlink, 1);
 
 		id<MTLCommandBuffer> cb = [ctx->cq commandBuffer];
 		[cb presentDrawable:ctx->back_buffer];
