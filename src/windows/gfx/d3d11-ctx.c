@@ -265,9 +265,10 @@ void mty_d3d11_ctx_present(struct gfx_ctx *gfx_ctx)
 	struct d3d11_ctx *ctx = (struct d3d11_ctx *) gfx_ctx;
 
 	if (ctx->back_buffer) {
-		UINT flags = !ctx->vsync ? DXGI_PRESENT_ALLOW_TEARING : 0;
+		UINT interval = ctx->vsync ? 1 : 0;
+		UINT flags = ctx->vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING;
 
-		HRESULT e = IDXGISwapChain2_Present(ctx->swap_chain2, 1, flags);
+		HRESULT e = IDXGISwapChain2_Present(ctx->swap_chain2, interval, flags);
 
 		ID3D11Texture2D_Release(ctx->back_buffer);
 		ctx->back_buffer = NULL;
