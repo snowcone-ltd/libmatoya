@@ -23,19 +23,6 @@ static
 #define VK_NUM_STAGING 3
 #define VK_NUM_DESC    (VK_NUM_STAGING + 1)
 
-struct vk_uniforms {
-	float width;
-	float height;
-	float vp_height;
-	float pad0;
-	uint32_t effects[4];
-	float levels[4];
-	uint32_t planes;
-	uint32_t rotation;
-	uint32_t conversion;
-	uint32_t pad1;
-};
-
 struct vk {
 	MTY_ColorFormat format;
 
@@ -52,7 +39,7 @@ struct vk {
 
 	VkDescriptorImageInfo ii[VK_NUM_STAGING];
 
-	struct vk_uniforms cb;
+	struct gfx_uniforms cb;
 	struct vk_buffer vb;
 	struct vk_buffer ib;
 	struct vk_buffer ub;
@@ -460,7 +447,7 @@ bool mty_vk_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 	// Update uniform buffer and descriptor
-	struct vk_uniforms cb =  {
+	struct gfx_uniforms cb =  {
 		.width = (float) desc->cropWidth,
 		.height = (float) desc->cropHeight,
 		.vp_height = vp.height,
@@ -473,8 +460,8 @@ bool mty_vk_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 		.conversion = FMT_CONVERSION(ctx->format, desc->fullRangeYUV, desc->multiplyYUV),
 	};
 
-	if (memcmp(&ctx->cb, &cb, sizeof(struct vk_uniforms))) {
-		if (!vk_buffer_upload(_device, ctx->ub.mem, &cb, sizeof(struct vk_uniforms)))
+	if (memcmp(&ctx->cb, &cb, sizeof(struct gfx_uniforms))) {
+		if (!vk_buffer_upload(_device, ctx->ub.mem, &cb, sizeof(struct gfx_uniforms)))
 			return false;
 
 		VkWriteDescriptorSet dw = {

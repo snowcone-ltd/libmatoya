@@ -25,20 +25,6 @@ static
 #define D3D12_PITCH(w, bpp) \
 	(((w) * (bpp) + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1))
 
-// https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules
-struct d3d12_psvars {
-	float width;
-	float height;
-	float vp_height;
-	float pad0;
-	uint32_t effects[4];
-	float levels[4];
-	uint32_t planes;
-	uint32_t rotation;
-	uint32_t conversion;
-	uint32_t pad1;
-};
-
 struct d3d12_res {
 	DXGI_FORMAT format;
 	ID3D12Resource *buffer;
@@ -265,7 +251,7 @@ struct gfx *mty_d3d12_create(MTY_Device *device)
 	}
 
 	// Constant buffer
-	UINT cbsize = (sizeof(struct d3d12_psvars) + 255) & ~255; // MUST be 256-byte aligned
+	UINT cbsize = (sizeof(struct gfx_uniforms) + 255) & ~255; // MUST be 256-byte aligned
 
 	e = d3d12_buffer(_device, NULL, cbsize, &ctx->cb);
 	if (e != S_OK)
@@ -541,7 +527,7 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	ID3D12GraphicsCommandList_SetPipelineState(cl, ctx->pipeline);
 
 	// Fill constant buffer
-	struct d3d12_psvars cb = {0};
+	struct gfx_uniforms cb = {0};
 	cb.width = (float) desc->cropWidth;
 	cb.height = (float) desc->cropHeight;
 	cb.vp_height = (float) vp.Height;
@@ -560,7 +546,7 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 		return false;
 	}
 
-	memcpy(data, &cb, sizeof(struct d3d12_psvars));
+	memcpy(data, &cb, sizeof(struct gfx_uniforms));
 
 	ID3D12Resource_Unmap(ctx->cb, 0, NULL);
 
