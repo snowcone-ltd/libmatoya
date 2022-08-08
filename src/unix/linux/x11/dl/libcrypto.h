@@ -6,10 +6,11 @@
 
 #pragma once
 
-#include "sym.h"
+#include <stdbool.h>
 
-
-// Interface
+#if !defined(LIBCRYPTO_EXTERN)
+	#define LIBCRYPTO_EXTERN extern
+#endif
 
 #define EVP_CTRL_AEAD_GET_TAG 0x10
 #define EVP_CTRL_GCM_GET_TAG  EVP_CTRL_AEAD_GET_TAG
@@ -22,88 +23,26 @@ typedef struct evp_cipher_st EVP_CIPHER;
 typedef struct evp_cipher_ctx_st EVP_CIPHER_CTX;
 typedef struct evp_md_st EVP_MD;
 
-static const EVP_CIPHER *(*EVP_aes_128_gcm)(void);
-static EVP_CIPHER_CTX *(*EVP_CIPHER_CTX_new)(void);
-static void (*EVP_CIPHER_CTX_free)(EVP_CIPHER_CTX *c);
-static int (*EVP_CipherInit_ex)(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher, ENGINE *impl,
+LIBCRYPTO_EXTERN const EVP_CIPHER *(*EVP_aes_128_gcm)(void);
+LIBCRYPTO_EXTERN EVP_CIPHER_CTX *(*EVP_CIPHER_CTX_new)(void);
+LIBCRYPTO_EXTERN void (*EVP_CIPHER_CTX_free)(EVP_CIPHER_CTX *c);
+LIBCRYPTO_EXTERN int (*EVP_CipherInit_ex)(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher, ENGINE *impl,
 	const unsigned char *key, const unsigned char *iv, int enc);
-static int (*EVP_EncryptUpdate)(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
+LIBCRYPTO_EXTERN int (*EVP_EncryptUpdate)(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
 	const unsigned char *in, int inl);
-static int (*EVP_DecryptUpdate)(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
+LIBCRYPTO_EXTERN int (*EVP_DecryptUpdate)(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
 	const unsigned char *in, int inl);
-static int (*EVP_EncryptFinal_ex)(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl);
-static int (*EVP_DecryptFinal_ex)(EVP_CIPHER_CTX *ctx, unsigned char *outm, int *outl);
-static int (*EVP_CIPHER_CTX_ctrl)(EVP_CIPHER_CTX *ctx, int type, int arg, void *ptr);
+LIBCRYPTO_EXTERN int (*EVP_EncryptFinal_ex)(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl);
+LIBCRYPTO_EXTERN int (*EVP_DecryptFinal_ex)(EVP_CIPHER_CTX *ctx, unsigned char *outm, int *outl);
+LIBCRYPTO_EXTERN int (*EVP_CIPHER_CTX_ctrl)(EVP_CIPHER_CTX *ctx, int type, int arg, void *ptr);
 
-static const EVP_MD *(*EVP_sha1)(void);
-static const EVP_MD *(*EVP_sha256)(void);
-static unsigned char *(*SHA1)(const unsigned char *d, size_t n, unsigned char *md);
-static unsigned char *(*SHA256)(const unsigned char *d, size_t n, unsigned char *md);
-static unsigned char *(*HMAC)(const EVP_MD *evp_md, const void *key, int key_len,
+LIBCRYPTO_EXTERN const EVP_MD *(*EVP_sha1)(void);
+LIBCRYPTO_EXTERN const EVP_MD *(*EVP_sha256)(void);
+LIBCRYPTO_EXTERN unsigned char *(*SHA1)(const unsigned char *d, size_t n, unsigned char *md);
+LIBCRYPTO_EXTERN unsigned char *(*SHA256)(const unsigned char *d, size_t n, unsigned char *md);
+LIBCRYPTO_EXTERN unsigned char *(*HMAC)(const EVP_MD *evp_md, const void *key, int key_len,
 	const unsigned char *d, size_t n, unsigned char *md, unsigned int *md_len);
 
-static int (*RAND_bytes)(unsigned char *buf, int num);
+LIBCRYPTO_EXTERN int (*RAND_bytes)(unsigned char *buf, int num);
 
-
-// Runtime open
-
-static MTY_Atomic32 LIBCRYPTO_LOCK;
-static MTY_SO *LIBCRYPTO_SO;
-static bool LIBCRYPTO_INIT;
-
-static void __attribute__((destructor)) libcrypto_global_destroy(void)
-{
-	MTY_GlobalLock(&LIBCRYPTO_LOCK);
-
-	MTY_SOUnload(&LIBCRYPTO_SO);
-	LIBCRYPTO_INIT = false;
-
-	MTY_GlobalUnlock(&LIBCRYPTO_LOCK);
-}
-
-static bool libcrypto_global_init(void)
-{
-	MTY_GlobalLock(&LIBCRYPTO_LOCK);
-
-	if (!LIBCRYPTO_INIT) {
-		bool r = true;
-		LIBCRYPTO_SO = MTY_SOLoad("libcrypto.so.1.1");
-
-		if (!LIBCRYPTO_SO)
-			LIBCRYPTO_SO = MTY_SOLoad("libcrypto.so.1.0.0");
-
-		if (!LIBCRYPTO_SO) {
-			r = false;
-			goto except;
-		}
-
-		LOAD_SYM(LIBCRYPTO_SO, EVP_aes_128_gcm);
-		LOAD_SYM(LIBCRYPTO_SO, EVP_CIPHER_CTX_new);
-		LOAD_SYM(LIBCRYPTO_SO, EVP_CIPHER_CTX_free);
-		LOAD_SYM(LIBCRYPTO_SO, EVP_CipherInit_ex);
-		LOAD_SYM(LIBCRYPTO_SO, EVP_EncryptUpdate);
-		LOAD_SYM(LIBCRYPTO_SO, EVP_DecryptUpdate);
-		LOAD_SYM(LIBCRYPTO_SO, EVP_EncryptFinal_ex);
-		LOAD_SYM(LIBCRYPTO_SO, EVP_DecryptFinal_ex);
-		LOAD_SYM(LIBCRYPTO_SO, EVP_CIPHER_CTX_ctrl);
-
-		LOAD_SYM(LIBCRYPTO_SO, EVP_sha1);
-		LOAD_SYM(LIBCRYPTO_SO, EVP_sha256);
-		LOAD_SYM(LIBCRYPTO_SO, SHA1);
-		LOAD_SYM(LIBCRYPTO_SO, SHA256);
-		LOAD_SYM(LIBCRYPTO_SO, HMAC);
-
-		LOAD_SYM(LIBCRYPTO_SO, RAND_bytes);
-
-		except:
-
-		if (!r)
-			libcrypto_global_destroy();
-
-		LIBCRYPTO_INIT = r;
-	}
-
-	MTY_GlobalUnlock(&LIBCRYPTO_LOCK);
-
-	return LIBCRYPTO_INIT;
-}
+bool mty_libcrypto_global_init(void);
