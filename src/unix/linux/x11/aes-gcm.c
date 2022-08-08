@@ -13,7 +13,7 @@ struct MTY_AESGCM {
 
 MTY_AESGCM *MTY_AESGCMCreate(const void *key)
 {
-	if (!libcrypto_global_init())
+	if (!mty_libcrypto_global_init())
 		return NULL;
 
 	MTY_AESGCM *ctx = MTY_Alloc(1, sizeof(MTY_AESGCM));
