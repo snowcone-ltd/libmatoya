@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "glcorearb30.h"
+#include "glcorearb.h"
 
 #include "sym.h"
 
