@@ -19,7 +19,6 @@
 		((e) == VK_ERROR_OUT_OF_DATE_KHR || (e) == VK_SUBOPTIMAL_KHR)
 
 #elif defined(MTY_VK_XLIB)
-	#define LIBX11_NO_FUNCS
 	#include "dl/libX11.h"
 	#include "vulkan/vulkan_xlib.h"
 

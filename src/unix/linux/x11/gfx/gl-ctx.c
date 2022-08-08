@@ -28,7 +28,7 @@ static void gl_ctx_get_size(struct gl_ctx *ctx, uint32_t *width, uint32_t *heigh
 
 struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
 {
-	if (!libX11_global_init())
+	if (!mty_libX11_global_init())
 		return NULL;
 
 	if (!mty_glproc_global_init())

@@ -135,6 +135,7 @@ OBJS := $(OBJS) \
 	src/unix/linux/x11/evdev.o \
 	src/unix/linux/x11/system.o \
 	src/unix/linux/x11/tls.o \
+	src/unix/linux/x11/dl/libX11.o \
 	src/unix/linux/x11/gfx/gl-ctx.o
 
 SHADERS := $(SHADERS) \

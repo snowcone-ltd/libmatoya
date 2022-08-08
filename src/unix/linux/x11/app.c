@@ -602,7 +602,7 @@ static Cursor app_create_empty_cursor(Display *display)
 
 MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
 {
-	if (!libX11_global_init())
+	if (!mty_libX11_global_init())
 		return NULL;
 
 	XInitThreads();
@@ -1549,7 +1549,7 @@ void MTY_HotkeyToString(MTY_Mod mod, MTY_Key key, char *str, size_t len)
 {
 	memset(str, 0, len);
 
-	if (!libX11_global_init())
+	if (!mty_libX11_global_init())
 		return;
 
 	app_hotkey_init();
@@ -1568,7 +1568,7 @@ void MTY_SetAppID(const char *id)
 
 void *MTY_GLGetProcAddress(const char *name)
 {
-	if (!libX11_global_init())
+	if (!mty_libX11_global_init())
 		return NULL;
 
 	return glXGetProcAddress((const GLubyte *) name);
