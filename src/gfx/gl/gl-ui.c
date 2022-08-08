@@ -54,7 +54,7 @@ static void gl_ui_log_shader_errors(GLuint shader)
 
 struct gfx_ui *mty_gl_ui_create(MTY_Device *device)
 {
-	if (!glproc_global_init())
+	if (!mty_glproc_global_init())
 		return NULL;
 
 	struct gl_ui *ctx = MTY_Alloc(1, sizeof(struct gl_ui));

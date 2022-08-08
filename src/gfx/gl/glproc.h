@@ -19,7 +19,7 @@
 	#include "glcorearb.h"
 #endif
 
-#define glproc_global_init() true
+#define mty_glproc_global_init() true
 
 #else
 
@@ -85,6 +85,6 @@ GLPROC_EXTERN PFNGLBLENDFUNCSEPARATEPROC       glBlendFuncSeparate;
 GLPROC_EXTERN PFNGLGETPROGRAMIVPROC            glGetProgramiv;
 GLPROC_EXTERN PFNGLPIXELSTOREIPROC             glPixelStorei;
 
-bool glproc_global_init(void);
+bool mty_glproc_global_init(void);
 
 #endif

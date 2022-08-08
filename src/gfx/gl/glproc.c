@@ -16,7 +16,7 @@
 static MTY_Atomic32 GLPROC_LOCK;
 static bool GLPROC_INIT;
 
-bool glproc_global_init(void)
+bool mty_glproc_global_init(void)
 {
 	MTY_GlobalLock(&GLPROC_LOCK);
 
