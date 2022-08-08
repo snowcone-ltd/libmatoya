@@ -114,6 +114,7 @@ else
 ifeq ($(UNAME_S), Linux)
 
 OBJS := $(OBJS) \
+	src/gfx/gl/glproc.o \
 	src/gfx/vk/vk.o \
 	src/gfx/vk/vk-ctx.o \
 	src/gfx/vk/vkproc.o \
