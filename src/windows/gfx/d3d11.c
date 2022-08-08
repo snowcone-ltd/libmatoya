@@ -31,6 +31,8 @@ struct d3d11_res {
 struct d3d11 {
 	MTY_ColorFormat format;
 	struct d3d11_res staging[D3D11_NUM_STAGING];
+	struct gfx_uniforms ub;
+
 	ID3D11VertexShader *vs;
 	ID3D11PixelShader *ps;
 	ID3D11Buffer *vb;
@@ -349,27 +351,34 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 		if (ctx->staging[x].srv)
 			ID3D11DeviceContext_PSSetShaderResources(_context, x, 1, &ctx->staging[x].srv);
 
-	struct gfx_uniforms cb = {0};
-	cb.width = (float) desc->cropWidth;
-	cb.height = (float) desc->cropHeight;
-	cb.vp_height = (float) vp.Height;
-	cb.effects[0] = desc->effects[0];
-	cb.effects[1] = desc->effects[1];
-	cb.levels[0] = desc->levels[0];
-	cb.levels[1] = desc->levels[1];
-	cb.planes = FMT_INFO[ctx->format].planes;
-	cb.rotation = desc->rotation;
-	cb.conversion = FMT_CONVERSION(ctx->format, desc->fullRangeYUV, desc->multiplyYUV);
+	struct gfx_uniforms cb = {
+		.width = (float) desc->cropWidth,
+		.height = (float) desc->cropHeight,
+		.vp_height = (float) vp.Height,
+		.effects[0] = desc->effects[0],
+		.effects[1] = desc->effects[1],
+		.levels[0] = desc->levels[0],
+		.levels[1] = desc->levels[1],
+		.planes = FMT_INFO[ctx->format].planes,
+		.rotation = desc->rotation,
+		.conversion = FMT_CONVERSION(ctx->format, desc->fullRangeYUV, desc->multiplyYUV),
+	};
 
-	D3D11_MAPPED_SUBRESOURCE res = {0};
-	e = ID3D11DeviceContext_Map(_context, ctx->psbres, 0, D3D11_MAP_WRITE_DISCARD, 0, &res);
-	if (e != S_OK) {
-		MTY_Log("'ID3D11DeviceContext_Map' failed with HRESULT 0x%X", e);
-		goto except;
+	if (memcmp(&ctx->ub, &cb, sizeof(struct gfx_uniforms))) {
+		D3D11_MAPPED_SUBRESOURCE res = {0};
+		e = ID3D11DeviceContext_Map(_context, ctx->psbres, 0, D3D11_MAP_WRITE_DISCARD, 0, &res);
+		if (e != S_OK) {
+			MTY_Log("'ID3D11DeviceContext_Map' failed with HRESULT 0x%X", e);
+			goto except;
+		}
+
+		memcpy(res.pData, &cb, sizeof(struct gfx_uniforms));
+
+		ID3D11DeviceContext_Unmap(_context, ctx->psbres, 0);
+
+		ctx->ub = cb;
 	}
 
-	memcpy(res.pData, &cb, sizeof(struct gfx_uniforms));
-	ID3D11DeviceContext_Unmap(_context, ctx->psbres, 0);
 	ID3D11DeviceContext_PSSetConstantBuffers(_context, 0, 1, &ctx->psb);
 
 	// Draw
