@@ -24,14 +24,14 @@
 	#include MTY_GL_INCLUDE
 #else
 	#define GL_GLEXT_PROTOTYPES
-	#include "glcorearb30.h"
+	#include "glcorearb.h"
 #endif
 
 #define glproc_global_init() true
 
 #else
 
-#include "glcorearb30.h"
+#include "glcorearb.h"
 
 static PFNGLGENFRAMEBUFFERSPROC         glGenFramebuffers;
 static PFNGLDELETEFRAMEBUFFERSPROC      glDeleteFramebuffers;
