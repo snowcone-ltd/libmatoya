@@ -36,6 +36,7 @@ struct d3d12_ctx {
 	HMODULE d3d12;
 
 	HWND hwnd;
+	bool vsync;
 	MTY_Renderer *renderer;
 	uint32_t width;
 	uint32_t height;
@@ -287,6 +288,7 @@ struct gfx_ctx *mty_d3d12_ctx_create(void *native_window, bool vsync)
 	bool r = true;
 
 	ctx->hwnd = (HWND) native_window;
+	ctx->vsync = vsync;
 
 	d3d12_ctx_get_size(ctx, &ctx->width, &ctx->height);
 
@@ -434,7 +436,7 @@ MTY_Surface *mty_d3d12_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	return (MTY_Surface *) &core->back_buffer->dh;
 }
 
-void mty_d3d12_ctx_present(struct gfx_ctx *gfx_ctx, uint32_t interval)
+void mty_d3d12_ctx_present(struct gfx_ctx *gfx_ctx)
 {
 	struct d3d12_ctx *ctx = (struct d3d12_ctx *) gfx_ctx;
 	struct d3d12_core *core = &ctx->core;
@@ -466,7 +468,9 @@ void mty_d3d12_ctx_present(struct gfx_ctx *gfx_ctx, uint32_t interval)
 		ID3D12CommandQueue_ExecuteCommandLists(core->cq, 1, &cl);
 		ID3D12CommandList_Release(cl);
 
-		UINT flags = interval == 0 ? DXGI_PRESENT_ALLOW_TEARING : 0;
+		UINT interval = ctx->vsync ? 1 : 0;
+		UINT flags = ctx->vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING;
+
 		e = IDXGISwapChain3_Present(core->swap_chain3, interval, flags);
 
 		if (DXGI_FATAL(e)) {

@@ -47,6 +47,7 @@ OBJS = \
 	src\tls.obj \
 	src\version.obj \
 	src\gfx\gl\gl.obj \
+	src\gfx\gl\glproc.obj \
 	src\gfx\gl\gl-ui.obj \
 	src\gfx\vk\vk.obj \
 	src\gfx\vk\vk-ctx.obj \

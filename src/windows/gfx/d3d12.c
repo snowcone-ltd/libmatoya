@@ -25,20 +25,6 @@ static
 #define D3D12_PITCH(w, bpp) \
 	(((w) * (bpp) + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1))
 
-// https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules
-struct d3d12_psvars {
-	float width;
-	float height;
-	float vp_height;
-	float pad0;
-	uint32_t effects[4];
-	float levels[4];
-	uint32_t planes;
-	uint32_t rotation;
-	uint32_t conversion;
-	uint32_t pad1;
-};
-
 struct d3d12_res {
 	DXGI_FORMAT format;
 	ID3D12Resource *buffer;
@@ -50,7 +36,9 @@ struct d3d12_res {
 
 struct d3d12 {
 	MTY_ColorFormat format;
+	struct gfx_uniforms ub;
 	struct d3d12_res staging[D3D12_NUM_STAGING];
+
 	ID3D12RootSignature *rs;
 	ID3D12PipelineState *pipeline;
 	ID3D12DescriptorHeap *srv_heap;
@@ -265,7 +253,7 @@ struct gfx *mty_d3d12_create(MTY_Device *device)
 	}
 
 	// Constant buffer
-	UINT cbsize = (sizeof(struct d3d12_psvars) + 255) & ~255; // MUST be 256-byte aligned
+	UINT cbsize = (sizeof(struct gfx_uniforms) + 255) & ~255; // MUST be 256-byte aligned
 
 	e = d3d12_buffer(_device, NULL, cbsize, &ctx->cb);
 	if (e != S_OK)
@@ -541,28 +529,33 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	ID3D12GraphicsCommandList_SetPipelineState(cl, ctx->pipeline);
 
 	// Fill constant buffer
-	struct d3d12_psvars cb = {0};
-	cb.width = (float) desc->cropWidth;
-	cb.height = (float) desc->cropHeight;
-	cb.vp_height = (float) vp.Height;
-	cb.effects[0] = desc->effects[0];
-	cb.effects[1] = desc->effects[1];
-	cb.levels[0] = desc->levels[0];
-	cb.levels[1] = desc->levels[1];
-	cb.planes = FMT_INFO[ctx->format].planes;
-	cb.rotation = desc->rotation;
-	cb.conversion = FMT_CONVERSION(ctx->format, desc->fullRangeYUV, desc->multiplyYUV);
+	struct gfx_uniforms cb = {
+		.width = (float) desc->cropWidth,
+		.height = (float) desc->cropHeight,
+		.vp_height = (float) vp.Height,
+		.effects[0] = desc->effects[0],
+		.effects[1] = desc->effects[1],
+		.levels[0] = desc->levels[0],
+		.levels[1] = desc->levels[1],
+		.planes = FMT_INFO[ctx->format].planes,
+		.rotation = desc->rotation,
+		.conversion = FMT_CONVERSION(ctx->format, desc->fullRangeYUV, desc->multiplyYUV),
+	};
 
-	uint8_t *data = NULL;
-	HRESULT e = ID3D12Resource_Map(ctx->cb, 0, NULL, &data);
-	if (e != S_OK) {
-		MTY_Log("'ID3D12Resource_Map' failed with HRESULT 0x%X", e);
-		return false;
+	if (memcmp(&ctx->ub, &cb, sizeof(struct gfx_uniforms))) {
+		uint8_t *data = NULL;
+		HRESULT e = ID3D12Resource_Map(ctx->cb, 0, NULL, &data);
+		if (e != S_OK) {
+			MTY_Log("'ID3D12Resource_Map' failed with HRESULT 0x%X", e);
+			return false;
+		}
+
+		memcpy(data, &cb, sizeof(struct gfx_uniforms));
+
+		ID3D12Resource_Unmap(ctx->cb, 0, NULL);
+
+		ctx->ub = cb;
 	}
-
-	memcpy(data, &cb, sizeof(struct d3d12_psvars));
-
-	ID3D12Resource_Unmap(ctx->cb, 0, NULL);
 
 	// Draw
 	D3D12_VERTEX_BUFFER_VIEW vbview = {0};

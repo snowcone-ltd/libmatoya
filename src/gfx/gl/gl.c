@@ -19,7 +19,7 @@ GFX_PROTOTYPES(_gl_)
 
 #define GL_NUM_STAGING 3
 
-struct gl_rtv {
+struct gl_res {
 	GLenum format;
 	GLuint texture;
 	GLuint fb;
@@ -29,7 +29,7 @@ struct gl_rtv {
 
 struct gl {
 	MTY_ColorFormat format;
-	struct gl_rtv staging[GL_NUM_STAGING];
+	struct gl_res staging[GL_NUM_STAGING];
 
 	GLuint vs;
 	GLuint fs;
@@ -68,7 +68,7 @@ static void gl_log_shader_errors(GLuint shader)
 
 struct gfx *mty_gl_create(MTY_Device *device)
 {
-	if (!glproc_global_init())
+	if (!mty_glproc_global_init())
 		return NULL;
 
 	struct gl *ctx = MTY_Alloc(1, sizeof(struct gl));
@@ -161,7 +161,7 @@ struct gfx *mty_gl_create(MTY_Device *device)
 	return (struct gfx *) ctx;
 }
 
-static void gl_rtv_destroy(struct gl_rtv *rtv)
+static void gl_res_destroy(struct gl_res *rtv)
 {
 	if (rtv->texture) {
 		glDeleteTextures(1, &rtv->texture);
@@ -174,7 +174,7 @@ static bool gl_refresh_resource(struct gfx *gfx, MTY_Device *device, MTY_Context
 {
 	struct gl *ctx = (struct gl *) gfx;
 
-	struct gl_rtv *rtv = &ctx->staging[plane];
+	struct gl_res *rtv = &ctx->staging[plane];
 	GLenum format = FMT_PLANES[fmt][plane][1];
 	GLenum type = FMT_PLANES[fmt][plane][2];
 
@@ -182,7 +182,7 @@ static bool gl_refresh_resource(struct gfx *gfx, MTY_Device *device, MTY_Context
 	if (!rtv->texture || rtv->w != w || rtv->h != h || rtv->format != format) {
 		GLenum internal = FMT_PLANES[fmt][plane][0];
 
-		gl_rtv_destroy(rtv);
+		gl_res_destroy(rtv);
 
 		glGenTextures(1, &rtv->texture);
 		glBindTexture(GL_TEXTURE_2D, rtv->texture);
@@ -283,7 +283,7 @@ void mty_gl_destroy(struct gfx **gfx, MTY_Device *device)
 	struct gl *ctx = (struct gl *) *gfx;
 
 	for (uint8_t x = 0; x < GL_NUM_STAGING; x++)
-		gl_rtv_destroy(&ctx->staging[x]);
+		gl_res_destroy(&ctx->staging[x]);
 
 	if (ctx->vb)
 		glDeleteBuffers(1, &ctx->vb);
@@ -338,7 +338,7 @@ struct gl_state {
 
 void *mty_gl_get_state(MTY_Device *device, MTY_Context *_context)
 {
-	if (!glproc_global_init())
+	if (!mty_glproc_global_init())
 		return NULL;
 
 	struct gl_state *s = MTY_Alloc(1, sizeof(struct gl_state));
@@ -377,7 +377,7 @@ static void gl_enable(GLenum cap, bool enable)
 
 void mty_gl_set_state(MTY_Device *device, MTY_Context *_context, void *state)
 {
-	if (!glproc_global_init())
+	if (!mty_glproc_global_init())
 		return;
 
 	struct gl_state *s = state;

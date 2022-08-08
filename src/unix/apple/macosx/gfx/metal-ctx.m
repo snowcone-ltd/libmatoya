@@ -11,7 +11,6 @@ GFX_CTX_PROTOTYPES(_metal_)
 #include <AppKit/AppKit.h>
 #include <QuartzCore/CAMetalLayer.h>
 
-#include "display-link.h"
 #include "scale.h"
 
 struct metal_ctx {
@@ -21,8 +20,6 @@ struct metal_ctx {
 	id<MTLCommandQueue> cq;
 	MTY_Renderer *renderer;
 	CGSize size;
-
-	struct display_link dlink;
 };
 
 static CGSize metal_ctx_get_size(struct metal_ctx *ctx)
@@ -83,8 +80,6 @@ void mty_metal_ctx_destroy(struct gfx_ctx **gfx_ctx)
 
 	MTY_RendererDestroy(&ctx->renderer);
 
-	display_link_destroy(&ctx->dlink);
-
 	ctx->window = nil;
 	ctx->layer = nil;
 	ctx->cq = nil;
@@ -132,13 +127,11 @@ MTY_Surface *mty_metal_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	return (__bridge MTY_Surface *) ctx->back_buffer.texture;
 }
 
-void mty_metal_ctx_present(struct gfx_ctx *gfx_ctx, uint32_t interval)
+void mty_metal_ctx_present(struct gfx_ctx *gfx_ctx)
 {
 	struct metal_ctx *ctx = (struct metal_ctx *) gfx_ctx;
 
 	if (ctx->back_buffer) {
-		display_link_delay(&ctx->dlink, interval);
-
 		id<MTLCommandBuffer> cb = [ctx->cq commandBuffer];
 		[cb presentDrawable:ctx->back_buffer];
 		[cb commit];

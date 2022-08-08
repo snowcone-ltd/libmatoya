@@ -20,7 +20,7 @@ static struct gl_ctx {
 	EGLContext context;
 	MTY_Renderer *renderer;
 	bool init;
-	uint32_t interval;
+	bool vsync;
 	uint32_t fb0;
 } CTX;
 
@@ -70,6 +70,8 @@ static void gl_ctx_create_context(struct gl_ctx *ctx, NativeWindowType window)
 	ctx->context = eglCreateContext(ctx->display, config, EGL_NO_CONTEXT, attrib);
 
 	eglMakeCurrent(ctx->display, ctx->surface, ctx->surface, ctx->context);
+
+	eglSwapInterval(ctx->display, CTX.vsync ? 1 : 0);
 }
 
 static void gl_ctx_destroy_context(struct gl_ctx *ctx)
@@ -116,6 +118,8 @@ static bool gl_ctx_check(struct gl_ctx *ctx)
 
 struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
 {
+	CTX.vsync = vsync;
+
 	return (struct gfx_ctx *) &CTX;
 }
 
@@ -155,18 +159,13 @@ MTY_Surface *mty_gl_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	return (MTY_Surface *) &ctx->fb0;
 }
 
-void mty_gl_ctx_present(struct gfx_ctx *gfx_ctx, uint32_t interval)
+void mty_gl_ctx_present(struct gfx_ctx *gfx_ctx)
 {
 	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
 
 	mty_gfx_lock();
 
 	if (gl_ctx_check(ctx)) {
-		if (ctx->interval != interval) {
-			eglSwapInterval(ctx->display, interval);
-			ctx->interval = interval;
-		}
-
 		eglSwapBuffers(ctx->display, ctx->surface);
 		glFinish();
 	}

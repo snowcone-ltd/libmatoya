@@ -21,8 +21,6 @@ const MTY = {
 	cursorId: 0,
 	cursorCache: {},
 	cursorClass: '',
-	frameCtr: 0,
-	swapInterval: 1,
 	defaultCursor: false,
 	synthesizeEsc: true,
 	relative: false,
@@ -789,7 +787,7 @@ const MTY_WEB_API = {
 		}
 	},
 	web_get_fullscreen: function () {
-		return document.fullscreenElement ? true : false;
+		return document.fullscreenElement != null;
 	},
 	web_set_mem_funcs: function (alloc, free) {
 		MTY.alloc = alloc;
@@ -1067,9 +1065,6 @@ const MTY_WEB_API = {
 			}
 		});
 	},
-	web_set_swap_interval: function (interval) {
-		MTY.swapInterval = interval;
-	},
 	web_raf: function (app, func, controller, move, opaque) {
 		// Init position
 		MTY.lastX = window.screenX;
@@ -1094,12 +1089,7 @@ const MTY_WEB_API = {
 			MTY.gl.canvas.height = mty_scaled(rect.height);
 
 			// Keep looping recursively or end based on AppFunc return value
-			// Don't call the app func if swap interval is higher than 1
-			let cont = true;
-			if (MTY.frameCtr++ % MTY.swapInterval == 0)
-				cont = MTY_CFunc(func)(opaque);
-
-			if (cont) {
+			if (MTY_CFunc(func)(opaque)) {
 				window.requestAnimationFrame(step);
 
 			} else {
