@@ -2145,7 +2145,7 @@ void *MTY_GLGetProcAddress(const char *name)
 	void *p = wglGetProcAddress(name);
 
 	if (!p)
-		p = GetProcAddress(GetModuleHandleA("opengl32.dll"), name);
+		p = GetProcAddress(GetModuleHandle(L"opengl32.dll"), name);
 
 	return p;
 }
