@@ -68,7 +68,7 @@ static void gl_log_shader_errors(GLuint shader)
 
 struct gfx *mty_gl_create(MTY_Device *device)
 {
-	if (!glproc_global_init())
+	if (!mty_glproc_global_init())
 		return NULL;
 
 	struct gl *ctx = MTY_Alloc(1, sizeof(struct gl));
@@ -338,7 +338,7 @@ struct gl_state {
 
 void *mty_gl_get_state(MTY_Device *device, MTY_Context *_context)
 {
-	if (!glproc_global_init())
+	if (!mty_glproc_global_init())
 		return NULL;
 
 	struct gl_state *s = MTY_Alloc(1, sizeof(struct gl_state));
@@ -377,7 +377,7 @@ static void gl_enable(GLenum cap, bool enable)
 
 void mty_gl_set_state(MTY_Device *device, MTY_Context *_context, void *state)
 {
-	if (!glproc_global_init())
+	if (!mty_glproc_global_init())
 		return;
 
 	struct gl_state *s = state;
