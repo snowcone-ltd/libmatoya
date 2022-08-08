@@ -30,7 +30,7 @@ static void crypto_hash(const EVP_MD *md, CRYPTO_FUNC hash, const void *input, s
 void MTY_CryptoHash(MTY_Algorithm algo, const void *input, size_t inputSize, const void *key,
 	size_t keySize, void *output, size_t outputSize)
 {
-	if (!libcrypto_global_init())
+	if (!mty_libcrypto_global_init())
 		return;
 
 	switch (algo) {
@@ -60,7 +60,7 @@ void MTY_CryptoHash(MTY_Algorithm algo, const void *input, size_t inputSize, con
 
 void MTY_GetRandomBytes(void *buf, size_t size)
 {
-	if (!libcrypto_global_init())
+	if (!mty_libcrypto_global_init())
 		return;
 
 	int32_t e = RAND_bytes(buf, size);
