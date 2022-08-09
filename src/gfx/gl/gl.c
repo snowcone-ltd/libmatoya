@@ -9,10 +9,10 @@ GFX_PROTOTYPES(_gl_)
 
 #include <stdio.h>
 
-#include "glproc.h"
 #include "gfx/viewport.h"
-#include "gfx/gl/fmt-gl.h"
 #include "gfx/fmt.h"
+#include "glproc.c"
+#include "fmt-gl.h"
 
 #include "shaders/vs.h"
 #include "shaders/fs.h"
@@ -68,7 +68,7 @@ static void gl_log_shader_errors(GLuint shader)
 
 struct gfx *mty_gl_create(MTY_Device *device)
 {
-	if (!mty_glproc_global_init())
+	if (!glproc_global_init())
 		return NULL;
 
 	struct gl *ctx = MTY_Alloc(1, sizeof(struct gl));
@@ -338,7 +338,7 @@ struct gl_state {
 
 void *mty_gl_get_state(MTY_Device *device, MTY_Context *_context)
 {
-	if (!mty_glproc_global_init())
+	if (!glproc_global_init())
 		return NULL;
 
 	struct gl_state *s = MTY_Alloc(1, sizeof(struct gl_state));
@@ -377,7 +377,7 @@ static void gl_enable(GLenum cap, bool enable)
 
 void mty_gl_set_state(MTY_Device *device, MTY_Context *_context, void *state)
 {
-	if (!mty_glproc_global_init())
+	if (!glproc_global_init())
 		return;
 
 	struct gl_state *s = state;

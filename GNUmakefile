@@ -114,10 +114,8 @@ else
 ifeq ($(UNAME_S), Linux)
 
 OBJS := $(OBJS) \
-	src/gfx/gl/glproc.o \
 	src/gfx/vk/vk.o \
 	src/gfx/vk/vk-ctx.o \
-	src/gfx/vk/vkproc.o \
 	src/gfx/vk/vk-ui.o \
 	src/net/async.o \
 	src/net/gzip.o \
@@ -135,8 +133,6 @@ OBJS := $(OBJS) \
 	src/unix/linux/x11/evdev.o \
 	src/unix/linux/x11/system.o \
 	src/unix/linux/x11/tls.o \
-	src/unix/linux/x11/dl/libcrypto.o \
-	src/unix/linux/x11/dl/libX11.o \
 	src/unix/linux/x11/gfx/gl-ctx.o
 
 SHADERS := $(SHADERS) \

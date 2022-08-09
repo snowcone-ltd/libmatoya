@@ -11,7 +11,7 @@ GFX_CTX_PROTOTYPES(_vk_)
 #include <string.h>
 
 #include "app.h"
-#include "gfx/vk/vkproc.h"
+#include "vkproc.c"
 
 #define VK_CTX_ENUM_MAX 32
 
@@ -308,6 +308,9 @@ static bool vk_ctx_refresh_swapchain(struct vk_ctx *ctx)
 }
 
 #if defined(MTY_VK_DEBUG)
+VKPROC_DEF(vkCreateDebugUtilsMessengerEXT);
+VKPROC_DEF(vkDestroyDebugUtilsMessengerEXT);
+
 static VKAPI_ATTR VkBool32 vk_ctx_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 	VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
 	void *pUserData)
@@ -326,7 +329,7 @@ struct gfx_ctx *mty_vk_ctx_create(void *native_window, bool vsync)
 
 	bool r = true;
 
-	if (!mty_vkproc_init_api()) {
+	if (!vkproc_global_init()) {
 		r = false;
 		goto except;
 	}
@@ -361,9 +364,8 @@ struct gfx_ctx *mty_vk_ctx_create(void *native_window, bool vsync)
 
 	// Debug
 	#if defined(MTY_VK_DEBUG)
-	r = mty_vkproc_init_debug_ext(ctx->instance);
-	if (!r)
-		goto except;
+	VKPROC_LOAD_SYM_INST(ctx->instance, vkCreateDebugUtilsMessengerEXT);
+	VKPROC_LOAD_SYM_INST(ctx->instance, vkDestroyDebugUtilsMessengerEXT);
 
 	VkDebugUtilsMessengerCreateInfoEXT dci = {
 		.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
@@ -560,13 +562,15 @@ void mty_vk_ctx_destroy(struct gfx_ctx **gfx_ctx)
 		if (ctx->surface)
 			vkDestroySurfaceKHR(ctx->instance, ctx->surface, NULL);
 
+		#if defined(MTY_VK_DEBUG)
 		if (ctx->debug)
 			vkDestroyDebugUtilsMessengerEXT(ctx->instance, ctx->debug, NULL);
+		#endif
 
 		vkDestroyInstance(ctx->instance, NULL);
 	}
 
-	mty_vkproc_cleanup_api();
+	vkproc_global_destroy();
 
 	MTY_Free(ctx);
 	*gfx_ctx = NULL;
