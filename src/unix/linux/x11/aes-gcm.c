@@ -6,7 +6,7 @@
 
 #include "matoya.h"
 
-#include "dl/libcrypto.h"
+#include "dl/libcrypto.c"
 
 struct MTY_AESGCM {
 	EVP_CIPHER_CTX *enc;
@@ -15,7 +15,7 @@ struct MTY_AESGCM {
 
 MTY_AESGCM *MTY_AESGCMCreate(const void *key)
 {
-	if (!mty_libcrypto_global_init())
+	if (!libcrypto_global_init())
 		return NULL;
 
 	MTY_AESGCM *ctx = MTY_Alloc(1, sizeof(MTY_AESGCM));

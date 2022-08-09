@@ -8,7 +8,7 @@
 
 #include <string.h>
 
-#include "vkproc.h"
+#include "vkproc.c"
 
 struct vk_buffer {
 	VkBuffer buf;
