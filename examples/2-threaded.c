@@ -31,7 +31,6 @@ static void *render_thread(void *opaque)
 	struct context *ctx = opaque;
 
 	MTY_WindowSetGFX(ctx->app, 0, MTY_GFX_GL, true);
-	MTY_WindowMakeCurrent(ctx->app, 0, true);
 
 	while (!ctx->quit) {
 		MTY_RenderDesc desc = {
@@ -46,7 +45,7 @@ static void *render_thread(void *opaque)
 		};
 
 		MTY_WindowDrawQuad(ctx->app, 0, ctx->image, &desc);
-		MTY_WindowPresent(ctx->app, 0, 1);
+		MTY_WindowPresent(ctx->app, 0);
 	}
 
 	return NULL;
