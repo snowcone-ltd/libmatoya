@@ -77,7 +77,7 @@ struct gfx *mty_vk_create(MTY_Device *device)
 
 	bool r = true;
 
-	if (!mty_vkproc_init_api()) {
+	if (!vkproc_global_init()) {
 		r = false;
 		goto except;
 	}
@@ -571,7 +571,7 @@ void mty_vk_destroy(struct gfx **gfx, MTY_Device *device)
 		}
 	}
 
-	mty_vkproc_cleanup_api();
+	vkproc_global_destroy();
 
 	MTY_Free(ctx);
 	*gfx = NULL;

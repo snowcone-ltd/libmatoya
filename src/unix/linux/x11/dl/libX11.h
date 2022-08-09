@@ -6,10 +6,6 @@
 
 #include "glcorearb.h"
 
-#if !defined(LIBX11_EXTERN)
-	#define LIBX11_EXTERN extern
-#endif
-
 
 // X interface
 
@@ -449,83 +445,6 @@ struct _XrmHashBucketRec;
 typedef struct _XIM *XIM;
 typedef struct _XIC *XIC;
 
-LIBX11_EXTERN Display *(*XOpenDisplay)(const char *display_name);
-LIBX11_EXTERN Screen *(*XScreenOfDisplay)(Display *display, int screen_number);
-LIBX11_EXTERN Screen *(*XDefaultScreenOfDisplay)(Display *display);
-LIBX11_EXTERN int (*XScreenNumberOfScreen)(Screen *screen);
-LIBX11_EXTERN int (*XCloseDisplay)(Display *display);
-LIBX11_EXTERN Window (*XDefaultRootWindow)(Display *display);
-LIBX11_EXTERN Window (*XRootWindowOfScreen)(Screen *screen);
-LIBX11_EXTERN Colormap (*XCreateColormap)(Display *display, Window w, Visual *visual, int alloc);
-LIBX11_EXTERN Window (*XCreateWindow)(Display *display, Window parent, int x, int y, unsigned int width,
-	unsigned int height, unsigned int border_width, int depth, unsigned int class, Visual *visual,
-	unsigned long valuemask, XSetWindowAttributes *attributes);
-LIBX11_EXTERN int (*XWithdrawWindow)(Display *display, Window w);
-LIBX11_EXTERN int (*XMapRaised)(Display *display, Window w);
-LIBX11_EXTERN int (*XSetInputFocus)(Display *display, Window focus, int revert_to, Time time);
-LIBX11_EXTERN int (*XStoreName)(Display *display, Window w, const char *window_name);
-LIBX11_EXTERN Status (*XGetWindowAttributes)(Display *display, Window w, XWindowAttributes *window_attributes_return);
-LIBX11_EXTERN Bool (*XTranslateCoordinates)(Display *display, Window src_w, Window dest_w, int src_x, int src_y,
-	int *dest_x_return, int *dest_y_return, Window *child_return);
-LIBX11_EXTERN KeySym (*XLookupKeysym)(XKeyEvent *key_event, int index);
-LIBX11_EXTERN Status (*XSetWMProtocols)(Display *display, Window w, Atom *protocols, int count);
-LIBX11_EXTERN Atom (*XInternAtom)(Display *display, const char *atom_name, Bool only_if_exists);
-LIBX11_EXTERN int (*XNextEvent)(Display *display, XEvent *event_return);
-LIBX11_EXTERN int (*XEventsQueued)(Display *display, int mode);
-LIBX11_EXTERN int (*XMoveWindow)(Display *display, Window w, int x, int y);
-LIBX11_EXTERN int (*XMoveResizeWindow)(Display *display, Window w, int x, int y, unsigned int width, unsigned int height);
-LIBX11_EXTERN int (*XChangeProperty)(Display *display, Window w, Atom property, Atom type, int format, int mode, const unsigned char *data, int nelements);
-LIBX11_EXTERN int (*XGetInputFocus)(Display *display, Window *focus_return, int *revert_to_return);
-LIBX11_EXTERN char *(*XGetDefault)(Display *display, const char *program, const char *option);
-LIBX11_EXTERN int (*XWidthOfScreen)(Screen *screen);
-LIBX11_EXTERN int (*XHeightOfScreen)(Screen *screen);
-LIBX11_EXTERN int (*XDestroyWindow)(Display *display, Window w);
-LIBX11_EXTERN int (*XFree)(void *data);
-LIBX11_EXTERN Status (*XInitThreads)(void);
-LIBX11_EXTERN int (*Xutf8LookupString)(XIC ic, XKeyPressedEvent *event, char *buffer_return, int bytes_buffer,
-	KeySym *keysym_return, Status *status_return);
-LIBX11_EXTERN XIM (*XOpenIM)(Display *dpy, struct _XrmHashBucketRec *rdb, char *res_name, char *res_class);
-LIBX11_EXTERN Status (*XCloseIM)(XIM im);
-LIBX11_EXTERN XIC (*XCreateIC)(XIM im, ...);
-LIBX11_EXTERN void (*XDestroyIC)(XIC ic);
-LIBX11_EXTERN Bool (*XGetEventData)(Display *dpy, XGenericEventCookie *cookie);
-LIBX11_EXTERN int (*XGrabPointer)(Display *display, Window grab_window, Bool owner_events, unsigned int event_mask, int pointer_mode,
-	int keyboard_mode, Window confine_to, Cursor cursor, Time time);
-LIBX11_EXTERN int (*XUngrabPointer)(Display *display, Time time);
-LIBX11_EXTERN int (*XGrabKeyboard)(Display *display, Window grab_window, Bool owner_events, int pointer_mode, int keyboard_mode, Time time);
-LIBX11_EXTERN int (*XUngrabKeyboard)(Display *display, Time time);
-LIBX11_EXTERN int (*XWarpPointer)(Display *display, Window src_w, Window dest_w, int src_x, int src_y, unsigned int src_width,
-	unsigned int src_height, int dest_x, int dest_y);
-LIBX11_EXTERN int (*XSync)(Display *display, Bool discard);
-LIBX11_EXTERN Pixmap (*XCreateBitmapFromData)(Display *display, Drawable d, _Xconst char *data, unsigned int width, unsigned int height);
-LIBX11_EXTERN Cursor (*XCreatePixmapCursor)(Display *display, Pixmap source, Pixmap mask, XColor *foreground_color,
-	XColor *background_color, unsigned int x, unsigned int y);
-LIBX11_EXTERN int (*XFreePixmap)(Display *display, Pixmap pixmap);
-LIBX11_EXTERN int (*XDefineCursor)(Display *display, Window w, Cursor cursor);
-LIBX11_EXTERN int (*XFreeCursor)(Display *display, Cursor cursor);
-LIBX11_EXTERN Window (*XGetSelectionOwner)(Display *display, Atom selection);
-LIBX11_EXTERN int (*XSetSelectionOwner)(Display *display, Atom selection, Window owner, Time time);
-LIBX11_EXTERN char *(*XKeysymToString)(KeySym keysym);
-LIBX11_EXTERN void (*XConvertCase)(KeySym keysym, KeySym *lower_return, KeySym *upper_return);
-LIBX11_EXTERN Bool (*XQueryPointer)(Display *display, Window w, Window *root_return, Window *child_return,
-	int *root_x_return, int *root_y_return, int *win_x_return, int *win_y_return, unsigned int *mask_return);
-LIBX11_EXTERN int (*XGetWindowProperty)(Display *display, Window w, Atom property, long long_offset, long long_length,
-	Bool delete, Atom req_type, Atom *actual_type_return, int *actual_format_return, unsigned long *nitems_return,
-	unsigned long *bytes_after_return, unsigned char **prop_return);
-LIBX11_EXTERN Status (*XSendEvent)(Display *display, Window w, Bool propagate, long event_mask, XEvent *event_send);
-LIBX11_EXTERN int (*XConvertSelection)(Display *display, Atom selection, Atom target, Atom property, Window requestor, Time time);
-LIBX11_EXTERN void (*XSetWMProperties)(Display *display, Window w, XTextProperty *window_name, XTextProperty *icon_name, char **argv,
-	int argc, XSizeHints *normal_hints, XWMHints *wm_hints, XClassHint *class_hints);
-LIBX11_EXTERN XSizeHints *(*XAllocSizeHints)(void);
-LIBX11_EXTERN XWMHints *(*XAllocWMHints)(void);
-LIBX11_EXTERN XClassHint *(*XAllocClassHint)(void);
-LIBX11_EXTERN int (*XResetScreenSaver)(Display *display);
-
-
-// XKB interface (part of libX11 in modern times)
-
-LIBX11_EXTERN Bool (*XkbSetDetectableAutoRepeat)(Display *dpy, Bool detectable, Bool *supported);
-
 
 // XI2 interface
 
@@ -569,8 +488,6 @@ typedef struct {
 	double *raw_values;
 } XIRawEvent;
 
-LIBX11_EXTERN int (*XISelectEvents)(Display *dpy, Window win, XIEventMask *masks, int num_masks);
-
 
 // Xcursor interface
 
@@ -590,18 +507,10 @@ typedef struct _XcursorImage {
 	XcursorPixel *pixels;
 } XcursorImage;
 
-LIBX11_EXTERN XcursorImage *(*XcursorImageCreate)(int width, int height);
-LIBX11_EXTERN Cursor (*XcursorImageLoadCursor)(Display *dpy, const XcursorImage *image);
-LIBX11_EXTERN void (*XcursorImageDestroy)(XcursorImage *image);
-
 
 // Xrandr interface
 
 typedef struct _XRRScreenConfiguration XRRScreenConfiguration;
-
-LIBX11_EXTERN XRRScreenConfiguration *(*XRRGetScreenInfo)(Display *dpy, Window window);
-LIBX11_EXTERN void (*XRRFreeScreenConfigInfo)(XRRScreenConfiguration *config);
-LIBX11_EXTERN short (*XRRConfigCurrentRate)(XRRScreenConfiguration *config);
 
 
 // GLX interface
@@ -631,14 +540,6 @@ enum _GLX_CONFIGS {
 typedef XID GLXDrawable;
 typedef struct GLXContext * GLXContext;
 
-LIBX11_EXTERN void *(*glXGetProcAddress)(const GLubyte *procName);
-LIBX11_EXTERN void (*glXSwapBuffers)(Display *dpy, GLXDrawable drawable);
-LIBX11_EXTERN XVisualInfo *(*glXChooseVisual)(Display *dpy, int screen, int *attribList);
-LIBX11_EXTERN GLXContext (*glXCreateContext)(Display *dpy, XVisualInfo *vis, GLXContext shareList, Bool direct);
-LIBX11_EXTERN Bool (*glXMakeCurrent)(Display *dpy, GLXDrawable drawable, GLXContext ctx);
-LIBX11_EXTERN void (*glXDestroyContext)(Display *dpy, GLXContext ctx);
-LIBX11_EXTERN GLXContext (*glXGetCurrentContext)(void);
-
 
 // Helper window struct
 
@@ -647,5 +548,3 @@ struct xinfo {
 	XVisualInfo *vis;
 	Window window;
 };
-
-bool mty_libX11_global_init(void);

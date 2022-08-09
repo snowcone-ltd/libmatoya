@@ -5,8 +5,8 @@
 #include "gfx/mod-ctx.h"
 GFX_CTX_PROTOTYPES(_gl_)
 
-#include "gfx/gl/glproc.h"
-#include "dl/libX11.h"
+#include "gfx/gl/glproc.c"
+#include "dl/libX11.c"
 
 struct gl_ctx {
 	Display *display;
@@ -28,10 +28,10 @@ static void gl_ctx_get_size(struct gl_ctx *ctx, uint32_t *width, uint32_t *heigh
 
 struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
 {
-	if (!mty_libX11_global_init())
+	if (!libX11_global_init())
 		return NULL;
 
-	if (!mty_glproc_global_init())
+	if (!glproc_global_init())
 		return NULL;
 
 	bool r = true;

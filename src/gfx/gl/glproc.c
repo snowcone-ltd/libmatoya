@@ -2,10 +2,16 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
-#include "matoya.h"
+#pragma once
 
-#define GLPROC_EXTERN
+#include "matoya.h"
 #include "glproc.h"
+
+#if defined(MTY_GL_EXTERNAL)
+
+#define glproc_global_init() true
+
+#else
 
 #define GLPROC_LOAD_SYM(name) \
 	if (!name) { \
@@ -13,10 +19,66 @@
 		if (!name) {r = false; goto except;} \
 	}
 
+static PFNGLGENFRAMEBUFFERSPROC         glGenFramebuffers;
+static PFNGLDELETEFRAMEBUFFERSPROC      glDeleteFramebuffers;
+static PFNGLBINDFRAMEBUFFERPROC         glBindFramebuffer;
+static PFNGLBLITFRAMEBUFFERPROC         glBlitFramebuffer;
+static PFNGLFRAMEBUFFERTEXTURE2DPROC    glFramebufferTexture2D;
+static PFNGLENABLEPROC                  glEnable;
+static PFNGLISENABLEDPROC               glIsEnabled;
+static PFNGLDISABLEPROC                 glDisable;
+static PFNGLVIEWPORTPROC                glViewport;
+static PFNGLGETINTEGERVPROC             glGetIntegerv;
+static PFNGLGETFLOATVPROC               glGetFloatv;
+static PFNGLBINDTEXTUREPROC             glBindTexture;
+static PFNGLDELETETEXTURESPROC          glDeleteTextures;
+static PFNGLTEXPARAMETERIPROC           glTexParameteri;
+static PFNGLGENTEXTURESPROC             glGenTextures;
+static PFNGLTEXIMAGE2DPROC              glTexImage2D;
+static PFNGLTEXSUBIMAGE2DPROC           glTexSubImage2D;
+static PFNGLDRAWELEMENTSPROC            glDrawElements;
+static PFNGLGETATTRIBLOCATIONPROC       glGetAttribLocation;
+static PFNGLSHADERSOURCEPROC            glShaderSource;
+static PFNGLBINDBUFFERPROC              glBindBuffer;
+static PFNGLVERTEXATTRIBPOINTERPROC     glVertexAttribPointer;
+static PFNGLCREATEPROGRAMPROC           glCreateProgram;
+static PFNGLUNIFORM1IPROC               glUniform1i;
+static PFNGLUNIFORM1FPROC               glUniform1f;
+static PFNGLUNIFORM4IPROC               glUniform4i;
+static PFNGLUNIFORM4FPROC               glUniform4f;
+static PFNGLACTIVETEXTUREPROC           glActiveTexture;
+static PFNGLDELETEBUFFERSPROC           glDeleteBuffers;
+static PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
+static PFNGLBUFFERDATAPROC              glBufferData;
+static PFNGLDELETESHADERPROC            glDeleteShader;
+static PFNGLGENBUFFERSPROC              glGenBuffers;
+static PFNGLCOMPILESHADERPROC           glCompileShader;
+static PFNGLLINKPROGRAMPROC             glLinkProgram;
+static PFNGLGETUNIFORMLOCATIONPROC      glGetUniformLocation;
+static PFNGLCREATESHADERPROC            glCreateShader;
+static PFNGLATTACHSHADERPROC            glAttachShader;
+static PFNGLUSEPROGRAMPROC              glUseProgram;
+static PFNGLGETSHADERIVPROC             glGetShaderiv;
+static PFNGLDETACHSHADERPROC            glDetachShader;
+static PFNGLDELETEPROGRAMPROC           glDeleteProgram;
+static PFNGLCLEARPROC                   glClear;
+static PFNGLCLEARCOLORPROC              glClearColor;
+static PFNGLGETERRORPROC                glGetError;
+static PFNGLGETSHADERINFOLOGPROC        glGetShaderInfoLog;
+static PFNGLFINISHPROC                  glFinish;
+static PFNGLSCISSORPROC                 glScissor;
+static PFNGLBLENDFUNCPROC               glBlendFunc;
+static PFNGLBLENDEQUATIONPROC           glBlendEquation;
+static PFNGLUNIFORMMATRIX4FVPROC        glUniformMatrix4fv;
+static PFNGLBLENDEQUATIONSEPARATEPROC   glBlendEquationSeparate;
+static PFNGLBLENDFUNCSEPARATEPROC       glBlendFuncSeparate;
+static PFNGLGETPROGRAMIVPROC            glGetProgramiv;
+static PFNGLPIXELSTOREIPROC             glPixelStorei;
+
 static MTY_Atomic32 GLPROC_LOCK;
 static bool GLPROC_INIT;
 
-bool mty_glproc_global_init(void)
+static bool glproc_global_init(void)
 {
 	MTY_GlobalLock(&GLPROC_LOCK);
 
@@ -88,3 +150,5 @@ bool mty_glproc_global_init(void)
 
 	return GLPROC_INIT;
 }
+
+#endif

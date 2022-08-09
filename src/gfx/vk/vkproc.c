@@ -2,12 +2,10 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
+#pragma once
+
 #include "matoya.h"
-
-#define VKPROC_EXTERN
 #include "vkproc.h"
-
-#include <string.h>
 
 #define VKPROC_LOAD_SYM(name) \
 	name = (PFN_##name) MTY_SOGetSymbol(VKPROC_SO, #name); \
@@ -17,28 +15,114 @@
 	name = (PFN_##name) vkGetInstanceProcAddr(instance, #name); \
 	if (!name) {r = false; goto except;}
 
+#define VKPROC_DEF(name) \
+	static PFN_##name name
+
+VKPROC_DEF(vkGetInstanceProcAddr);
+VKPROC_DEF(vkCreateInstance);
+VKPROC_DEF(vkDestroyInstance);
+VKPROC_DEF(vkDestroySurfaceKHR);
+VKPROC_DEF(vkEnumeratePhysicalDevices);
+VKPROC_DEF(vkGetPhysicalDeviceQueueFamilyProperties);
+VKPROC_DEF(vkCreateDevice);
+VKPROC_DEF(vkDestroyDevice);
+VKPROC_DEF(vkGetPhysicalDeviceSurfaceSupportKHR);
+VKPROC_DEF(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
+VKPROC_DEF(vkCreateSwapchainKHR);
+VKPROC_DEF(vkDestroySwapchainKHR);
+VKPROC_DEF(vkGetSwapchainImagesKHR);
+VKPROC_DEF(vkCreateImageView);
+VKPROC_DEF(vkDestroyImageView);
+VKPROC_DEF(vkCreatePipelineLayout);
+VKPROC_DEF(vkDestroyPipelineLayout);
+VKPROC_DEF(vkCreateShaderModule);
+VKPROC_DEF(vkDestroyShaderModule);
+VKPROC_DEF(vkCreateRenderPass);
+VKPROC_DEF(vkDestroyRenderPass);
+VKPROC_DEF(vkCreateGraphicsPipelines);
+VKPROC_DEF(vkDestroyPipeline);
+VKPROC_DEF(vkCreateFramebuffer);
+VKPROC_DEF(vkDestroyFramebuffer);
+VKPROC_DEF(vkCreateCommandPool);
+VKPROC_DEF(vkDestroyCommandPool);
+VKPROC_DEF(vkAllocateCommandBuffers);
+VKPROC_DEF(vkBeginCommandBuffer);
+VKPROC_DEF(vkResetCommandBuffer);
+VKPROC_DEF(vkCmdBeginRenderPass);
+VKPROC_DEF(vkCmdBindPipeline);
+VKPROC_DEF(vkCmdPushConstants);
+VKPROC_DEF(vkCmdEndRenderPass);
+VKPROC_DEF(vkEndCommandBuffer);
+VKPROC_DEF(vkGetDeviceQueue);
+VKPROC_DEF(vkAcquireNextImageKHR);
+VKPROC_DEF(vkQueueSubmit);
+VKPROC_DEF(vkQueueWaitIdle);
+VKPROC_DEF(vkQueuePresentKHR);
+VKPROC_DEF(vkCreateBuffer);
+VKPROC_DEF(vkDestroyBuffer);
+VKPROC_DEF(vkGetBufferMemoryRequirements);
+VKPROC_DEF(vkGetPhysicalDeviceMemoryProperties);
+VKPROC_DEF(vkAllocateMemory);
+VKPROC_DEF(vkFreeMemory);
+VKPROC_DEF(vkBindBufferMemory);
+VKPROC_DEF(vkMapMemory);
+VKPROC_DEF(vkUnmapMemory);
+VKPROC_DEF(vkCmdBindVertexBuffers);
+VKPROC_DEF(vkCmdCopyBuffer);
+VKPROC_DEF(vkFreeCommandBuffers);
+VKPROC_DEF(vkCmdBindIndexBuffer);
+VKPROC_DEF(vkCmdDrawIndexed);
+VKPROC_DEF(vkCreateImage);
+VKPROC_DEF(vkDestroyImage);
+VKPROC_DEF(vkCreateDescriptorSetLayout);
+VKPROC_DEF(vkDestroyDescriptorSetLayout);
+VKPROC_DEF(vkCreateDescriptorPool);
+VKPROC_DEF(vkDestroyDescriptorPool);
+VKPROC_DEF(vkAllocateDescriptorSets);
+VKPROC_DEF(vkUpdateDescriptorSets);
+VKPROC_DEF(vkCmdBindDescriptorSets);
+VKPROC_DEF(vkGetImageMemoryRequirements);
+VKPROC_DEF(vkBindImageMemory);
+VKPROC_DEF(vkCmdPipelineBarrier);
+VKPROC_DEF(vkCmdCopyBufferToImage);
+VKPROC_DEF(vkCreateSampler);
+VKPROC_DEF(vkDestroySampler);
+VKPROC_DEF(vkFreeDescriptorSets);
+VKPROC_DEF(vkFlushMappedMemoryRanges);
+VKPROC_DEF(vkCmdSetViewport);
+VKPROC_DEF(vkCmdSetScissor);
+VKPROC_DEF(vkCreateSemaphore);
+VKPROC_DEF(vkDestroySemaphore);
+
+#if defined(MTY_VK_WIN32)
+	VKPROC_DEF(vkCreateWin32SurfaceKHR);
+#elif defined(MTY_VK_XLIB)
+	VKPROC_DEF(vkCreateXlibSurfaceKHR);
+#elif defined(MTY_VK_ANDROID)
+	VKPROC_DEF(vkCreateAndroidSurfaceKHR);
+#endif
+
 static MTY_SO *VKPROC_SO;
 static MTY_Atomic32 VKPROC_LOCK;
-static uint32_t VKPROC_REF;
+static uint32_t VKPROC_INIT;
 
-void mty_vkproc_cleanup_api(void)
+static void vkproc_global_destroy(void)
 {
 	MTY_GlobalLock(&VKPROC_LOCK);
 
-	if (VKPROC_REF > 0)
-		if (--VKPROC_REF == 0)
-			MTY_SOUnload(&VKPROC_SO);
+	MTY_SOUnload(&VKPROC_SO);
+	VKPROC_INIT = false;
 
 	MTY_GlobalUnlock(&VKPROC_LOCK);
 }
 
-bool mty_vkproc_init_api(void)
+static bool vkproc_global_init(void)
 {
-	bool r = true;
-
 	MTY_GlobalLock(&VKPROC_LOCK);
 
-	if (VKPROC_REF == 0) {
+	if (!VKPROC_INIT) {
+		bool r = true;
+
 		VKPROC_SO = MTY_SOLoad(VKPROC_SO_NAME);
 		if (!VKPROC_SO) {
 			r = false;
@@ -128,30 +212,16 @@ bool mty_vkproc_init_api(void)
 		#elif defined(MTY_VK_ANDROID)
 			VKPROC_LOAD_SYM(vkCreateAndroidSurfaceKHR);
 		#endif
-	}
 
-	except:
+		except:
 
-	if (r) {
-		VKPROC_REF++;
+		if (!r)
+			MTY_SOUnload(&VKPROC_SO);
 
-	} else {
-		MTY_SOUnload(&VKPROC_SO);
+		VKPROC_INIT = r;
 	}
 
 	MTY_GlobalUnlock(&VKPROC_LOCK);
 
-	return r;
-}
-
-bool mty_vkproc_init_debug_ext(VkInstance instance)
-{
-	bool r = true;
-
-	VKPROC_LOAD_SYM_INST(instance, vkCreateDebugUtilsMessengerEXT);
-	VKPROC_LOAD_SYM_INST(instance, vkDestroyDebugUtilsMessengerEXT);
-
-	except:
-
-	return r;
+	return VKPROC_INIT;
 }
