@@ -59,7 +59,7 @@ struct gfx_ui *mty_vk_ui_create(MTY_Device *device)
 
 	VkDevice _device = dobjs->device;
 
-	if (!mty_vkproc_init_api()) {
+	if (!vkproc_global_init()) {
 		r = false;
 		goto except;
 	}
@@ -636,7 +636,7 @@ void mty_vk_ui_destroy(struct gfx_ui **gfx_ui, MTY_Device *device)
 			vkDestroyShaderModule(_device, ctx->vert, NULL);
 	}
 
-	mty_vkproc_cleanup_api();
+	vkproc_global_destroy();
 
 	MTY_Free(ctx);
 	*gfx_ui = NULL;

@@ -61,7 +61,6 @@ LOCAL_SRC_FILES := \
 	src/gfx/gl/gl-ui.c \
 	src/gfx/vk/vk.c \
 	src/gfx/vk/vk-ctx.c \
-	src/gfx/vk/vkproc.c \
 	src/gfx/vk/vk-ui.c \
 	src/hid/utils.c \
 	src/net/async.c \
