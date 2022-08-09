@@ -239,25 +239,3 @@ bool mty_gl_ctx_has_ui_texture(struct gfx_ctx *gfx_ctx, uint32_t id)
 
 	return r;
 }
-
-bool mty_gl_ctx_make_current(struct gfx_ctx *gfx_ctx, bool current)
-{
-	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
-
-	bool r = false;
-
-	mty_gfx_lock();
-
-	if (gl_ctx_check(ctx)) {
-		if (current) {
-			r = eglMakeCurrent(ctx->display, ctx->surface, ctx->surface, ctx->context);
-
-		} else {
-			r = eglMakeCurrent(ctx->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-		}
-	}
-
-	mty_gfx_unlock();
-
-	return r;
-}

@@ -1233,18 +1233,6 @@ MTY_EXPORT bool
 MTY_WindowSetUITexture(MTY_App *app, MTY_Window window, uint32_t id, const void *rgba,
 	uint32_t width, uint32_t height);
 
-/// @brief Make the window's context current or not current on the calling thread.
-/// @details This has no effect if the window is not using MTY_GFX_GL. It is
-///   recommended that you first make the context not current on one thread before
-///   making it current on another. All windows using MTY_GFX_GL are created with
-///   the context not current.
-/// @param app The MTY_App.
-/// @param window An MTY_Window.
-/// @param current Set true to make the context current, false to make it not current.
-/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
-MTY_EXPORT bool
-MTY_WindowMakeCurrent(MTY_App *app, MTY_Window window, bool current);
-
 /// @brief Present all pending draw operations.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
@@ -1258,6 +1246,7 @@ MTY_EXPORT MTY_GFX
 MTY_WindowGetGFX(MTY_App *app, MTY_Window window);
 
 /// @brief Set the window's graphics API.
+/// @details This function should be called on the thread that is doing the rendering.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 /// @param api Graphics API to set.

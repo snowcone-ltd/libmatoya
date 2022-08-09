@@ -28,8 +28,7 @@ struct gfx_ctx;
 	void wrap(api, draw_ui)(struct gfx_ctx *gfx_ctx, const MTY_DrawData *dd); \
 	bool wrap(api, set_ui_texture)(struct gfx_ctx *gfx_ctx, uint32_t id, const void *rgba, \
 		uint32_t width, uint32_t height); \
-	bool wrap(api, has_ui_texture)(struct gfx_ctx *gfx_ctx, uint32_t id); \
-	bool wrap(api, make_current)(struct gfx_ctx *gfx_ctx, bool current);
+	bool wrap(api, has_ui_texture)(struct gfx_ctx *gfx_ctx, uint32_t id);
 
 #define GFX_CTX_PROTOTYPES(api) \
 	GFX_CTX_DECLARE_API(api, GFX_CTX_PROTO)
@@ -46,5 +45,4 @@ struct gfx_ctx;
 		mty##api##ctx_draw_ui, \
 		mty##api##ctx_set_ui_texture, \
 		mty##api##ctx_has_ui_texture, \
-		mty##api##ctx_make_current, \
 	},
