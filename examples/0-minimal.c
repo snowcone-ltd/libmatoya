@@ -23,7 +23,7 @@ static bool app_func(void *opaque)
 {
 	struct context *ctx = opaque;
 
-	MTY_WindowPresent(ctx->app, 0, 1);
+	MTY_WindowPresent(ctx->app, 0);
 
 	return !ctx->quit;
 }
@@ -39,10 +39,8 @@ int main(int argc, char **argv)
 	// Create a window
 	MTY_WindowCreate(ctx.app, "My Window", NULL, 0);
 
-	// In the case of MTY_GFX_GL, the GL context has to be made current on the
-	// thread that's doing the drawing
+	// Set the graphics API to OpenGL
 	MTY_WindowSetGFX(ctx.app, 0, MTY_GFX_GL, true);
-	MTY_WindowMakeCurrent(ctx.app, 0, true);
 
 	// Run the app -- blocks until your app_func returns false
 	MTY_AppRun(ctx.app);
