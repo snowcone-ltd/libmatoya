@@ -311,8 +311,3 @@ bool mty_d3d9_ctx_has_ui_texture(struct gfx_ctx *gfx_ctx, uint32_t id)
 
 	return MTY_RendererHasUITexture(ctx->renderer, id);
 }
-
-bool mty_d3d9_ctx_make_current(struct gfx_ctx *gfx_ctx, bool current)
-{
-	return false;
-}

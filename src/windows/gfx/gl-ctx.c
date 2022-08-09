@@ -84,8 +84,6 @@ struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
 	if (wglSwapIntervalEXT)
 		wglSwapIntervalEXT(vsync ? 1 : 0);
 
-	wglMakeCurrent(NULL, NULL);
-
 	gl_ctx_get_size(ctx, &ctx->width, &ctx->height);
 
 	except:
@@ -176,20 +174,4 @@ bool mty_gl_ctx_has_ui_texture(struct gfx_ctx *gfx_ctx, uint32_t id)
 	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
 
 	return MTY_RendererHasUITexture(ctx->renderer, id);
-}
-
-bool mty_gl_ctx_make_current(struct gfx_ctx *gfx_ctx, bool current)
-{
-	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
-
-	bool r = false;
-
-	if (current) {
-		r = wglMakeCurrent(ctx->dc, ctx->gl);
-
-	} else {
-		r = wglMakeCurrent(NULL, NULL);
-	}
-
-	return r;
 }
