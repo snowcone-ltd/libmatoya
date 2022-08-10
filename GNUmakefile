@@ -41,7 +41,6 @@ OBJS = \
 	src/gfx/gl/gl-ui.o \
 	src/hid/utils.o \
 	src/unix/file.o \
-	src/unix/image.o \
 	src/unix/memory.o \
 	src/unix/system.o \
 	src/unix/thread.o \
@@ -93,6 +92,7 @@ AR = $(WASI_SDK)/bin/ar
 ARCH := wasm32
 
 OBJS := $(OBJS) \
+	src/unix/image.o \
 	src/unix/web/app.o \
 	src/unix/web/dialog.o \
 	src/unix/web/system.o \
@@ -124,6 +124,7 @@ OBJS := $(OBJS) \
 	src/net/secure.o \
 	src/net/tcp.o \
 	src/net/ws.o \
+	src/unix/image.o \
 	src/unix/net/request.o \
 	src/unix/linux/dialog.o \
 	src/unix/linux/x11/aes-gcm.o \
@@ -171,6 +172,7 @@ MIN_VER = 10.11
 
 OBJS := $(OBJS) \
 	src/hid/hid.o \
+	src/unix/apple/image.o \
 	src/unix/apple/macosx/hid.o \
 	src/unix/apple/macosx/gfx/gl-ctx.o \
 	src/unix/apple/macosx/gfx/metal-ctx.o
