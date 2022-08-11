@@ -196,7 +196,7 @@ OBJS := $(OBJS) \
 	src/net/secure.o \
 	src/net/tcp.o \
 	src/net/ws.o \
-	src/unix/net/request.o \
+	src/unix/apple/request.o \
 	src/unix/apple/audio.o \
 	src/unix/apple/crypto.o \
 	src/unix/apple/tls.o \
