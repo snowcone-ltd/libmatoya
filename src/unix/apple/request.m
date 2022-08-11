@@ -36,6 +36,7 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 	*responseSize = 0;
 	*response = NULL;
 
+	NSURLSessionConfiguration *cfg = [NSURLSessionConfiguration defaultSessionConfiguration];
 	NSMutableURLRequest *req = [NSMutableURLRequest new];
 
 	// Timeout
@@ -64,12 +65,27 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 	if (body && bodySize > 0)
 		[req setHTTPBody:[NSData dataWithBytes:body length:bodySize]];
 
+	// Proxy
+	const char *proxy = mty_http_get_proxy();
+
+	if (proxy) {
+		NSURLComponents *comps = [NSURLComponents componentsWithString:[NSString stringWithUTF8String:proxy]];
+
+		if (comps) {
+			cfg.connectionProxyDictionary = @{
+				(NSString *) kCFNetworkProxiesHTTPProxy: comps.host,
+				(NSString *) kCFNetworkProxiesHTTPSProxy: comps.host,
+				(NSString *) kCFNetworkProxiesHTTPPort: comps.port,
+				(NSString *) kCFNetworkProxiesHTTPSPort: comps.port,
+			};
+		}
+	}
+
 	// Send request
-	NSURLSessionConfiguration *cfg = [NSURLSessionConfiguration defaultSessionConfiguration];
 	NSURLSession *session = [NSURLSession sessionWithConfiguration:cfg];
 
 	__block bool r = false;
-	MTY_Waitable *sync = MTY_WaitableCreate();
+	dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
 
 	NSURLSessionDataTask *task = [session dataTaskWithRequest:req
 		completionHandler:^(NSData *data, NSURLResponse *_res, NSError *e)
@@ -91,13 +107,12 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 			r = true;
 		}
 
-		MTY_WaitableSignal(sync);
+		dispatch_semaphore_signal(semaphore);
 	}];
 
 	[task resume];
 
-	MTY_WaitableWait(sync, timeout);
-	MTY_WaitableDestroy(&sync);
+	dispatch_semaphore_wait(semaphore, dispatch_time(DISPATCH_TIME_NOW, timeout * NSEC_PER_MSEC));
 
 	return r;
 }
