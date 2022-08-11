@@ -90,7 +90,7 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 	{
 		NSHTTPURLResponse *res = (NSHTTPURLResponse *) _res;
 
-		if (!res || e != nil) {
+		if (!data || !res || e != nil) {
 			MTY_Log("NSURLConnection failed with error %d", (int32_t) [e code]);
 
 		} else {
