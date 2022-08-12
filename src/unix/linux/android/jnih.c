@@ -45,6 +45,11 @@ jbyteArray mty_jni_alloc(JNIEnv *env, size_t size)
 	return (*env)->NewByteArray(env, size);
 }
 
+jintArray mty_jni_alloc_int(JNIEnv *env, size_t size)
+{
+	return (*env)->NewIntArray(env, size);
+}
+
 jbyteArray mty_jni_dup(JNIEnv *env, const void *buf, size_t size)
 {
 	if (!buf || size == 0)
@@ -64,6 +69,21 @@ jobject mty_jni_wrap(JNIEnv *env, void *buf, size_t size)
 jstring mty_jni_strdup(JNIEnv *env, const char *str)
 {
 	return (*env)->NewStringUTF(env, str);
+}
+
+jsize mty_jni_array_get_size(JNIEnv *env, jbyteArray array)
+{
+	return (*env)->GetArrayLength(env, array);
+}
+
+jint mty_jni_array_get_int(JNIEnv *env, jintArray array, size_t index)
+{
+	jint *c = (*env)->GetIntArrayElements(env, array, JNI_FALSE);
+	jint val = c[index];
+
+	(*env)->ReleaseIntArrayElements(env, array, c, JNI_ABORT);
+
+	return val;
 }
 
 void mty_jni_memcpy(JNIEnv *env, void *dst, jbyteArray jsrc, size_t size)
