@@ -1882,10 +1882,11 @@ MTY_EXPORT MTY_JSON *
 MTY_JSONObjCreate(void);
 
 /// @brief Create a new JSON array.
+/// @param len Currently ignored.
 /// @returns The returned MTY_JSON item should be destroyed with MTY_JSONDestroy if it
 ///   remains the root item in the hierarchy.
 MTY_EXPORT MTY_JSON *
-MTY_JSONArrayCreate(void);
+MTY_JSONArrayCreate(uint32_t len);
 
 /// @brief Check if a key exists on a JSON object.
 /// @param json An MTY_JSON object.
@@ -1923,19 +1924,7 @@ MTY_JSONObjGetItem(const MTY_JSON *json, const char *key);
 /// @param key Key to set.
 /// @param value Value associated with `key`.
 MTY_EXPORT void
-MTY_JSONObjSetItem(MTY_JSON *json, const char *key, const MTY_JSON *value);
-
-/// @brief Check if an item exists in a JSON array.
-/// @param json An MTY_JSON array.
-/// @param index Index to check.
-MTY_EXPORT bool
-MTY_JSONArrayIndexExists(const MTY_JSON *json, uint32_t index);
-
-/// @brief Delete an item from a JSON array.
-/// @param json An MTY_JSON array.
-/// @param index Index to delete.
-MTY_EXPORT void
-MTY_JSONArrayDeleteItem(MTY_JSON *json, uint32_t index);
+MTY_JSONObjSetItem(MTY_JSON *json, const char *key, MTY_JSON *value);
 
 /// @brief Get an item from a JSON array.
 /// @param json An MTY_JSON array.
@@ -1946,11 +1935,12 @@ MTY_JSONArrayDeleteItem(MTY_JSON *json, uint32_t index);
 MTY_EXPORT const MTY_JSON *
 MTY_JSONArrayGetItem(const MTY_JSON *json, uint32_t index);
 
-/// @brief Append an item to a JSON array.
+/// @brief Set an item in JSON array.
 /// @param json An MTY_JSON array.
-/// @param value Value to append.
+/// @param index The array index where `value` will be stored.
+/// @param value Value to set at `index`.
 MTY_EXPORT void
-MTY_JSONArrayAppendItem(MTY_JSON *json, const MTY_JSON *value);
+MTY_JSONArraySetItem(MTY_JSON *json, uint32_t index, MTY_JSON *value);
 
 /// @brief Get a string value from a JSON object.
 /// @param json An MTY_JSON object.
@@ -2118,40 +2108,12 @@ MTY_JSONArrayGetBool(const MTY_JSON *json, uint32_t index, bool *val);
 MTY_EXPORT MTY_JSONType
 MTY_JSONArrayGetValType(const MTY_JSON *json, uint32_t index);
 
-/// @brief Append a string value to a JSON array.
+/// @brief Set a string value in a JSON array.
 /// @param json An MTY_JSON array.
-/// @param value Value to append.
+/// @param index The array index where `val` will be stored.
+/// @param val Value to set at `index`.
 MTY_EXPORT void
-MTY_JSONArrayAppendString(MTY_JSON *json, const char *val);
-
-/// @brief Append an int32_t value to a JSON array.
-/// @param json An MTY_JSON array.
-/// @param value Value to append.
-MTY_EXPORT void
-MTY_JSONArrayAppendInt(MTY_JSON *json, int32_t val);
-
-/// @brief Append a uint32_t value to a JSON array.
-/// @param json An MTY_JSON array.
-/// @param value Value to append.
-MTY_EXPORT void
-MTY_JSONArrayAppendUInt(MTY_JSON *json, uint32_t val);
-
-/// @brief Append a float value to a JSON array.
-/// @param json An MTY_JSON array.
-/// @param value Value to append.
-MTY_EXPORT void
-MTY_JSONArrayAppendFloat(MTY_JSON *json, float val);
-
-/// @brief Append a bool value to a JSON array.
-/// @param json An MTY_JSON array.
-/// @param value Value to append.
-MTY_EXPORT void
-MTY_JSONArrayAppendBool(MTY_JSON *json, bool val);
-
-/// @brief Append a NULL value to a JSON array.
-/// @param json An MTY_JSON array.
-MTY_EXPORT void
-MTY_JSONArrayAppendNull(MTY_JSON *json);
+MTY_JSONArraySetString(MTY_JSON *json, uint32_t index, const char *val);
 
 
 //- #module Log
