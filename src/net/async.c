@@ -81,11 +81,13 @@ static void http_async_thread(void *opaque)
 {
 	struct async_state *s = opaque;
 
-	bool ok = MTY_HttpRequest(s->req.host, s->req.port, s->req.secure, s->req.method,
+	bool req_ok = MTY_HttpRequest(s->req.host, s->req.port, s->req.secure, s->req.method,
 		s->req.path, s->req.headers, s->req.body, s->req.body_size, s->timeout,
 		&s->res.body, &s->res.body_size, &s->res.code);
 
-	if (ok && s->image && s->res.code == 200 && s->res.body && s->res.body_size > 0) {
+	bool res_ok = s->res.code >= 200 && s->res.code < 300;
+
+	if (s->image && req_ok && res_ok && s->res.body && s->res.body_size > 0) {
 		uint32_t w = 0;
 		uint32_t h = 0;
 		void *image = MTY_DecompressImage(s->res.body, s->res.body_size, &w, &h);
@@ -95,7 +97,7 @@ static void http_async_thread(void *opaque)
 		s->res.body_size = w | h << 16;
 	}
 
-	s->status = !ok ? MTY_ASYNC_ERROR : MTY_ASYNC_OK;
+	s->status = !req_ok ? MTY_ASYNC_ERROR : MTY_ASYNC_OK;
 }
 
 void MTY_HttpAsyncRequest(uint32_t *index, const char *host, uint16_t port, bool secure,
