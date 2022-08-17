@@ -133,6 +133,16 @@ void *MTY_DecompressImage(const void *input, size_t size, uint32_t *width, uint3
 	return image;
 }
 
+void MTY_DecompressImageAsync(const void *input, size_t size, MTY_ImageFunc func, void *opaque)
+{
+	uint32_t w = 0;
+	uint32_t h = 0;
+
+	void *image = MTY_DecompressImage(input, size, &w, &h);
+
+	func(image, w, h, opaque);
+}
+
 void *MTY_GetProgramIcon(const char *path, uint32_t *width, uint32_t *height)
 {
 	return NULL;

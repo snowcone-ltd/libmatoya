@@ -520,6 +520,24 @@ const MTY_ASYNC_DONE = 1;
 const MTY_ASYNC_CONTINUE = 2;
 const MTY_ASYNC_ERROR = 3;
 
+function mty_decompress_image(input, func) {
+	const img = new Image();
+	img.src = URL.createObjectURL(new Blob([input]));
+
+	img.decode().then(() => {
+		const width = img.naturalWidth;
+		const height = img.naturalHeight;
+
+		const canvas = new OffscreenCanvas(width, height);
+		const ctx = canvas.getContext('2d');
+		ctx.drawImage(img, 0, 0, width, height);
+
+		const imgData = ctx.getImageData(0, 0, width, height);
+
+		func(imgData.data, width, height);
+	});
+}
+
 const MTY_NET_API = {
 	MTY_HttpAsyncCreate: function (num_threads) {
 	},
@@ -550,14 +568,14 @@ const MTY_NET_API = {
 		MTY_StrToC(MTY_StrToJS(src), dst, dst_len);
 	},
 	MTY_HttpAsyncRequest: function(index, chost, port, secure, cmethod,
-		cpath, cheaders, cbody, bodySize, timeout, func)
+		cpath, cheaders, cbody, bodySize, timeout, image)
 	{
 		const req = ++MTY.reqIndex;
 		MTY_SetUint32(index, req);
 
 		MTY.reqs[req] = {
 			async: MTY_ASYNC_CONTINUE,
-			func: func,
+			image: image,
 		};
 
 		const jport = port != 0 ? ':' + port.toString() : '';
@@ -605,28 +623,50 @@ const MTY_NET_API = {
 	MTY_HttpAsyncPoll: function(index, response, responseSize, code) {
 		const data = MTY.reqs[index];
 
+		// Unknown index or request has already been polled
 		if (data == undefined || data.async == MTY_ASYNC_DONE)
 			return MTY_ASYNC_DONE;
 
+		// Request is in progress
 		if (data.async == MTY_ASYNC_CONTINUE)
 			return MTY_ASYNC_CONTINUE;
 
-		MTY_SetUint32(code, data.status);
-
+		// Request is has completed asynchronously, check if there is a response
 		if (data.response != undefined) {
-			MTY_SetUint32(responseSize, data.response.length);
 
+			// Optionally decompress an image on a successful response
+			if (data.image && data.async == MTY_ASYNC_OK && data.status == 200) {
+				data.async = MTY_ASYNC_CONTINUE;
+				data.image = false;
+
+				mty_decompress_image(data.response, (image, width, height) => {
+					data.width = width;
+					data.height = height;
+					data.response = image
+					data.async = MTY_ASYNC_OK;
+				});
+
+				return MTY_ASYNC_CONTINUE;
+			}
+
+			// Set C status code
+			MTY_SetUint32(code, data.status);
+
+			// Set C response size
+			if (data.width && data.height) {
+				MTY_SetUint32(responseSize, data.width | data.height << 16);
+
+			} else {
+				MTY_SetUint32(responseSize, data.response.length);
+			}
+
+			// Allocate C buffer and set return pointer
 			if (data.buf == undefined) {
 				data.buf = MTY_Alloc(data.response.length + 1);
 				MTY_Memcpy(data.buf, data.response);
 			}
 
 			MTY_SetUint32(response, data.buf);
-
-			if (data.async == MTY_ASYNC_OK && data.func) {
-				MTY_CFunc(data.func)(data.status, response, responseSize);
-				data.buf = MTY_GetUint32(response);
-			}
 		}
 
 		const r = data.async;
@@ -645,6 +685,22 @@ const MTY_NET_API = {
 		delete MTY.reqs[req];
 
 		MTY_SetUint32(index, 0);
+	},
+};
+
+
+// Image
+
+const MTY_IMAGE_API = {
+	MTY_DecompressImageAsync: function (input, size, func, opaque) {
+		const jinput = new Uint8Array(mty_mem(), input, size);
+
+		mty_decompress_image(jinput, (image, width, height) => {
+			const cimage = MTY_Alloc(width * height * 4);
+			MTY_Memcpy(cimage, image);
+
+			MTY_CFunc(func)(cimage, width, height, opaque);
+		});
 	},
 };
 
@@ -1399,6 +1455,7 @@ async function MTY_Start(bin, userEnv, endFunc, glver) {
 			...MTY_GL_API,
 			...MTY_AUDIO_API,
 			...MTY_NET_API,
+			...MTY_IMAGE_API,
 			...MTY_CRYPTO_API,
 			...MTY_SYSTEM_API,
 			...MTY_WEB_API,
