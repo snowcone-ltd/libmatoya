@@ -92,7 +92,6 @@ AR = $(WASI_SDK)/bin/ar
 ARCH := wasm32
 
 OBJS := $(OBJS) \
-	src/unix/image.o \
 	src/unix/web/app.o \
 	src/unix/web/dialog.o \
 	src/unix/web/system.o \
