@@ -1759,6 +1759,8 @@ typedef enum {
 	MTY_IMAGE_COMPRESSION_MAKE_32 = INT32_MAX,
 } MTY_ImageCompression;
 
+typedef void (*MTY_ImageFunc)(void *image, uint32_t width, uint32_t height, void *opaque);
+
 /// @brief Compress an RGBA image.
 /// @param method The compression method to be used on `input`.
 /// @param input RGBA 8-bits per channel image data.
@@ -1782,6 +1784,9 @@ MTY_CompressImage(MTY_ImageCompression method, const void *input, uint32_t width
 ///   The returned buffer must be destroyed with MTY_Free.
 MTY_EXPORT void *
 MTY_DecompressImage(const void *input, size_t size, uint32_t *width, uint32_t *height);
+
+MTY_EXPORT void
+MTY_DecompressImageAsync(const void *input, size_t size, MTY_ImageFunc func, void *opaque);
 
 /// @brief Center crop an RGBA image.
 /// @param image RGBA 8-bits per channel image to be cropped.
@@ -2764,16 +2769,6 @@ MTY_GlobalUnlock(MTY_Atomic32 *lock);
 
 typedef struct MTY_WebSocket MTY_WebSocket;
 
-/// @brief Function that is executed on a thread after an HTTP response is received.
-/// @details If set, this callback allows you to intercept and modify an HTTP response
-///   before it is returned via MTY_HttpAsyncPoll. The advantage is that this function
-///   is executed on a thread so it can be parallelized.
-/// @param code The HTTP response status code.
-/// @param body A reference to the response. This value may be mutated by this function.
-/// @param size A reference to the response size. This value may be mutated by this
-///   function.
-typedef void (*MTY_HttpAsyncFunc)(uint16_t code, void **body, size_t *size);
-
 /// @brief Parse a URL into its components.
 /// @param url URL to parse.
 /// @param host Output hostname.
@@ -2851,11 +2846,12 @@ MTY_HttpAsyncDestroy(void);
 /// @param bodySize Size in bytes of `body`.
 /// @param timeout Time the thread will wait in milliseconds for completion.
 /// @param func Function called on the thread after the response is received.
-///   May be NULL.
+/// @param image Attempt to decompress an image reponse. If successful, the `size` argument
+///   supplied to MTY_HttpAsyncPoll will be set to `width | height << 16`.
 MTY_EXPORT void
 MTY_HttpAsyncRequest(uint32_t *index, const char *host, uint16_t port, bool secure,
 	const char *method, const char *path, const char *headers, const void *body,
-	size_t size, uint32_t timeout, MTY_HttpAsyncFunc func);
+	size_t size, uint32_t timeout, bool image);
 
 /// @brief Poll the global HTTP thread pool for a response.
 /// @param index The thread index acquired in MTY_HttpAsyncRequest.
