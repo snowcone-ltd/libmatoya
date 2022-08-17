@@ -635,7 +635,10 @@ const MTY_NET_API = {
 		if (data.response != undefined) {
 
 			// Optionally decompress an image on a successful response
-			if (data.image && data.async == MTY_ASYNC_OK && data.status == 200) {
+			const res_ok = data.status >= 200 && data.status < 300;
+			const req_ok = data.async == MTY_ASYNC_OK;
+
+			if (data.image && req_ok && res_ok) {
 				data.async = MTY_ASYNC_CONTINUE;
 				data.image = false;
 
