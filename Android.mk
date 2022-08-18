@@ -68,7 +68,6 @@ LOCAL_SRC_FILES := \
 	src/net/http-parse.c \
 	src/net/http-proxy.c \
 	src/unix/file.c \
-	src/unix/image.c \
 	src/unix/memory.c \
 	src/unix/system.c \
 	src/unix/thread.c \
@@ -78,6 +77,7 @@ LOCAL_SRC_FILES := \
 	src/unix/linux/android/app.c \
 	src/unix/linux/android/audio.c \
 	src/unix/linux/android/crypto.c \
+	src/unix/linux/android/image.c \
 	src/unix/linux/android/jnih.c \
 	src/unix/linux/android/request.c \
 	src/unix/linux/android/system.c \

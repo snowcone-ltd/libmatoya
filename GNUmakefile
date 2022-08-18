@@ -132,6 +132,7 @@ OBJS := $(OBJS) \
 	src/unix/linux/x11/crypto.o \
 	src/unix/linux/x11/evdev.o \
 	src/unix/linux/x11/request.o \
+	src/unix/linux/x11/image.o \
 	src/unix/linux/x11/system.o \
 	src/unix/linux/x11/tls.o \
 	src/unix/linux/x11/gfx/gl-ctx.o \
