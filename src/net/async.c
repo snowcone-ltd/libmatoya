@@ -11,8 +11,8 @@
 
 struct async_state {
 	MTY_Async status;
-	MTY_HttpAsyncFunc func;
 	uint32_t timeout;
+	bool image;
 
 	struct {
 		char *host;
@@ -81,19 +81,28 @@ static void http_async_thread(void *opaque)
 {
 	struct async_state *s = opaque;
 
-	bool ok = MTY_HttpRequest(s->req.host, s->req.port, s->req.secure, s->req.method,
+	bool req_ok = MTY_HttpRequest(s->req.host, s->req.port, s->req.secure, s->req.method,
 		s->req.path, s->req.headers, s->req.body, s->req.body_size, s->timeout,
 		&s->res.body, &s->res.body_size, &s->res.code);
 
-	if (ok && s->func && s->res.body && s->res.body_size > 0)
-		s->func(s->res.code, &s->res.body, &s->res.body_size);
+	bool res_ok = s->res.code >= 200 && s->res.code < 300;
 
-	s->status = !ok ? MTY_ASYNC_ERROR : MTY_ASYNC_OK;
+	if (s->image && req_ok && res_ok && s->res.body && s->res.body_size > 0) {
+		uint32_t w = 0;
+		uint32_t h = 0;
+		void *image = MTY_DecompressImage(s->res.body, s->res.body_size, &w, &h);
+
+		MTY_Free(s->res.body);
+		s->res.body = image;
+		s->res.body_size = w | h << 16;
+	}
+
+	s->status = !req_ok ? MTY_ASYNC_ERROR : MTY_ASYNC_OK;
 }
 
 void MTY_HttpAsyncRequest(uint32_t *index, const char *host, uint16_t port, bool secure,
 	const char *method, const char *path, const char *headers, const void *body,
-	size_t size, uint32_t timeout, MTY_HttpAsyncFunc func)
+	size_t size, uint32_t timeout, bool image)
 {
 	if (!ASYNC_CTX)
 		return;
@@ -103,7 +112,7 @@ void MTY_HttpAsyncRequest(uint32_t *index, const char *host, uint16_t port, bool
 
 	struct async_state *s = MTY_Alloc(1, sizeof(struct async_state));
 	s->timeout = timeout;
-	s->func = func;
+	s->image = image;
 
 	s->req.secure = secure;
 	s->req.body_size = size;

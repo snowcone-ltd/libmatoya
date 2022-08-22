@@ -105,13 +105,10 @@ CJSON_PUBLIC(cJSON *) cJSON_CreateArray(void);
 CJSON_PUBLIC(cJSON *) cJSON_CreateObject(void);
 
 /* Append item to the specified array/object. */
-CJSON_PUBLIC(cJSON_bool) cJSON_AddItemToArray(cJSON *array, cJSON *item);
 CJSON_PUBLIC(cJSON_bool) cJSON_AddItemToObject(cJSON *object, const char *string, cJSON *item);
 
 /* Remove/Detach items from Arrays/Objects. */
 CJSON_PUBLIC(cJSON *) cJSON_DetachItemViaPointer(cJSON *parent, cJSON *const item);
-CJSON_PUBLIC(cJSON *) cJSON_DetachItemFromArray(cJSON *array, int which);
-CJSON_PUBLIC(void) cJSON_DeleteItemFromArray(cJSON *array, int which);
 CJSON_PUBLIC(cJSON *) cJSON_DetachItemFromObjectCaseSensitive(cJSON *object, const char *string);
 CJSON_PUBLIC(void) cJSON_DeleteItemFromObjectCaseSensitive(cJSON *object, const char *string);
 
@@ -1489,12 +1486,6 @@ static cJSON_bool add_item_to_array(cJSON *array, cJSON *item)
 	return true;
 }
 
-/* Add item to array/object. */
-CJSON_PUBLIC(cJSON_bool) cJSON_AddItemToArray(cJSON *array, cJSON *item)
-{
-	return add_item_to_array(array, item);
-}
-
 static cJSON_bool add_item_to_object(cJSON *const object, const char *const string, cJSON *const item, const cJSON_bool constant_key)
 {
 	char *new_key = NULL;
@@ -1561,20 +1552,6 @@ CJSON_PUBLIC(cJSON *) cJSON_DetachItemViaPointer(cJSON *parent, cJSON *const ite
 	item->next = NULL;
 
 	return item;
-}
-
-CJSON_PUBLIC(cJSON *) cJSON_DetachItemFromArray(cJSON *array, int which)
-{
-	if (which < 0) {
-		return NULL;
-	}
-
-	return cJSON_DetachItemViaPointer(array, get_array_item(array, (size_t) which));
-}
-
-CJSON_PUBLIC(void) cJSON_DeleteItemFromArray(cJSON *array, int which)
-{
-	cJSON_Delete(cJSON_DetachItemFromArray(array, which));
 }
 
 CJSON_PUBLIC(cJSON *) cJSON_DetachItemFromObjectCaseSensitive(cJSON *object, const char *string)
