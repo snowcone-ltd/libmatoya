@@ -1236,6 +1236,33 @@ void MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative)
 	app_apply_relative(app);
 }
 
+// Extracts the Parsec client's private scale info (if any) from the given PNG cursor image.
+// Assumes the scale chunk is the last chunk in the PNG file. 
+double app_extract_private_scale_tag_from_png_cursor(const void *png_ptr, size_t png_len)
+{
+	if (png_len < sizeof(uint32_t) * 4 || !png_ptr)
+		return 1.0;
+
+	const char *tmp = &((const char *)png_ptr)[png_len - sizeof(uint32_t) * 4];
+	const uint32_t *chunk_ptr = (const uint32_t *)tmp;
+
+	#define SWAP32(x) ( (((x) & 0xFF) << 24) | (((x) & 0xFF00) << 8) | (((x) & 0xFF0000) >> 8) | (((x) & 0xFF000000) >> 24) )
+
+	if (SWAP32(chunk_ptr[0]) != sizeof(uint32_t))
+		return 1.0;
+
+	if (memcmp(&chunk_ptr[1], "pXSc", 4) != 0)
+		return 1.0;
+
+	uint32_t int_scale = SWAP32(chunk_ptr[2]);
+	if (int_scale < 1 || int_scale > 256000)
+		return 1.0;
+
+	#undef SWAP32
+
+	return int_scale / 1000.0;
+}
+
 void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX, uint32_t hotY)
 {
 	App *app = (__bridge App *) ctx;
@@ -1245,6 +1272,17 @@ void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t 
 	if (image) {
 		NSData *data = [NSData dataWithBytes:image length:size];
 		NSImage *nsi = [[NSImage alloc] initWithData:data];
+
+		// If the client sent a scale hint with the cursor, then
+		// apply it to the NSImage size so it will appear at the
+		// intended size when it's rendered to the Mac screen.
+		double cursor_scale = app_extract_private_scale_tag_from_png_cursor(image, size);
+		if (cursor_scale != 1.0 && [[nsi representations] count] > 0) {
+			NSSize csize = [nsi size];
+			csize.width /= cursor_scale;
+			csize.height /= cursor_scale;
+			nsi.size = csize;
+		}
 
 		cursor = [[NSCursor alloc] initWithImage:nsi hotSpot:NSMakePoint(hotX, hotY)];
 	}
