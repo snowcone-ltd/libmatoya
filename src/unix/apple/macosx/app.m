@@ -1282,6 +1282,9 @@ void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t 
 			csize.width /= cursor_scale;
 			csize.height /= cursor_scale;
 			nsi.size = csize;
+
+			hotX = (uint32_t) (hotX / cursor_scale + 0.5);
+			hotY = (uint32_t) (hotY / cursor_scale + 0.5);
 		}
 
 		cursor = [[NSCursor alloc] initWithImage:nsi hotSpot:NSMakePoint(hotX, hotY)];
