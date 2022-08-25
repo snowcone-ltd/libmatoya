@@ -49,7 +49,7 @@ struct vk {
 // Main
 
 static bool vk_one_shot_buffer(const VkPhysicalDeviceMemoryProperties *pdprops, VkDevice device,
-	VkBufferUsageFlagBits usage, const void *data, VkDeviceSize size, struct vk_buffer *buf)
+	VkBufferUsageFlagBits usage, const void *data, size_t size, struct vk_buffer *buf)
 {
 	bool r = vk_allocate_buffer(pdprops, device, usage, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, size, buf);
 	if (!r)
