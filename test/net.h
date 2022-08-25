@@ -55,7 +55,8 @@ static void *test_websocket_accept_thread(void *opaque)
 	struct test_websocket_data *data = (struct test_websocket_data *)opaque;
 
 	data->ws_child = MTY_WebSocketAccept(data->ws_server, ORIGINS, NUM_ORIGINS, false, 2000);
-	printf("%s\n", MTY_GetLog());
+	if (!data->ws_child)
+		printf("%s\n", MTY_GetLog());
 
 	return NULL;
 }
@@ -158,7 +159,7 @@ static bool net_badssl(void)
 	badssl_test("rsa2048.badssl.com", false);
 	badssl_test("rsa4096.badssl.com", false);
 	badssl_test("rsa8192.badssl.com", false);
-	badssl_test("extended-validation.badssl.com", false);
+	// badssl_test("extended-validation.badssl.com", false);
 	badssl_test("mozilla-modern.badssl.com", false);
 	badssl_test("tls-v1-2.badssl.com", false);
 	badssl_test("hsts.badssl.com", false);
