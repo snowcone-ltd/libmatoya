@@ -50,7 +50,7 @@ static bool vk_allocate_memory(VkDevice device, const VkPhysicalDeviceMemoryProp
 	return false;
 }
 
-static bool vk_buffer_upload(VkDevice device, VkDeviceMemory dst, const void *src, VkDeviceSize size)
+static bool vk_buffer_upload(VkDevice device, VkDeviceMemory dst, const void *src, size_t size)
 {
 	void *p = NULL;
 	VkResult e = vkMapMemory(device, dst, 0, VK_WHOLE_SIZE, 0, &p);

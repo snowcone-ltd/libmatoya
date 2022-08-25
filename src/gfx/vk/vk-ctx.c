@@ -212,8 +212,10 @@ static bool vk_ctx_create_swapchain(VkSurfaceKHR surface, VkPhysicalDevice pdevi
 			.layers = 1,
 		};
 
+		// On 32-bit systems, VkFramebuffer can not be larger than SIZE_MAX
+		// because it is cast to a pointer
 		e = vkCreateFramebuffer(device, &fci, NULL, &sc->fbs[x]);
-		if (e != VK_SUCCESS) {
+		if (e != VK_SUCCESS || (uint64_t) sc->fbs[x] > SIZE_MAX) {
 			r = false;
 			goto except;
 		}
@@ -311,7 +313,7 @@ static bool vk_ctx_refresh_swapchain(struct vk_ctx *ctx)
 VKPROC_DEF(vkCreateDebugUtilsMessengerEXT);
 VKPROC_DEF(vkDestroyDebugUtilsMessengerEXT);
 
-static VKAPI_ATTR VkBool32 vk_ctx_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+static VkBool32 VKAPI_PTR vk_ctx_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 	VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
 	void *pUserData)
 {
@@ -637,7 +639,7 @@ MTY_Surface *mty_vk_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 		sc->bb = sc->fbs[sc->bbi];
 	}
 
-	return (MTY_Surface *) sc->bb;
+	return (MTY_Surface *) (uintptr_t) sc->bb;
 }
 
 void mty_vk_ctx_present(struct gfx_ctx *gfx_ctx)
@@ -712,7 +714,7 @@ void mty_vk_ctx_draw_quad(struct gfx_ctx *gfx_ctx, const void *image, const MTY_
 		#endif
 
 		MTY_RendererDrawQuad(ctx->renderer, MTY_GFX_VK, mty_vk_ctx_get_device(gfx_ctx),
-			mty_vk_ctx_get_context(gfx_ctx), image, &mutated, (MTY_Surface *) sc->bb);
+			mty_vk_ctx_get_context(gfx_ctx), image, &mutated, (MTY_Surface *) (uintptr_t) sc->bb);
 	}
 }
 
@@ -730,7 +732,7 @@ void mty_vk_ctx_draw_ui(struct gfx_ctx *gfx_ctx, const MTY_DrawData *dd)
 		mutated.displaySize.y = (float) sc->h;
 
 		MTY_RendererDrawUI(ctx->renderer, MTY_GFX_VK, mty_vk_ctx_get_device(gfx_ctx),
-			mty_vk_ctx_get_context(gfx_ctx), &mutated, (MTY_Surface *) sc->bb);
+			mty_vk_ctx_get_context(gfx_ctx), &mutated, (MTY_Surface *) (uintptr_t) sc->bb);
 	}
 }
 
