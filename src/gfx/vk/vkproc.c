@@ -104,14 +104,15 @@ VKPROC_DEF(vkDestroySemaphore);
 
 static MTY_SO *VKPROC_SO;
 static MTY_Atomic32 VKPROC_LOCK;
-static uint32_t VKPROC_INIT;
+static uint32_t VKPROC_REF;
 
 static void vkproc_global_destroy(void)
 {
 	MTY_GlobalLock(&VKPROC_LOCK);
 
-	MTY_SOUnload(&VKPROC_SO);
-	VKPROC_INIT = false;
+	if (VKPROC_REF > 0)
+		if (--VKPROC_REF == 0)
+			MTY_SOUnload(&VKPROC_SO);
 
 	MTY_GlobalUnlock(&VKPROC_LOCK);
 }
@@ -120,9 +121,9 @@ static bool vkproc_global_init(void)
 {
 	MTY_GlobalLock(&VKPROC_LOCK);
 
-	if (!VKPROC_INIT) {
-		bool r = true;
+	bool r = true;
 
+	if (VKPROC_REF == 0) {
 		VKPROC_SO = MTY_SOLoad(VKPROC_SO_NAME);
 		if (!VKPROC_SO) {
 			r = false;
@@ -217,11 +218,12 @@ static bool vkproc_global_init(void)
 
 		if (!r)
 			MTY_SOUnload(&VKPROC_SO);
-
-		VKPROC_INIT = r;
 	}
+
+	if (r)
+		VKPROC_REF++;
 
 	MTY_GlobalUnlock(&VKPROC_LOCK);
 
-	return VKPROC_INIT;
+	return r;
 }
