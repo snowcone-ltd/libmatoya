@@ -6,8 +6,12 @@
 
 #pragma once
 
+#define GREEN "\x1b[92m"
+#define RED   "\x1b[91m"
+#define RESET "\x1b[0m"
+
 #define test_print_cmp_(name, cmps, cmp, val, fmt) \
-	printf("%-25s%-58s%s" fmt "\n", name, cmps, (cmp) ? " Passed" : "*Failed", val);
+	printf("[%s] %s %s" fmt "\n", name, (cmp) ? GREEN "Passed" RESET : RED "Failed" RESET, cmps, val);
 
 #define test_cmp_(name, cmp, val, fmt) { \
 	bool ___CMP___ = cmp; \
