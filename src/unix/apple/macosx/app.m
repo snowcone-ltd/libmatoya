@@ -478,7 +478,7 @@ static void window_pen_event(Window *window, NSEvent *event)
 	evt.pen.pressure = (uint16_t) lrint(event.pressure * 1024.0f);
 	evt.pen.rotation = (uint16_t) lrint(event.rotation * 359.0f);
 	evt.pen.tiltX = (int8_t) lrint(event.tilt.x * 90.0f);
-	evt.pen.tiltY = (int8_t) lrint(event.tilt.y * 90.0f);
+	evt.pen.tiltY = (int8_t) lrint(event.tilt.y * -90.0f);
 	evt.pen.x = lrint(p.x * scale);
 	evt.pen.y = lrint(p.y * scale);
 
@@ -1350,6 +1350,13 @@ const void *MTY_AppGetControllerTouchpad(MTY_App *ctx, uint32_t id, size_t *size
 	App *app = (__bridge App *) ctx;
 
 	return mty_hid_device_get_touchpad(app.hid, id, size);
+}
+
+MTY_PenType MTY_AppGetPenType(MTY_App *ctx)
+{
+	App *app = (__bridge App *) ctx;
+
+	return app.pen_enabled ? MTY_PEN_TYPE_GENERIC : MTY_PEN_TYPE_NONE;
 }
 
 bool MTY_AppIsPenEnabled(MTY_App *ctx)

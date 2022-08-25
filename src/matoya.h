@@ -576,6 +576,14 @@ typedef enum {
 	MTY_CAXIS_MAKE_32   = INT32_MAX,
 } MTY_CAxis;
 
+/// @brief Pen type.
+typedef enum {
+	MTY_PEN_TYPE_NONE    = 0, ///< Pen is disabled, and pen inputs are processed as mouse events.
+	MTY_PEN_TYPE_GENERIC = 1, ///< Generic pen support is enabled, providing essential features.
+	MTY_PEN_TYPE_WACOM   = 2, ///< Wacom pen support is enabled. Fallbacks to generic support if not available.
+	MTY_PEN_TYPE_MAKE_32 = INT32_MAX,
+} MTY_PenType;
+
 /// @brief Pen attributes.
 typedef enum {
 	MTY_PEN_FLAG_LEAVE        = 0x01, ///< Pen has left the drawing surface.
@@ -1035,8 +1043,16 @@ MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t high);
 MTY_EXPORT const void *
 MTY_AppGetControllerTouchpad(MTY_App *ctx, uint32_t id, size_t *size);
 
+/// @brief Get the last pen type used.
+/// @param ctx The MTY_App.
+/// @return The last pen type used.
+//- #support Windows macOS
+MTY_EXPORT MTY_PenType
+MTY_AppGetPenType(MTY_App *ctx);
+
 /// @brief Check if pen events are enabled.
 /// @param ctx The MTY_App.
+/// @return True if pen is enabled, false otherwise.
 //- #support Windows macOS
 MTY_EXPORT bool
 MTY_AppIsPenEnabled(MTY_App *ctx);

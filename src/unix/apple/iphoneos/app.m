@@ -159,6 +159,11 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 {
 }
 
+MTY_PenType MTY_AppGetPenType(MTY_App *ctx)
+{
+	return MTY_PEN_TYPE_NONE;
+}
+
 bool MTY_AppIsPenEnabled(MTY_App *ctx)
 {
 	return false;

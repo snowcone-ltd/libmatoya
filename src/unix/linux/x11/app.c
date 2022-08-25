@@ -1002,6 +1002,11 @@ const void *MTY_AppGetControllerTouchpad(MTY_App *ctx, uint32_t id, size_t *size
 	return NULL;
 }
 
+MTY_PenType MTY_AppGetPenType(MTY_App *ctx)
+{
+	return MTY_PEN_TYPE_NONE;
+}
+
 bool MTY_AppIsPenEnabled(MTY_App *ctx)
 {
 	return false;
