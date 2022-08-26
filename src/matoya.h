@@ -297,6 +297,10 @@ MTY_FreeRenderState(MTY_RenderState **state);
 #define MTY_WINDOW_MAX 8  ///< Maximum number of windows that can be created.
 #define MTY_SCREEN_MAX 32 ///< Maximum size of a screen identifier.
 
+// TODO
+#define MTY_AppGetPenType(ctx) \
+	MTY_PEN_TYPE_NONE
+
 #define MTY_DPAD(c) \
 	((c)->axes[MTY_CAXIS_DPAD].value)
 
@@ -574,6 +578,14 @@ typedef enum {
 	MTY_CAXIS_MAX       = 16, ///< Maximum number of possible axes.
 	MTY_CAXIS_MAKE_32   = INT32_MAX,
 } MTY_CAxis;
+
+/// @brief TODO Pen type.
+typedef enum {
+	MTY_PEN_TYPE_NONE    = 0, ///< Pen is disabled, pen inputs are processed as mouse events.
+	MTY_PEN_TYPE_GENERIC = 1, ///< Generic pen support.
+	MTY_PEN_TYPE_WACOM   = 2, ///< Wacom pen support with enhanced features.
+	MTY_PEN_TYPE_MAKE_32 = INT32_MAX,
+} MTY_PenType;
 
 /// @brief Pen attributes.
 typedef enum {
