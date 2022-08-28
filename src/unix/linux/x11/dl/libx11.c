@@ -7,7 +7,7 @@
 #pragma once
 
 #include "matoya.h"
-#include "libX11.h"
+#include "libx11.h"
 
 #include "sym.h"
 

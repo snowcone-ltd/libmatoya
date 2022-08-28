@@ -8,7 +8,7 @@
 GFX_CTX_PROTOTYPES(_gl_)
 
 #include "gfx/gl/glproc.c"
-#include "dl/libX11.c"
+#include "dl/libx11.c"
 
 struct gl_ctx {
 	Display *display;

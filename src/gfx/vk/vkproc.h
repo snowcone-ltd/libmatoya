@@ -21,7 +21,7 @@
 		((e) == VK_ERROR_OUT_OF_DATE_KHR || (e) == VK_SUBOPTIMAL_KHR)
 
 #elif defined(MTY_VK_XLIB)
-	#include "dl/libX11.h"
+	#include "dl/libx11.h"
 	#include "vulkan/vulkan_xlib.h"
 
 	#define VKPROC_SO_NAME "libvulkan.so.1"
