@@ -149,6 +149,9 @@ bool mty_jni_ok(JNIEnv *env)
 
 jobject mty_jni_new(JNIEnv *env, const char *name, const char *sig, ...)
 {
+	if ((*env)->ExceptionCheck(env))
+		return NULL;
+
 	va_list args;
 	va_start(args, sig);
 
@@ -168,6 +171,9 @@ jobject mty_jni_new(JNIEnv *env, const char *name, const char *sig, ...)
 
 jobject mty_jni_static_obj(JNIEnv *env, const char *name, const char *func, const char *sig, ...)
 {
+	if ((*env)->ExceptionCheck(env))
+		return NULL;
+
 	va_list args;
 	va_start(args, sig);
 
@@ -187,6 +193,9 @@ jobject mty_jni_static_obj(JNIEnv *env, const char *name, const char *func, cons
 
 void mty_jni_void(JNIEnv *env, jobject obj, const char *name, const char *sig, ...)
 {
+	if ((*env)->ExceptionCheck(env))
+		return;
+
 	va_list args;
 	va_start(args, sig);
 
@@ -202,6 +211,9 @@ void mty_jni_void(JNIEnv *env, jobject obj, const char *name, const char *sig, .
 
 jobject mty_jni_obj(JNIEnv *env, jobject obj, const char *name, const char *sig, ...)
 {
+	if ((*env)->ExceptionCheck(env))
+		return NULL;
+
 	va_list args;
 	va_start(args, sig);
 
@@ -218,6 +230,9 @@ jobject mty_jni_obj(JNIEnv *env, jobject obj, const char *name, const char *sig,
 
 jint mty_jni_int(JNIEnv *env, jobject obj, const char *name, const char *sig, ...)
 {
+	if ((*env)->ExceptionCheck(env))
+		return 0;
+
 	va_list args;
 	va_start(args, sig);
 
@@ -234,6 +249,9 @@ jint mty_jni_int(JNIEnv *env, jobject obj, const char *name, const char *sig, ..
 
 jfloat mty_jni_float(JNIEnv *env, jobject obj, const char *name, const char *sig, ...)
 {
+	if ((*env)->ExceptionCheck(env))
+		return 0;
+
 	va_list args;
 	va_start(args, sig);
 
@@ -250,6 +268,9 @@ jfloat mty_jni_float(JNIEnv *env, jobject obj, const char *name, const char *sig
 
 bool mty_jni_bool(JNIEnv *env, jobject obj, const char *name, const char *sig, ...)
 {
+	if ((*env)->ExceptionCheck(env))
+		return false;
+
 	va_list args;
 	va_start(args, sig);
 
