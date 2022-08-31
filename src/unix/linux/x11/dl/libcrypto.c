@@ -56,6 +56,9 @@ static bool libcrypto_global_init(void)
 		if (!LIBCRYPTO_SO)
 			LIBCRYPTO_SO = MTY_SOLoad("libcrypto.so.1.0.0");
 
+		if (!LIBCRYPTO_SO)
+			LIBCRYPTO_SO = MTY_SOLoad("libcrypto.so.3");
+
 		if (!LIBCRYPTO_SO) {
 			r = false;
 			goto except;
