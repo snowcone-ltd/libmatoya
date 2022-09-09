@@ -50,7 +50,10 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 	const char *scheme = secure ? "https" : "http";
 	port = port > 0 ? port : secure ? 443 : 80;
 
-	const char *url = MTY_SprintfDL("%s://%s:%u%s", scheme, host, port, path);
+	bool std_port = (secure && port == 443) || (!secure && port == 80);
+
+	const char *url =  std_port ? MTY_SprintfDL("%s://%s%s", scheme, host, path) :
+		MTY_SprintfDL("%s://%s:%u%s", scheme, host, port, path);
 
 	// URL
 	jstring jurl = mty_jni_strdup(env, url);
