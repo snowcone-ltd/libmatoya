@@ -14,7 +14,7 @@
 
 #include <unistd.h>
 
-#include "dl/libX11.c"
+#include "dl/libx11.c"
 #include "hid/utils.h"
 #include "evdev.h"
 #include "keymap.h"

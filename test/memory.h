@@ -15,7 +15,7 @@ static bool test_specific_printf(const char *function, char *buffer, const char 
 
 static bool memory_printf(void)
 {
-	test_specific_printf("MTY_SprintfD", MTY_SprintfD("%d", 42), " 42");
+	test_specific_printf("MTY_SprintfD", MTY_SprintfD("%d", 42), "42");
 	test_specific_printf("MTY_SprintfD", MTY_SprintfD("%d", -42), "-42");
 	test_specific_printf("MTY_SprintfD", MTY_SprintfD("%5d", 42), "   42");
 	test_specific_printf("MTY_SprintfD", MTY_SprintfD("%5d", -42), "  -42");
@@ -25,9 +25,9 @@ static bool memory_printf(void)
 	test_specific_printf("MTY_SprintfD", MTY_SprintfD("%15.3f", -42.987), "        -42.987");
 	test_specific_printf("MTY_SprintfD", MTY_SprintfD("%15.3f", 42.987), "         42.987");
 	test_specific_printf("MTY_SprintfD", MTY_SprintfD("%s", "Hello testing"), "Hello testing");
-	test_specific_printf("MTY_SprintfD", MTY_SprintfD("%d", 1024), " 1024");
+	test_specific_printf("MTY_SprintfD", MTY_SprintfD("%d", 1024), "1024");
 	test_specific_printf("MTY_SprintfD", MTY_SprintfD("%d", -1024), "-1024");
-	test_specific_printf("MTY_SprintfD", MTY_SprintfD("%i", 1024), " 1024");
+	test_specific_printf("MTY_SprintfD", MTY_SprintfD("%i", 1024), "1024");
 	test_specific_printf("MTY_SprintfD", MTY_SprintfD("%i", -1024), "-1024");
 	test_specific_printf("MTY_SprintfD", MTY_SprintfD("%u", 1024), "1024");
 	test_specific_printf("MTY_SprintfD", MTY_SprintfD("%u", 4294966272U), "4294966272");
@@ -175,7 +175,7 @@ static bool memory_main(void)
 	uint8_t *dup_buf = (uint8_t *) MTY_Dup(test_buf, 128);
 	for (size_t x = 0; x < 128; x++) {
 		if (dup_buf[x] != test_buf[x]) {
-			test_cmpi64("MTY_AllocAligned", failed, x);
+			test_cmpi64("MTY_Dup", failed, x);
 		}
 	}
 	MTY_Free(dup_buf);
@@ -192,11 +192,12 @@ static bool memory_main(void)
 			test_cmpi64("MTY_Strdup", failed, x);
 		}
 	}
-	MTY_Free(dup_str);
 	test_cmp("MTY_Strdup", dup_str[127] == '\0');
 
 	MTY_Strcat(dup_str, 128, (char *) test_buf);
 	test_cmp("MTY_Strcat", dup_str[127] == '\0');
+
+	MTY_Free(dup_str);
 
 	int32_t cmp = MTY_Strcasecmp("abc#&&(!1qwerty", "ABC#&&(!1QWeRTY");
 	test_cmp("MTY_Strcasecmp", cmp == 0);

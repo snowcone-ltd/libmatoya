@@ -124,13 +124,13 @@ OBJS := $(OBJS) \
 	src/net/tcp.o \
 	src/net/ws.o \
 	src/unix/image.o \
-	src/unix/net/request.o \
 	src/unix/linux/dialog.o \
 	src/unix/linux/x11/aes-gcm.o \
 	src/unix/linux/x11/app.o \
 	src/unix/linux/x11/audio.o \
 	src/unix/linux/x11/crypto.o \
 	src/unix/linux/x11/evdev.o \
+	src/unix/linux/x11/request.o \
 	src/unix/linux/x11/system.o \
 	src/unix/linux/x11/tls.o \
 	src/unix/linux/x11/gfx/gl-ctx.o

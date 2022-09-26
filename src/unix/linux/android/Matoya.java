@@ -1,12 +1,5 @@
 package group.matoya.lib;
 
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.io.IOException;
-import java.io.ByteArrayOutputStream;
-import java.io.OutputStream;
-import java.io.InputStream;
-
 import android.app.Activity;
 import android.view.View;
 import android.view.Surface;
@@ -533,98 +526,6 @@ public class Matoya extends SurfaceView implements
 
 	public boolean getRelativeMouse() {
 		return this.hasPointerCapture();
-	}
-
-
-	// HTTP request
-
-	public byte[] httpRequest(String method, String urlstring, String headers, String defaultUserAgent,
-		int timeout, byte[] body, int[] code) {
-
-		HttpURLConnection urlc = null;
-		byte[] res = null;
-
-		// TODO Proxy setting?
-
-		try {
-			// URL
-			URL url = new URL(urlstring);
-
-			urlc = (HttpURLConnection) url.openConnection();
-			urlc.setDoInput(true);
-
-			// Timeouts
-			urlc.setConnectTimeout(timeout);
-			urlc.setReadTimeout(timeout);
-
-			// Method
-			urlc.setRequestMethod(method);
-
-			// Request headers
-			boolean ua = false;
-
-			if (headers != null) {
-				for (String pair : headers.split("\\n")) {
-					String[] kv = pair.split(":", 2);
-
-					if (kv.length == 2) {
-						String key = kv[0].trim();
-						String val = kv[1].trim();
-
-						if (key.toLowerCase() == "user-agent")
-							ua = true;
-
-						urlc.setRequestProperty(key, val);
-					}
-				}
-			}
-
-			if (!ua)
-				urlc.setRequestProperty("User-Agent", defaultUserAgent);
-
-			// Write request body
-			if (body != null) {
-				urlc.setDoOutput(true);
-				urlc.setChunkedStreamingMode(0);
-
-				OutputStream out = urlc.getOutputStream();
-				out.write(body);
-				out.flush();
-				out.close();
-			}
-
-			// Response code
-			code[0] = urlc.getResponseCode();
-
-			// Response body
-			InputStream in = null;
-
-			try {
-				in = urlc.getInputStream();
-
-			} catch (IOException e) {
-				in = urlc.getErrorStream();
-			}
-
-			ByteArrayOutputStream buf = new ByteArrayOutputStream();
-			int b = in.read();
-
-			while (b != -1) {
-				buf.write(b);
-				b = in.read();
-			}
-
-			res = buf.toByteArray();
-			buf.close();
-			in.close();
-
-		} catch (Exception e) {
-		}
-
-		if (urlc != null)
-			urlc.disconnect();
-
-		return res;
 	}
 
 

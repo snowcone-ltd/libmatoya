@@ -49,13 +49,10 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 	const char *scheme = secure ? "https" : "http";
 	port = port > 0 ? port : secure ? 443 : 80;
 
-	const char *url = NULL;
-	if ((secure && port == 443) || (!secure && port == 80)) {
-		url = MTY_SprintfDL("%s://%s%s", scheme, host, path);
+	bool std_port = (secure && port == 443) || (!secure && port == 80);
 
-	} else {
-		url = MTY_SprintfDL("%s://%s:%u%s", scheme, host, port, path);
-	}
+	const char *url =  std_port ? MTY_SprintfDL("%s://%s%s", scheme, host, path) :
+		MTY_SprintfDL("%s://%s:%u%s", scheme, host, port, path);
 
 	[req setURL:[NSURL URLWithString:[NSString stringWithUTF8String:url]]];
 

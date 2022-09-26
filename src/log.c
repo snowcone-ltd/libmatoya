@@ -26,7 +26,7 @@ static void log_none(const char *msg, void *opaque)
 
 static void log_internal(const char *func, const char *fmt, va_list args)
 {
-	if (MTY_Atomic32Get(&LOG_DISABLED) || LOG_PREVENT_RECURSIVE)
+	if (LOG_PREVENT_RECURSIVE)
 		return;
 
 	char *fmt_name = MTY_SprintfD("%s: %s", func, fmt);
@@ -37,9 +37,11 @@ static void log_internal(const char *func, const char *fmt, va_list args)
 	MTY_Free(msg);
 	MTY_Free(fmt_name);
 
-	LOG_PREVENT_RECURSIVE = true;
-	LOG_FUNC(LOG_MSG, LOG_OPAQUE);
-	LOG_PREVENT_RECURSIVE = false;
+	if (!MTY_Atomic32Get(&LOG_DISABLED)) {
+		LOG_PREVENT_RECURSIVE = true;
+		LOG_FUNC(LOG_MSG, LOG_OPAQUE);
+		LOG_PREVENT_RECURSIVE = false;
+	}
 }
 
 const char *MTY_GetLog(void)

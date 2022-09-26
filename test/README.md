@@ -23,3 +23,7 @@ make
 - Thread
 - Time
 - Version
+
+#### JSON
+
+For additional edge case testing, you can put the `.json` files from [this repo](https://github.com/nst/JSONTestSuite/tree/master/test_parsing) in the `json` subdirectory.
