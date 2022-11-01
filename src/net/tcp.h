@@ -17,4 +17,4 @@ MTY_Async mty_tcp_poll(struct tcp *ctx, bool out, uint32_t timeout);
 bool mty_tcp_write(struct tcp *ctx, const void *buf, size_t size);
 bool mty_tcp_read(struct tcp *ctx, void *buf, size_t size, uint32_t timeout);
 
-bool mty_dns_query(const char *host, char *ip, size_t size);
+bool mty_dns_query(const char *host, bool v6, char *ip, size_t size);
