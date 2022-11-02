@@ -54,7 +54,6 @@ struct MTY_App {
 	struct evdev *evdev;
 	struct window *windows[MTY_WINDOW_MAX];
 	uint32_t timeout;
-	uint32_t rate;
 	MTY_Time suspend_ts;
 	bool relative;
 	bool suspend_ss;
@@ -1301,33 +1300,6 @@ MTY_Size MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window)
 float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
 {
 	return app->scale;
-}
-
-uint32_t MTY_WindowGetRefreshRate(MTY_App *app, MTY_Window window)
-{
-	// TODO This will cache the rate after the first call to this function because
-	// XRRGetScreenInfo is very slow. This means it will not respond to rate changes
-	// during runtime. A better way of doing this would be to use XRRSelectInput
-	// with RRScreenChangeNotifyMask and fetch the new refresh rate in response to
-	// the event.
-
-	if (app->rate > 0)
-		return app->rate;
-
-	struct window *ctx = app_get_window(app, window);
-
-	if (ctx && XRRGetScreenInfo && XRRFreeScreenConfigInfo && XRRConfigCurrentRate) {
-		XRRScreenConfiguration *conf = XRRGetScreenInfo(app->display, ctx->window);
-
-		if (conf) {
-			app->rate = XRRConfigCurrentRate(conf);
-			XRRFreeScreenConfigInfo(conf);
-
-			return app->rate;
-		}
-	}
-
-	return 60;
 }
 
 void MTY_WindowSetTitle(MTY_App *app, MTY_Window window, const char *title)
