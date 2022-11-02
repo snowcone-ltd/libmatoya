@@ -1124,12 +1124,6 @@ MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window);
 MTY_EXPORT float
 MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window);
 
-/// @brief Get the refresh rate of the display where the window currently resides.
-/// @param app The MTY_App.
-/// @param window An MTY_Window.
-MTY_EXPORT uint32_t
-MTY_WindowGetRefreshRate(MTY_App *app, MTY_Window window);
-
 /// @brief Set the window's title.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
@@ -3443,7 +3437,7 @@ MTY_GetTime(void);
 /// @param begin The beginning time stamp.
 /// @param end The ending time stamp.
 /// @returns This value can be negative if `begin > end`.
-MTY_EXPORT float
+MTY_EXPORT double
 MTY_TimeDiff(MTY_Time begin, MTY_Time end);
 
 /// @brief Suspend the current thread.
@@ -3451,6 +3445,16 @@ MTY_TimeDiff(MTY_Time begin, MTY_Time end);
 //- #support Windows macOS Android Linux
 MTY_EXPORT void
 MTY_Sleep(uint32_t timeout);
+
+/// @brief Suspend the current thread with high precision.
+/// @details This function uses a spinlock at the end of the sleep to get closer to the
+///   requested `timeout`. Depending on the value of `spin`, it can consume much more of the CPU
+///   than MTY_Sleep.
+/// @param timeout The total number of milliseconds to sleep.
+/// @param spin When less than `spin` milliseconds remain in the sleep, fall into a spinlock.
+//- #support Windows macOS Android Linux
+MTY_EXPORT void
+MTY_PreciseSleep(double timeout, double spin);
 
 /// @brief Set the sleep precision of all waitable objects.
 /// @details See `timeBeginPeriod` on Windows.

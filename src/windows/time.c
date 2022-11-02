@@ -12,7 +12,7 @@
 #include "tlocal.h"
 
 static TLOCAL bool TIME_FREQ_INIT;
-static TLOCAL float TIME_FREQUENCY;
+static TLOCAL double TIME_FREQUENCY;
 
 MTY_Time MTY_GetTime(void)
 {
@@ -22,16 +22,43 @@ MTY_Time MTY_GetTime(void)
 	return ts.QuadPart;
 }
 
-float MTY_TimeDiff(MTY_Time begin, MTY_Time end)
+double MTY_TimeDiff(MTY_Time begin, MTY_Time end)
 {
 	if (!TIME_FREQ_INIT) {
 		LARGE_INTEGER frequency;
 		QueryPerformanceFrequency(&frequency);
-		TIME_FREQUENCY = (float) frequency.QuadPart / 1000.0f;
+		TIME_FREQUENCY = frequency.QuadPart / 1000.0;
 		TIME_FREQ_INIT = true;
 	}
 
-	return (float) (end - begin) / TIME_FREQUENCY;
+	return (end - begin) / TIME_FREQUENCY;
+}
+
+static HANDLE time_create_timer(BOOL manual)
+{
+	HANDLE timer = CreateWaitableTimer(NULL, manual, NULL);
+	if (!timer)
+		MTY_Log("'CreateWaitableTimer' faled with error 0x%X", GetLastError());
+
+	return timer;
+}
+
+static bool time_wait(HANDLE timer, uint32_t timeout)
+{
+	LARGE_INTEGER ft = {.QuadPart = -10000 * (int32_t) timeout};
+
+	if (SetWaitableTimerEx(timer, &ft, 0, NULL, NULL, NULL, 0)) {
+		DWORD e = WaitForSingleObject(timer, INFINITE);
+		if (e == WAIT_OBJECT_0)
+			return true;
+
+		MTY_Log("'WaitForSingleObject' returned %d", e);
+
+	} else {
+		MTY_Log("'SetWaitableTimer' failed with error 0x%X", GetLastError());
+	}
+
+	return false;
 }
 
 void MTY_Sleep(uint32_t timeout)
@@ -39,26 +66,32 @@ void MTY_Sleep(uint32_t timeout)
 	// There is evidence that CreateWaitableTimer will produce higher resolution
 	// waiting over Sleep
 
-	HANDLE timer = CreateWaitableTimer(NULL, TRUE, NULL);
-	if (!timer) {
-		MTY_Log("'CreateWaitableTimer' faled with error 0x%X", GetLastError());
+	HANDLE timer = time_create_timer(TRUE);
+	if (!timer)
 		return;
-	}
 
-	LARGE_INTEGER ft;
-	ft.QuadPart = -10000 * (int32_t) timeout;
+	time_wait(timer, timeout);
 
-	if (SetWaitableTimer(timer, &ft, 0, NULL, NULL, FALSE)) {
-		DWORD e = WaitForSingleObject(timer, INFINITE);
-		if (e != WAIT_OBJECT_0)
-			MTY_Log("'WaitForSingleObject' returned %d", e);
+	CloseHandle(timer);
+}
 
-	} else {
-		MTY_Log("'SetWaitableTimer' failed with error 0x%X", GetLastError());
-	}
+void MTY_PreciseSleep(double timeout, double spin)
+{
+	// Inspired by https://blog.bearcats.nl/accurate-sleep-function/
 
-	if (!CloseHandle(timer))
-		MTY_Log("'CloseHandle' failed with error 0x%X", GetLastError());
+	MTY_Time start = MTY_GetTime();
+
+	HANDLE timer = time_create_timer(FALSE);
+	if (!timer)
+		return;
+
+	for (double ep = 0.0; ep < timeout - spin; ep = MTY_TimeDiff(start, MTY_GetTime()))
+		if (!time_wait(timer, 1))
+			break;
+
+	CloseHandle(timer);
+
+	while (MTY_TimeDiff(start, MTY_GetTime()) < timeout);
 }
 
 void MTY_SetTimerResolution(uint32_t res)

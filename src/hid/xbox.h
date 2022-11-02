@@ -41,7 +41,7 @@ static void xbox_do_rumble(struct hid_dev *device)
 	struct xbox_state *ctx = mty_hid_device_get_state(device);
 
 	MTY_Time ts = MTY_GetTime();
-	float diff = MTY_TimeDiff(ctx->rumble_ts, ts);
+	double diff = MTY_TimeDiff(ctx->rumble_ts, ts);
 	bool non_zero = ctx->low > 0 || ctx->high > 0;
 
 	// Xbox one seems to have an internal timeout of 3s
