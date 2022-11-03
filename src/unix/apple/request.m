@@ -39,6 +39,9 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 	NSURLSessionConfiguration *cfg = [NSURLSessionConfiguration defaultSessionConfiguration];
 	NSMutableURLRequest *req = [NSMutableURLRequest new];
 
+	// Don't cache
+	[req setCachePolicy:NSURLRequestReloadIgnoringLocalCacheData];
+
 	// Timeout
 	[req setTimeoutInterval:timeout / 1000.0];
 
