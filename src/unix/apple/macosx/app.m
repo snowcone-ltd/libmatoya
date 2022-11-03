@@ -811,7 +811,14 @@ static void window_mod_event(Window *window, NSEvent *event)
 
 	- (void)flagsChanged:(NSEvent *)event
 	{
-		window_mod_event(self, event);
+		// Simulate full button press for the Caps Lock key
+		if (event.keyCode == kVK_CapsLock) {
+			window_keyboard_event(self, event.keyCode, event.modifierFlags, true);
+			window_keyboard_event(self, event.keyCode, event.modifierFlags, false);
+
+		} else {
+			window_mod_event(self, event);
+		}
 	}
 
 	- (void)mouseUp:(NSEvent *)event
