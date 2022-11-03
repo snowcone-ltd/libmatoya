@@ -78,8 +78,9 @@ static void (*SSL_set_bio)(SSL *s, BIO *rbio, BIO *wbio);
 static void (*SSL_set_connect_state)(SSL *s);
 static int (*SSL_do_handshake)(SSL *s);
 static int (*SSL_use_certificate)(SSL *ssl, X509 *x);
-static X509 *(*SSL_get_peer_certificate)(const SSL *s);
 static int (*SSL_use_RSAPrivateKey)(SSL *ssl, RSA *rsa);
+static X509 *(*SSL_get_peer_certificate)(const SSL *s);
+static X509 *(*SSL_get1_peer_certificate)(const SSL *s);
 
 static const SSL_METHOD *(*TLSv1_2_method)(void);
 static const SSL_METHOD *(*DTLS_method)(void);
@@ -149,8 +150,14 @@ static bool libssl_global_init(void)
 
 	if (!LIBSSL_INIT) {
 		bool r = true;
+		bool ssl3 = true;
 		bool library_init = false;
-		LIBSSL_SO = MTY_SOLoad("libssl.so.1.1");
+		LIBSSL_SO = MTY_SOLoad("libssl.so.3");
+
+		if (!LIBSSL_SO) {
+			LIBSSL_SO = MTY_SOLoad("libssl.so.1.1");
+			ssl3 = false;
+		}
 
 		if (!LIBSSL_SO) {
 			LIBSSL_SO = MTY_SOLoad("libssl.so.1.0.0");
@@ -175,8 +182,16 @@ static bool libssl_global_init(void)
 		LOAD_SYM(LIBSSL_SO, SSL_set_connect_state);
 		LOAD_SYM(LIBSSL_SO, SSL_do_handshake);
 		LOAD_SYM(LIBSSL_SO, SSL_use_certificate);
-		LOAD_SYM(LIBSSL_SO, SSL_get_peer_certificate);
 		LOAD_SYM(LIBSSL_SO, SSL_use_RSAPrivateKey);
+
+		// libssl 3 uses a different symbol for SSL_get_peer_certificate
+		if (ssl3) {
+			LOAD_SYM(LIBSSL_SO, SSL_get1_peer_certificate);
+			SSL_get_peer_certificate = SSL_get1_peer_certificate;
+
+		} else {
+			LOAD_SYM(LIBSSL_SO, SSL_get_peer_certificate);
+		}
 
 		LOAD_SYM(LIBSSL_SO, TLSv1_2_method);
 		LOAD_SYM(LIBSSL_SO, DTLS_method);
