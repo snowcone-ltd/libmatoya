@@ -1982,6 +1982,13 @@ MTY_JSONStringCreate(const char *value);
 MTY_EXPORT bool
 MTY_JSONString(const MTY_JSON *json, char *value, size_t size);
 
+/// @brief Get the internal string pointer from an MTY_JSON string.
+/// @param json An MTY_JSON string.
+/// @returns This reference is valid only as long as the `json` item is also valid.\n\n
+///   If `json` is not an MTY_JSON string, NULL is returned.
+MTY_EXPORT const char *
+MTY_JSONStringPtr(const MTY_JSON *json);
+
 /// @brief Create a new MTY_JSON array.
 /// @param len The number of elements allocated in the array.
 /// @returns The returned MTY_JSON item should be destroyed with MTY_JSONDestroy if it
@@ -2062,6 +2069,9 @@ MTY_JSONObjSetItem(MTY_JSON *json, const char *key, MTY_JSON *value);
 #define MTY_JSONObjGetString(json, key, val, size) \
 	MTY_JSONString(MTY_JSONObjGetItem(json, key), val, size)
 
+#define MTY_JSONObjGetStringPtr(json, key) \
+	MTY_JSONStringPtr(MTY_JSONObjGetItem(json, key))
+
 #define MTY_JSONObjSetBool(json, key, val) \
 	MTY_JSONObjSetItem(json, key, MTY_JSONBoolCreate(val))
 
@@ -2076,6 +2086,14 @@ MTY_JSONObjSetItem(MTY_JSON *json, const char *key, MTY_JSON *value);
 
 #define MTY_JSONArraySetString(json, index, val) \
 	MTY_JSONArraySetItem(json, index, MTY_JSONStringCreate(val))
+
+// TODO Cleanup
+#define MTY_JSONObjGetFullString \
+	MTY_JSONObjGetStringPtr
+
+// TODO Cleanup
+#define MTY_JSONFullString \
+	MTY_JSONStringPtr
 
 // TODO Cleanup
 #define MTY_JSONObjDeleteItem(json, key) \
