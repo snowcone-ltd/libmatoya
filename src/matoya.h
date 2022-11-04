@@ -2089,22 +2089,6 @@ MTY_JSONObjSetItem(MTY_JSON *json, const char *key, MTY_JSON *value);
 #define MTY_JSONArraySetString(json, index, val) \
 	MTY_JSONArraySetItem(json, index, MTY_JSONStringCreate(val))
 
-// TODO Cleanup
-#define MTY_JSONObjGetFullString \
-	MTY_JSONObjGetStringPtr
-
-// TODO Cleanup
-#define MTY_JSONFullString \
-	MTY_JSONStringPtr
-
-// TODO Cleanup
-#define MTY_JSONObjDeleteItem(json, key) \
-	MTY_JSONObjSetItem(json, key, NULL)
-
-// TODO Cleanup
-#define MTY_JSONObjSetFloat(json, key, val) \
-	MTY_JSONObjSetNumber(json, key, val)
-
 
 //- #module Log
 //- #mbrief Get logs, add logs, and set a log callback.
