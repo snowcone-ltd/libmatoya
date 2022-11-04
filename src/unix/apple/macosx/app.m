@@ -16,6 +16,17 @@
 #include "hid/utils.h"
 
 
+// Private global hotkey interface
+
+enum CGSGlobalHotKeyOperatingMode {
+	CGSGlobalHotKeyEnable  = 0,
+	CGSGlobalHotKeyDisable = 1,
+};
+
+int32_t CGSMainConnectionID(void);
+CGError CGSSetGlobalHotKeyOperatingMode(int32_t conn, enum CGSGlobalHotKeyOperatingMode mode);
+
+
 // NSApp
 
 @interface App : NSObject <NSApplicationDelegate, NSUserNotificationCenterDelegate>
@@ -107,10 +118,13 @@ static void app_apply_keyboard_state(App *ctx)
 	if (ctx.grab_kb && ctx.detach == MTY_DETACH_STATE_NONE) {
 		// Requires "Enable access for assistive devices" checkbox is checked
 		// in the Universal Access preference pane
-		if (!ctx.kb_mode)
+		if (!ctx.kb_mode) {
 			ctx.kb_mode = PushSymbolicHotKeyMode(kHIHotKeyModeAllDisabled);
+			CGSSetGlobalHotKeyOperatingMode(CGSMainConnectionID(), CGSGlobalHotKeyDisable);
+		}
 
 	} else if (ctx.kb_mode) {
+		CGSSetGlobalHotKeyOperatingMode(CGSMainConnectionID(), CGSGlobalHotKeyEnable);
 		PopSymbolicHotKeyMode(ctx.kb_mode);
 		ctx.kb_mode = NULL;
 	}
@@ -727,12 +741,21 @@ static void window_mod_event(Window *window, NSEvent *event)
 
 	- (BOOL)performKeyEquivalent:(NSEvent *)event
 	{
-		NSUInteger mods = NSEventModifierFlagControl | NSEventModifierFlagCommand;
+		bool cmd = event.modifierFlags & NSEventModifierFlagCommand;
+		bool ctrl = event.modifierFlags & NSEventModifierFlagControl;
 
-		// macOS swallows Ctrl+Tab and Cmd+Tab, special cases
-		if (event.keyCode == kVK_Tab && (event.modifierFlags & mods)) {
+		bool cmd_tab = event.keyCode == kVK_Tab && cmd;
+		bool ctrl_tab = event.keyCode == kVK_Tab && ctrl;
+		bool cmd_q = event.keyCode == kVK_ANSI_Q && cmd;
+		bool cmd_w = event.keyCode == kVK_ANSI_W && cmd;
+		bool cmd_space = event.keyCode == kVK_Space && cmd;
+
+		// While keyboard is grabbed, make sure we pass through special OS hotkeys
+		if (self.app.grab_kb && (cmd_tab || ctrl_tab || cmd_q || cmd_w || cmd_space)) {
 			window_keyboard_event(self, event.keyCode, event.modifierFlags, true);
 			window_keyboard_event(self, event.keyCode, event.modifierFlags, false);
+
+			return YES;
 		}
 
 		return NO;
@@ -1053,6 +1076,7 @@ void MTY_AppDestroy(MTY_App **app)
 	MTY_AppStayAwake(*app, false);
 
 	if (ctx.kb_mode) {
+		CGSSetGlobalHotKeyOperatingMode(CGSMainConnectionID(), CGSGlobalHotKeyEnable);
 		PopSymbolicHotKeyMode(ctx.kb_mode);
 		ctx.kb_mode = NULL;
 	}
