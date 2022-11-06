@@ -84,7 +84,7 @@ void *MTY_CompressImage(MTY_ImageCompression method, const void *input, uint32_t
 
 void *MTY_DecompressImage(const void *input, size_t size, uint32_t *width, uint32_t *height)
 {
-	void *image = NULL;
+	uint8_t *image = NULL;
 	CGDataProviderRef provider = NULL;
 	CGImageRef cgimg = NULL;
 
@@ -116,11 +116,25 @@ void *MTY_DecompressImage(const void *input, size_t size, uint32_t *width, uint3
 	if (!raw)
 		goto except;
 
+	size_t bpp = CGImageGetBitsPerPixel(cgimg);
 	const UInt8 *raw_buf = CFDataGetBytePtr(raw);
 	CFIndex raw_size = CFDataGetLength(raw);
 
-	image = MTY_Alloc(raw_size, 1);
-	memcpy(image, raw_buf, raw_size);
+	// No alpha channel
+	if (bpp == 24) {
+		image = MTY_Alloc(raw_size * 4 / 3, 1);
+
+		for (CFIndex x = 0, y = 0; y < raw_size; x += 4, y += 3) {
+			image[x] = raw_buf[y];
+			image[x + 1] = raw_buf[y + 1];
+			image[x + 2] = raw_buf[y + 2];
+			image[x + 3] = 0xFF;
+		}
+
+	} else if (bpp == 32) {
+		image = MTY_Alloc(raw_size, 1);
+		memcpy(image, raw_buf, raw_size);
+	}
 
 	CFRelease(raw);
 
