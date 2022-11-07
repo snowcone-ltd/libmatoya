@@ -36,6 +36,7 @@ struct window {
 struct MTY_App {
 	MTY_AppFunc app_func;
 	MTY_EventFunc event_func;
+	MTY_WMsgFunc wmsg_func;
 	void *opaque;
 
 	WNDCLASSEX wc;
@@ -601,11 +602,20 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 {
 	MTY_App *app = ctx->app;
 
+	LRESULT r = 0;
+	bool creturn = false;
+
+	// Custom window message handler
+	if (app->wmsg_func) {
+		r = app->wmsg_func(app, ctx->window, hwnd, msg, wparam, lparam, &creturn, app->opaque);
+
+		if (creturn)
+			return r;
+	}
+
 	MTY_Event evt = {0};
 	evt.window = ctx->window;
 
-	LRESULT r = 0;
-	bool creturn = false;
 	bool defreturn = false;
 	bool pen_active = app->pen_enabled && app->pen_in_range;
 	char drop_name[MTY_PATH_MAX];
@@ -1636,6 +1646,11 @@ MTY_InputMode MTY_AppGetInputMode(MTY_App *ctx)
 
 void MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode)
 {
+}
+
+void MTY_AppSetWMsgFunc(MTY_App *ctx, MTY_WMsgFunc func)
+{
+	ctx->wmsg_func = func;
 }
 
 

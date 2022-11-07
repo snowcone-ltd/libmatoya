@@ -328,6 +328,23 @@ typedef bool (*MTY_AppFunc)(void *opaque);
 /// @returns Return true to show the menu item as checked, false to show it as unchecked.
 typedef bool (*MTY_MenuItemCheckedFunc)(void *opaque);
 
+/// @brief Function called to add custom processing to window messages.
+/// @details This function is called before any internal processing, and if `shouldReturn` is set
+///   to true, no internal handling of the message will take place. This may affect internal state
+///   tracking for certain message types.
+/// @param app The MTY_App.
+/// @param window The MTY_Window associated with the message.
+/// @param hwnd `HWND hwnd` value passed as the first argument to the `WNDPROC` callback.
+/// @param msg `UINT uMsg` value passed as the second argument to the `WNDPROC` callback.
+/// @param wparam `WPARAM wParam` value passed as the third argument to the `WNDPROC` callback.
+/// @param lparam `LPARAM lParam` value passed as the fourth argument to the `WNDPROC` callback.
+/// @param shouldReturn If set to true, no internal processing of this message will take place
+///   and the return value from this callback will be returned by the internal `WNDPROC` callback.
+/// @param opaque Pointer set via MTY_AppCreate.
+//- #support Windows
+typedef intptr_t (*MTY_WMsgFunc)(MTY_App *app, MTY_Window window, void *hwnd, uint32_t msg,
+	intptr_t wparam, uintptr_t lparam, bool *shouldReturn, void *opaque);
+
 /// @brief App events.
 /// @details See MTY_Event for details on how to respond to these values.
 typedef enum {
@@ -1038,6 +1055,13 @@ MTY_AppGetInputMode(MTY_App *ctx);
 //- #support Android
 MTY_EXPORT void
 MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode);
+
+/// @brief Set a custom window message handler for the app.
+/// @param ctx The MTY_App.
+/// @param func Function called internally for each window message. Setting this to NULL will
+///   remove any existing handler.
+MTY_EXPORT void
+MTY_AppSetWMsgFunc(MTY_App *ctx, MTY_WMsgFunc func);
 
 /// @brief Create an MTY_Window, the primary interactive view of an application.
 /// @details An MTY_Window is a child of the MTY_App object, so everywhere a window

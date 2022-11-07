@@ -484,6 +484,10 @@ void MTY_AppSetInputMode(MTY_App *ctx, MTY_InputMode mode)
 {
 }
 
+void MTY_AppSetWMsgFunc(MTY_App *ctx, MTY_WMsgFunc func)
+{
+}
+
 
 // Window
 
