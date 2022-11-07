@@ -82,13 +82,20 @@ bool MTY_CopyFile(const char *src, const char *dst)
 
 bool MTY_MoveFile(const char *src, const char *dst)
 {
-	bool r = true;
 	wchar_t *srcw = MTY_MultiToWideD(src);
 	wchar_t *dstw = MTY_MultiToWideD(dst);
 
-	if (!MoveFileEx(srcw, dstw, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
-		MTY_Log("'MoveFileEx' failed with error 0x%X", GetLastError());
-		r = false;
+	BOOL r = MoveFileEx(srcw, dstw, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+	if (!r) {
+		// MoveFileEx may fail across system volumes or when directory locks are present, fall back to CopyFile
+		r = CopyFile(srcw, dstw, FALSE);
+
+		if (r) {
+			DeleteFile(srcw);
+
+		} else {
+			MTY_Log("Failed to move file via 'MoveFileEx' and 'CopyFile', last error 0x%X", GetLastError());
+		}
 	}
 
 	MTY_Free(srcw);
