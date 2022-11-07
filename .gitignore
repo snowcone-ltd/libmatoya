@@ -11,3 +11,4 @@
 **/gfx/*/shaders/*.h
 
 .DS_Store
+.editorconfig
