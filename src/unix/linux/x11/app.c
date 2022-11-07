@@ -1357,7 +1357,8 @@ void MTY_WindowActivate(MTY_App *app, MTY_Window window, bool active)
 		XSendEvent(app->display, XRootWindowOfScreen(attr.screen), 0,
 			SubstructureNotifyMask | SubstructureRedirectMask, &evt);
 
-		XSetInputFocus(app->display, ctx->window, RevertToNone, CurrentTime);
+		if (attr.map_state == IsViewable)
+			XSetInputFocus(app->display, ctx->window, RevertToNone, CurrentTime);
 
 	} else {
 		XWithdrawWindow(app->display, ctx->window);
