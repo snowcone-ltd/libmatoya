@@ -6,31 +6,36 @@
 
 #include "matoya.h"
 
-#include "tlocal.h"
-#include "sleep.h"
-#include "timestamp.h"
-
-static TLOCAL bool TIME_FREQ_INIT;
-static TLOCAL double TIME_FREQUENCY;
+#include <time.h>
+#include <errno.h>
 
 MTY_Time MTY_GetTime(void)
 {
-	return mty_timestamp();
+	struct timespec ts = {0};
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
+		MTY_Log("'clock_gettime' failed with errno %d", errno);
+
+	// XXX time_t can be 32 bits and multiplying it by 1000000
+	// can overflow it. Make sure to cast it as 64-bits for multipication
+	uint64_t r = (uint64_t) ts.tv_sec * 1000 * 1000;
+	r += ts.tv_nsec / 1000;
+
+	return r;
 }
 
 double MTY_TimeDiff(MTY_Time begin, MTY_Time end)
 {
-	if (!TIME_FREQ_INIT) {
-		TIME_FREQUENCY = mty_frequency();
-		TIME_FREQ_INIT = true;
-	}
-
-	return (end - begin) * TIME_FREQUENCY;
+	return (end - begin) / 1000.0;
 }
 
 void MTY_Sleep(uint32_t timeout)
 {
-	mty_sleep(timeout);
+	struct timespec ts = {0};
+	ts.tv_sec = timeout / 1000;
+	ts.tv_nsec = (timeout % 1000) * 1000 * 1000;
+
+	if (nanosleep(&ts, NULL) != 0)
+		MTY_Log("'nanosleep' failed with errno %d", errno);
 }
 
 void MTY_PreciseSleep(double timeout, double spin)

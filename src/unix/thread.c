@@ -12,7 +12,6 @@
 #include <time.h>
 
 #include "thread.h"
-#include "gettime.h"
 
 
 // Thread
@@ -194,7 +193,9 @@ bool MTY_CondWait(MTY_Cond *ctx, MTY_Mutex *mutex, int32_t timeout)
 	// Use pthread_cond_timedwait
 	if (timeout >= 0) {
 		struct timespec ts = {0};
-		mty_get_time(&ts);
+
+		if (clock_gettime(CLOCK_REALTIME, &ts) != 0)
+			MTY_LogFatal("'clock_gettime' failed with errno %d", errno);
 
 		ts.tv_sec += timeout / 1000;
 		ts.tv_nsec += (timeout % 1000) * 1000 * 1000;
