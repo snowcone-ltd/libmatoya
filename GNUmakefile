@@ -167,7 +167,7 @@ ARCH = x86_64
 endif
 
 ifeq ($(TARGET), macosx)
-MIN_VER = 10.11
+MIN_VER = 10.12
 
 OBJS := $(OBJS) \
 	src/hid/hid.o \
