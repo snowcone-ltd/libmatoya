@@ -7,68 +7,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "net/net.h"
-#include "net/gzip.h"
-#include "net/http.h"
-#include "net/http-parse.h"
-#include "net/http-proxy.h"
-
-#define MTY_USER_AGENT "libmatoya/v" MTY_VERSION_STRING
+#include "net.h"
+#include "http.h"
+#include "dl/libcurl.h"
 
 struct request_parse_args {
-	char **headers;
+	struct curl_slist **slist;
 	bool ua_found;
 };
 
-static bool http_read_chunk_len(struct net *net, uint32_t timeout, size_t *len)
-{
-	*len = 0;
-	char len_buf[64] = {0};
-
-	for (uint32_t x = 0; x < 64 - 1; x++) {
-		if (!mty_net_read(net, len_buf + x, 1, timeout))
-			break;
-
-		if (x > 0 && len_buf[x - 1] == '\r' && len_buf[x] == '\n') {
-			len_buf[x - 1] = '\0';
-			*len = strtoul(len_buf, NULL, 16);
-
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static bool http_read_chunked(struct net *net, void **res, size_t *size, uint32_t timeout)
-{
-	size_t chunk_len = 0;
-
-	do {
-		// Read the chunk size one byte at a time
-		if (!http_read_chunk_len(net, timeout, &chunk_len))
-			return false;
-
-		// Overflow protection
-		if (chunk_len > MTY_RES_MAX || *size + chunk_len > MTY_RES_MAX)
-			return false;
-
-		// Make room for chunk and "\r\n" after chunk
-		*res = MTY_Realloc(*res, *size + chunk_len + 2, 1);
-
-		// Read chunk into buffer with extra 2 bytes for "\r\n"
-		if (!mty_net_read(net, (uint8_t *) *res + *size, chunk_len + 2, timeout))
-			return false;
-
-		*size += chunk_len;
-
-		// Keep null character at the end of the buffer for protection
-		memset((uint8_t *) *res + *size, 0, 1);
-
-	} while (chunk_len > 0);
-
-	return true;
-}
+struct request_response {
+	uint8_t *data;
+	size_t size;
+};
 
 static void request_parse_headers(const char *key, const char *val, void *opaque)
 {
@@ -77,7 +28,21 @@ static void request_parse_headers(const char *key, const char *val, void *opaque
 	if (!MTY_Strcasecmp(key, "User-Agent"))
 		pargs->ua_found = true;
 
-	mty_http_set_header_str(pargs->headers, key, val);
+	*pargs->slist = curl_slist_append(*pargs->slist, MTY_SprintfDL("%s: %s", key, val));
+}
+
+static size_t request_write_func(char *ptr, size_t size, size_t nmemb, void *userdata)
+{
+	size_t realsize = size * nmemb;
+	struct request_response *res = userdata;
+
+	res->data = MTY_Realloc(res->data, res->size + realsize + 1, 1);
+
+	memcpy(res->data + res->size, ptr, realsize);
+	res->size += realsize;
+	res->data[res->size] = 0;
+
+	return realsize;
 }
 
 bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *method,
@@ -87,105 +52,101 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 	*responseSize = 0;
 	*response = NULL;
 
-	bool r = true;
-	char *req = NULL;
-	struct http_header *hdr = NULL;
+	if (!libcurl_global_init())
+		return false;
 
-	// Make the TCP/TLS connection
-	struct net *net = mty_net_connect(host, port, secure, timeout);
-	if (!net) {
-		r = false;
-		goto except;
+	CURL *curl = curl_easy_init();
+	if (!curl) {
+		MTY_Log("'curl_easy_init' failed");
+		return false;
 	}
 
-	// Set request headers
-	mty_http_set_header_str(&req, "Connection", "close");
+	bool r = true;
+	struct curl_slist *slist = NULL;
+	struct request_response res = {0};
 
-	struct request_parse_args pargs = {0};
-	pargs.headers = &req;
+	// No signals
+	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+
+	// Timeouts
+	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, timeout);
+	curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, timeout);
+	curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1);
+
+	// Method
+	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, method);
+
+	// URL (scheme, host, port, path)
+	const char *scheme = secure ? "https" : "http";
+	port = port > 0 ? port : secure ? 443 : 80;
+
+	bool std_port = (secure && port == 443) || (!secure && port == 80);
+
+	const char *url =  std_port ? MTY_SprintfDL("%s://%s%s", scheme, host, path) :
+		MTY_SprintfDL("%s://%s:%u%s", scheme, host, port, path);
+
+	curl_easy_setopt(curl, CURLOPT_URL, url);
+
+	// Request headers
+	struct request_parse_args pargs = {.slist = &slist};
 
 	if (headers)
 		mty_http_parse_headers(headers, request_parse_headers, &pargs);
 
 	if (!pargs.ua_found)
-		mty_http_set_header_str(&req, "User-Agent", MTY_USER_AGENT);
+		slist = curl_slist_append(slist, "User-Agent: " MTY_USER_AGENT);
 
-	if (bodySize)
-		mty_http_set_header_int(&req, "Content-Length", (int32_t) bodySize);
+	if (slist)
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, slist);
 
-	// Send the request header
-	r = mty_http_write_request_header(net, method, path, req);
-	if (!r)
-		goto except;
-
-	// Send the request body
+	// Body
 	if (body && bodySize > 0) {
-		r = mty_net_write(net, body, bodySize);
-		if (!r)
-			goto except;
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, bodySize);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body);
 	}
 
-	// Read the response header
-	hdr = mty_http_read_header(net, timeout);
-	if (!hdr) {
+	// Proxy
+	const char *proxy = mty_http_get_proxy();
+
+	if (proxy)
+		curl_easy_setopt(curl, CURLOPT_PROXY, proxy);
+
+	// Send request, receive response
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, request_write_func);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &res);
+
+	CURLcode e = curl_easy_perform(curl);
+	if (e != CURLE_OK) {
+		MTY_Log("'curl_easy_perform' failed with error %d", e);
 		r = false;
 		goto except;
 	}
 
-	// Get the status code
-	r = mty_http_get_status_code(hdr, status);
-	if (!r)
+	// Look for status code in response headers
+	long code = 0;
+	e = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
+	if (e != CURLE_OK) {
+		MTY_Log("'curl_easy_getinfo' failed with error %d", e);
+		r = false;
 		goto except;
-
-	// Read response body -- either fixed content length or chunked
-	const char *val = NULL;
-	if (mty_http_get_header_int(hdr, "Content-Length", (int32_t *) responseSize) && *responseSize > 0) {
-
-		// Overflow protection
-		if (*responseSize > MTY_RES_MAX) {
-			r = false;
-			goto except;
-		}
-
-		*response = MTY_Alloc(*responseSize + 1, 1);
-
-		r = mty_net_read(net, *response, *responseSize, timeout);
-		if (!r)
-			goto except;
-
-	} else if (mty_http_get_header_str(hdr, "Transfer-Encoding", &val) && !MTY_Strcasecmp(val, "chunked")) {
-		r = http_read_chunked(net, response, responseSize, timeout);
-		if (!r)
-			goto except;
 	}
 
-	// Check for content-encoding header and attempt to uncompress
-	if (*response && *responseSize > 0) {
-		if (mty_http_get_header_str(hdr, "Content-Encoding", &val) && !MTY_Strcasecmp(val, "gzip")) {
-			size_t zlen = 0;
-			void *z = mty_gzip_decompress(*response, *responseSize, &zlen);
-			if (!z) {
-				r = false;
-				goto except;
-			}
+	*status = code;
 
-			MTY_Free(*response);
-			*response = z;
-			*responseSize = zlen;
-		}
+	if (res.size > 0) {
+		*responseSize = res.size;
+		*response = res.data;
 	}
 
 	except:
 
-	MTY_Free(req);
-	mty_http_header_destroy(&hdr);
-	mty_net_destroy(&net);
+	if (slist)
+		curl_slist_free_all(slist);
 
-	if (!r) {
-		MTY_Free(*response);
-		*responseSize = 0;
-		*response = NULL;
-	}
+	if (!r)
+		MTY_Free(res.data);
+
+	curl_easy_cleanup(curl);
 
 	return r;
 }

@@ -14,5 +14,3 @@ void mty_net_destroy(struct net **net);
 MTY_Async mty_net_poll(struct net *ctx, uint32_t timeout);
 bool mty_net_write(struct net *ctx, const void *buf, size_t size);
 bool mty_net_read(struct net *ctx, void *buf, size_t size, uint32_t timeout);
-
-const char *mty_net_get_host(struct net *ctx);

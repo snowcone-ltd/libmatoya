@@ -41,9 +41,12 @@ LOCAL_CFLAGS = $(DEFS) $(FLAGS)
 
 LOCAL_SRC_FILES := \
 	src/app.c \
+	src/async.c \
 	src/crypto.c \
+	src/dtls.c \
 	src/file.c \
 	src/hash.c \
+	src/http.c \
 	src/image.c \
 	src/json.c \
 	src/list.c \
@@ -55,7 +58,6 @@ LOCAL_SRC_FILES := \
 	src/system.c \
 	src/thread.c \
 	src/tlocal.c \
-	src/tls.c \
 	src/version.c \
 	src/gfx/gl/gl.c \
 	src/gfx/gl/gl-ui.c \
@@ -63,32 +65,24 @@ LOCAL_SRC_FILES := \
 	src/gfx/vk/vk-ctx.c \
 	src/gfx/vk/vk-ui.c \
 	src/hid/utils.c \
-	src/net/async.c \
-	src/net/dns.c \
-	src/net/http-parse.c \
-	src/net/http-proxy.c \
 	src/unix/file.c \
 	src/unix/memory.c \
 	src/unix/system.c \
 	src/unix/thread.c \
 	src/unix/time.c \
+	src/unix/linux/ws.c \
 	src/unix/linux/dialog.c \
 	src/unix/linux/android/aes-gcm.c \
 	src/unix/linux/android/app.c \
 	src/unix/linux/android/audio.c \
 	src/unix/linux/android/crypto.c \
+	src/unix/linux/android/dtls.c \
 	src/unix/linux/android/image.c \
 	src/unix/linux/android/jnih.c \
+	src/unix/linux/android/net.c \
 	src/unix/linux/android/request.c \
 	src/unix/linux/android/system.c \
-	src/unix/linux/android/tls.c \
 	src/unix/linux/android/webview.c \
-	src/unix/linux/android/gfx/gl-ctx.c \
-	src/unix/net/gzip.c \
-	src/unix/net/http.c \
-	src/unix/net/net.c \
-	src/unix/net/secure.c \
-	src/unix/net/tcp.c \
-	src/unix/net/ws.c
+	src/unix/linux/android/gfx/gl-ctx.c
 
 include $(BUILD_STATIC_LIBRARY)

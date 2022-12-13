@@ -146,11 +146,18 @@ static void *decompress_png(const void *input, size_t size, uint32_t *width, uin
 	png_set_sig_bytes(png_ptr, 8);
 	png_read_info(png_ptr, info_ptr);
 
-	*width = png_get_image_width(png_ptr, info_ptr);
-	*height = png_get_image_height(png_ptr, info_ptr);
+	int32_t color_type = 0;
+	int32_t bit_depth = 0;
+	png_get_IHDR(png_ptr, info_ptr, width, height, &bit_depth, &color_type, NULL, NULL, NULL);
 
-	// Set interlaced
+	// Transform: Set interlaced
 	png_set_interlace_handling(png_ptr);
+
+	// Transform: Add alpha channel for RGB images
+	if (color_type == PNG_COLOR_TYPE_RGB)
+		png_set_add_alpha(png_ptr, 0xFF, PNG_FILLER_AFTER);
+
+	// Apply transforms
 	png_read_update_info(png_ptr, info_ptr);
 
 	// Read rows into image buffer

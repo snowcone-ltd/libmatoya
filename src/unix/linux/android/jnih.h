@@ -26,6 +26,7 @@ void mty_jni_strcpy(JNIEnv *env, char *buf, size_t size, jstring str);
 char *mty_jni_cstrdup(JNIEnv *env, jstring jstr);
 
 void mty_jni_log(JNIEnv *env, jstring str);
+bool mty_jni_catch(JNIEnv *env);
 bool mty_jni_ok(JNIEnv *env);
 
 jobject mty_jni_new(JNIEnv *env, const char *name, const char *sig, ...);

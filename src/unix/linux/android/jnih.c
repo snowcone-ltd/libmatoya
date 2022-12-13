@@ -124,6 +124,21 @@ void mty_jni_log(JNIEnv *env, jstring str)
 	(*env)->ReleaseStringUTFChars(env, str, cstr);
 }
 
+bool mty_jni_catch(JNIEnv *env)
+{
+	jthrowable ex = (*env)->ExceptionOccurred(env);
+
+	if (ex) {
+		(*env)->ExceptionClear(env);
+
+		mty_jni_free(env, ex);
+
+		return false;
+	}
+
+	return true;
+}
+
 bool mty_jni_ok(JNIEnv *env)
 {
 	jthrowable ex = (*env)->ExceptionOccurred(env);

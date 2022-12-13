@@ -14,6 +14,19 @@
 #define png_jmpbuf(png_ptr) \
 	(*png_set_longjmp_fn((png_ptr), longjmp, sizeof(jmp_buf)))
 
+#define PNG_COLOR_MASK_PALETTE 1
+#define PNG_COLOR_MASK_COLOR   2
+#define PNG_COLOR_MASK_ALPHA   4
+
+#define PNG_COLOR_TYPE_GRAY       0
+#define PNG_COLOR_TYPE_PALETTE    (PNG_COLOR_MASK_COLOR | PNG_COLOR_MASK_PALETTE)
+#define PNG_COLOR_TYPE_RGB        (PNG_COLOR_MASK_COLOR)
+#define PNG_COLOR_TYPE_RGB_ALPHA  (PNG_COLOR_MASK_COLOR | PNG_COLOR_MASK_ALPHA)
+#define PNG_COLOR_TYPE_GRAY_ALPHA (PNG_COLOR_MASK_ALPHA)
+
+#define PNG_FILLER_BEFORE 0
+#define PNG_FILLER_AFTER  1
+
 typedef unsigned int png_uint_32;
 typedef const char *png_const_charp;
 typedef void *png_voidp;
@@ -49,8 +62,9 @@ static void (*png_set_read_fn)(png_structrp png_ptr, png_voidp io_ptr, png_rw_pt
 static png_voidp (*png_get_io_ptr)(png_const_structrp png_ptr);
 static void (*png_set_sig_bytes)(png_structrp png_ptr, int num_bytes);
 static void (*png_read_info)(png_structrp png_ptr, png_inforp info_ptr);
-static png_uint_32 (*png_get_image_width)(png_const_structrp png_ptr, png_const_inforp info_ptr);
-static png_uint_32 (*png_get_image_height)(png_const_structrp png_ptr, png_const_inforp info_ptr);
+static png_uint_32 (*png_get_IHDR)(png_structp png_ptr, png_infop info_ptr, png_uint_32 *width, png_uint_32 *height,
+	int *bit_depth, int *color_type, int *interlace_method, int *compression_method, int *filter_method);
+static void (*png_set_add_alpha)(png_structp png_ptr, png_uint_32 filler, int flags);
 static int (*png_set_interlace_handling)(png_structrp png_ptr);
 static void (*png_read_update_info)(png_structrp png_ptr, png_inforp info_ptr);
 static void (*png_read_row)(png_structrp png_ptr, png_bytep row, png_bytep display_row);
@@ -95,8 +109,8 @@ static bool libpng_global_init(void)
 		LOAD_SYM(LIBPNG_SO, png_get_io_ptr);
 		LOAD_SYM(LIBPNG_SO, png_set_sig_bytes);
 		LOAD_SYM(LIBPNG_SO, png_read_info);
-		LOAD_SYM(LIBPNG_SO, png_get_image_width);
-		LOAD_SYM(LIBPNG_SO, png_get_image_height);
+		LOAD_SYM(LIBPNG_SO, png_get_IHDR);
+		LOAD_SYM(LIBPNG_SO, png_set_add_alpha);
 		LOAD_SYM(LIBPNG_SO, png_set_interlace_handling);
 		LOAD_SYM(LIBPNG_SO, png_read_update_info);
 		LOAD_SYM(LIBPNG_SO, png_read_row);

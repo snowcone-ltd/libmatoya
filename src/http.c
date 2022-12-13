@@ -3,12 +3,17 @@
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
 #include "matoya.h"
-#include "http-parse.h"
+#include "http.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+
+#include "tlocal.h"
+
+static MTY_Atomic32 HTTP_GLOCK;
+static char HTTP_PROXY[MTY_URL_MAX];
 
 void mty_http_parse_headers(const char *all,
 	void (*func)(const char *key, const char *val, void *opaque), void *opaque)
@@ -154,4 +159,32 @@ void MTY_HttpEncodeUrl(const char *src, char *dst, size_t size)
 		dst += inc;
 		size -= inc;
 	}
+}
+
+void MTY_HttpSetProxy(const char *proxy)
+{
+	MTY_GlobalLock(&HTTP_GLOCK);
+
+	if (proxy) {
+		snprintf(HTTP_PROXY, MTY_URL_MAX, "%s", proxy);
+
+	} else {
+		HTTP_PROXY[0] = '\0';
+	}
+
+	MTY_GlobalUnlock(&HTTP_GLOCK);
+}
+
+const char *mty_http_get_proxy(void)
+{
+	char *proxy = NULL;
+
+	MTY_GlobalLock(&HTTP_GLOCK);
+
+	if (HTTP_PROXY[0])
+		proxy = mty_tlocal_strcpy(HTTP_PROXY);
+
+	MTY_GlobalUnlock(&HTTP_GLOCK);
+
+	return proxy;
 }

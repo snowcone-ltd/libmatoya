@@ -16,7 +16,7 @@ struct MTY_Cert {
 	RSA *key;
 };
 
-struct MTY_TLS {
+struct MTY_DTLS {
 	char *fp;
 
 	SSL *ssl;
@@ -84,7 +84,7 @@ void MTY_CertDestroy(MTY_Cert **cert)
 	*cert = NULL;
 }
 
-static void tls_x509_to_fingerprint(X509 *cert, char *fingerprint, size_t size)
+static void dtls_x509_to_fingerprint(X509 *cert, char *fingerprint, size_t size)
 {
 	memset(fingerprint, 0, size);
 
@@ -106,29 +106,29 @@ static void tls_x509_to_fingerprint(X509 *cert, char *fingerprint, size_t size)
 
 void MTY_CertGetFingerprint(MTY_Cert *ctx, char *fingerprint, size_t size)
 {
-	tls_x509_to_fingerprint(ctx->cert, fingerprint, size);
+	dtls_x509_to_fingerprint(ctx->cert, fingerprint, size);
 }
 
 
-// TLS, DTLS
+//DTLS
 
-static int32_t tls_verify(int32_t ok, X509_STORE_CTX *ctx)
+static int32_t dtls_verify(int32_t ok, X509_STORE_CTX *ctx)
 {
 	return 1;
 }
 
-MTY_TLS *MTY_TLSCreate(MTY_TLSProtocol proto, MTY_Cert *cert, const char *host, const char *peerFingerprint, uint32_t mtu)
+MTY_DTLS *MTY_DTLSCreate(MTY_Cert *cert, const char *peerFingerprint, uint32_t mtu)
 {
 	if (!libssl_global_init())
 		return NULL;
 
 	bool r = true;
 
-	MTY_TLS *ctx = MTY_Alloc(1, sizeof(MTY_TLS));
+	MTY_DTLS *ctx = MTY_Alloc(1, sizeof(MTY_DTLS));
 
-	const SSL_METHOD *method = proto == MTY_TLS_PROTOCOL_DTLS ? DTLS_method() : TLSv1_2_method();
+	const SSL_METHOD *method = DTLS_method();
 	if  (!method) {
-		MTY_Log("TLS 1.2 is unsupported");
+		MTY_Log("DTLS is unsupported");
 		r = false;
 		goto except;
 	}
@@ -149,23 +149,12 @@ MTY_TLS *MTY_TLSCreate(MTY_TLSProtocol proto, MTY_Cert *cert, const char *host, 
 
 	SSL_set_connect_state(ctx->ssl);
 
-	if (proto == MTY_TLS_PROTOCOL_DTLS) {
-		SSL_ctrl(ctx->ssl, SSL_CTRL_OPTIONS, SSL_OP_NO_TICKET | SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION, NULL);
-		SSL_set_verify(ctx->ssl, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, tls_verify);
+	SSL_ctrl(ctx->ssl, SSL_CTRL_OPTIONS, SSL_OP_NO_TICKET | SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION, NULL);
+	SSL_set_verify(ctx->ssl, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, dtls_verify);
 
-		// This will tell openssl to create larger datagrams
-		SSL_ctrl(ctx->ssl, SSL_CTRL_OPTIONS, SSL_OP_NO_QUERY_MTU, NULL);
-		SSL_ctrl(ctx->ssl, SSL_CTRL_SET_MTU, mtu, NULL);
-
-	} else {
-		SSL_CTX_set_default_verify_paths(ctx->ctx);
-
-		SSL_ctrl(ctx->ssl, SSL_CTRL_OPTIONS, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION, NULL);
-		SSL_ctrl(ctx->ssl, SSL_CTRL_SET_TLSEXT_STATUS_REQ_TYPE, TLSEXT_STATUSTYPE_ocsp, NULL);
-
-		SSL_set_verify(ctx->ssl, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
-		SSL_set_verify_depth(ctx->ssl, 4);
-	}
+	// This will tell openssl to create larger datagrams
+	SSL_ctrl(ctx->ssl, SSL_CTRL_OPTIONS, SSL_OP_NO_QUERY_MTU, NULL);
+	SSL_ctrl(ctx->ssl, SSL_CTRL_SET_MTU, mtu, NULL);
 
 	if (peerFingerprint)
 		ctx->fp = MTY_Strdup(peerFingerprint);
@@ -176,15 +165,6 @@ MTY_TLS *MTY_TLSCreate(MTY_TLSProtocol proto, MTY_Cert *cert, const char *host, 
 		SSL_use_RSAPrivateKey(ctx->ssl, cert->key);
 	}
 
-	// Hostname verification
-	if (host) {
-		X509_VERIFY_PARAM *param = SSL_get0_param(ctx->ssl);
-		X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
-		X509_VERIFY_PARAM_set1_host(param, host, 0);
-
-		SSL_ctrl(ctx->ssl, SSL_CTRL_SET_TLSEXT_HOSTNAME, TLSEXT_NAMETYPE_host_name, (char *) host);
-	}
-
 	ctx->bio_in = BIO_new(BIO_s_mem());
 	ctx->bio_out = BIO_new(BIO_s_mem());
 	SSL_set_bio(ctx->ssl, ctx->bio_in, ctx->bio_out);
@@ -192,17 +172,17 @@ MTY_TLS *MTY_TLSCreate(MTY_TLSProtocol proto, MTY_Cert *cert, const char *host, 
 	except:
 
 	if (!r)
-		MTY_TLSDestroy(&ctx);
+		MTY_DTLSDestroy(&ctx);
 
 	return ctx;
 }
 
-void MTY_TLSDestroy(MTY_TLS **tls)
+void MTY_DTLSDestroy(MTY_DTLS **dtls)
 {
-	if (!tls || !*tls)
+	if (!dtls || !*dtls)
 		return;
 
-	MTY_TLS *ctx = *tls;
+	MTY_DTLS *ctx = *dtls;
 
 	if (ctx->ssl)
 		SSL_free(ctx->ssl);
@@ -213,16 +193,16 @@ void MTY_TLSDestroy(MTY_TLS **tls)
 	MTY_Free(ctx->fp);
 
 	MTY_Free(ctx);
-	*tls = NULL;
+	*dtls = NULL;
 }
 
-static bool tls_verify_peer_fingerprint(MTY_TLS *tls, const char *fingerprint)
+static bool dtls_verify_peer_fingerprint(MTY_DTLS *dtls, const char *fingerprint)
 {
-	X509 *peer_cert = SSL_get_peer_certificate(tls->ssl);
+	X509 *peer_cert = SSL_get_peer_certificate(dtls->ssl);
 
 	if (peer_cert) {
 		char found[MTY_FINGERPRINT_MAX];
-		tls_x509_to_fingerprint(peer_cert, found, MTY_FINGERPRINT_MAX);
+		dtls_x509_to_fingerprint(peer_cert, found, MTY_FINGERPRINT_MAX);
 
 		bool match = !strcmp(found, fingerprint);
 
@@ -234,7 +214,7 @@ static bool tls_verify_peer_fingerprint(MTY_TLS *tls, const char *fingerprint)
 	return false;
 }
 
-MTY_Async MTY_TLSHandshake(MTY_TLS *ctx, const void *buf, size_t size, MTY_TLSWriteFunc writeFunc, void *opaque)
+MTY_Async MTY_DTLSHandshake(MTY_DTLS *ctx, const void *buf, size_t size, MTY_DTLSWriteFunc writeFunc, void *opaque)
 {
 	MTY_Async r = MTY_ASYNC_CONTINUE;
 
@@ -287,12 +267,12 @@ MTY_Async MTY_TLSHandshake(MTY_TLS *ctx, const void *buf, size_t size, MTY_TLSWr
 
 	// Verify peer fingerprint on successful handshake if supplied during creation
 	if (r == MTY_ASYNC_OK && ctx->fp)
-		return tls_verify_peer_fingerprint(ctx, ctx->fp) ? MTY_ASYNC_OK : MTY_ASYNC_ERROR;
+		return dtls_verify_peer_fingerprint(ctx, ctx->fp) ? MTY_ASYNC_OK : MTY_ASYNC_ERROR;
 
 	return r;
 }
 
-bool MTY_TLSEncrypt(MTY_TLS *ctx, const void *in, size_t inSize, void *out, size_t outSize, size_t *written)
+bool MTY_DTLSEncrypt(MTY_DTLS *ctx, const void *in, size_t inSize, void *out, size_t outSize, size_t *written)
 {
 	// Perform the encryption, outputs to bio_out
 	int32_t n = SSL_write(ctx->ssl, in, (int32_t) inSize);
@@ -332,7 +312,7 @@ bool MTY_TLSEncrypt(MTY_TLS *ctx, const void *in, size_t inSize, void *out, size
 	return true;
 }
 
-bool MTY_TLSDecrypt(MTY_TLS *ctx, const void *in, size_t inSize, void *out, size_t outSize, size_t *read)
+bool MTY_DTLSDecrypt(MTY_DTLS *ctx, const void *in, size_t inSize, void *out, size_t outSize, size_t *read)
 {
 	// Fill bio_in with encrypted data
 	int32_t n = BIO_write(ctx->bio_in, in, (int32_t) inSize);

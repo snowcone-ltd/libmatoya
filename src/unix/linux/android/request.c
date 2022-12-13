@@ -5,9 +5,7 @@
 #include "matoya.h"
 
 #include "jnih.h"
-#include "net/http-parse.h"
-
-#define MTY_USER_AGENT "libmatoya/v" MTY_VERSION_STRING
+#include "http.h"
 
 struct request_parse_args {
 	bool ua_found;
