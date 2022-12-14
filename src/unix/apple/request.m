@@ -105,7 +105,7 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 			*responseSize = [data length];
 
 			if (*responseSize > 0) {
-				*response = MTY_Alloc(*responseSize, 1);
+				*response = MTY_Alloc(*responseSize + 1, 1);
 				[data getBytes:*response length:*responseSize];
 			}
 
