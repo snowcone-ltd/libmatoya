@@ -11,6 +11,8 @@
 #include "tcp.h"
 #include "http.h"
 #include "secure.h"
+#include "net/dns.h"
+#include "net/http-parse.h"
 
 struct net {
 	char *host;
@@ -66,36 +68,6 @@ struct net *mty_net_connect(const char *host, uint16_t port, bool secure, uint32
 		mty_net_destroy(&ctx);
 
 	return ctx;
-}
-
-struct net *mty_net_listen(const char *ip, uint16_t port)
-{
-	struct tcp *tcp = mty_tcp_listen(ip, port);
-
-	if (tcp) {
-		struct net *ctx = MTY_Alloc(1, sizeof(struct net));
-		ctx->host = MTY_Strdup(ip);
-		ctx->tcp = tcp;
-
-		return ctx;
-	}
-
-	return NULL;
-}
-
-struct net *mty_net_accept(struct net *ctx, uint32_t timeout)
-{
-	struct tcp *tcp = mty_tcp_accept(ctx->tcp, timeout);
-
-	if (tcp) {
-		struct net *child = MTY_Alloc(1, sizeof(struct net));
-		child->host = MTY_Strdup(ctx->host);
-		child->tcp = tcp;
-
-		return child;
-	}
-
-	return NULL;
 }
 
 void mty_net_destroy(struct net **net)

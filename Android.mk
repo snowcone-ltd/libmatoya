@@ -64,12 +64,9 @@ LOCAL_SRC_FILES := \
 	src/gfx/vk/vk-ui.c \
 	src/hid/utils.c \
 	src/net/async.c \
-	src/net/gzip.c \
-	src/net/http.c \
-	src/net/net.c \
-	src/net/secure.c \
-	src/net/tcp.c \
-	src/net/ws.c \
+	src/net/dns.c \
+	src/net/http-parse.c \
+	src/net/http-proxy.c \
 	src/unix/file.c \
 	src/unix/image.c \
 	src/unix/memory.c \
@@ -85,6 +82,12 @@ LOCAL_SRC_FILES := \
 	src/unix/linux/android/request.c \
 	src/unix/linux/android/system.c \
 	src/unix/linux/android/tls.c \
-	src/unix/linux/android/gfx/gl-ctx.c
+	src/unix/linux/android/gfx/gl-ctx.c \
+	src/unix/net/gzip.c \
+	src/unix/net/http.c \
+	src/unix/net/net.c \
+	src/unix/net/secure.c \
+	src/unix/net/tcp.c \
+	src/unix/net/ws.c
 
 include $(BUILD_STATIC_LIBRARY)

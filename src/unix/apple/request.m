@@ -7,7 +7,8 @@
 #include <Foundation/NSURLRequest.h>
 #include <Foundation/Foundation.h>
 
-#include "net/http.h"
+#include "net/http-parse.h"
+#include "net/http-proxy.h"
 
 #define MTY_USER_AGENT @"libmatoya/v" MTY_VERSION_STRING
 
