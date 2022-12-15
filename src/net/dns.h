@@ -6,11 +6,7 @@
 
 #pragma once
 
-#include <fcntl.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netinet/tcp.h>
-#include <poll.h>
-#include <netdb.h>
+#include <stddef.h>
+#include <stdbool.h>
+
+bool mty_dns_query(const char *host, bool v6, char *ip, size_t size);

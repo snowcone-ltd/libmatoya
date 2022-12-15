@@ -32,9 +32,6 @@ struct d3d12_ctx_buffer {
 };
 
 struct d3d12_ctx {
-	HMODULE dxgi;
-	HMODULE d3d12;
-
 	HWND hwnd;
 	bool vsync;
 	MTY_Renderer *renderer;
@@ -55,10 +52,6 @@ struct d3d12_ctx {
 		UINT64 fval;
 	} core;
 };
-
-static HRESULT (WINAPI *_D3D12CreateDevice)(IUnknown *, D3D_FEATURE_LEVEL, REFIID, void **);
-static HRESULT (WINAPI *_CreateDXGIFactory2)(UINT, REFIID, void **);
-static HRESULT (WINAPI *_D3D12GetDebugInterface)(REFIID, void **);
 
 
 // Core
@@ -153,22 +146,21 @@ static bool d3d12_core_init(HWND hwnd, struct d3d12_core *core)
 	dhdesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 
 	UINT fflags = 0;
-	HRESULT e = !S_OK;
 
 	if (D3D12_CTX_DEBUG) {
 		fflags = DXGI_CREATE_FACTORY_DEBUG;
 		ID3D12Debug *debug = NULL;
-		_D3D12GetDebugInterface(&IID_ID3D12Debug, &debug);
+		D3D12GetDebugInterface(&IID_ID3D12Debug, &debug);
 		ID3D12Debug_EnableDebugLayer(debug);
 	}
 
-	e = _CreateDXGIFactory2(fflags, &IID_IDXGIFactory2, &factory2);
+	HRESULT e = CreateDXGIFactory2(fflags, &IID_IDXGIFactory2, &factory2);
 	if (e != S_OK) {
 		MTY_Log("'CreateDXGIFactory2' failed with HRESULT 0x%X", e);
 		goto except;
 	}
 
-	e = _D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, &IID_ID3D12Device, &core->device);
+	e = D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, &IID_ID3D12Device, &core->device);
 	if (e != S_OK) {
 		MTY_Log("'D3D12CreateDevice' failed with HRESULT 0x%X", e);
 		goto except;
@@ -292,37 +284,6 @@ struct gfx_ctx *mty_d3d12_ctx_create(void *native_window, bool vsync)
 
 	d3d12_ctx_get_size(ctx, &ctx->width, &ctx->height);
 
-	ctx->d3d12 = LoadLibrary(L"d3d12.dll");
-	if (!ctx->d3d12) {
-		MTY_Log("'LoadLibrary' failed to load 'd3d12.dll'");
-		r = false;
-		goto except;
-	}
-
-	ctx->dxgi = LoadLibrary(L"dxgi.dll");
-	if (!ctx->dxgi) {
-		MTY_Log("'LoadLibrary' failed to load 'dxgi.dll'");
-		r = false;
-		goto except;
-	}
-
-	_D3D12CreateDevice = (void *) GetProcAddress(ctx->d3d12, "D3D12CreateDevice");
-	if (!_D3D12CreateDevice) {
-		MTY_Log("Problem loading symbol from d3d12.dll");
-		r = false;
-		goto except;
-	}
-
-	_CreateDXGIFactory2 = (void *) GetProcAddress(ctx->dxgi, "CreateDXGIFactory2");
-	if (!_CreateDXGIFactory2) {
-		MTY_Log("DXGI 1.3 is required");
-		r = false;
-		goto except;
-	}
-
-	if (D3D12_CTX_DEBUG)
-		_D3D12GetDebugInterface = (void *) GetProcAddress(ctx->d3d12, "D3D12GetDebugInterface");
-
 	r = d3d12_core_init(ctx->hwnd, &ctx->core);
 	if (!r)
 		goto except;
@@ -347,12 +308,6 @@ void mty_d3d12_ctx_destroy(struct gfx_ctx **gfx_ctx)
 	MTY_RendererDestroy(&ctx->renderer);
 
 	d3d12_core_free(&ctx->core);
-
-	if (ctx->dxgi)
-		FreeLibrary(ctx->dxgi);
-
-	if (ctx->d3d12)
-		FreeLibrary(ctx->d3d12);
 
 	MTY_Free(ctx);
 	*gfx_ctx = NULL;

@@ -2863,30 +2863,6 @@ MTY_HttpAsyncPoll(uint32_t index, void **response, size_t *size, uint16_t *statu
 MTY_EXPORT void
 MTY_HttpAsyncClear(uint32_t *index);
 
-/// @brief Listen for incoming WebSocket connections.
-/// @details WebSocket servers currently do not support secure connections.
-/// @param ip Local IP address to bind to.
-/// @param port Local port to bind to.
-/// @returns On failure, NULL is returned. Call MTY_GetLog for details.\n\n
-///   The returned MTY_WebSocket must be destroyed with MTY_WebSocketDestroy.
-MTY_EXPORT MTY_WebSocket *
-MTY_WebSocketListen(const char *ip, uint16_t port);
-
-/// @brief Accept a new WebSocket connection.
-/// @details WebSocket servers currently do not support secure connections.
-/// @param ctx An MTY_WebSocket.
-/// @param origins An array of strings determining the allowed client origins to
-///   accept connections from. May be NULL to ignore this behavior.
-/// @param numOrigins The number of elements in `origins`, or 0 if `origins` is NULL.
-/// @param secureOrigin Only accept origins that begin with `https://`.
-/// @param timeout Time to wait in milliseconds for a new connection before returning
-///   NULL.
-/// @returns On timeout, NULL is returned.\n\n
-///   The returned MTY_WebSocket must be destroyed with MTY_WebSocketDestroy.
-MTY_EXPORT MTY_WebSocket *
-MTY_WebSocketAccept(MTY_WebSocket *ctx, const char * const *origins, uint32_t numOrigins,
-	bool secureOrigin, uint32_t timeout);
-
 /// @brief Connect to a WebSocket endpoint.
 /// @param host Hostname.
 /// @param port Port. May be set to 0 to use either port 80 or 443 depending on

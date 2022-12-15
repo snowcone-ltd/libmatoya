@@ -10,9 +10,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 
 #include "tlocal.h"
+#include "net/http-parse.h"
+#include "net/http-proxy.h"
 
 
 // Standard header generators
@@ -86,7 +87,7 @@ struct http_header {
 	uint32_t npairs;
 };
 
-struct http_header *mty_http_parse_header(const char *header)
+static struct http_header *mty_http_parse_header(const char *header)
 {
 	struct http_header *h = MTY_Alloc(1, sizeof(struct http_header));
 	char *dup = MTY_Strdup(header);
@@ -224,35 +225,6 @@ void mty_http_set_header_str(char **header, const char *name, const char *val)
 	snprintf(*header + len, new_len, "%s: %s\r\n", name, val);
 }
 
-void mty_http_parse_headers(const char *all, HTTP_PARSE_FUNC func, void *opaque)
-{
-	char *dup = MTY_Strdup(all);
-
-	char *ptr = NULL;
-	char *tok = MTY_Strtok(dup, "\n", &ptr);
-
-	while (tok) {
-		char *ptr2 = NULL;
-		char *key = MTY_Strtok(tok, " :", &ptr2);
-		if (!key)
-			break;
-
-		char *val = MTY_Strtok(NULL, "", &ptr2);
-		if (!val)
-			break;
-
-		// Skip past leading whitespace in the val
-		while (*val && (*val == ' ' || *val == '\t'))
-			val++;
-
-		func(key, val, opaque);
-
-		tok = MTY_Strtok(NULL, "\n", &ptr);
-	}
-
-	MTY_Free(dup);
-}
-
 
 // Wrapped header IO
 
@@ -314,157 +286,7 @@ bool mty_http_write_request_header(struct net *net, const char *method, const ch
 }
 
 
-// URL utilities
-
-static bool mty_http_parse_url(const char *url, bool *secure, char *host, size_t hostSize,
-	uint16_t *port, char *path, size_t pathSize)
-{
-	bool r = true;
-	char *dup = MTY_Strdup(url);
-
-	*secure = false;
-	*port = 0;
-
-	// Scheme
-	char *tok = NULL;
-	char *ptr = NULL;
-
-	if (strstr(dup, "http") || strstr(dup, "ws")) {
-		tok = MTY_Strtok(dup, ":", &ptr);
-		if (!tok) {
-			r = false;
-			goto except;
-		}
-
-		if (!MTY_Strcasecmp(tok, "https") || !MTY_Strcasecmp(tok, "wss")) {
-			*secure = true;
-
-		} else if (!MTY_Strcasecmp(tok, "http") || !MTY_Strcasecmp(tok, "ws")) {
-			*secure = false;
-
-		} else {
-			r = false;
-			goto except;
-		}
-
-		// Leave tok at host:port/path
-		tok = MTY_Strtok(NULL, "/", &ptr);
-
-	// No scheme, assume host:port/path
-	} else {
-		*secure = false;
-		tok = MTY_Strtok(dup, "/", &ptr);
-	}
-
-	// Host
-	if (!tok) {
-		r = false;
-		goto except;
-	}
-
-	// This buffer currently needs room for host:port, but strtok will null the ':' character
-	snprintf(host, hostSize, "%s", tok);
-
-	// Try to find a port
-	char *ptr2 = NULL;
-	char *tok2 = MTY_Strtok(host, ":", &ptr2);
-
-	if (tok2)
-		tok2 = MTY_Strtok(NULL, ":", &ptr2);
-
-	if (tok2) { // We have a port
-		*port = (uint16_t) atoi(tok2);
-
-	} else {
-		*port = *secure ? HTTP_PORT_S : HTTP_PORT;
-	}
-
-	// Path
-	tok = MTY_Strtok(NULL, "", &ptr);
-	if (!tok)
-		tok = "";
-
-	if (path)
-		snprintf(path, pathSize, "/%s", tok);
-
-	except:
-
-	MTY_Free(dup);
-
-	return r;
-}
-
-bool MTY_HttpParseUrl(const char *url, char *host, size_t hostSize, char *path, size_t pathSize)
-{
-	bool secure = false;
-	uint16_t port = 0;
-
-	return mty_http_parse_url(url, &secure, host, hostSize, &port, path, pathSize);
-}
-
-void MTY_HttpEncodeUrl(const char *src, char *dst, size_t size)
-{
-	memset(dst, 0, size);
-
-	char table[256];
-	for (int32_t c = 0; c < 256; c++)
-		table[c] = isalnum(c) || c == '*' || c == '-' || c == '.' || c == '_' ? (char) c : (c == ' ') ? '+' : '\0';
-
-	size_t src_len = strlen(src);
-
-	for (size_t x = 0; x < src_len && size > 0; x++) {
-		int32_t c = src[x];
-		size_t inc = 1;
-
-		if (table[c]) {
-			snprintf(dst, size, "%c", table[c]);
-
-		} else {
-			snprintf(dst, size, "%%%02X", c);
-			inc = 3;
-		}
-
-		if (inc > size)
-			break;
-
-		dst += inc;
-		size -= inc;
-	}
-}
-
-
 // HTTP Proxy IO and global settings
-
-static MTY_Atomic32 HTTP_GLOCK;
-static char HTTP_PROXY[MTY_URL_MAX];
-
-void MTY_HttpSetProxy(const char *proxy)
-{
-	MTY_GlobalLock(&HTTP_GLOCK);
-
-	if (proxy) {
-		snprintf(HTTP_PROXY, MTY_URL_MAX, "%s", proxy);
-
-	} else {
-		HTTP_PROXY[0] = '\0';
-	}
-
-	MTY_GlobalUnlock(&HTTP_GLOCK);
-}
-
-const char *mty_http_get_proxy(void)
-{
-	char *proxy = NULL;
-
-	MTY_GlobalLock(&HTTP_GLOCK);
-
-	if (HTTP_PROXY[0])
-		proxy = mty_tlocal_strcpy(HTTP_PROXY);
-
-	MTY_GlobalUnlock(&HTTP_GLOCK);
-
-	return proxy;
-}
 
 bool mty_http_should_proxy(const char **host, uint16_t *port)
 {

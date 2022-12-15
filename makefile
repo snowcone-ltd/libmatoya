@@ -54,12 +54,9 @@ OBJS = \
 	src\hid\hid.obj \
 	src\hid\utils.obj \
 	src\net\async.obj \
-	src\net\gzip.obj \
-	src\net\http.obj \
-	src\net\net.obj \
-	src\net\secure.obj \
-	src\net\tcp.obj \
-	src\net\ws.obj \
+	src\net\dns.obj \
+	src\net\http-parse.obj \
+	src\net\http-proxy.obj \
 	src\windows\aes-gcm.obj \
 	src\windows\appw.obj \
 	src\windows\audio.obj \
@@ -83,7 +80,7 @@ OBJS = \
 	src\windows\gfx\d3d9-ctx.obj \
 	src\windows\gfx\d3d9-ui.obj \
 	src\windows\gfx\gl-ctx.obj \
-
+	src\windows\net\ws.obj
 
 SHADERS = \
 	src\gfx\gl\shaders\fs.h \

@@ -12,8 +12,8 @@
 #include <windows.h>
 #include <winhttp.h>
 
-#include "net/http.h"
-#include "net/gzip.h"
+#include "net/http-parse.h"
+#include "net/http-proxy.h"
 
 #define MTY_USER_AGENTW L"libmatoya/v" MTY_VERSION_STRINGW
 
@@ -21,6 +21,15 @@ struct request_parse_args {
 	WCHAR *ua;
 	char *headers;
 };
+
+static void request_append_header(char **header, const char *name, const char *val)
+{
+	size_t len = *header ? strlen(*header) : 0;
+	size_t new_len = len + strlen(name) + strlen(val) + 32;
+
+	*header = MTY_Realloc(*header, new_len, 1);
+	snprintf(*header + len, new_len, "%s: %s\r\n", name, val);
+}
 
 static void request_parse_headers(const char *key, const char *val, void *opaque)
 {
@@ -33,7 +42,7 @@ static void request_parse_headers(const char *key, const char *val, void *opaque
 			pargs->ua = MTY_MultiToWideD(val);
 
 	} else {
-		mty_http_set_header_str(&pargs->headers, key, val);
+		request_append_header(&pargs->headers, key, val);
 	}
 }
 
@@ -45,7 +54,6 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 	*response = NULL;
 
 	bool r = true;
-	bool gzip = false;
 
 	HINTERNET session = NULL;
 	HINTERNET connect = NULL;
@@ -89,6 +97,10 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 	DWORD opt = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
 	WinHttpSetOption(session, WINHTTP_OPTION_SECURE_PROTOCOLS, &opt, sizeof(DWORD));
 
+	// Handle gzip
+	opt = WINHTTP_DECOMPRESSION_FLAG_GZIP;
+	WinHttpSetOption(session, WINHTTP_OPTION_DECOMPRESSION, &opt, sizeof(DWORD));
+
 	connect = WinHttpConnect(session, whost, port, 0);
 	if (!connect) {
 		r = false;
@@ -123,11 +135,6 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 
 	*status = (uint16_t) _wtoi(wheader);
 
-	// Content encoding query
-	buf_len = 128 * sizeof(WCHAR);
-	if (WinHttpQueryHeaders(request, WINHTTP_QUERY_CONTENT_ENCODING, NULL, wheader, &buf_len, NULL))
-		gzip = !wcscmp(wheader, L"gzip");
-
 	// Receive response body
 	while (true) {
 		DWORD available = 0;
@@ -155,20 +162,6 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 
 		// Keep null character at the end of the buffer for protection
 		memset((uint8_t *) *response + *responseSize, 0, 1);
-	}
-
-	// Optionally uncompress
-	if (gzip && *response && *responseSize > 0) {
-		size_t zlen = 0;
-		void *z = mty_gzip_decompress(*response, *responseSize, &zlen);
-		if (!z) {
-			r = false;
-			goto except;
-		}
-
-		MTY_SecureFree(*response, *responseSize);
-		*response = z;
-		*responseSize = zlen;
 	}
 
 	except:

@@ -144,21 +144,8 @@ static HRESULT d3d12_root_signature(ID3D12Device *device, ID3D12RootSignature **
 	rsdesc.pParameters = rp;
 	rsdesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-	HMODULE d3d12 = GetModuleHandle(L"d3d12.dll");
-	if (!d3d12) {
-		MTY_Log("d3d12.dll has not been loaded");
-		return !S_OK;
-	}
-
-	HRESULT (WINAPI *_D3D12SerializeRootSignature)(const D3D12_ROOT_SIGNATURE_DESC *, D3D_ROOT_SIGNATURE_VERSION,
-		ID3DBlob **, ID3DBlob **) = (void *) GetProcAddress(d3d12, "D3D12SerializeRootSignature");
-	if (!_D3D12SerializeRootSignature) {
-		MTY_Log("Problem loading symbol from d3d12.dll");
-		return !S_OK;
-	}
-
 	ID3DBlob *signature = NULL;
-	HRESULT e = _D3D12SerializeRootSignature(&rsdesc, D3D_ROOT_SIGNATURE_VERSION_1_0, &signature, NULL);
+	HRESULT e = D3D12SerializeRootSignature(&rsdesc, D3D_ROOT_SIGNATURE_VERSION_1_0, &signature, NULL);
 	if (e != S_OK) {
 		MTY_Log("'D3D12SerializeRootSignature' failed with HRESULT 0x%X", e);
 		return e;
