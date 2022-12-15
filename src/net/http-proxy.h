@@ -6,11 +6,4 @@
 
 #pragma once
 
-#include <fcntl.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netinet/tcp.h>
-#include <poll.h>
-#include <netdb.h>
+const char *mty_http_get_proxy(void);

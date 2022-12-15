@@ -9,17 +9,12 @@ GFX_CTX_PROTOTYPES(_d3d11_)
 
 #define COBJMACROS
 #include <d3d11.h>
-#include <dxgi1_3.h>
+#include <dxgi1_5.h>
 
 #define DXGI_FATAL(e) ( \
 	(e) == DXGI_ERROR_DEVICE_REMOVED || \
 	(e) == DXGI_ERROR_DEVICE_HUNG    || \
 	(e) == DXGI_ERROR_DEVICE_RESET \
-)
-
-#define D3D11_SWFLAGS ( \
-	DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT | \
-	DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING \
 )
 
 #define D3D11_CTX_WAIT 2000
@@ -35,6 +30,7 @@ struct d3d11_ctx {
 	ID3D11Texture2D *back_buffer;
 	IDXGISwapChain2 *swap_chain2;
 	HANDLE waitable;
+	UINT flags;
 };
 
 static void d3d11_ctx_get_size(struct d3d11_ctx *ctx, uint32_t *width, uint32_t *height)
@@ -76,6 +72,7 @@ static bool d3d11_ctx_init(struct d3d11_ctx *ctx)
 	IUnknown *unknown = NULL;
 	IDXGIAdapter *adapter = NULL;
 	IDXGIFactory2 *factory2 = NULL;
+	IDXGIFactory5 *factory5 = NULL;
 	IDXGISwapChain1 *swap_chain1 = NULL;
 
 	DXGI_SWAP_CHAIN_DESC1 sd = {0};
@@ -84,11 +81,12 @@ static bool d3d11_ctx_init(struct d3d11_ctx *ctx)
 	sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	sd.SampleDesc.Count = 1;
 	sd.BufferCount = 2;
-	sd.Flags = D3D11_SWFLAGS;
 
-	D3D_FEATURE_LEVEL levels[] = {D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0};
-	HRESULT e = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, levels,
-		sizeof(levels) / sizeof(D3D_FEATURE_LEVEL), D3D11_SDK_VERSION, &ctx->device, NULL, &ctx->context);
+	ctx->flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+	sd.Flags = ctx->flags;
+
+	HRESULT e = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, NULL,
+		0, D3D11_SDK_VERSION, &ctx->device, NULL, &ctx->context);
 	if (e != S_OK) {
 		MTY_Log("'D3D11CreateDevice' failed with HRESULT 0x%X", e);
 		goto except;
@@ -116,6 +114,19 @@ static bool d3d11_ctx_init(struct d3d11_ctx *ctx)
 	if (e != S_OK) {
 		MTY_Log("'IDXGIAdapter_GetParent' failed with HRESULT 0x%X", e);
 		goto except;
+	}
+
+	// Check for "tearing" (vsync off / gsync) support
+	e = IDXGIFactory2_QueryInterface(factory2, &IID_IDXGIFactory5, &factory5);
+	if (e == S_OK) {
+		BOOL support = FALSE;
+		e = IDXGIFactory5_CheckFeatureSupport(factory5, DXGI_FEATURE_PRESENT_ALLOW_TEARING,
+			&support, sizeof(BOOL));
+
+		if (e == S_OK && support) {
+			ctx->flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+			sd.Flags = ctx->flags;
+		}
 	}
 
 	e = IDXGIFactory2_CreateSwapChainForHwnd(factory2, unknown, ctx->hwnd, &sd, NULL, NULL, &swap_chain1);
@@ -158,6 +169,9 @@ static bool d3d11_ctx_init(struct d3d11_ctx *ctx)
 
 	if (swap_chain1)
 		IDXGISwapChain1_Release(swap_chain1);
+
+	if (factory5)
+		IDXGIFactory5_Release(factory5);
 
 	if (factory2)
 		IDXGIFactory2_Release(factory2);
@@ -229,7 +243,7 @@ static void d3d11_ctx_refresh(struct d3d11_ctx *ctx)
 
 	if (ctx->width != width || ctx->height != height) {
 		HRESULT e = IDXGISwapChain2_ResizeBuffers(ctx->swap_chain2, 0, 0, 0,
-			DXGI_FORMAT_UNKNOWN, D3D11_SWFLAGS);
+			DXGI_FORMAT_UNKNOWN, ctx->flags);
 
 		if (e == S_OK) {
 			ctx->width = width;
@@ -267,8 +281,10 @@ void mty_d3d11_ctx_present(struct gfx_ctx *gfx_ctx)
 	struct d3d11_ctx *ctx = (struct d3d11_ctx *) gfx_ctx;
 
 	if (ctx->back_buffer) {
-		UINT interval = ctx->vsync ? 1 : 0;
-		UINT flags = ctx->vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING;
+		bool tearing = ctx->vsync && (ctx->flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING);
+
+		UINT interval = tearing ? 0 : 1;
+		UINT flags = tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
 
 		HRESULT e = IDXGISwapChain2_Present(ctx->swap_chain2, interval, flags);
 

@@ -93,8 +93,6 @@ struct MTY_App {
 		uint32_t len;
 	} tray;
 
-	BOOL (WINAPI *GetPointerType)(UINT32 pointerId, POINTER_INPUT_TYPE *pointerType);
-	BOOL (WINAPI *GetPointerPenInfo)(UINT32 pointerId, POINTER_PEN_INFO *penInfo);
 	BOOL (WINAPI *AdjustWindowRectExForDpi)(LPRECT lpRect, DWORD dwStyle, BOOL bMenu,
 		DWORD dwExStyle, UINT dpi);
 };
@@ -733,13 +731,10 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 			evt.scroll.y = 0;
 			break;
 		case WM_POINTERENTER: {
-			if (!app->GetPointerType)
-				break;
-
 			UINT32 id = GET_POINTERID_WPARAM(wparam);
 
 			POINTER_INPUT_TYPE type = PT_POINTER;
-			if (app->GetPointerType(id, &type)) {
+			if (GetPointerType(id, &type)) {
 				app->pen_in_range = type == PT_PEN;
 				app->touch_active = type == PT_TOUCH || type == PT_TOUCHPAD;
 			}
@@ -750,17 +745,17 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 			app->touch_active = false;
 			break;
 		case WM_POINTERUPDATE:
-			if (!app->pen_enabled || !app->GetPointerType || !app->GetPointerPenInfo)
+			if (!app->pen_enabled)
 				break;
 
 			UINT32 id = GET_POINTERID_WPARAM(wparam);
 
 			POINTER_INPUT_TYPE type = PT_POINTER;
-			if (!app->GetPointerType(id, &type) || type != PT_PEN)
+			if (!GetPointerType(id, &type) || type != PT_PEN)
 				break;
 
 			POINTER_PEN_INFO ppi = {0};
-			if (!app->GetPointerPenInfo(id, &ppi))
+			if (!GetPointerPenInfo(id, &ppi))
 				break;
 
 			POINTER_INFO *pi = &ppi.pointerInfo;
@@ -927,22 +922,11 @@ struct monitor_cb_info {
 	wchar_t screen[MTY_SCREEN_MAX];
 };
 
-static __declspec(thread) HRESULT (WINAPI *_GetDpiForMonitor)(HMONITOR hmonitor,
-	MONITOR_DPI_TYPE dpiType, UINT *dpiX, UINT *dpiY);
-
 static float monitor_get_scale(HMONITOR mon)
 {
-	if (!_GetDpiForMonitor) {
-		HMODULE shcore = GetModuleHandle(L"shcore.dll");
-		_GetDpiForMonitor = (void *) GetProcAddress(shcore, "GetDpiForMonitor");
-
-		if (!_GetDpiForMonitor)
-			return 1.0f;
-	}
-
 	UINT x = 0;
 	UINT y = 0;
-	HRESULT e = _GetDpiForMonitor(mon, MDT_EFFECTIVE_DPI, &x, &y);
+	HRESULT e = GetDpiForMonitor(mon, MDT_EFFECTIVE_DPI, &x, &y);
 	if (e != S_OK || x == 0)
 		return 1.0f;
 
@@ -1079,9 +1063,8 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 
 	ctx->tb_msg = RegisterWindowMessage(L"TaskbarCreated");
 
+	// Requires Windows 10, version 1607
 	HMODULE user32 = GetModuleHandle(L"user32.dll");
-	ctx->GetPointerPenInfo = (void *) GetProcAddress(user32, "GetPointerPenInfo");
-	ctx->GetPointerType = (void *) GetProcAddress(user32, "GetPointerType");
 	ctx->AdjustWindowRectExForDpi = (void *) GetProcAddress(user32, "AdjustWindowRectExForDpi");
 
 	ImmDisableIME(0);

@@ -58,9 +58,7 @@ struct gfx_ctx *mty_metal_ctx_create(void *native_window, bool vsync)
 		ctx->layer = [CAMetalLayer layer];
 		ctx->layer.device = device;
 		ctx->layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-
-		if (@available(macOS 10.13, *))
-			ctx->layer.displaySyncEnabled = vsync ? YES : NO;
+		ctx->layer.displaySyncEnabled = vsync ? YES : NO;
 
 		ctx->cq = [ctx->layer.device newCommandQueue];
 

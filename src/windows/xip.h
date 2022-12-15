@@ -23,9 +23,6 @@ struct xip {
 		XINPUT_BASE_BUS_INFORMATION bbi;
 	} state[4];
 
-	HMODULE xinput1_4;
-	DWORD (WINAPI *XInputGetState)(DWORD dwUserIndex, XINPUT_STATE *pState);
-	DWORD (WINAPI *XInputSetState)(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration);
 	DWORD (WINAPI *XInputGetBaseBusInformation)(DWORD dwUserIndex, XINPUT_BASE_BUS_INFORMATION *pBusInformation);
 };
 
@@ -33,29 +30,11 @@ static struct xip *xip_create(void)
 {
 	struct xip *ctx = MTY_Alloc(1, sizeof(struct xip));
 
-	bool fallback = false;
+	HMODULE xinput1_4 = GetModuleHandle(L"xinput1_4.dll");
+	if (xinput1_4)
+		ctx->XInputGetBaseBusInformation = (void *) GetProcAddress(xinput1_4, (LPCSTR) 104);
 
-	ctx->XInputGetState = XInputGetState;
-	ctx->XInputSetState = XInputSetState;
-
-	ctx->xinput1_4 = LoadLibrary(L"xinput1_4.dll");
-	if (ctx->xinput1_4) {
-		ctx->XInputGetState = (void *) GetProcAddress(ctx->xinput1_4, (LPCSTR) 100);
-		if (!ctx->XInputGetState) {
-			fallback = true;
-			ctx->XInputGetState = XInputGetState;
-		}
-
-		ctx->XInputSetState = (void *) GetProcAddress(ctx->xinput1_4, "XInputSetState");
-		if (!ctx->XInputSetState) {
-			fallback = true;
-			ctx->XInputSetState = XInputSetState;
-		}
-
-		ctx->XInputGetBaseBusInformation = (void *) GetProcAddress(ctx->xinput1_4, (LPCSTR) 104);
-	}
-
-	if (!ctx->xinput1_4 || !ctx->XInputGetBaseBusInformation || fallback)
+	if (!xinput1_4 || !ctx->XInputGetBaseBusInformation)
 		MTY_Log("Failed to load full XInput 1.4 interface");
 
 	return ctx;
@@ -67,9 +46,6 @@ static void xip_destroy(struct xip **xip)
 		return;
 
 	struct xip *ctx = *xip;
-
-	if (ctx->xinput1_4)
-		FreeLibrary(ctx->xinput1_4);
 
 	MTY_Free(ctx);
 	*xip = NULL;
@@ -152,7 +128,7 @@ static void xip_rumble(struct xip *ctx, uint32_t id, uint16_t low, uint16_t high
 		vb.wLeftMotorSpeed = low;
 		vb.wRightMotorSpeed = high;
 
-		DWORD e = ctx->XInputSetState(id, &vb);
+		DWORD e = XInputSetState(id, &vb);
 		if (e != ERROR_SUCCESS)
 			MTY_Log("'XInputSetState' failed with error 0x%X", e);
 	}
@@ -171,7 +147,7 @@ static void xip_state(struct xip *ctx, MTY_Hash *deduper, MTY_EventFunc func, vo
 			evt.controller.id = x;
 
 			XINPUT_STATE xstate;
-			if (ctx->XInputGetState(x, &xstate) == ERROR_SUCCESS) {
+			if (XInputGetState(x, &xstate) == ERROR_SUCCESS) {
 				if (!state->was_enabled) {
 					state->bbi.vid = 0x045E;
 					state->bbi.pid = 0x0000;

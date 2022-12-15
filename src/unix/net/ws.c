@@ -12,6 +12,8 @@
 
 #include "net.h"
 #include "http.h"
+#include "net/http-parse.h"
+#include "net/http-proxy.h"
 
 enum {
 	WS_OPCODE_CONTINUE = 0x0,
@@ -137,74 +139,6 @@ static bool ws_connect(MTY_WebSocket *ctx, const char *path, const char *headers
 	return r;
 }
 
-static bool ws_accept(MTY_WebSocket *ctx, const char * const *origins, uint32_t norigins,
-	bool secure_origin, uint32_t timeout)
-{
-	bool r = true;
-	char *res = NULL;
-	struct http_header *hdr = NULL;
-
-	// Wait for the client's request header
-	hdr = mty_http_read_header(ctx->net, timeout);
-	if (!hdr) {
-		r = false;
-		goto except;
-	}
-
-	// Get origin header
-	const char *origin = NULL;
-	r = mty_http_get_header_str(hdr, "Origin", &origin);
-	if (!r)
-		goto except;
-
-	// Secure origin check
-	if (secure_origin) {
-		r = strstr(origin, "https://") == origin;
-		if (!r)
-			goto except;
-	}
-
-	// Check the origin header against the whitelist
-	// The substring MUST came at the end of the origin header, thus a strstr AND a strcmp
-	r = false;
-	for (uint32_t x = 0; x < norigins && !r; x++) {
-		const char *match = strstr(origin, origins[x]);
-		r = match && !strcmp(match, origins[x]);
-	}
-
-	if (!r)
-		goto except;
-
-	// Read the key and set a compliant response header
-	const char *skey = NULL;
-	r = mty_http_get_header_str(hdr, "Sec-WebSocket-Key", &skey);
-	if (!r)
-		goto except;
-
-	char akey[MTY_SHA1_SIZE * 2 + 1];
-	ws_create_accept_key(skey, akey, MTY_SHA1_SIZE * 2 + 1);
-	mty_http_set_header_str(&res, "Sec-WebSocket-Accept", akey);
-
-	// Set obligatory headers
-	mty_http_set_header_str(&res, "Upgrade", "websocket");
-	mty_http_set_header_str(&res, "Connection", "Upgrade");
-
-	// Write the response header
-	r = mty_http_write_response_header(ctx->net, "101", "Switching Protocols", res);
-	if (!r)
-		goto except;
-
-	// Server does not send masked messages
-	ctx->mask = false;
-
-	except:
-
-	MTY_Free(res);
-	mty_http_header_destroy(&hdr);
-
-	return r;
-}
-
 
 // Write, read
 
@@ -302,41 +236,6 @@ static bool ws_read(MTY_WebSocket *ctx, void *buf, size_t size, uint8_t *opcode,
 
 
 // Public
-
-MTY_WebSocket *MTY_WebSocketListen(const char *ip, uint16_t port)
-{
-	MTY_WebSocket *ctx = MTY_Alloc(1, sizeof(MTY_WebSocket));
-
-	ctx->net = mty_net_listen(ip, port);
-
-	if (!ctx->net)
-		MTY_WebSocketDestroy(&ctx);
-
-	return ctx;
-}
-
-MTY_WebSocket *MTY_WebSocketAccept(MTY_WebSocket *ctx, const char * const *origins, uint32_t numOrigins,
-	bool secureOrigin, uint32_t timeout)
-{
-	MTY_WebSocket *ws_child = NULL;
-
-	struct net *child = mty_net_accept(ctx->net, timeout);
-
-	if (child) {
-		ws_child = MTY_Alloc(1, sizeof(MTY_WebSocket));
-		ws_child->net = child;
-
-		if (ws_accept(ws_child, origins, numOrigins, secureOrigin, timeout)) {
-			ws_child->connected = true;
-			ws_child->last_ping = ws_child->last_pong = MTY_GetTime();
-
-		} else {
-			MTY_WebSocketDestroy(&ws_child);
-		}
-	}
-
-	return ws_child;
-}
 
 MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure, const char *path,
 	const char *headers, uint32_t timeout, uint16_t *upgradeStatus)

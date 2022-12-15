@@ -90,23 +90,8 @@ struct gfx_ui *mty_d3d12_ui_create(MTY_Device *device)
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
-	HRESULT e = !S_OK;
-
-	HMODULE d3d12 = GetModuleHandle(L"d3d12.dll");
-	if (!d3d12) {
-		MTY_Log("d3d12.dll has not been loaded");
-		goto except;
-	}
-
-	HRESULT (WINAPI *_D3D12SerializeRootSignature)(const D3D12_ROOT_SIGNATURE_DESC *, D3D_ROOT_SIGNATURE_VERSION,
-		ID3DBlob **, ID3DBlob **) = (void *) GetProcAddress(d3d12, "D3D12SerializeRootSignature");
-	if (!_D3D12SerializeRootSignature) {
-		MTY_Log("Problem loading symbol from d3d12.dll");
-		goto except;
-	}
-
 	ID3DBlob *blob = NULL;
-	e = _D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_0, &blob, NULL);
+	HRESULT e = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_0, &blob, NULL);
 	if (e != S_OK) {
 		MTY_Log("'D3D12SerializeRootSignature' failed with HRESULT 0x%X", e);
 		goto except;
