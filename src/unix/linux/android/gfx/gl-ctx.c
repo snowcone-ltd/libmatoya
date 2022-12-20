@@ -98,7 +98,7 @@ static void gl_ctx_destroy_context(struct gl_ctx *ctx)
 
 static bool gl_ctx_check(struct gl_ctx *ctx)
 {
-	NativeWindowType window = mty_window_get_native(NULL, 0);
+	NativeWindowType window = MTY_WindowGetNative(NULL, 0);
 	if (!window)
 		return false;
 
