@@ -129,7 +129,7 @@ MTY_LockFile *MTY_LockFileCreate(const char *path, MTY_FileMode mode)
 		flock_flags = LOCK_EX;
 	}
 
-	int32_t f = open(path, O_RDWR | open_flags, S_IRWXU);
+	int32_t f = open(path, O_RDWR | open_flags, S_IRWXU | S_IRWXG | S_IRWXO);
 
 	if (f != -1) {
 		if (flock(f, flock_flags | LOCK_NB) == 0) {
