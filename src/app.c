@@ -103,7 +103,7 @@ bool MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync)
 	}
 
 	if (api != MTY_GFX_NONE && MTY_WindowExists(app, window)) {
-		void *native = mty_window_get_native(app, window);
+		void *native = MTY_WindowGetNative(app, window);
 
 		gfx_ctx = GFX_CTX_API[api].create(native, vsync);
 

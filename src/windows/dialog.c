@@ -51,7 +51,7 @@ const char *MTY_OpenFile(const char *title, MTY_App *app, MTY_Window window)
 		ofn.lpstrTitle = MTY_MultiToWideDL(title);
 
 	if (app && window > -1)
-		ofn.hwndOwner = mty_window_get_native(app, window);
+		ofn.hwndOwner = MTY_WindowGetNative(app, window);
 
 	if (!GetOpenFileName(&ofn))
 		return NULL;

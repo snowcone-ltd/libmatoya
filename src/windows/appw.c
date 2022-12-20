@@ -2052,6 +2052,15 @@ MTY_ContextState MTY_WindowGetContextState(MTY_App *app, MTY_Window window)
 	return MTY_CONTEXT_STATE_NORMAL;
 }
 
+void *MTY_WindowGetNative(MTY_App *app, MTY_Window window)
+{
+	struct window *ctx = app_get_window(app, window);
+	if (!ctx)
+		return NULL;
+
+	return (void *) ctx->hwnd;
+}
+
 
 // Window Private
 
@@ -2075,15 +2084,6 @@ MTY_GFX mty_window_get_gfx(MTY_App *app, MTY_Window window, struct gfx_ctx **gfx
 		*gfx_ctx = ctx->gfx_ctx;
 
 	return ctx->api;
-}
-
-void *mty_window_get_native(MTY_App *app, MTY_Window window)
-{
-	struct window *ctx = app_get_window(app, window);
-	if (!ctx)
-		return NULL;
-
-	return (void *) ctx->hwnd;
 }
 
 
