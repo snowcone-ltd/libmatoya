@@ -1281,6 +1281,15 @@ MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync);
 MTY_EXPORT MTY_ContextState
 MTY_WindowGetContextState(MTY_App *app, MTY_Window window);
 
+/// @brief Get the OS's native window.
+/// @details This function will return an `HWND` on Windows, an `NSWindow *` on
+///   macOS, and an `ANativeWindow *` on Android.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+//- #support Windows macOS Android
+MTY_EXPORT void *
+MTY_WindowGetNative(MTY_App *app, MTY_Window window);
+
 /// @brief Fill an MTY_Frame taking the current display settings into account.
 /// @details The returned MTY_Frame can be passed directly to MTY_WindowCreate or
 ///   MTY_WindowSetFrame.
