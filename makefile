@@ -83,7 +83,6 @@ OBJS = \
 	src\windows\gfx\d3d11-ctx.obj \
 	src\windows\gfx\d3d11-ui.obj \
 	src\windows\gfx\d3d9.obj \
-	src\windows\gfx\d3d9-ctx.obj \
 	src\windows\gfx\d3d9-ui.obj \
 	src\windows\gfx\gl-ctx.obj \
 	$(WEBVIEW_OBJ)

@@ -12,7 +12,6 @@
 
 GFX_CTX_PROTOTYPES(_gl_)
 GFX_CTX_PROTOTYPES(_vk_)
-GFX_CTX_PROTOTYPES(_d3d9_)
 GFX_CTX_PROTOTYPES(_d3d11_)
 GFX_CTX_PROTOTYPES(_d3d12_)
 GFX_CTX_PROTOTYPES(_metal_)
@@ -194,9 +193,6 @@ bool MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync)
 
 		if (api == MTY_GFX_D3D11)
 			return MTY_WindowSetGFX(app, window, MTY_GFX_D3D9, vsync);
-
-		if (api == MTY_GFX_D3D9 || api == MTY_GFX_METAL)
-			return MTY_WindowSetGFX(app, window, MTY_GFX_GL, vsync);
 
 	} else {
 		cmn->renderer = MTY_RendererCreate();

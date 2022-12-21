@@ -37,19 +37,11 @@ OBJS = \
 	src/thread.o \
 	src/tlocal.o \
 	src/version.o \
-	src/gfx/gl/gl.o \
-	src/gfx/gl/gl-ui.o \
 	src/hid/utils.o \
 	src/unix/file.o \
 	src/unix/memory.o \
 	src/unix/thread.o \
 	src/unix/time.o
-
-SHADERS = \
-	src/gfx/gl/shaders/fs.h \
-	src/gfx/gl/shaders/vs.h \
-	src/gfx/gl/shaders/fsui.h \
-	src/gfx/gl/shaders/vsui.h
 
 INCLUDES = \
 	-Ideps \
@@ -88,11 +80,19 @@ AR = $(WASI_SDK)/bin/ar
 ARCH := wasm32
 
 OBJS := $(OBJS) \
+	src/gfx/gl/gl.o \
+	src/gfx/gl/gl-ui.o \
 	src/unix/web/app.o \
 	src/unix/web/dialog.o \
 	src/unix/web/system.o \
 	src/unix/web/webview.o \
 	src/unix/web/gfx/gl-ctx.o
+
+SHADERS = \
+	src/gfx/gl/shaders/fs.h \
+	src/gfx/gl/shaders/vs.h \
+	src/gfx/gl/shaders/fsui.h \
+	src/gfx/gl/shaders/vsui.h
 
 DEFS := $(DEFS) \
 	-DCLOCK_MONOTONIC_RAW=CLOCK_MONOTONIC \
@@ -137,7 +137,11 @@ OBJS := $(OBJS) \
 	src/unix/linux/x11/gfx/gl-ctx.o \
 	$(WEBVIEW_OBJ)
 
-SHADERS := $(SHADERS) \
+SHADERS = \
+	src/gfx/gl/shaders/fs.h \
+	src/gfx/gl/shaders/vs.h \
+	src/gfx/gl/shaders/fsui.h \
+	src/gfx/gl/shaders/vsui.h \
 	src/gfx/vk/shaders/fs.h \
 	src/gfx/vk/shaders/vs.h \
 	src/gfx/vk/shaders/fsui.h \
@@ -178,7 +182,6 @@ OBJS := $(OBJS) \
 	src/hid/hid.o \
 	src/unix/apple/image.o \
 	src/unix/apple/macosx/hid.o \
-	src/unix/apple/macosx/gfx/gl-ctx.o \
 	src/unix/apple/macosx/gfx/metal-ctx.o
 
 else
@@ -209,7 +212,7 @@ OBJS := $(OBJS) \
 	src/unix/apple/$(TARGET)/dialog.o \
 	src/unix/apple/$(TARGET)/system.o
 
-SHADERS := $(SHADERS) \
+SHADERS = \
 	src/unix/apple/gfx/shaders/metal/quad.h \
 	src/unix/apple/gfx/shaders/metal/ui.h
 
