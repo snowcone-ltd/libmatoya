@@ -2,6 +2,8 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
+#define _DARWIN_C_SOURCE // CLOCK_MONOTONIC_RAW
+
 #include "matoya.h"
 
 #include <time.h>
@@ -10,7 +12,7 @@
 MTY_Time MTY_GetTime(void)
 {
 	struct timespec ts = {0};
-	if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
+	if (clock_gettime(CLOCK_MONOTONIC_RAW, &ts) != 0)
 		MTY_Log("'clock_gettime' failed with errno %d", errno);
 
 	// XXX time_t can be 32 bits and multiplying it by 1000000
