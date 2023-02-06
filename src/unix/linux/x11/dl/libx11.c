@@ -88,6 +88,10 @@ static XWMHints *(*XAllocWMHints)(void);
 static XClassHint *(*XAllocClassHint)(void);
 static int (*XResetScreenSaver)(Display *display);
 
+// Xfixes interface
+static bool (*XFixesQueryExtension)(Display *display, int *event_base_return, int *error_base_return);
+static bool (*XFixesQueryVersion)(Display *display, int *major_version_return, int *minor_version_return);
+static void (*XFixesSelectSelectionInput)(Display *display, Window window, Atom selection, unsigned long eventMask);
 
 // XKB interface (part of libX11 in modern times)
 
@@ -125,6 +129,7 @@ static MTY_SO *LIBGL_SO;
 static MTY_SO *LIBXI_SO;
 static MTY_SO *LIBXCURSOR_SO;
 static MTY_SO *LIBX11_SO;
+static MTY_SO *LIBXFIXES_SO;
 static bool LIBX11_INIT;
 
 static void __attribute__((destructor)) libX11_global_destroy(void)
@@ -135,6 +140,7 @@ static void __attribute__((destructor)) libX11_global_destroy(void)
 	MTY_SOUnload(&LIBXI_SO);
 	MTY_SOUnload(&LIBXCURSOR_SO);
 	MTY_SOUnload(&LIBX11_SO);
+	MTY_SOUnload(&LIBXFIXES_SO);
 	LIBX11_INIT = false;
 
 	MTY_GlobalUnlock(&LIBX11_LOCK);
@@ -148,6 +154,7 @@ static bool libX11_global_init(void)
 		bool r = true;
 
 		LIBX11_SO = MTY_SOLoad("libX11.so.6");
+		LIBXFIXES_SO = MTY_SOLoad("libXfixes.so");
 		LIBXI_SO = MTY_SOLoad("libXi.so.6");
 		LIBXCURSOR_SO = MTY_SOLoad("libXcursor.so.1");
 		LIBGL_SO = MTY_SOLoad("libGL.so.1");
@@ -217,6 +224,12 @@ static bool libX11_global_init(void)
 		LOAD_SYM(LIBX11_SO, XAllocWMHints);
 		LOAD_SYM(LIBX11_SO, XAllocClassHint);
 		LOAD_SYM(LIBX11_SO, XResetScreenSaver);
+
+		if (LIBXFIXES_SO) {
+			LOAD_SYM_OPT(LIBXFIXES_SO, XFixesQueryExtension);
+			LOAD_SYM_OPT(LIBXFIXES_SO, XFixesQueryVersion);
+			LOAD_SYM_OPT(LIBXFIXES_SO, XFixesSelectSelectionInput);
+		}
 
 		LOAD_SYM_OPT(LIBX11_SO, XkbSetDetectableAutoRepeat);
 

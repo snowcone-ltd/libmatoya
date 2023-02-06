@@ -58,6 +58,9 @@
 #define ColormapChangeMask        (1L<<23)
 #define OwnerGrabButtonMask       (1L<<24)
 
+#define XFixesSetSelectionOwnerNotifyMask   (1L << 0)
+#define XFixesSelectionNotify     0
+
 #define PropModeReplace           0
 #define PropModePrepend           1
 #define PropModeAppend            2
