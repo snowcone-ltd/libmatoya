@@ -350,29 +350,35 @@ typedef intptr_t (*MTY_WMsgFunc)(MTY_App *app, MTY_Window window, void *hwnd, ui
 /// @brief App events.
 /// @details See MTY_Event for details on how to respond to these values.
 typedef enum {
-	MTY_EVENT_NONE         = 0,  ///< No event.
-	MTY_EVENT_CLOSE        = 1,  ///< Window close request.
-	MTY_EVENT_QUIT         = 2,  ///< Application quit request.
-	MTY_EVENT_SHUTDOWN     = 3,  ///< System is shutting down.
-	MTY_EVENT_FOCUS        = 4,  ///< Window has gained/lost focus.
-	MTY_EVENT_KEY          = 5,  ///< Key pressed/released.
-	MTY_EVENT_HOTKEY       = 6,  ///< Hotkey pressed.
-	MTY_EVENT_TEXT         = 7,  ///< Visible text input has occurred.
-	MTY_EVENT_SCROLL       = 8,  ///< Scroll from a mouse wheel or touch.
-	MTY_EVENT_BUTTON       = 9,  ///< Mouse button pressed/released.
-	MTY_EVENT_MOTION       = 10, ///< Mouse or touch motion has occurred.
-	MTY_EVENT_CONTROLLER   = 11, ///< Game controller state has been updated.
-	MTY_EVENT_CONNECT      = 12, ///< Game controller has been connected.
-	MTY_EVENT_DISCONNECT   = 13, ///< Game controller has been disconnected.
-	MTY_EVENT_PEN          = 14, ///< Drawing tablet pen input.
-	MTY_EVENT_DROP         = 15, ///< File drag and drop event.
-	MTY_EVENT_CLIPBOARD    = 16, ///< Clipboard has been updated.
-	MTY_EVENT_TRAY         = 17, ///< Tray menu item has been selected.
-	MTY_EVENT_REOPEN       = 18, ///< The application has been relaunched with a new argument.
-	MTY_EVENT_BACK         = 19, ///< The mobile back command has been triggered.
-	MTY_EVENT_SIZE         = 20, ///< The size of a window has changed.
-	MTY_EVENT_MOVE         = 21, ///< The window's top left corner has moved.
-	MTY_EVENT_MAKE_32      = INT32_MAX,
+	MTY_EVENT_NONE           = 0,  ///< No event.
+	MTY_EVENT_CLOSE          = 1,  ///< Window close request.
+	MTY_EVENT_QUIT           = 2,  ///< Application quit request.
+	MTY_EVENT_SHUTDOWN       = 3,  ///< System is shutting down.
+	MTY_EVENT_FOCUS          = 4,  ///< Window has gained/lost focus.
+	MTY_EVENT_KEY            = 5,  ///< Key pressed/released.
+	MTY_EVENT_HOTKEY         = 6,  ///< Hotkey pressed.
+	MTY_EVENT_TEXT           = 7,  ///< Visible text input has occurred.
+	MTY_EVENT_SCROLL         = 8,  ///< Scroll from a mouse wheel or touch.
+	MTY_EVENT_BUTTON         = 9,  ///< Mouse button pressed/released.
+	MTY_EVENT_MOTION         = 10, ///< Mouse or touch motion has occurred.
+	MTY_EVENT_CONTROLLER     = 11, ///< Game controller state has been updated.
+	MTY_EVENT_CONNECT        = 12, ///< Game controller has been connected.
+	MTY_EVENT_DISCONNECT     = 13, ///< Game controller has been disconnected.
+	MTY_EVENT_PEN            = 14, ///< Drawing tablet pen input.
+	MTY_EVENT_DROP           = 15, ///< File drag and drop event.
+	MTY_EVENT_CLIPBOARD      = 16, ///< Clipboard has been updated.
+	MTY_EVENT_TRAY           = 17, ///< Tray menu item has been selected.
+	MTY_EVENT_REOPEN         = 18, ///< The application has been relaunched with a new argument.
+	MTY_EVENT_BACK           = 19, ///< The mobile back command has been triggered.
+	MTY_EVENT_SIZE           = 20, ///< The size of a window has changed.
+	MTY_EVENT_MOVE           = 21, ///< The window's top left corner has moved.
+	MTY_EVENT_WEBVIEW_READY  = 22, ///< WebView has loaded and is listening for text. This will
+	                               ///<   also fire if the WebView is reloaded.
+	MTY_EVENT_WEBVIEW_TEXT   = 23, ///< Text sent from the WebView's JavaScript environment.
+	MTY_EVENT_WEBVIEW_KEY    = 24, ///< Key event from the WebView if input passthrough is enabled.
+	MTY_EVENT_WEBVIEW_HOTKEY = 25, ///< Hotkey event from the WebView if input passthrough is
+	                               ///<   enabled.
+	MTY_EVENT_MAKE_32        = INT32_MAX,
 } MTY_EventType;
 
 /// @brief Keyboard keys.
@@ -654,6 +660,15 @@ typedef enum {
 	MTY_WINDOW_MAKE_32    = INT32_MAX,
 } MTY_WindowType;
 
+/// @brief WebView flags set during creation.
+typedef enum {
+	MTY_WEBVIEW_FLAG_URL     = 0x1, ///< The `source` argument to MTY_WindowSetWebView will be
+	                                ///<   treated as a URL, otherwise `source` will be loaded
+	                                ///<   directly as HTML.
+	MTY_WEBVIEW_FLAG_DEBUG   = 0x2, ///< Debugging tools enabled.
+	MTY_WEBVIEW_FLAG_MAKE_32 = INT32_MAX,
+} MTY_WebViewFlag;
+
 /// @brief Key event.
 typedef struct {
 	MTY_Key key;  ///< The key that has been pressed or released.
@@ -741,11 +756,13 @@ typedef struct MTY_Event {
 		MTY_PenEvent pen;               ///< Valid on MTY_EVENT_PEN.
 		MTY_KeyEvent key;               ///< Valid on MTY_EVENT_KEY.
 
-		const char *reopenArg; ///< Valid on MTY_EVENT_REOPEN, the argument supplied.
-		uint32_t hotkey;       ///< Valid on MTY_EVENT_HOTKEY, the `id` set via MTY_AppSetHotkey.
-		uint32_t trayID;       ///< Valid on MTY_EVENT_TRAY, the menu `id` set via MTY_AppSetTray.
-		char text[8];          ///< Valid on MTY_EVENT_TEXT, the UTF-8 text.
-		bool focus;            ///< Valid on MTY_EVENT_FOCUS, the focus state.
+		const char *reopenArg;   ///< Valid on MTY_EVENT_REOPEN, the argument supplied.
+		const char *webviewText; ///< Valid on MTY_EVENT_WEBVIEW_TEXT, text sent from the
+		                         ///<   WebView's JavaScript enitronment.
+		uint32_t hotkey;         ///< Valid on MTY_EVENT_HOTKEY, the `id` set via MTY_AppSetHotkey.
+		uint32_t trayID;         ///< Valid on MTY_EVENT_TRAY, the menu `id` set via MTY_AppSetTray.
+		char text[8];            ///< Valid on MTY_EVENT_TEXT, the UTF-8 text.
+		bool focus;              ///< Valid on MTY_EVENT_FOCUS, the focus state.
 	};
 } MTY_Event;
 
@@ -1291,6 +1308,71 @@ MTY_WindowGetContextState(MTY_App *app, MTY_Window window);
 //- #support Windows macOS Android
 MTY_EXPORT void *
 MTY_WindowGetNative(MTY_App *app, MTY_Window window);
+
+/// @brief Set a WebView overlaying a native window.
+/// @details This will essentially overlay an entire web browser over the native window. To
+///   communicate with the WebView, see MTY_WebViewSendText and MTY_EVENT_WEBVIEW_TEXT. The
+///   WebView is based off of Windows' WebView2 system shipped with Windows 11 and Apple's
+///   WKWebView framework.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @param dir Path to where temporary files related to the WebView will be stored. Windows only.
+/// @param source Source content to be loaded by the WebView. This argument can either be a
+///   URL or direct HTML depending on the value of `flags`.
+/// @param flags Flags specifying various WebView behaviors.
+/// @returns Returns true on success, false if the WebView failed to be set or already exists.
+//- #support Windows macOS
+MTY_EXPORT bool
+MTY_WindowSetWebView(MTY_App *app, MTY_Window window, const char *dir, const char *source,
+	MTY_WebViewFlag flags);
+
+/// @brief Remove the WebView from a window.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+MTY_EXPORT void
+MTY_WindowRemoveWebView(MTY_App *app, MTY_Window window);
+
+/// @brief Check if a WebView exists on a window.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+MTY_EXPORT bool
+MTY_WebViewExists(MTY_App *app, MTY_Window window);
+
+/// @brief Show or hide the WebView.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @param show Set true to show the WebView, false to hide it.
+MTY_EXPORT void
+MTY_WebViewShow(MTY_App *app, MTY_Window window, bool show);
+
+/// @brief Check if the WebView is visible.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+MTY_EXPORT bool
+MTY_WebViewIsVisible(MTY_App *app, MTY_Window window);
+
+/// @brief Send text to the WebView's JavaScript environment.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @param text UTF-8 string to be sent.
+MTY_EXPORT void
+MTY_WebViewSendText(MTY_App *app, MTY_Window window, const char *text);
+
+/// @brief Reload the WebView.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+MTY_EXPORT void
+MTY_WebViewReload(MTY_App *app, MTY_Window window);
+
+/// @brief Enable or disable input passthrough from the WebView.
+/// @details When input passthrough is enabled, keyboard events from the JavaScript
+///   environment will be automatically converted into MTY_Event events. See MTY_EventType for
+///   details.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @param Enable or disable input passthrough from the WebView.
+MTY_EXPORT void
+MTY_WebViewSetInputPassthrough(MTY_App *app, MTY_Window window, bool passthrough);
 
 /// @brief Fill an MTY_Frame taking the current display settings into account.
 /// @details The returned MTY_Frame can be passed directly to MTY_WindowCreate or

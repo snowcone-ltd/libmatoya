@@ -16,6 +16,7 @@
 #include "hid/utils.h"
 
 struct MTY_App {
+	struct window_common cmn;
 	MTY_Hash *hotkey;
 	MTY_Hash *deduper;
 	MTY_EventFunc event_func;
@@ -23,10 +24,7 @@ struct MTY_App {
 	MTY_DetachState detach;
 	MTY_ControllerEvent cevt[4];
 	void *opaque;
-
-	MTY_GFX api;
 	bool kb_grab;
-	struct gfx_ctx *gfx_ctx;
 };
 
 static void __attribute__((constructor)) app_global_init(void)
@@ -97,22 +95,6 @@ static void window_scroll(MTY_App *ctx, int32_t x, int32_t y)
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-static void app_kb_to_hotkey(MTY_App *app, MTY_Event *evt)
-{
-	MTY_Mod mod = evt->key.mod & 0xFF;
-	uint32_t hotkey = (uint32_t) (uintptr_t) MTY_HashGetInt(app->hotkey, (mod << 16) | evt->key.key);
-
-	if (hotkey != 0) {
-		if (evt->key.pressed) {
-			evt->type = MTY_EVENT_HOTKEY;
-			evt->hotkey = hotkey;
-
-		} else {
-			evt->type = MTY_EVENT_NONE;
-		}
-	}
-}
-
 static bool window_allow_default(MTY_Mod mod, MTY_Key key)
 {
 	// The "allowed" browser hotkey list. Copy/Paste, Refresh, fullscreen, developer console, and tab switching
@@ -152,15 +134,9 @@ static bool window_keyboard(MTY_App *ctx, bool pressed, MTY_Key key, const char 
 		evt.type = MTY_EVENT_KEY;
 		evt.key.key = key;
 		evt.key.pressed = pressed;
+		evt.key.mod = web_keymap_mods(mods);
 
-		if (mods & 0x01) evt.key.mod |= MTY_MOD_LSHIFT;
-		if (mods & 0x02) evt.key.mod |= MTY_MOD_LCTRL;
-		if (mods & 0x04) evt.key.mod |= MTY_MOD_LALT;
-		if (mods & 0x08) evt.key.mod |= MTY_MOD_LWIN;
-		if (mods & 0x10) evt.key.mod |= MTY_MOD_CAPS;
-		if (mods & 0x20) evt.key.mod |= MTY_MOD_NUM;
-
-		app_kb_to_hotkey(ctx, &evt);
+		mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
 		ctx->event_func(&evt, ctx->opaque);
 
 		return !window_allow_default(evt.key.mod, evt.key.key) || ctx->kb_grab;
@@ -280,6 +256,23 @@ static void window_controller(MTY_App *ctx, uint32_t id, uint32_t state, uint32_
 
 // App / Window
 
+static void app_set_keys(void)
+{
+	MTY_Hash *h = web_keymap_hash();
+
+	uint64_t i = 0;
+	for (const char *key = NULL; MTY_HashGetNextKey(h, &i, &key);) {
+		uintptr_t code = (uintptr_t) MTY_HashGet(h, key);
+
+		bool reverse = code & 0x10000;
+		code &= 0xFFFF;
+
+		web_set_key(reverse, key, code);
+	}
+
+	MTY_HashDestroy(&h, NULL);
+}
+
 MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
 {
 	MTY_App *ctx = MTY_Alloc(1, sizeof(MTY_App));
@@ -294,7 +287,7 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	ctx->hotkey = MTY_HashCreate(0);
 	ctx->deduper = MTY_HashCreate(0);
 
-	keymap_set_keys();
+	app_set_keys();
 
 	return ctx;
 }
@@ -593,20 +586,23 @@ void *MTY_WindowGetNative(MTY_App *app, MTY_Window window)
 }
 
 
-// Window Private
+// App, Window Private
 
-void mty_window_set_gfx(MTY_App *app, MTY_Window window, MTY_GFX api, struct gfx_ctx *gfx_ctx)
+MTY_EventFunc mty_app_get_event_func(MTY_App *app, void **opaque)
 {
-	app->api = api;
-	app->gfx_ctx = gfx_ctx;
+	*opaque = app->opaque;
+
+	return app->event_func;
 }
 
-MTY_GFX mty_window_get_gfx(MTY_App *app, MTY_Window window, struct gfx_ctx **gfx_ctx)
+MTY_Hash *mty_app_get_hotkey_hash(MTY_App *app)
 {
-	if (gfx_ctx)
-		*gfx_ctx = app->gfx_ctx;
+	return app->hotkey;
+}
 
-	return app->api;
+struct window_common *mty_window_get_common(MTY_App *app, MTY_Window window)
+{
+	return &app->cmn;
 }
 
 
