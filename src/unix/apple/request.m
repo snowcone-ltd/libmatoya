@@ -79,10 +79,12 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 
 		if (comps) {
 			cfg.connectionProxyDictionary = @{
-				(NSString *) kCFNetworkProxiesHTTPProxy: comps.host,
-				(NSString *) kCFNetworkProxiesHTTPSProxy: comps.host,
-				(NSString *) kCFNetworkProxiesHTTPPort: comps.port,
-				(NSString *) kCFNetworkProxiesHTTPSPort: comps.port,
+				@"HTTPEnable": @YES,
+				@"HTTPProxy": comps.host,
+				@"HTTPPort": comps.port,
+				@"HTTPSEnable": @YES,
+				@"HTTPSProxy": comps.host,
+				@"HTTPSPort": comps.port,
 			};
 		}
 	}

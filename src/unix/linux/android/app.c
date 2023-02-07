@@ -3,6 +3,7 @@
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
 #include "app.h"
+#include "aapp.h"
 
 #include <string.h>
 #include <math.h>
@@ -46,15 +47,13 @@ static struct MTY_App {
 	bool log_thread_running;
 	bool should_detach;
 
+	struct window_common cmn;
 	ANativeWindow *window;
 	MTY_Atomic32 state_ctr;
 	bool window_reinit;
 	uint32_t width;
 	uint32_t height;
 	uint32_t kb_height;
-
-	MTY_GFX api;
-	struct gfx_ctx *gfx_ctx;
 } CTX;
 
 static const MTY_ControllerEvent APP_ZEROED_CTRL = {
@@ -744,28 +743,12 @@ static bool app_check_focus(MTY_App *ctx, bool was_ready)
 	return evt.focus;
 }
 
-static void app_kb_to_hotkey(MTY_App *app, MTY_Event *evt)
-{
-	MTY_Mod mod = evt->key.mod & 0xFF;
-	uint32_t hotkey = (uint32_t) (uintptr_t) MTY_HashGetInt(app->hotkey, (mod << 16) | evt->key.key);
-
-	if (hotkey != 0) {
-		if (evt->key.pressed) {
-			evt->type = MTY_EVENT_HOTKEY;
-			evt->hotkey = hotkey;
-
-		} else {
-			evt->type = MTY_EVENT_NONE;
-		}
-	}
-}
-
 void MTY_AppRun(MTY_App *ctx)
 {
 	for (bool cont = true, was_ready = false; cont;) {
 		for (MTY_Event *evt; MTY_QueueGetOutputBuffer(ctx->events, 0, (void **) &evt, NULL);) {
 			if (evt->type == MTY_EVENT_KEY)
-				app_kb_to_hotkey(ctx, evt);
+				mty_app_kb_to_hotkey(ctx, evt, MTY_EVENT_HOTKEY);
 
 			ctx->event_func(evt, ctx->opaque);
 			MTY_QueuePop(ctx->events);
@@ -1150,20 +1133,23 @@ void *MTY_WindowGetNative(MTY_App *app, MTY_Window window)
 }
 
 
-// Window Private
+// App, Window Private
 
-void mty_window_set_gfx(MTY_App *app, MTY_Window window, MTY_GFX api, struct gfx_ctx *gfx_ctx)
+MTY_EventFunc mty_app_get_event_func(MTY_App *app, void **opaque)
 {
-	app->api = api;
-	app->gfx_ctx = gfx_ctx;
+	*opaque = app->opaque;
+
+	return app->event_func;
 }
 
-MTY_GFX mty_window_get_gfx(MTY_App *app, MTY_Window window, struct gfx_ctx **gfx_ctx)
+MTY_Hash *mty_app_get_hotkey_hash(MTY_App *app)
 {
-	if (gfx_ctx)
-		*gfx_ctx = app->gfx_ctx;
+	return app->hotkey;
+}
 
-	return app->api;
+struct window_common *mty_window_get_common(MTY_App *app, MTY_Window window)
+{
+	return &app->cmn;
 }
 
 

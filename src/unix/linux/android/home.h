@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "app.h"
+#include "aapp.h"
 #include "jnih.h"
 
 static bool home_get_dir(char *dir, size_t size)

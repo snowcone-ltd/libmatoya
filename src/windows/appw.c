@@ -21,15 +21,14 @@
 #define APP_RI_MAX     (32 * 1024)
 
 struct window {
+	struct window_common cmn;
 	MTY_App *app;
 	MTY_Window window;
 	MTY_Frame frame;
-	MTY_GFX api;
 	HWND hwnd;
 	bool was_zoomed;
 	uint32_t min_width;
 	uint32_t min_height;
-	struct gfx_ctx *gfx_ctx;
 	RAWINPUT *ri;
 };
 
@@ -580,22 +579,6 @@ static void app_fix_mouse_buttons(MTY_App *ctx)
 	}
 }
 
-static void app_kb_to_hotkey(MTY_App *app, MTY_Event *evt)
-{
-	MTY_Mod mod = evt->key.mod & 0xFF;
-	uint32_t hotkey = (uint32_t) (uintptr_t) MTY_HashGetInt(app->hotkey, (mod << 16) | evt->key.key);
-
-	if (hotkey != 0) {
-		if (evt->key.pressed) {
-			evt->type = MTY_EVENT_HOTKEY;
-			evt->hotkey = hotkey;
-
-		} else {
-			evt->type = MTY_EVENT_NONE;
-		}
-	}
-}
-
 static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	MTY_App *app = ctx->app;
@@ -625,6 +608,9 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 		case WM_SIZE:
 			app->state++;
 			evt.type = MTY_EVENT_SIZE;
+
+			if (ctx->cmn.webview)
+				mty_webview_update_size(ctx->cmn.webview);
 			break;
 		case WM_MOVE:
 			evt.type = MTY_EVENT_MOVE;
@@ -866,7 +852,7 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 
 	// Transform keyboard into hotkey
 	if (evt.type == MTY_EVENT_KEY)
-		app_kb_to_hotkey(app, &evt);
+		mty_app_kb_to_hotkey(app, &evt, MTY_EVENT_HOTKEY);
 
 	// Record pressed buttons
 	if (evt.type == MTY_EVENT_BUTTON) {
@@ -1801,10 +1787,12 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 		MTY_AppGrabMouse(app, false);
 	}
 
+	mty_webview_destroy(&ctx->cmn.webview);
+
 	if (ctx->hwnd)
 		DestroyWindow(ctx->hwnd);
 
-	if (ctx->gfx_ctx)
+	if (ctx->cmn.gfx_ctx)
 		MTY_Log("Window destroyed with GFX still attached");
 
 	MTY_Free(ctx->ri);
@@ -2045,28 +2033,27 @@ void *MTY_WindowGetNative(MTY_App *app, MTY_Window window)
 }
 
 
-// Window Private
+// App, Window Private
 
-void mty_window_set_gfx(MTY_App *app, MTY_Window window, MTY_GFX api, struct gfx_ctx *gfx_ctx)
+MTY_EventFunc mty_app_get_event_func(MTY_App *app, void **opaque)
 {
-	struct window *ctx = app_get_window(app, window);
-	if (!ctx)
-		return;
+	*opaque = app->opaque;
 
-	ctx->api = api;
-	ctx->gfx_ctx = gfx_ctx;
+	return app->event_func;
 }
 
-MTY_GFX mty_window_get_gfx(MTY_App *app, MTY_Window window, struct gfx_ctx **gfx_ctx)
+MTY_Hash *mty_app_get_hotkey_hash(MTY_App *app)
+{
+	return app->hotkey;
+}
+
+struct window_common *mty_window_get_common(MTY_App *app, MTY_Window window)
 {
 	struct window *ctx = app_get_window(app, window);
 	if (!ctx)
-		return MTY_GFX_NONE;
+		return NULL;
 
-	if (gfx_ctx)
-		*gfx_ctx = ctx->gfx_ctx;
-
-	return ctx->api;
+	return &ctx->cmn;
 }
 
 

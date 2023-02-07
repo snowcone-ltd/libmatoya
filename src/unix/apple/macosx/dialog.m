@@ -33,8 +33,10 @@ const char *MTY_OpenFile(const char *title, MTY_App *app, MTY_Window window)
 	NSOpenPanel *panel = [NSOpenPanel openPanel];
 	panel.canChooseFiles = YES;
 
-	if ([panel runModal] == NSModalResponseOK)
-		return MTY_SprintfDL("%s", [[[panel URL] path] UTF8String]);
+	const char *path = [panel runModal] == NSModalResponseOK ?
+		MTY_SprintfDL("%s", [[[panel URL] path] UTF8String]) : NULL;
 
-	return NULL;
+	MTY_WindowActivate(app, window, true);
+
+	return path;
 }

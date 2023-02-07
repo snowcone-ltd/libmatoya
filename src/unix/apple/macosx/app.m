@@ -301,13 +301,12 @@ static void app_fix_mouse_buttons(App *ctx)
 // NSWindow
 
 @interface Window : NSWindow <NSWindowDelegate>
+	@property struct window_common *cmn;
 	@property(strong) App *app;
 	@property MTY_Window window;
-	@property MTY_GFX api;
 	@property bool top;
 	@property bool was_maximized;
 	@property NSRect normal_frame;
-	@property struct gfx_ctx *gfx_ctx;
 @end
 
 
@@ -678,22 +677,10 @@ static void window_keyboard_event(Window *window, int16_t key_code, NSEventModif
 	evt.key.mod = keymap_modifier_flags_to_keymod(flags);
 	evt.key.pressed = pressed;
 
-	MTY_Mod mod = evt.key.mod & 0xFF;
+	mty_app_kb_to_hotkey((__bridge MTY_App *) window.app, &evt, MTY_EVENT_HOTKEY);
 
-	uint32_t hotkey = (uint32_t) (uintptr_t) MTY_HashGetInt(window.app.hotkey, (mod << 16) | evt.key.key);
-
-	if (hotkey != 0) {
-		if (pressed) {
-			evt.type = MTY_EVENT_HOTKEY;
-			evt.hotkey = hotkey;
-
-			window.app.event_func(&evt, window.app.opaque);
-		}
-
-	} else {
-		if (evt.key.key != MTY_KEY_NONE)
-			window.app.event_func(&evt, window.app.opaque);
-	}
+	if ((evt.type == MTY_EVENT_HOTKEY && pressed) || (evt.type == MTY_EVENT_KEY && evt.key.key != MTY_KEY_NONE))
+		window.app.event_func(&evt, window.app.opaque);
 }
 
 static void window_mod_event(Window *window, NSEvent *event)
@@ -813,6 +800,9 @@ static void window_mod_event(Window *window, NSEvent *event)
 	{
 		MTY_Event evt = window_event(self, MTY_EVENT_SIZE);
 		self.app.event_func(&evt, self.app.opaque);
+
+		if (self.cmn->webview)
+			mty_webview_update_size(self.cmn->webview);
 	}
 
 	- (void)windowDidMove:(NSNotification *)notification
@@ -828,6 +818,9 @@ static void window_mod_event(Window *window, NSEvent *event)
 
 	- (void)keyDown:(NSEvent *)event
 	{
+		if (self.cmn->webview && mty_webview_was_hidden_during_keydown(self.cmn->webview))
+			return;
+
 		window_text_event(self, [event.characters UTF8String]);
 		window_keyboard_event(self, event.keyCode, event.modifierFlags, true);
 	}
@@ -1422,6 +1415,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	ctx = [[Window alloc] initWithContentRect:rect styleMask:style
 		backing:NSBackingStoreBuffered defer:NO screen:screen];
 	ctx.title = [NSString stringWithUTF8String:title ? title : "MTY_Window"];
+	ctx.cmn = MTY_Alloc(1, sizeof(struct window_common));
 	ctx.window = window;
 	ctx.app = (__bridge App *) app;
 
@@ -1460,6 +1454,9 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 	Window *ctx = app_get_window(app, window);
 	if (!ctx)
 		return;
+
+	mty_webview_destroy(&ctx.cmn->webview);
+	MTY_Free(ctx.cmn);
 
 	ctx.app.windows[window] = NULL;
 	[ctx close];
@@ -1679,28 +1676,31 @@ void *MTY_WindowGetNative(MTY_App *app, MTY_Window window)
 }
 
 
-// Window Private
+// App, Window Private
 
-void mty_window_set_gfx(MTY_App *app, MTY_Window window, MTY_GFX api, struct gfx_ctx *gfx_ctx)
+MTY_EventFunc mty_app_get_event_func(MTY_App *app, void **opaque)
 {
-	Window *ctx = app_get_window(app, window);
-	if (!ctx)
-		return;
+	App *ctx = (__bridge App *) app;
 
-	ctx.api = api;
-	ctx.gfx_ctx = gfx_ctx;
+	*opaque = ctx.opaque;
+
+	return ctx.event_func;
 }
 
-MTY_GFX mty_window_get_gfx(MTY_App *app, MTY_Window window, struct gfx_ctx **gfx_ctx)
+MTY_Hash *mty_app_get_hotkey_hash(MTY_App *app)
+{
+	App *ctx = (__bridge App *) app;
+
+	return ctx.hotkey;
+}
+
+struct window_common *mty_window_get_common(MTY_App *app, MTY_Window window)
 {
 	Window *ctx = app_get_window(app, window);
 	if (!ctx)
-		return MTY_GFX_NONE;
+		return NULL;
 
-	if (gfx_ctx)
-		*gfx_ctx = ctx.gfx_ctx;
-
-	return ctx.api;
+	return ctx.cmn;
 }
 
 

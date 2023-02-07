@@ -182,7 +182,7 @@ void MTY_AppSetWMsgFunc(MTY_App *ctx, MTY_WMsgFunc func)
 
 // Window
 
-MTY_Window MTY_WindowCreate(MTY_App *app, const MTY_WindowDesc *desc)
+MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *frame, MTY_Window index)
 {
 	return -1;
 }
@@ -191,18 +191,18 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 {
 }
 
-bool MTY_WindowGetSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)
+MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 {
-	return false;
+	return (MTY_Size) {0};
 }
 
 void MTY_WindowGetPosition(MTY_App *app, MTY_Window window, int32_t *x, int32_t *y)
 {
 }
 
-bool MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window, uint32_t *width, uint32_t *height)
+MTY_Size MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window)
 {
-	return false;
+	return (MTY_Size) {0};
 }
 
 float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
