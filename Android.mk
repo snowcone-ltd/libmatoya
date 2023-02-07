@@ -82,6 +82,7 @@ LOCAL_SRC_FILES := \
 	src/unix/linux/android/request.c \
 	src/unix/linux/android/system.c \
 	src/unix/linux/android/tls.c \
+	src/unix/linux/android/webview.c \
 	src/unix/linux/android/gfx/gl-ctx.c \
 	src/unix/net/gzip.c \
 	src/unix/net/http.c \

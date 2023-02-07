@@ -6,7 +6,7 @@
 
 #include "matoya.h"
 
-#include "app.h"
+#include "aapp.h"
 #include "jnih.h"
 
 static JavaVM *SYSTEM_JVM;

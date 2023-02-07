@@ -83,14 +83,6 @@ void MTY_RendererDestroy(MTY_Renderer **renderer)
 
 static bool render_create_api(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device)
 {
-	if (api == MTY_GFX_NONE)
-		return false;
-
-	if (!GFX_API_SUPPORTED(api)) {
-		MTY_Log("MTY_GFX %d is unsupported", api);
-		return false;
-	}
-
 	ctx->api = api;
 	ctx->device = device;
 
