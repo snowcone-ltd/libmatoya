@@ -11,7 +11,8 @@
 #include <windows.h>
 #include <ole2.h>
 
-#include "webview2s.h"
+#define COBJMACROS
+#include "webview2.h"
 
 #include "unix/web/keymap.h"
 
