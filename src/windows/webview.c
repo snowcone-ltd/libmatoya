@@ -14,6 +14,10 @@
 
 #include "unix/web/keymap.h"
 
+typedef HRESULT (WINAPI *WEBVIEW_CREATE_FUNC)(uintptr_t _unknown0, uintptr_t _unknown1,
+	const WCHAR *wdir, ICoreWebView2EnvironmentOptions *opts,
+	ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler *handler);
+
 struct webview_handler0 {
 	ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler handler;
 	void *opaque;
@@ -37,11 +41,13 @@ struct webview {
 	WEBVIEW_TEXT text_func;
 	WEBVIEW_KEY key_func;
 	MTY_Queue *pushq;
+	HMODULE lib;
 	ICoreWebView2Controller2 *controller;
 	ICoreWebView2 *webview;
 	struct webview_handler0 handler0;
 	struct webview_handler1 handler1;
 	struct webview_handler2 handler2;
+	ICoreWebView2EnvironmentOptions opts;
 	MTY_WebViewFlag flags;
 	WCHAR *source;
 	bool passthrough;
@@ -51,20 +57,17 @@ struct webview {
 
 // Generic COM shims
 
-static HRESULT STDMETHODCALLTYPE main_query_interface(void *This,
-	REFIID riid, _COM_Outptr_ void **ppvObject)
+static bool com_check_riid(REFIID in, REFIID check)
 {
-	*ppvObject = NULL;
-
-	return E_NOINTERFACE;
+	return (!memcmp(in, &IID_IUnknown, sizeof(IID)) || !memcmp(in, check, sizeof(IID)));
 }
 
-static ULONG STDMETHODCALLTYPE main_add_ref(void *This)
+static ULONG STDMETHODCALLTYPE com_AddRef(void *This)
 {
 	return 1;
 }
 
-static ULONG STDMETHODCALLTYPE main_release(void *This)
+static ULONG STDMETHODCALLTYPE com_Release(void *This)
 {
 	return 0;
 }
@@ -72,7 +75,18 @@ static ULONG STDMETHODCALLTYPE main_release(void *This)
 
 // ICoreWebView2WebMessageReceivedEventHandler
 
-static HRESULT STDMETHODCALLTYPE main_h2_invoke(ICoreWebView2WebMessageReceivedEventHandler *This,
+static HRESULT STDMETHODCALLTYPE h2_QueryInterface(void *This,
+	REFIID riid, _COM_Outptr_ void **ppvObject)
+{
+	if (com_check_riid(riid, &IID_ICoreWebView2WebMessageReceivedEventHandler)) {
+		*ppvObject = This;
+		return S_OK;
+	}
+
+	return E_NOINTERFACE;
+}
+
+static HRESULT STDMETHODCALLTYPE h2_Invoke(ICoreWebView2WebMessageReceivedEventHandler *This,
 	ICoreWebView2 *sender, ICoreWebView2WebMessageReceivedEventArgs *args)
 {
 	struct webview_handler2 *handler = (struct webview_handler2 *) This;
@@ -142,7 +156,18 @@ static HRESULT STDMETHODCALLTYPE main_h2_invoke(ICoreWebView2WebMessageReceivedE
 
 // ICoreWebView2CreateCoreWebView2ControllerCompletedHandler
 
-static HRESULT STDMETHODCALLTYPE main_h1_invoke(ICoreWebView2CreateCoreWebView2ControllerCompletedHandler *This,
+static HRESULT STDMETHODCALLTYPE h1_query_interface(void *This,
+	REFIID riid, _COM_Outptr_ void **ppvObject)
+{
+	if (com_check_riid(riid, &IID_ICoreWebView2CreateCoreWebView2ControllerCompletedHandler)) {
+		*ppvObject = This;
+		return S_OK;
+	}
+
+	return E_NOINTERFACE;
+}
+
+static HRESULT STDMETHODCALLTYPE h1_Invoke(ICoreWebView2CreateCoreWebView2ControllerCompletedHandler *This,
 	HRESULT errorCode, ICoreWebView2Controller *controller)
 {
 	struct webview_handler1 *handler = (struct webview_handler1 *) This;
@@ -222,7 +247,18 @@ static HRESULT STDMETHODCALLTYPE main_h1_invoke(ICoreWebView2CreateCoreWebView2C
 
 // ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler
 
-static HRESULT STDMETHODCALLTYPE main_h0_invoke(ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler *This,
+static HRESULT STDMETHODCALLTYPE h0_QueryInterface(void *This,
+	REFIID riid, _COM_Outptr_ void **ppvObject)
+{
+	if (com_check_riid(riid, &IID_ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler)) {
+		*ppvObject = This;
+		return S_OK;
+	}
+
+	return E_NOINTERFACE;
+}
+
+static HRESULT STDMETHODCALLTYPE h0_Invoke(ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler *This,
 	HRESULT errorCode, ICoreWebView2Environment *env)
 {
 	struct webview_handler0 *handler = (struct webview_handler0 *) This;
@@ -235,31 +271,157 @@ static HRESULT STDMETHODCALLTYPE main_h0_invoke(ICoreWebView2CreateCoreWebView2E
 }
 
 
+// ICoreWebView2EnvironmentOptions
+
+static HRESULT STDMETHODCALLTYPE opts_QueryInterface(void *This,
+	REFIID riid, _COM_Outptr_ void **ppvObject)
+{
+	if (com_check_riid(riid, &IID_ICoreWebView2EnvironmentOptions)) {
+		*ppvObject = This;
+		return S_OK;
+	}
+
+	return E_NOINTERFACE;
+}
+
+static HRESULT STDMETHODCALLTYPE opts_get_AdditionalBrowserArguments(
+	ICoreWebView2EnvironmentOptions *This, LPWSTR *value)
+{
+	return E_FAIL;
+}
+
+static HRESULT STDMETHODCALLTYPE opts_put_AdditionalBrowserArguments(
+	ICoreWebView2EnvironmentOptions *This, LPCWSTR value)
+{
+	return E_FAIL;
+}
+
+static HRESULT STDMETHODCALLTYPE opts_get_Language(
+	ICoreWebView2EnvironmentOptions *This, LPWSTR *value)
+{
+	return E_FAIL;
+}
+
+static HRESULT STDMETHODCALLTYPE opts_put_Language(
+	ICoreWebView2EnvironmentOptions *This, LPCWSTR value)
+{
+	return E_FAIL;
+}
+
+static HRESULT STDMETHODCALLTYPE opts_get_TargetCompatibleBrowserVersion(
+	ICoreWebView2EnvironmentOptions *This, LPWSTR *value)
+{
+	const WCHAR *src = L"89.0.774.44";
+	size_t size = (wcslen(src) + 1) * sizeof(WCHAR);
+	WCHAR *dst = CoTaskMemAlloc(size);
+	memcpy(dst, src, size);
+
+	*value = dst;
+
+	return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE opts_put_TargetCompatibleBrowserVersion(
+	ICoreWebView2EnvironmentOptions *This, LPCWSTR value)
+{
+	return E_FAIL;
+}
+
+static HRESULT STDMETHODCALLTYPE opts_get_AllowSingleSignOnUsingOSPrimaryAccount(
+	ICoreWebView2EnvironmentOptions *This, BOOL *allow)
+{
+	return E_FAIL;
+}
+
+static HRESULT STDMETHODCALLTYPE opts_put_AllowSingleSignOnUsingOSPrimaryAccount(
+	ICoreWebView2EnvironmentOptions *This, BOOL allow)
+{
+	return E_FAIL;
+}
+
+
 // Vtables
 
 static ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandlerVtbl VTBL0 = {
-	.QueryInterface = main_query_interface,
-	.AddRef = main_add_ref,
-	.Release = main_release,
-	.Invoke = main_h0_invoke,
+	.QueryInterface = h0_QueryInterface,
+	.AddRef = com_AddRef,
+	.Release = com_Release,
+	.Invoke = h0_Invoke,
 };
 
 static ICoreWebView2CreateCoreWebView2ControllerCompletedHandlerVtbl VTBL1 = {
-	.QueryInterface = main_query_interface,
-	.AddRef = main_add_ref,
-	.Release = main_release,
-	.Invoke = main_h1_invoke,
+	.QueryInterface = h1_query_interface,
+	.AddRef = com_AddRef,
+	.Release = com_Release,
+	.Invoke = h1_Invoke,
 };
 
 static ICoreWebView2WebMessageReceivedEventHandlerVtbl VTBL2 = {
-	.QueryInterface = main_query_interface,
-	.AddRef = main_add_ref,
-	.Release = main_release,
-	.Invoke = main_h2_invoke,
+	.QueryInterface = h2_QueryInterface,
+	.AddRef = com_AddRef,
+	.Release = com_Release,
+	.Invoke = h2_Invoke,
+};
+
+static ICoreWebView2EnvironmentOptionsVtbl VTBL3 = {
+	.QueryInterface = opts_QueryInterface,
+	.AddRef = com_AddRef,
+	.Release = com_Release,
+	.get_AdditionalBrowserArguments = opts_get_AdditionalBrowserArguments,
+	.put_AdditionalBrowserArguments = opts_put_AdditionalBrowserArguments,
+	.get_Language = opts_get_Language,
+	.put_Language = opts_put_Language,
+	.get_TargetCompatibleBrowserVersion = opts_get_TargetCompatibleBrowserVersion,
+	.put_TargetCompatibleBrowserVersion = opts_put_TargetCompatibleBrowserVersion,
+	.get_AllowSingleSignOnUsingOSPrimaryAccount = opts_get_AllowSingleSignOnUsingOSPrimaryAccount,
+	.put_AllowSingleSignOnUsingOSPrimaryAccount = opts_put_AllowSingleSignOnUsingOSPrimaryAccount,
 };
 
 
 // Public
+
+static HMODULE webview_load_dll(void)
+{
+	HKEY key = NULL;
+	WCHAR *dll = NULL;
+	HMODULE lib = NULL;
+
+	LSTATUS r = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+		L"Software\\Microsoft\\EdgeUpdate\\ClientState\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}",
+		0, KEY_WOW64_32KEY | KEY_READ, &key);
+	if (r != ERROR_SUCCESS)
+		goto except;
+
+	dll = MTY_Alloc(MAX_PATH, sizeof(WCHAR));
+	DWORD size = MAX_PATH * sizeof(WCHAR);
+
+	r = RegQueryValueEx(key, L"EBWebView", 0, NULL, (BYTE *) dll, &size);
+	if (r != ERROR_SUCCESS)
+		goto except;
+
+	#if defined(_WIN64)
+		const WCHAR *path = L"\\EBWebView\\x64\\EmbeddedBrowserWebView.dll";
+
+	#else
+		const WCHAR *path = L"\\EBWebView\\x86\\EmbeddedBrowserWebView.dll";
+	#endif
+
+	if (wcscat_s(dll, MAX_PATH, path) != 0)
+		goto except;
+
+	lib = LoadLibrary(dll);
+	if (!lib)
+		goto except;
+
+	except:
+
+	MTY_Free(dll);
+
+	if (key)
+		RegCloseKey(key);
+
+	return lib;
+}
 
 struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *dir,
 	const char *source, MTY_WebViewFlag flags, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func,
@@ -284,11 +446,23 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 	ctx->handler1.opaque = ctx;
 	ctx->handler2.handler.lpVtbl = &VTBL2;
 	ctx->handler2.opaque = ctx;
+	ctx->opts.lpVtbl = &VTBL3;
 
 	const WCHAR *dirw = dir ? MTY_MultiToWideDL(dir) : L"webview-data";
 
-	HRESULT e = CreateCoreWebView2EnvironmentWithOptions(NULL, dirw, NULL,
-		(ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler *) &ctx->handler0);
+	HRESULT e = E_FAIL;
+	ctx->lib = webview_load_dll();
+	if (!ctx->lib)
+		goto except;
+
+	WEBVIEW_CREATE_FUNC func = (WEBVIEW_CREATE_FUNC) GetProcAddress(ctx->lib,
+		"CreateWebViewEnvironmentWithOptionsInternal");
+	if (!func)
+		goto except;
+
+	e = func(1, 0, dirw, &ctx->opts, (ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler *) &ctx->handler0);
+
+	except:
 
 	if (e != S_OK)
 		mty_webview_destroy(&ctx);
@@ -305,6 +479,9 @@ void mty_webview_destroy(struct webview **webview)
 
 	if (ctx->controller)
 		ICoreWebView2Controller2_Release(ctx->controller);
+
+	if (ctx->lib)
+		FreeLibrary(ctx->lib);
 
 	if (ctx->pushq)
 		MTY_QueueFlush(ctx->pushq, MTY_Free);
