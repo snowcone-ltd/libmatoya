@@ -2,7 +2,7 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
-#define _POSIX_C_SOURCE 200112L // struct addrinfo, getaddrinfo, freeaddrinfo
+#define _DEFAULT_SOURCE // struct addrinfo, getaddrinfo, freeaddrinfo
 
 #include "matoya.h"
 #include "dns.h"

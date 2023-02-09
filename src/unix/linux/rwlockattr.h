@@ -4,8 +4,6 @@
 
 #pragma once
 
-#define _POSIX_C_SOURCE 200112L // pthread_rwlock_t
-
 #include <stdlib.h>
 
 #include <pthread.h>
