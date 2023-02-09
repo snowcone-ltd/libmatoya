@@ -4,8 +4,7 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
-#define _DEFAULT_SOURCE  // clock_gettime, struct timespec, nanosleep
-#define _DARWIN_C_SOURCE // CLOCK_MONOTONIC_RAW
+#define _DEFAULT_SOURCE  // CLOCK_MONOTONIC_RAW, clock_gettime, struct timespec, nanosleep
 
 #include "matoya.h"
 
