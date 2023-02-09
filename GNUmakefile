@@ -57,9 +57,6 @@ INCLUDES = \
 	-Isrc \
 	-Isrc/unix
 
-DEFS = \
-	-D_POSIX_C_SOURCE=200112L
-
 FLAGS = \
 	-Wall \
 	-Wextra \
