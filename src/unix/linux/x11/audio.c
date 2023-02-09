@@ -24,7 +24,8 @@ struct MTY_Audio {
 	size_t pos;
 };
 
-MTY_Audio *MTY_AudioCreate(uint32_t sampleRate, uint32_t minBuffer, uint32_t maxBuffer)
+MTY_Audio *MTY_AudioCreate(uint32_t sampleRate, uint32_t minBuffer, uint32_t maxBuffer, uint8_t channels,
+	const char *deviceID, bool fallback)
 {
 	if (!libasound_global_init())
 		return NULL;

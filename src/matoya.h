@@ -1437,10 +1437,16 @@ typedef struct MTY_Resampler MTY_Resampler;
 /// @param maxBuffer The maximum amount of audio in milliseconds that can be queued
 ///   before audio begins getting dropped. The queue will flush to zero, then begin
 ///   building back towards `minBuffer` again before playback resumes.
+/// @param channels Number of audio channels.
+/// @param deviceID Specify a specific audio device for playback, or NULL for the default
+///   device. Windows only.
+/// @param fallback If `deviceID` is not NULL, set to true to fallback to the default device, or
+///   false to cause this function to fail and return NULL. Windows only.
 /// @returns On failure, NULL is returned. Call MTY_GetLog for details.\n\n
 ///   The returned MTY_Audio context must be destroyed with MTY_AudioDestroy.
 MTY_EXPORT MTY_Audio *
-MTY_AudioCreate(uint32_t sampleRate, uint32_t minBuffer, uint32_t maxBuffer);
+MTY_AudioCreate(uint32_t sampleRate, uint32_t minBuffer, uint32_t maxBuffer, uint8_t channels,
+	const char *deviceID, bool fallback);
 
 /// @brief Destroy an MTY_Audio context.
 /// @param audio Passed by reference and set to NULL after being destroyed.
@@ -1460,12 +1466,13 @@ MTY_AudioReset(MTY_Audio *ctx);
 MTY_EXPORT uint32_t
 MTY_AudioGetQueued(MTY_Audio *ctx);
 
-/// @brief Queue 2-channel, 16-bit signed PCM audio for playback.
+/// @brief Queue 16-bit signed PCM audio for playback.
 /// @param ctx An MTY_Audio context.
-/// @param frames Buffer containing 2-channel, 16-bit signed PCM audio frames. In this
-///   case, one audio frame is two samples, each sample being one channel.
+/// @param frames Buffer containing 16-bit signed PCM audio frames. The number of audio channels
+///   is specified during MTY_AudioCreate. In the case of 2-channel PCM, one audio frame is two
+///   samples, each sample being one channel.
 /// @param count The number of frames contained in `frames`. The number of frames would
-///   be the size of `frames` in bytes divided by 4.
+///   be the size of `frames` in bytes divided by 2 * `channels` specified during MTY_AudioCreate.
 MTY_EXPORT void
 MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count);
 

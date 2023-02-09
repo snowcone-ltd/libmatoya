@@ -422,7 +422,7 @@ function mty_audio_queued_ms() {
 }
 
 const MTY_AUDIO_API = {
-	MTY_AudioCreate: function (sampleRate, minBuffer, maxBuffer) {
+	MTY_AudioCreate: function (sampleRate, minBuffer, maxBuffer, channels, deviceID, fallback) {
 		MTY.audio = {};
 		MTY.audio.flushing = false;
 		MTY.audio.playing = false;
