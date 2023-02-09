@@ -4,8 +4,7 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
-#define _DEFAULT_SOURCE  // DT_DIR
-#define _DARWIN_C_SOURCE // flock, DT_DIR
+#define _DEFAULT_SOURCE  // flock, DT_DIR
 
 #include "matoya.h"
 
