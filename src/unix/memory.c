@@ -2,8 +2,7 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
-#define _DEFAULT_SOURCE  // htobe64, be64toh
-#define _DARWIN_C_SOURCE // htonll, ntohll
+#define _DEFAULT_SOURCE  // htonll, ntohll, htobe64, be64toh
 #define _GNU_SOURCE      // strcasestr
 
 #include <stdlib.h>
