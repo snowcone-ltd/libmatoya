@@ -427,13 +427,14 @@ const MTY_AUDIO_API = {
 		MTY.audio.flushing = false;
 		MTY.audio.playing = false;
 		MTY.audio.sample_rate = sampleRate;
+		MTY.audio.channels = channels;
 
 		MTY.audio.frames_per_ms = Math.round(sampleRate / 1000.0);
 		MTY.audio.min_buffer = minBuffer * MTY.audio.frames_per_ms;
 		MTY.audio.max_buffer = maxBuffer * MTY.audio.frames_per_ms;
 
 		MTY.audio.offset = 0;
-		MTY.audio.buf = MTY_Alloc(sampleRate * 4);
+		MTY.audio.buf = MTY_Alloc(sampleRate * 2 * MTY.audio.channels);
 
 		return 0xCDD;
 	},
@@ -463,13 +464,15 @@ const MTY_AUDIO_API = {
 
 		// Convert PCM int16_t to float
 		if (!MTY.audio.flushing) {
-			let size = count * 4;
+			let size = count * 2 * MTY.audio.channels;
 			MTY_Memcpy(MTY.audio.buf + MTY.audio.offset, new Uint8Array(mty_mem(), frames, size));
 			MTY.audio.offset += size;
 		}
 
 		// Begin playing again if the buffer has accumulated past the min
-		if (!MTY.audio.playing && !MTY.audio.flushing && MTY.audio.offset / 4 > MTY.audio.min_buffer) {
+		if (!MTY.audio.playing && !MTY.audio.flushing &&
+			MTY.audio.offset / (2 * MTY.audio.channels) > MTY.audio.min_buffer)
+		{
 			MTY.audio.next_time = MTY.audio.ctx.currentTime;
 			MTY.audio.playing = true;
 		}
@@ -477,17 +480,20 @@ const MTY_AUDIO_API = {
 		// Queue the audio if playing
 		if (MTY.audio.playing) {
 			const src = new Int16Array(mty_mem(), MTY.audio.buf);
-			const bcount = MTY.audio.offset / 4;
+			const bcount = MTY.audio.offset / (2 * MTY.audio.channels);
 
-			const buf = MTY.audio.ctx.createBuffer(2, bcount, MTY.audio.sample_rate);
-			const left = buf.getChannelData(0);
-			const right = buf.getChannelData(1);
+			const buf = MTY.audio.ctx.createBuffer(MTY.audio.channels, bcount, MTY.audio.sample_rate);
+
+			const chans = [];
+			for (let x = 0; x < MTY.audio.channels; x++)
+				chans[x] = buf.getChannelData(x);
 
 			let offset = 0;
-			for (let x = 0; x < bcount * 2; x += 2) {
-				left[offset] = src[x] / 32768;
-				right[offset] = src[x + 1] / 32768;
-				offset++;
+			for (let x = 0; x < bcount * MTY.audio.channels; x += MTY.audio.channels) {
+				for (y = 0; y < MTY.audio.channels; y++) {
+					chans[y][offset] = src[x + y] / 32768;
+					offset++;
+				}
 			}
 
 			const source = MTY.audio.ctx.createBufferSource();
