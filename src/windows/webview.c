@@ -88,6 +88,8 @@ static HRESULT STDMETHODCALLTYPE h2_QueryInterface(void *This,
 	return E_NOINTERFACE;
 }
 
+static void mty_webview_post_message(struct webview *ctx, const char *msg);
+
 static HRESULT STDMETHODCALLTYPE h2_Invoke(ICoreWebView2WebMessageReceivedEventHandler *This,
 	ICoreWebView2 *sender, ICoreWebView2WebMessageReceivedEventArgs *args)
 {
@@ -107,9 +109,9 @@ static HRESULT STDMETHODCALLTYPE h2_Invoke(ICoreWebView2WebMessageReceivedEventH
 				ctx->ready = true;
 
 				// Send any queued messages before the WebView became ready
-				for (WCHAR *wmsg = NULL; MTY_QueuePopPtr(ctx->pushq, 0, &wmsg, NULL);) {
-					ICoreWebView2_PostWebMessageAsString(ctx->webview, wmsg);
-					MTY_Free(wmsg);
+				for (char *msg = NULL; MTY_QueuePopPtr(ctx->pushq, 0, &msg, NULL); /* */) {
+					mty_webview_post_message(ctx, msg);
+					MTY_Free(msg);
 				}
 
 				ctx->ready_func(ctx->app, ctx->window);
@@ -513,15 +515,28 @@ bool mty_webview_is_visible(struct webview *ctx)
 	return visible;
 }
 
+static void mty_webview_post_message(struct webview *ctx, const char *msg)
+{
+	const size_t sz_msg = strlen(msg); // do NOT include the null-terminating character in the base64 encoding
+	const size_t sz_msg_base64 = sz_msg * 2; // see here for math pertaining to buffer size estimation: https://stackoverflow.com/a/13378842
+
+	char *msg_base64 = MTY_Alloc(sz_msg_base64, 1);
+	MTY_BytesToBase64(msg, sz_msg, msg_base64, sz_msg_base64);
+
+	WCHAR *wmsg = MTY_MultiToWideD(msg_base64);
+	ICoreWebView2_PostWebMessageAsString(ctx->webview, wmsg);
+
+	MTY_Free(wmsg);
+	MTY_Free(msg_base64);
+}
+
 void mty_webview_send_text(struct webview *ctx, const char *msg)
 {
 	if (!ctx->ready) {
-		MTY_QueuePushPtr(ctx->pushq, MTY_MultiToWideD(msg), 0);
+		MTY_QueuePushPtr(ctx->pushq, MTY_Strdup(msg), 0);
 
 	} else {
-		WCHAR *wmsg = MTY_MultiToWideD(msg);
-		ICoreWebView2_PostWebMessageAsString(ctx->webview, wmsg);
-		MTY_Free(wmsg);
+		mty_webview_post_message(ctx, msg);
 	}
 }
 
