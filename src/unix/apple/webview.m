@@ -144,14 +144,14 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 
 	// MTY javascript shim
 	WKUserScript *script = [[WKUserScript alloc] initWithSource:
-		@"let __MTY_WEBVIEW;"
+		@"let __MTY_WEBVIEW = b64 => {};"
 
 		@"function MTY_NativeSendText(text) {"
 			@"window.webkit.messageHandlers.native.postMessage('T' + text);"
 		@"}"
 
 		@"function MTY_NativeAddListener(func) {"
-			@"__MTY_WEBVIEW = func;"
+			@"__MTY_WEBVIEW = b64 => func(atob(b64));"
 			@"window.webkit.messageHandlers.native.postMessage('R');"
 		@"}"
 
@@ -242,14 +242,14 @@ void mty_webview_send_text(struct webview *ctx, const char *msg)
 		MTY_QueuePushPtr(ctx->pushq, MTY_Strdup(msg), 0);
 
 	} else {
-		const size_t sz = strlen(msg); // do NOT include the null-terminator
-		NSData *bytes = [NSData dataWithBytes:msg length:sz];
-		NSString *msg_base64 = [bytes base64EncodedStringWithOptions:0];
-		__block NSString *omsg = [NSString stringWithFormat:@"__MTY_WEBVIEW('%@');", msg_base64];
+		__block NSString *omsg = [NSString stringWithUTF8String:msg];
 
-		[ctx->webview evaluateJavaScript:omsg completionHandler:^(id obj, NSError *error) {
+		NSString *b64 = [[omsg dataUsingEncoding:NSUTF8StringEncoding] base64EncodedStringWithOptions:0];
+		NSString *wrapped = [NSString stringWithFormat:@"__MTY_WEBVIEW('%@');", b64];
+
+		[ctx->webview evaluateJavaScript:wrapped completionHandler:^(id object, NSError *error) {
 			if (error)
-				NSLog(@"Error evaluating JS string %@ - %@", omsg, error);
+				NSLog(@"'WKWebView:evaluateJavaScript' failed to evaluate string '%@'", omsg);
 		}];
 	}
 }
