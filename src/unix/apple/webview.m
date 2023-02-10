@@ -242,11 +242,15 @@ void mty_webview_send_text(struct webview *ctx, const char *msg)
 		MTY_QueuePushPtr(ctx->pushq, MTY_Strdup(msg), 0);
 
 	} else {
-		NSString *omsg = [NSString stringWithUTF8String:msg];
+		__block NSString *omsg = [NSString stringWithUTF8String:msg];
 		omsg = [omsg stringByReplacingOccurrencesOfString:@"'" withString:@"\\'"];
+		omsg = [omsg stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
 		omsg = [NSString stringWithFormat:@"__MTY_WEBVIEW('%@');", omsg];
 
-		[ctx->webview evaluateJavaScript:omsg completionHandler:nil];
+		[ctx->webview evaluateJavaScript:omsg completionHandler:^(id obj, NSError *error) {
+			if (error)
+				NSLog(@"Error evaluating JS string %@ - %@", omsg, error);
+		}];
 	}
 }
 
