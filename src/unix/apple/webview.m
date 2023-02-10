@@ -242,10 +242,10 @@ void mty_webview_send_text(struct webview *ctx, const char *msg)
 		MTY_QueuePushPtr(ctx->pushq, MTY_Strdup(msg), 0);
 
 	} else {
-		__block NSString *omsg = [NSString stringWithUTF8String:msg];
-		omsg = [omsg stringByReplacingOccurrencesOfString:@"'" withString:@"\\'"];
-		omsg = [omsg stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
-		omsg = [NSString stringWithFormat:@"__MTY_WEBVIEW('%@');", omsg];
+		const size_t sz = strlen(msg); // do NOT include the null-terminator
+		NSData *bytes = [NSData dataWithBytes:msg length:sz];
+		NSString *msg_base64 = [bytes base64EncodedStringWithOptions:0];
+		__block NSString *omsg = [NSString stringWithFormat:@"__MTY_WEBVIEW('%@');", msg_base64];
 
 		[ctx->webview evaluateJavaScript:omsg completionHandler:^(id obj, NSError *error) {
 			if (error)
