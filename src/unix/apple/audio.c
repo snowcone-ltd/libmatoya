@@ -8,11 +8,11 @@
 
 #include <AudioToolbox/AudioToolbox.h>
 
-#define AUDIO_CHANNELS    2
 #define AUDIO_SAMPLE_SIZE sizeof(int16_t)
+#define AUDIO_BUFS        64
 
-#define AUDIO_BUFS     64
-#define AUDIO_BUF_SIZE (44100 * AUDIO_CHANNELS * AUDIO_SAMPLE_SIZE)
+#define AUDIO_BUF_SIZE(ctx) \
+	((ctx)->sample_rate * (ctx)->channels * AUDIO_SAMPLE_SIZE)
 
 struct MTY_Audio {
 	AudioQueueRef q;
@@ -21,6 +21,7 @@ struct MTY_Audio {
 	uint32_t sample_rate;
 	uint32_t min_buffer;
 	uint32_t max_buffer;
+	uint8_t channels;
 	bool playing;
 };
 
@@ -39,6 +40,7 @@ MTY_Audio *MTY_AudioCreate(uint32_t sampleRate, uint32_t minBuffer, uint32_t max
 
 	MTY_Audio *ctx = MTY_Alloc(1, sizeof(MTY_Audio));
 	ctx->sample_rate = sampleRate;
+	ctx->channels = channels;
 
 	uint32_t frames_per_ms = lrint((float) sampleRate / 1000.0f);
 	ctx->min_buffer = minBuffer * frames_per_ms;
@@ -49,9 +51,9 @@ MTY_Audio *MTY_AudioCreate(uint32_t sampleRate, uint32_t minBuffer, uint32_t max
 	format.mFormatID = kAudioFormatLinearPCM;
 	format.mFormatFlags = kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked;
 	format.mFramesPerPacket = 1;
-	format.mChannelsPerFrame = AUDIO_CHANNELS;
+	format.mChannelsPerFrame = channels;
 	format.mBitsPerChannel = AUDIO_SAMPLE_SIZE * 8;
-	format.mBytesPerPacket = AUDIO_SAMPLE_SIZE * AUDIO_CHANNELS;
+	format.mBytesPerPacket = AUDIO_SAMPLE_SIZE * format.mChannelsPerFrame;
 	format.mBytesPerFrame = format.mBytesPerPacket;
 
 	OSStatus e = AudioQueueNewOutput(&format, audio_queue_callback, ctx, NULL, NULL, 0, &ctx->q);
@@ -61,7 +63,7 @@ MTY_Audio *MTY_AudioCreate(uint32_t sampleRate, uint32_t minBuffer, uint32_t max
 	}
 
 	for (int32_t x = 0; x < AUDIO_BUFS; x++) {
-		e = AudioQueueAllocateBuffer(ctx->q, AUDIO_BUF_SIZE, &ctx->audio_buf[x]);
+		e = AudioQueueAllocateBuffer(ctx->q, AUDIO_BUF_SIZE(ctx), &ctx->audio_buf[x]);
 		if (e != kAudioServicesNoError) {
 			MTY_Log("'AudioQueueAllocateBuffer' failed with error 0x%X", e);
 			goto except;
@@ -104,7 +106,7 @@ static uint32_t audio_get_queued_frames(MTY_Audio *ctx)
 		}
 	}
 
-	return queued / (AUDIO_CHANNELS * AUDIO_SAMPLE_SIZE);
+	return queued / (ctx->channels * AUDIO_SAMPLE_SIZE);
 }
 
 static void audio_play(MTY_Audio *ctx)
@@ -132,14 +134,14 @@ uint32_t MTY_AudioGetQueued(MTY_Audio *ctx)
 
 void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 {
-	size_t size = count * AUDIO_CHANNELS * AUDIO_SAMPLE_SIZE;
+	size_t size = count * ctx->channels * AUDIO_SAMPLE_SIZE;
 	uint32_t queued = audio_get_queued_frames(ctx);
 
 	// Stop playing and flush if we've exceeded the maximum buffer or underrun
 	if (ctx->playing && (queued > ctx->max_buffer || queued == 0))
 		MTY_AudioReset(ctx);
 
-	if (size <= AUDIO_BUF_SIZE) {
+	if (size <= AUDIO_BUF_SIZE(ctx)) {
 		for (uint8_t x = 0; x < AUDIO_BUFS; x++) {
 			if (MTY_Atomic32Get(&ctx->in_use[x]) == 0) {
 				AudioQueueBufferRef buf = ctx->audio_buf[x];
