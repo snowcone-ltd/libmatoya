@@ -4,6 +4,8 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
+#define _DEFAULT_SOURCE // clock_gettime
+
 #include "matoya.h"
 
 #include <stdlib.h>

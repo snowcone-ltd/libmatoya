@@ -57,9 +57,6 @@ INCLUDES = \
 	-Isrc \
 	-Isrc/unix
 
-DEFS = \
-	-D_POSIX_C_SOURCE=200112L
-
 FLAGS = \
 	-Wall \
 	-Wextra \
@@ -95,6 +92,7 @@ OBJS := $(OBJS) \
 	src/unix/web/app.o \
 	src/unix/web/dialog.o \
 	src/unix/web/system.o \
+	src/unix/web/webview.o \
 	src/unix/web/gfx/gl-ctx.o
 
 DEFS := $(DEFS) \
@@ -131,6 +129,7 @@ OBJS := $(OBJS) \
 	src/unix/linux/x11/request.o \
 	src/unix/linux/x11/system.o \
 	src/unix/linux/x11/tls.o \
+	src/unix/linux/x11/webview.o \
 	src/unix/linux/x11/gfx/gl-ctx.o \
 	src/unix/net/gzip.o \
 	src/unix/net/http.o \
@@ -203,6 +202,7 @@ OBJS := $(OBJS) \
 	src/unix/apple/audio.o \
 	src/unix/apple/crypto.o \
 	src/unix/apple/tls.o \
+	src/unix/apple/webview.o \
 	src/unix/apple/gfx/metal.o \
 	src/unix/apple/gfx/metal-ui.o \
 	src/unix/apple/$(TARGET)/aes-gcm.o \

@@ -10,8 +10,11 @@ GFX_CTX_PROTOTYPES(_vk_)
 #include <stdio.h>
 #include <string.h>
 
-#include "app.h"
 #include "vkproc.c"
+
+#if defined(MTY_VK_ANDROID)
+	#include "aapp.h"
+#endif
 
 #define VK_CTX_ENUM_MAX 32
 

@@ -4,6 +4,8 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
+#define _DEFAULT_SOURCE // readlink
+
 #include "matoya.h"
 
 #include <stdio.h>

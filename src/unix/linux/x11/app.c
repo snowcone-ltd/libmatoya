@@ -4,6 +4,8 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
+#define _DEFAULT_SOURCE // pid_t
+
 #include "app.h"
 
 #include <stdlib.h>
@@ -20,14 +22,13 @@
 #include "keymap.h"
 
 struct window {
+	struct window_common cmn;
 	Window window;
 	MTY_Window index;
 	XIC ic;
-	MTY_GFX api;
 	MTY_Frame frame;
 	int32_t last_width;
 	int32_t last_height;
-	struct gfx_ctx *gfx_ctx;
 	struct xinfo info;
 };
 
@@ -356,22 +357,6 @@ static void window_text_event(MTY_App *ctx, XEvent *event)
 		ctx->event_func(&evt, ctx->opaque);
 }
 
-static void app_kb_to_hotkey(MTY_App *app, MTY_Event *evt)
-{
-	MTY_Mod mod = evt->key.mod & 0xFF;
-	uint32_t hotkey = (uint32_t) (uintptr_t) MTY_HashGetInt(app->hotkey, (mod << 16) | evt->key.key);
-
-	if (hotkey != 0) {
-		if (evt->key.pressed) {
-			evt->type = MTY_EVENT_HOTKEY;
-			evt->hotkey = hotkey;
-
-		} else {
-			evt->type = MTY_EVENT_NONE;
-		}
-	}
-}
-
 static float app_get_scale(Display *display)
 {
 	const char *dpi = XGetDefault(display, "Xft", "dpi");
@@ -549,7 +534,7 @@ static void app_event(MTY_App *ctx, XEvent *event)
 
 	// Transform keyboard into hotkey
 	if (evt.type == MTY_EVENT_KEY)
-		app_kb_to_hotkey(ctx, &evt);
+		mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
 
 	// Handle the message
 	if (evt.type != MTY_EVENT_NONE)
@@ -1455,28 +1440,27 @@ void *MTY_WindowGetNative(MTY_App *app, MTY_Window window)
 }
 
 
-// Window Private
+// App, Window Private
 
-void mty_window_set_gfx(MTY_App *app, MTY_Window window, MTY_GFX api, struct gfx_ctx *gfx_ctx)
+MTY_EventFunc mty_app_get_event_func(MTY_App *app, void **opaque)
 {
-	struct window *ctx = app_get_window(app, window);
-	if (!ctx)
-		return;
+	*opaque = app->opaque;
 
-	ctx->api = api;
-	ctx->gfx_ctx = gfx_ctx;
+	return app->event_func;
 }
 
-MTY_GFX mty_window_get_gfx(MTY_App *app, MTY_Window window, struct gfx_ctx **gfx_ctx)
+MTY_Hash *mty_app_get_hotkey_hash(MTY_App *app)
+{
+	return app->hotkey;
+}
+
+struct window_common *mty_window_get_common(MTY_App *app, MTY_Window window)
 {
 	struct window *ctx = app_get_window(app, window);
 	if (!ctx)
-		return MTY_GFX_NONE;
+		return NULL;
 
-	if (gfx_ctx)
-		*gfx_ctx = ctx->gfx_ctx;
-
-	return ctx->api;
+	return &ctx->cmn;
 }
 
 
