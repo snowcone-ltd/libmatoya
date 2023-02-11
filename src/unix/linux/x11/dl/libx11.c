@@ -93,7 +93,6 @@ static int (*XResetScreenSaver)(Display *display);
 // Reference: https://code.woboq.org/kde/include/X11/extensions/
 
 static Bool (*XFixesQueryExtension)(Display *dpy, int *event_base_return, int *error_base_return);
-static Status (*XFixesQueryVersion)(Display *dpy, int *major_version_return, int *minor_version_return);
 static void (*XFixesSelectSelectionInput)(Display *dpy, Window win, Atom selection, unsigned long eventMask);
 
 
@@ -129,11 +128,11 @@ static void (*glXDestroyContext)(Display *dpy, GLXContext ctx);
 static GLXContext (*glXGetCurrentContext)(void);
 
 static MTY_Atomic32 LIBX11_LOCK;
-static MTY_SO *LIBGL_SO;
-static MTY_SO *LIBXI_SO;
-static MTY_SO *LIBXCURSOR_SO;
 static MTY_SO *LIBX11_SO;
 static MTY_SO *LIBXFIXES_SO;
+static MTY_SO *LIBXI_SO;
+static MTY_SO *LIBXCURSOR_SO;
+static MTY_SO *LIBGL_SO;
 static bool LIBX11_INIT;
 
 static void __attribute__((destructor)) libX11_global_destroy(void)
@@ -231,7 +230,6 @@ static bool libX11_global_init(void)
 
 		if (LIBXFIXES_SO) {
 			LOAD_SYM_OPT(LIBXFIXES_SO, XFixesQueryExtension);
-			LOAD_SYM_OPT(LIBXFIXES_SO, XFixesQueryVersion);
 			LOAD_SYM_OPT(LIBXFIXES_SO, XFixesSelectSelectionInput);
 		}
 

@@ -64,8 +64,8 @@ struct MTY_App {
 	char *clip;
 	float scale;
 
-	bool XfixesAvailable;
-	int XfixesEventBase;
+	bool xfixes;
+	int32_t xfixes_base;
 
 	uint64_t state;
 	uint64_t prev_state;
@@ -258,7 +258,7 @@ static void app_handle_selection_notify(MTY_App *ctx, const XSelectionEvent *res
 
 		MTY_MutexUnlock(ctx->mutex);
 
-		if (!ctx->XfixesAvailable) {
+		if (!ctx->xfixes) {
 			// FIXME this is a questionable technique: will it interfere with other applications?
 			// We take back the selection so that we can be notified the next time a different app takes it
 			// corrected by Xfixes
@@ -276,7 +276,7 @@ static void app_poll_clipboard(MTY_App *ctx)
 	Atom clip = XInternAtom(ctx->display, "CLIPBOARD", False);
 
 	Window sel_owner = XGetSelectionOwner(ctx->display, clip);
-	if (sel_owner != ctx->sel_owner || ctx->XfixesAvailable) {
+	if (sel_owner != ctx->sel_owner || ctx->xfixes) {
 		struct window *win0 = app_get_window(ctx, 0);
 
 		if (win0 && sel_owner != win0->window) {
@@ -523,12 +523,9 @@ static void app_event(MTY_App *ctx, XEvent *event)
 			ctx->state++;
 			break;
 		default:
-			if (ctx->XfixesAvailable)
-			{
-				if(event->type == ctx->XfixesEventBase + XFixesSelectionNotify) {
-					app_poll_clipboard(ctx);
-				}
-			}
+			// Xfixes style clipboard handling
+			if (ctx->xfixes && event->type == ctx->xfixes_base + XFixesSelectionNotify)
+				app_poll_clipboard(ctx);
 			break;
 	}
 
@@ -616,7 +613,6 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	ctx->event_func = eventFunc;
 	ctx->opaque = opaque;
 	ctx->class_name = MTY_Strdup(MTY_GetFileName(MTY_GetProcessPath(), false));
-	ctx->XfixesAvailable = false;
 
 	// This may return NULL
 	ctx->evdev = mty_evdev_create(app_evdev_connect, app_evdev_disconnect, ctx);
@@ -661,18 +657,15 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 
 	app_refresh_scale(ctx);
 
-	// Check if Xfixes is available for clipboard event
-	int error_base;
-	if (XFixesQueryExtension(ctx->display, &ctx->XfixesEventBase, &error_base)) {
-		int major, minor;
-		if (XFixesQueryVersion(ctx->display, &major, &minor)) {
-			if (major >= 1 && minor >= 0) {
-				ctx->XfixesAvailable = true;
-				XFixesSelectSelectionInput(ctx->display, XDefaultRootWindow(ctx->display),
-										XInternAtom(ctx->display, "CLIPBOARD", False),
-										XFixesSetSelectionOwnerNotifyMask);
-			}
-		}
+	// Check if Xfixes is available for clipboard events
+	if (XFixesQueryExtension && XFixesSelectSelectionInput) {
+		int32_t error_base = 0;
+
+		ctx->xfixes = XFixesQueryExtension(ctx->display, &ctx->xfixes_base, &error_base);
+
+		if (ctx->xfixes)
+			XFixesSelectSelectionInput(ctx->display, XDefaultRootWindow(ctx->display),
+				XInternAtom(ctx->display, "CLIPBOARD", False), XFixesSetSelectionOwnerNotifyMask);
 	}
 
 	except:
@@ -740,10 +733,9 @@ void MTY_AppRun(MTY_App *ctx)
 			ctx->prev_state = ctx->state;
 		}
 
-		if (ctx->XfixesAvailable == false){
-			// Poll selection ownership changes
+		// Poll selection ownership changes
+		if (!ctx->xfixes)
 			app_poll_clipboard(ctx);
-		}
 
 		// X11 events
 		for (XEvent event; XEventsQueued(ctx->display, QueuedAfterFlush) > 0;) {
