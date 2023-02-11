@@ -89,9 +89,13 @@ static XClassHint *(*XAllocClassHint)(void);
 static int (*XResetScreenSaver)(Display *display);
 
 // Xfixes interface
-static bool (*XFixesQueryExtension)(Display *display, int *event_base_return, int *error_base_return);
-static bool (*XFixesQueryVersion)(Display *display, int *major_version_return, int *minor_version_return);
-static void (*XFixesSelectSelectionInput)(Display *display, Window window, Atom selection, unsigned long eventMask);
+
+// Reference: https://code.woboq.org/kde/include/X11/extensions/
+
+static Bool (*XFixesQueryExtension)(Display *dpy, int *event_base_return, int *error_base_return);
+static Status (*XFixesQueryVersion)(Display *dpy, int *major_version_return, int *minor_version_return);
+static void (*XFixesSelectSelectionInput)(Display *dpy, Window win, Atom selection, unsigned long eventMask);
+
 
 // XKB interface (part of libX11 in modern times)
 
@@ -137,10 +141,10 @@ static void __attribute__((destructor)) libX11_global_destroy(void)
 	MTY_GlobalLock(&LIBX11_LOCK);
 
 	MTY_SOUnload(&LIBGL_SO);
-	MTY_SOUnload(&LIBXI_SO);
 	MTY_SOUnload(&LIBXCURSOR_SO);
-	MTY_SOUnload(&LIBX11_SO);
+	MTY_SOUnload(&LIBXI_SO);
 	MTY_SOUnload(&LIBXFIXES_SO);
+	MTY_SOUnload(&LIBX11_SO);
 	LIBX11_INIT = false;
 
 	MTY_GlobalUnlock(&LIBX11_LOCK);
@@ -154,7 +158,7 @@ static bool libX11_global_init(void)
 		bool r = true;
 
 		LIBX11_SO = MTY_SOLoad("libX11.so.6");
-		LIBXFIXES_SO = MTY_SOLoad("libXfixes.so");
+		LIBXFIXES_SO = MTY_SOLoad("libXfixes.so.3");
 		LIBXI_SO = MTY_SOLoad("libXi.so.6");
 		LIBXCURSOR_SO = MTY_SOLoad("libXcursor.so.1");
 		LIBGL_SO = MTY_SOLoad("libGL.so.1");
