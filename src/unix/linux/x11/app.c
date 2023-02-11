@@ -522,7 +522,7 @@ static void app_event(MTY_App *ctx, XEvent *event)
 			ctx->state++;
 			break;
 		default:
-			// Xfixes style clipboard handling
+			// Xfixes gets clipboard events without polling for ownership changes
 			if (ctx->xfixes && event->type == ctx->xfixes_base + XFixesSelectionNotify)
 				app_poll_clipboard(ctx);
 			break;
