@@ -258,12 +258,11 @@ static void app_handle_selection_notify(MTY_App *ctx, const XSelectionEvent *res
 
 		MTY_MutexUnlock(ctx->mutex);
 
-		if (!ctx->xfixes) {
-			// FIXME this is a questionable technique: will it interfere with other applications?
-			// We take back the selection so that we can be notified the next time a different app takes it
-			// corrected by Xfixes
+		// FIXME this is a questionable technique: will it interfere with other applications?
+		// We take back the selection so that we can be notified the next time a different app takes it
+		// Xfixes is a more robust solution and is able to receive SelectionNotify events without retaking ownership
+		if (!ctx->xfixes)
 			XSetSelectionOwner(ctx->display, XInternAtom(ctx->display, "CLIPBOARD", False), win0->window, CurrentTime);
-		}
 
 		MTY_Event evt = {0};
 		evt.type = MTY_EVENT_CLIPBOARD;
