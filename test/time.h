@@ -14,7 +14,7 @@ static bool time_main(void)
 	MTY_Sleep(100);
 	test_cmp("MTY_Sleep", 100);
 
-	float diff = MTY_TimeDiff(ts, MTY_GetTime());
+	double diff = MTY_TimeDiff(ts, MTY_GetTime());
 	test_cmpf("MTY_TimeDiff", diff >= 99.0f && diff <= 115.0f, diff);
 
 	MTY_RevertTimerResolution(1);

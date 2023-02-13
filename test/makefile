@@ -46,8 +46,9 @@ all: clean clear $(OBJS)
 	@test
 
 clean:
-	-del $(BIN)
-	-del *.obj
+	@-del /q $(BIN) 2>nul
+	@-del /q *.obj 2>nul
+	@-rmdir /s /q test_dir 2>nul
 
 clear:
 	cls
