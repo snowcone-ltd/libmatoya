@@ -36,8 +36,9 @@ all: clean clear $(OBJS)
 	@./test
 
 clean:
-	-rm -f $(BIN)
-	-rm -f *.o
+	@rm -f $(BIN)
+	@rm -f *.o
+	@rm -rf test_dir
 
 clear:
 	clear

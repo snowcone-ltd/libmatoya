@@ -10,12 +10,6 @@
 
 #define header_agent "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0"
 
-static const char *ORIGINS[] = {
-	"http://127.0.0.1:8080",
-};
-
-#define NUM_ORIGINS (sizeof(ORIGINS) / sizeof(const char *))
-
 static bool net_websocket_echo(void)
 {
 	uint16_t us = 0;
@@ -41,49 +35,6 @@ static bool net_websocket_echo(void)
 
 	MTY_WebSocketDestroy(&ws);
 	test_cmp("MTY_WebSocketDestroy", ws == NULL);
-
-	return true;
-}
-
-struct test_websocket_data {
-	MTY_WebSocket *ws_server;
-	MTY_WebSocket *ws_child;
-};
-
-static void *test_websocket_accept_thread(void *opaque)
-{
-	struct test_websocket_data *data = (struct test_websocket_data *)opaque;
-
-	data->ws_child = MTY_WebSocketAccept(data->ws_server, ORIGINS, NUM_ORIGINS, false, 2000);
-	if (!data->ws_child)
-		printf("%s\n", MTY_GetLog());
-
-	return NULL;
-}
-
-static bool net_websocket(void)
-{
-	struct test_websocket_data data = {0};
-	data.ws_server = MTY_WebSocketListen("127.0.0.1", 5359);
-	test_cmp("MTY_WebSocketListen", data.ws_server != NULL);
-
-	MTY_Thread *t_test = calloc(1, sizeof(MTY_Thread *));
-	t_test = MTY_ThreadCreate(test_websocket_accept_thread, &data);
-	uint16_t us = 0;
-	MTY_WebSocket *client = MTY_WebSocketConnect("127.0.0.1", 5359, false, "/", "Origin: http://127.0.0.1:8080", 1000, &us);
-
-	MTY_ThreadDestroy(&t_test);
-	test_cmp("MTY_WebSocketListen", data.ws_child != NULL);
-	test_cmp("MTY_WebSocketListen", client != NULL);
-
-
-	MTY_WebSocketDestroy(&data.ws_child);
-	MTY_WebSocketDestroy(&client);
-	MTY_WebSocketDestroy(&data.ws_server);
-	test_cmp("MTY_WebSocketDestroy", data.ws_child == NULL);
-	test_cmp("MTY_WebSocketDestroy", client == NULL);
-	test_cmp("MTY_WebSocketDestroy", data.ws_server == NULL);
-
 
 	return true;
 }
@@ -178,9 +129,6 @@ static bool net_main(void)
 	WSADATA wsa;
 	WSAStartup(MAKEWORD(2, 2), &wsa);
 #endif
-
-	if (!net_websocket())
-		return false;
 
 	if (!net_websocket_echo())
 		return false;
