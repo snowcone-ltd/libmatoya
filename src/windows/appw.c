@@ -686,11 +686,10 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 			break;
 		case WM_RBUTTONDOWN:
 		case WM_RBUTTONUP:
-			if (!pen_active) {
-				evt.type = MTY_EVENT_BUTTON;
-				evt.button.button = MTY_BUTTON_RIGHT;
-				evt.button.pressed = msg == WM_RBUTTONDOWN;
-			}
+			// When the pen is active, this will fire for the barrel button
+			evt.type = MTY_EVENT_BUTTON;
+			evt.button.button = MTY_BUTTON_RIGHT;
+			evt.button.pressed = msg == WM_RBUTTONDOWN;
 			break;
 		case WM_MBUTTONDOWN:
 		case WM_MBUTTONUP:
@@ -775,9 +774,6 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 
 			if (ppi.penFlags & PEN_FLAG_ERASER)
 				evt.pen.flags |= MTY_PEN_FLAG_ERASER;
-
-			if (ppi.penFlags & PEN_FLAG_BARREL)
-				evt.pen.flags |= MTY_PEN_FLAG_BARREL;
 
 			defreturn = true;
 			break;
