@@ -1,7 +1,7 @@
 `libmatoya` is a cross-platform application development library.
 
 ### Getting Started
-- [Examples](/examples)
+- [Examples](/test)
 - [Documentation](https://github.com/matoya/libmatoya/wiki)
 - [Building](https://github.com/matoya/libmatoya/wiki/Building)
 
