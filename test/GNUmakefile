@@ -1,43 +1,52 @@
 UNAME_S = $(shell uname -s)
-
-OBJS = \
-	main.o
+ARCH = $(shell uname -m)
 
 BIN = \
-	test
+	mty
 
 CFLAGS = \
 	-I../src \
-	-fPIC \
 	-O3 \
 	-Wall \
 	-Wextra \
-	-Wno-unused-parameter
+	-Wno-unused-parameter \
+	-Wno-format-overflow
 
 ifeq ($(UNAME_S), Darwin)
+
 LIBS = \
-	../bin/macosx/x86_64/libmatoya.a \
+	../bin/macosx/$(ARCH)/libmatoya.a \
 	-framework Foundation \
 	-framework Security \
 	-framework AppKit
 
 else
-CFLAGS := $(CFLAGS) -Wno-format-overflow
 
 LIBS = \
-	../bin/linux/x86_64/libmatoya.a \
+	../bin/linux/$(ARCH)/libmatoya.a \
 	-lpthread \
 	-lm \
 	-ldl
 endif
 
-all: clean clear $(OBJS)
-	$(CC) -o $(BIN) $(OBJS) $(LIBS)
-	@./test
+test: clean clear
+	$(CC) $(CFLAGS) -o $(BIN) src/$@.c $(LIBS)
+	@./mty
+
+0-minimal: clean clear
+	$(CC) $(CFLAGS) -o $(BIN) src/$@.c $(LIBS)
+	@./mty
+
+1-draw: clean clear
+	$(CC) $(CFLAGS) -o $(BIN) src/$@.c $(LIBS)
+	@./mty
+
+2-threaded: clean clear
+	$(CC) $(CFLAGS) -o $(BIN) src/$@.c $(LIBS)
+	@./mty
 
 clean:
 	@rm -f $(BIN)
-	@rm -f *.o
 	@rm -rf test_dir
 
 clear:
