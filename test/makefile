@@ -1,49 +1,58 @@
-OBJS = \
-	main.obj
+ARCH = %%Platform%%
 
 BIN = \
-	test.exe
+	mty.exe
 
 CFLAGS =\
 	/I..\src \
-	/W4 \
-	/O2 \
 	/MT \
-	/MP \
-	/GS- \
+	/O2 \
+	/W4 \
 	/wd4201 \
 	/wd4100 \
 	/volatile:iso \
 	/nologo
 
 LIBS = \
-	..\bin\windows\x64\matoya.lib \
-	bcrypt.lib \
-	d3d11.lib \
-	d3d9.lib \
-	hid.lib \
-	uuid.lib \
-	dxguid.lib \
-	opengl32.lib \
-	ws2_32.lib \
-	user32.lib \
-	gdi32.lib \
-	xinput9_1_0.lib \
-	ole32.lib \
-	shell32.lib \
-	windowscodecs.lib \
-	shlwapi.lib \
-	imm32.lib \
-	winmm.lib \
+	..\bin\windows\$(ARCH)\matoya.lib \
 	advapi32.lib \
+	bcrypt.lib \
+	d3d9.lib \
+	d3d11.lib \
+	d3d12.lib \
+	dxgi.lib \
+	dxguid.lib \
+	gdi32.lib \
+	hid.lib \
+	imm32.lib \
+	ole32.lib \
+	opengl32.lib \
+	shcore.lib \
+	shell32.lib \
+	shlwapi.lib \
+	user32.lib \
 	userenv.lib \
-	Crypt32.lib \
-	Secur32.lib \
-	Winhttp.lib
+	windowscodecs.lib \
+	winhttp.lib \
+	winmm.lib \
+	ws2_32.lib \
+	xinput.lib
 
-all: clean clear $(OBJS)
-	link /nologo /out:$(BIN) $(OBJS) $(LIBS)
-	@test
+test: clean clear
+	cl $(CFLAGS) /Fe:$(BIN) src\$@.c $(LIBS)
+	@mty
+
+0-minimal: clean clear
+	cl $(CFLAGS) /Fe:$(BIN) src\$@.c $(LIBS)
+	@mty
+
+1-draw: clean clear
+	cl $(CFLAGS) /Fe:$(BIN) src\$@.c $(LIBS)
+	@mty
+
+2-threaded: clean clear
+	cl $(CFLAGS) /Fe:$(BIN) src\$@.c $(LIBS)
+	@mty
 
 clean:
 	@-del /q $(BIN) 2>nul

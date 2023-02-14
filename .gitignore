@@ -7,6 +7,9 @@
 /obj
 /bin
 
+/test/mty*
+/test/json
+
 **/gfx/shaders/*/*.h
 **/gfx/*/shaders/*.h
 
