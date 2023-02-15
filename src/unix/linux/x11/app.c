@@ -260,7 +260,7 @@ static void app_handle_selection_notify(MTY_App *ctx, const XSelectionEvent *res
 
 		// FIXME this is a questionable technique: will it interfere with other applications?
 		// We take back the selection so that we can be notified the next time a different app takes it
-		// Xfixes is a more robust solution and is able to receive SelectionNotify events without retaking ownership
+		// Xfixes allows us to be notified when the selection owner changes, so there is no need for this
 		if (!ctx->xfixes)
 			XSetSelectionOwner(ctx->display, XInternAtom(ctx->display, "CLIPBOARD", False), win0->window, CurrentTime);
 
@@ -274,6 +274,7 @@ static void app_poll_clipboard(MTY_App *ctx)
 {
 	Atom clip = XInternAtom(ctx->display, "CLIPBOARD", False);
 
+	// Xfixes notifies when ownership changes
 	Window sel_owner = XGetSelectionOwner(ctx->display, clip);
 	if (sel_owner != ctx->sel_owner || ctx->xfixes) {
 		struct window *win0 = app_get_window(ctx, 0);
