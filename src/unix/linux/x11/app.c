@@ -789,7 +789,7 @@ char *MTY_AppGetClipboard(MTY_App *ctx)
 {
 	MTY_MutexLock(ctx->mutex);
 
-	char *str = MTY_Strdup(ctx->clip);
+	char *str = ctx->clip ? MTY_Strdup(ctx->clip) : NULL;
 
 	MTY_MutexUnlock(ctx->mutex);
 
