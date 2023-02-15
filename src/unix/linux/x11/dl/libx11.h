@@ -169,6 +169,11 @@
 #define _NET_WM_STATE_ADD         1
 #define _NET_WM_STATE_TOGGLE      2
 
+#define XFixesSelectionNotify                  0
+#define XFixesSetSelectionOwnerNotifyMask      (1L << 0)
+#define XFixesSelectionWindowDestroyNotifyMask (1L << 1)
+#define XFixesSelectionClientCloseNotifyMask   (1L << 2)
+
 typedef unsigned long VisualID;
 typedef unsigned long XID;
 typedef unsigned long Time;
