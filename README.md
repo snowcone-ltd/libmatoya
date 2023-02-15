@@ -1,5 +1,5 @@
 # English
-<a href="">Also read in spanish</a> <br>
+<a href="https://github.com/chrisd1100/libmatoya#espa%C3%B1ol">Also read in spanish</a> <br>
 `libmatoya` is a cross-platform application development library.
 
 ### Getting Started
