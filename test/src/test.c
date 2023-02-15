@@ -16,20 +16,20 @@
 #include <wchar.h>
 
 // Framework
-#include "test.h"
+#include "test/test.h"
 
 /// Modules
-#include "memory.h"
-#include "json.h"
-#include "version.h"
-#include "time.h"
-#include "log.h"
-#include "file.h"
-#include "struct.h"
-#include "system.h"
-#include "thread.h"
-#include "crypto.h"
-#include "net.h"
+#include "test/memory.h"
+#include "test/json.h"
+#include "test/version.h"
+#include "test/time.h"
+#include "test/log.h"
+#include "test/file.h"
+#include "test/struct.h"
+#include "test/system.h"
+#include "test/thread.h"
+#include "test/crypto.h"
+#include "test/net.h"
 
 static void main_log(const char *msg, void *opaque)
 {

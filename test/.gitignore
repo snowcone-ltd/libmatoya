@@ -1,7 +1,0 @@
-*.obj
-*.o
-
-json/*
-
-test
-test.exe
