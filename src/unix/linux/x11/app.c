@@ -64,6 +64,9 @@ struct MTY_App {
 	char *clip;
 	float scale;
 
+	bool xfixes;
+	int32_t xfixes_base;
+
 	uint64_t state;
 	uint64_t prev_state;
 };
@@ -257,7 +260,9 @@ static void app_handle_selection_notify(MTY_App *ctx, const XSelectionEvent *res
 
 		// FIXME this is a questionable technique: will it interfere with other applications?
 		// We take back the selection so that we can be notified the next time a different app takes it
-		XSetSelectionOwner(ctx->display, XInternAtom(ctx->display, "CLIPBOARD", False), win0->window, CurrentTime);
+		// Xfixes allows us to be notified when the selection owner changes, so there is no need for this
+		if (!ctx->xfixes)
+			XSetSelectionOwner(ctx->display, XInternAtom(ctx->display, "CLIPBOARD", False), win0->window, CurrentTime);
 
 		MTY_Event evt = {0};
 		evt.type = MTY_EVENT_CLIPBOARD;
@@ -269,8 +274,9 @@ static void app_poll_clipboard(MTY_App *ctx)
 {
 	Atom clip = XInternAtom(ctx->display, "CLIPBOARD", False);
 
+	// Xfixes notifies when ownership changes
 	Window sel_owner = XGetSelectionOwner(ctx->display, clip);
-	if (sel_owner != ctx->sel_owner) {
+	if (sel_owner != ctx->sel_owner || ctx->xfixes) {
 		struct window *win0 = app_get_window(ctx, 0);
 
 		if (win0 && sel_owner != win0->window) {
@@ -516,6 +522,11 @@ static void app_event(MTY_App *ctx, XEvent *event)
 			}
 			ctx->state++;
 			break;
+		default:
+			// Xfixes gets selection ownership changes without polling
+			if (ctx->xfixes && event->type == ctx->xfixes_base + XFixesSelectionNotify)
+				app_poll_clipboard(ctx);
+			break;
 	}
 
 	// Transform keyboard into hotkey
@@ -646,6 +657,17 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 
 	app_refresh_scale(ctx);
 
+	// Check if Xfixes is available for clipboard events
+	if (XFixesQueryExtension && XFixesSelectSelectionInput) {
+		int32_t error_base = 0;
+
+		ctx->xfixes = XFixesQueryExtension(ctx->display, &ctx->xfixes_base, &error_base);
+
+		if (ctx->xfixes)
+			XFixesSelectSelectionInput(ctx->display, XDefaultRootWindow(ctx->display),
+				XInternAtom(ctx->display, "CLIPBOARD", False), XFixesSetSelectionOwnerNotifyMask);
+	}
+
 	except:
 
 	if (!r)
@@ -712,7 +734,8 @@ void MTY_AppRun(MTY_App *ctx)
 		}
 
 		// Poll selection ownership changes
-		app_poll_clipboard(ctx);
+		if (!ctx->xfixes)
+			app_poll_clipboard(ctx);
 
 		// X11 events
 		for (XEvent event; XEventsQueued(ctx->display, QueuedAfterFlush) > 0;) {
@@ -767,7 +790,7 @@ char *MTY_AppGetClipboard(MTY_App *ctx)
 {
 	MTY_MutexLock(ctx->mutex);
 
-	char *str = MTY_Strdup(ctx->clip);
+	char *str = ctx->clip ? MTY_Strdup(ctx->clip) : NULL;
 
 	MTY_MutexUnlock(ctx->mutex);
 
