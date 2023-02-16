@@ -1602,6 +1602,11 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 	}
 }
 
+void MTY_AppSubmitPS5Control(MTY_App *ctx, uint32_t id, const uint8_t *data, uint32_t data_size)
+{
+	mty_hid_driver_control(ctx->hid, id, data, data_size);
+}
+
 const void *MTY_AppGetControllerTouchpad(MTY_App *ctx, uint32_t id, size_t *size)
 {
 	return id >= 4 ? mty_hid_device_get_touchpad(ctx->hid, id, size) : NULL;

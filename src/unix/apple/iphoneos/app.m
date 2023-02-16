@@ -159,6 +159,10 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 {
 }
 
+void MTY_AppSubmitPS5Control(MTY_App *ctx, uint32_t id, const uint8_t *data, uint32_t data_size)
+{
+}
+
 bool MTY_AppIsPenEnabled(MTY_App *ctx)
 {
 	return false;

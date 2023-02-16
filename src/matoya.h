@@ -1051,6 +1051,16 @@ MTY_AppSetOrientation(MTY_App *ctx, MTY_Orientation orientation);
 MTY_EXPORT void
 MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t high);
 
+/// @brief Submit a raw HID packet to a controller device.
+/// @details Submits a blob of raw opaque HID data to the controller specified by id. This data
+// is up to the user to verify compatability the device.
+/// @param ctx The MTY_App.
+/// @param id A controller `id` found via MTY_EVENT_CONTROLLER or MTY_EVENT_CONNECT.
+/// @param data The raw HID data.
+/// @param data_size The size of `data`.
+MTY_EXPORT void
+MTY_AppSubmitPS5Control(MTY_App *ctx, uint32_t id, const uint8_t *data, uint32_t data_size);
+
 /// @brief Get the raw touchpad data from a PS4 or PS5 controller.
 /// @details The return value may be NULL and is not parsed or interpreted in any way.
 /// @param ctx The MTY_App.
