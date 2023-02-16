@@ -931,7 +931,7 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 {
 }
 
-void MTY_AppHIDSubmitReport(MTY_App *ctx, uint32_t id, const void *report, size_t size)
+void MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_t size)
 {
 }
 
