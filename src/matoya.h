@@ -728,7 +728,7 @@ typedef struct {
 	uint8_t numAxes;               ///< Number of axes in `axes`.
 } MTY_ControllerEvent;
 
-/// @brief HID input report from a certain controllers.
+/// @brief HID input report from certain controllers.
 /// @details Controllers that are of an MTY_CType other than MTY_CTYPE_DEFAULT and
 ///   MTY_CTYPE_XINPUT will also generate MTY_HIDInput events.
 typedef struct {
