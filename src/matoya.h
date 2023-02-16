@@ -378,6 +378,8 @@ typedef enum {
 	MTY_EVENT_WEBVIEW_KEY    = 24, ///< Key event from the WebView if input passthrough is enabled.
 	MTY_EVENT_WEBVIEW_HOTKEY = 25, ///< Hotkey event from the WebView if input passthrough is
 	                               ///<   enabled.
+	MTY_EVENT_RAW            = 26, ///< A raw HID event has been generated for an HID device.
+
 	MTY_EVENT_MAKE_32        = INT32_MAX,
 } MTY_EventType;
 
@@ -727,6 +729,16 @@ typedef struct {
 	uint8_t numAxes;               ///< Number of axes in `axes`.
 } MTY_ControllerEvent;
 
+/// @brief Raw HID data event from a HID controller.
+typedef struct {
+	MTY_CType type;                ///< Game controller type.
+	uint32_t id;                   ///< Assigned controller `id`.
+	uint16_t vid;                  ///< HID Vendor ID.
+	uint16_t pid;                  ///< HID Product ID.
+	size_t dataSize;               ///< Size of rawData.
+	const char *rawData;           ///< Unprocessed HID data buffer with opaque contents.
+} MTY_RawHIDEvent;
+
 /// @brief Pen event.
 typedef struct {
 	MTY_PenFlag flags; ///< Pen attributes.
@@ -754,6 +766,8 @@ typedef struct MTY_Event {
 		MTY_DropEvent drop;             ///< Valid on MTY_EVENT_DROP.
 		MTY_PenEvent pen;               ///< Valid on MTY_EVENT_PEN.
 		MTY_KeyEvent key;               ///< Valid on MTY_EVENT_KEY.
+		MTY_RawHIDEvent raw;            ///< Valid on MTY_EVENT_RAW.
+
 
 		const char *reopenArg;   ///< Valid on MTY_EVENT_REOPEN, the argument supplied.
 		const char *webviewText; ///< Valid on MTY_EVENT_WEBVIEW_TEXT, text sent from the
