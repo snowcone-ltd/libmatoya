@@ -48,11 +48,6 @@ static void ps5_rumble(struct hid_dev *device, uint16_t low, uint16_t high)
 	mty_hid_device_write(device, buf, size);
 }
 
-static void ps5_control(struct hid_dev *device, const uint8_t *data, uint32_t data_size)
-{
-	mty_hid_device_write(device, data, data_size);
-}
-
 static void ps5_init(struct hid_dev *device)
 {
 	struct ps5_state *ctx = mty_hid_device_get_state(device);
