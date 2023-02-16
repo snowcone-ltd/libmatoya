@@ -1014,6 +1014,7 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 		raw_evt.raw.vid = evt.controller.vid;
 		raw_evt.raw.pid = evt.controller.pid;
 		raw_evt.raw.id = evt.controller.id;
+		ctx.event_func(&raw_evt, ctx.opaque);
 		// Prevent gamepad input while in the background, dedupe
 		if (MTY_AppIsActive((MTY_App *) opaque) && mty_hid_dedupe(ctx.deduper, &evt.controller))
 			ctx.event_func(&evt, ctx.opaque);
