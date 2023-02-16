@@ -1000,15 +1000,17 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 	evt.type = MTY_EVENT_CONTROLLER;
 
 	if (mty_hid_driver_state(device, buf, size, &evt.controller)) {
-		MTY_Event raw_evt = {0};
-		raw_evt.type = MTY_EVENT_HID_INPUT;
-		raw_evt.hid.size = size;
-		raw_evt.hid.report = buf;
-		raw_evt.hid.type = evt.controller.type;
-		raw_evt.hid.vid = evt.controller.vid;
-		raw_evt.hid.pid = evt.controller.pid;
-		raw_evt.hid.id = evt.controller.id;
-		ctx->event_func(&raw_evt, ctx->opaque);
+		MTY_Event hid_evt = {
+			.type = MTY_EVENT_HID_INPUT,
+			.hid.size = size,
+			.hid.report = buf,
+			.hid.type = evt.controller.type,
+			.hid.vid = evt.controller.vid,
+			.hid.pid = evt.controller.pid,
+			.hid.id = evt.controller.id,
+		};
+
+		ctx->event_func(&hid_evt, ctx->opaque);
 
 		// Prevent gamepad input while in the background, dedupe
 		if (MTY_AppIsActive(ctx) && mty_hid_dedupe(ctx->deduper, &evt.controller))

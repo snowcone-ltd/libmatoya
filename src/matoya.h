@@ -769,7 +769,6 @@ typedef struct MTY_Event {
 		MTY_KeyEvent key;               ///< Valid on MTY_EVENT_KEY.
 		MTY_HIDInputEvent hid;          ///< Valid on MTY_EVENT_HID_INPUT.
 
-
 		const char *reopenArg;   ///< Valid on MTY_EVENT_REOPEN, the argument supplied.
 		const char *webviewText; ///< Valid on MTY_EVENT_WEBVIEW_TEXT, text sent from the
 		                         ///<   WebView's JavaScript enitronment.
@@ -1052,7 +1051,7 @@ MTY_AppSetOrientation(MTY_App *ctx, MTY_Orientation orientation);
 MTY_EXPORT void
 MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t high);
 
-/// @brief Submit an HID output report to a controller device.
+/// @brief Submit an HID output report to a controller.
 /// @details Be careful to make sure the report is compatible with the device!
 /// @param ctx The MTY_App.
 /// @param id A controller `id` found via MTY_EVENT_CONTROLLER or MTY_EVENT_CONNECT.
