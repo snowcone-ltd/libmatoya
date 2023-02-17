@@ -729,7 +729,7 @@ typedef struct {
 } MTY_ControllerEvent;
 
 /// @brief HID input report from certain controllers.
-/// @details If enabled via MTY_AppEnableHIDInputEvents, all controllers except XInput
+/// @details If enabled via MTY_AppEnableHIDEvents, all controllers except XInput
 ///   controllers will generate input report events.
 typedef struct {
 	const void *report; ///< The HID input report.
@@ -1058,7 +1058,7 @@ MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t high);
 /// @param enable Set true to enable HID input reports, false to disable them.
 //- #support Windows macOS
 MTY_EXPORT void
-MTY_AppEnableHIDInputEvents(MTY_App *ctx, bool enable);
+MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable);
 
 /// @brief Submit an HID output report to a controller.
 /// @details Be careful to make sure the report is compatible with the device!

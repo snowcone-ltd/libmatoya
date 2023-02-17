@@ -1605,7 +1605,7 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 	}
 }
 
-void MTY_AppEnableHIDInputEvents(MTY_App *ctx, bool enable)
+void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
 {
 	ctx->hid_reports = enable;
 }
