@@ -18,7 +18,6 @@
 
 #include "xip.h"
 #include "hid/hid.h"
-#include "ps5-haptics.h"
 
 #define APP_CLASS_NAME L"MTY_Window"
 #define APP_RI_MAX     (32 * 1024)
@@ -1021,38 +1020,6 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 		if (MTY_AppIsActive(ctx) && mty_hid_dedupe(ctx->deduper, &evt.controller))
 			ctx->event_func(&evt, ctx->opaque);
 	}
-}
-
-void MTY_AppSubmitPS5Haptics(MTY_App *ctx, uint32_t id, const int16_t *frames, uint32_t count)
-{
-	MTY_Audio *audio = MTY_HashGetInt(ctx->ps5_audio, id);
-
-	// Bootstrap PS5 haptics audio device
-	if (!audio) {
-		struct hid_dev *device = mty_hid_get_device_by_id(ctx->hid, id);
-		if (!device)
-			return;
-
-		if (hid_driver(device) != MTY_CTYPE_PS5)
-			return;
-
-		const char *name = mty_hid_device_get_name(device);
-		if (!name)
-			return;
-
-		const char *device_id = ps5_haptics_get_device_id(name);
-		if (!device_id)
-			return;
-
-		audio = MTY_AudioCreate(48000, 0, 1000, 4, device_id, false);
-		if (!audio)
-			return;
-
-		MTY_HashSetInt(ctx->ps5_audio, id, audio);
-	}
-
-	// Playback
-	MTY_AudioQueue(audio, frames, count);
 }
 
 MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
