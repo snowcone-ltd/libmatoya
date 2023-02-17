@@ -165,6 +165,7 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 
 	WAVEFORMATEXTENSIBLE pwfx = {0};
 
+	// We must query extended data for greater than two channels
 	if (ctx->channels > 2) {
 		e = IMMDevice_OpenPropertyStore(device, STGM_READ, &props);
 		if (e != S_OK) {
@@ -188,12 +189,13 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 
 	} else {
 		pwfx.Format.wFormatTag = WAVE_FORMAT_PCM;
-		pwfx.Format.nChannels = ctx->channels;
-		pwfx.Format.nSamplesPerSec = ctx->sample_rate;
-		pwfx.Format.wBitsPerSample = AUDIO_SAMPLE_SIZE * 8;
-		pwfx.Format.nBlockAlign = pwfx.Format.nChannels * pwfx.Format.wBitsPerSample / 8;
-		pwfx.Format.nAvgBytesPerSec = pwfx.Format.nSamplesPerSec * pwfx.Format.nBlockAlign;
 	}
+
+	pwfx.Format.nChannels = ctx->channels;
+	pwfx.Format.nSamplesPerSec = ctx->sample_rate;
+	pwfx.Format.wBitsPerSample = AUDIO_SAMPLE_SIZE * 8;
+	pwfx.Format.nBlockAlign = pwfx.Format.nChannels * pwfx.Format.wBitsPerSample / 8;
+	pwfx.Format.nAvgBytesPerSec = pwfx.Format.nSamplesPerSec * pwfx.Format.nBlockAlign;
 
 	e = IAudioClient_Initialize(ctx->client, AUDCLNT_SHAREMODE_SHARED,
 		AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY,
