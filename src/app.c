@@ -407,6 +407,10 @@ void MTY_PrintEvent(const MTY_Event *evt)
 			"id: %u",
 			evt->controller.id);
 
+		PEVENT(MTY_EVENT_HID, evt,
+			"id: %u, type: %d, size: %zu",
+			evt->hid.id, evt->hid.type, evt->hid.size);
+
 		case MTY_EVENT_CONTROLLER: {
 			PFMT(MTY_EVENT_CONTROLLER, evt,
 				"id: %u, type: %u, vid-pid: %04X-%04X, numButtons: %u, numAxes: %u",

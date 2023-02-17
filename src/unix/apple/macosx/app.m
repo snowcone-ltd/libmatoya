@@ -50,6 +50,7 @@ CGError CGSSetGlobalHotKeyOperatingMode(int32_t conn, enum CGSGlobalHotKeyOperat
 	@property bool cursor_showing;
 	@property bool eraser;
 	@property bool pen_left;
+	@property bool hid_reports;
 	@property NSUInteger buttons;
 	@property uint32_t cb_seq;
 	@property void **windows;
@@ -1006,6 +1007,17 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 	evt.type = MTY_EVENT_CONTROLLER;
 
 	if (mty_hid_driver_state(device, buf, size, &evt.controller)) {
+		if (ctx.hid_reports)
+			ctx.event_func(&(MTY_Event) {
+				.type = MTY_EVENT_HID,
+				.hid.size = size,
+				.hid.report = buf,
+				.hid.type = evt.controller.type,
+				.hid.vid = evt.controller.vid,
+				.hid.pid = evt.controller.pid,
+				.hid.id = evt.controller.id,
+			}, ctx.opaque);
+
 		// Prevent gamepad input while in the background, dedupe
 		if (MTY_AppIsActive((MTY_App *) opaque) && mty_hid_dedupe(ctx.deduper, &evt.controller))
 			ctx.event_func(&evt, ctx.opaque);
@@ -1334,6 +1346,24 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 	App *app = (__bridge App *) ctx;
 
 	mty_hid_driver_rumble(app.hid, id, low, high);
+}
+
+void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
+{
+	App *app = (__bridge App *) ctx;
+
+	app.hid_reports = enable;
+}
+
+void MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_t size)
+{
+	App *app = (__bridge App *) ctx;
+
+	struct hid_dev *dev = mty_hid_get_device_by_id(app.hid, id);
+	if (!dev)
+		return;
+
+	mty_hid_device_write(dev, report, size);
 }
 
 const void *MTY_AppGetControllerTouchpad(MTY_App *ctx, uint32_t id, size_t *size)
