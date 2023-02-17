@@ -180,6 +180,8 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 		}
 
 		PROPVARIANT blob = {0};
+		PropVariantInit(&blob);
+
 		e = IPropertyStore_GetValue(props, &PKEY_AudioEngine_DeviceFormat, &blob);
 		if (e != S_OK) {
 			MTY_Log("'IPropertyStore_GetValue' failed with HRESULT 0x%X", e);
