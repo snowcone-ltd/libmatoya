@@ -1004,6 +1004,10 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 		mty_evdev_rumble(ctx->evdev, id, low, high);
 }
 
+void MTY_AppSubmitPS5Haptics(MTY_App *ctx, uint32_t id, const int16_t *frames, uint32_t count)
+{
+}
+
 void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
 {
 }

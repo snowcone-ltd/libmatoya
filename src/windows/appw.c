@@ -18,6 +18,7 @@
 
 #include "xip.h"
 #include "hid/hid.h"
+#include "ps5-haptics.h"
 
 #define APP_CLASS_NAME L"MTY_Window"
 #define APP_RI_MAX     (32 * 1024)
@@ -72,6 +73,7 @@ struct MTY_App {
 	MTY_Hash *hotkey;
 	MTY_Hash *ghotkey;
 	MTY_Hash *deduper;
+	MTY_Hash *ps5_audio;
 
 	struct window *windows[MTY_WINDOW_MAX];
 
@@ -990,6 +992,9 @@ static void app_hid_disconnect(struct hid_dev *device, void *opaque)
 	evt.controller.pid = mty_hid_device_get_pid(device);
 	evt.controller.id = mty_hid_device_get_id(device);
 
+	MTY_Audio *audio = MTY_HashPopInt(ctx->ps5_audio, mty_hid_device_get_id(device));
+	MTY_AudioDestroy(&audio);
+
 	ctx->event_func(&evt, ctx->opaque);
 }
 
@@ -1018,6 +1023,38 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 	}
 }
 
+void MTY_AppSubmitPS5Haptics(MTY_App *ctx, uint32_t id, const int16_t *frames, uint32_t count)
+{
+	MTY_Audio *audio = MTY_HashGetInt(ctx->ps5_audio, id);
+
+	// Bootstrap PS5 haptics audio device
+	if (!audio) {
+		struct hid_dev *device = mty_hid_get_device_by_id(ctx->hid, id);
+		if (!device)
+			return;
+
+		if (hid_driver(device) != MTY_CTYPE_PS5)
+			return;
+
+		const char *name = mty_hid_device_get_name(device);
+		if (!name)
+			return;
+
+		const char *device_id = ps5_haptics_get_device_id(name);
+		if (!device_id)
+			return;
+
+		audio = MTY_AudioCreate(48000, 0, 1000, 4, device_id, false);
+		if (!audio)
+			return;
+
+		MTY_HashSetInt(ctx->ps5_audio, id, audio);
+	}
+
+	// Playback
+	MTY_AudioQueue(audio, frames, count);
+}
+
 MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
 {
 	bool r = true;
@@ -1029,6 +1066,7 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	ctx->hotkey = MTY_HashCreate(0);
 	ctx->ghotkey = MTY_HashCreate(0);
 	ctx->deduper = MTY_HashCreate(0);
+	ctx->ps5_audio = MTY_HashCreate(0);
 	ctx->instance = GetModuleHandle(NULL);
 	if (!ctx->instance) {
 		r = false;
@@ -1074,6 +1112,11 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	return ctx;
 }
 
+static void app_destroy_ps5_audio(void *audio)
+{
+	MTY_AudioDestroy((MTY_Audio **) &audio);
+}
+
 void MTY_AppDestroy(MTY_App **app)
 {
 	if (!app || !*app)
@@ -1091,6 +1134,7 @@ void MTY_AppDestroy(MTY_App **app)
 	MTY_HashDestroy(&ctx->hotkey, NULL);
 	MTY_HashDestroy(&ctx->ghotkey, NULL);
 	MTY_HashDestroy(&ctx->deduper, NULL);
+	MTY_HashDestroy(&ctx->ps5_audio, app_destroy_ps5_audio);
 
 	for (MTY_Window x = 0; x < MTY_WINDOW_MAX; x++)
 		MTY_WindowDestroy(ctx, x);

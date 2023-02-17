@@ -19,7 +19,7 @@
 #include "xbox.h"
 #include "xboxw.h"
 
-static MTY_CType hid_driver(struct hid_dev *device)
+MTY_CType hid_driver(struct hid_dev *device)
 {
 	uint16_t vid = mty_hid_device_get_vid(device);
 	uint16_t pid = mty_hid_device_get_pid(device);
