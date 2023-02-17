@@ -1051,9 +1051,6 @@ MTY_AppSetOrientation(MTY_App *ctx, MTY_Orientation orientation);
 MTY_EXPORT void
 MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t high);
 
-MTY_EXPORT void
-MTY_AppSubmitPS5Haptics(MTY_App *ctx, uint32_t id, const int16_t *frames, uint32_t count);
-
 /// @brief Enable or disable HID input reports from certain controllers.
 /// @details If enabled, all controllers except XInput controllers will generate input
 ///   report events.

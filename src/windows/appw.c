@@ -72,7 +72,6 @@ struct MTY_App {
 	MTY_Hash *hotkey;
 	MTY_Hash *ghotkey;
 	MTY_Hash *deduper;
-	MTY_Hash *ps5_audio;
 
 	struct window *windows[MTY_WINDOW_MAX];
 
@@ -991,9 +990,6 @@ static void app_hid_disconnect(struct hid_dev *device, void *opaque)
 	evt.controller.pid = mty_hid_device_get_pid(device);
 	evt.controller.id = mty_hid_device_get_id(device);
 
-	MTY_Audio *audio = MTY_HashPopInt(ctx->ps5_audio, mty_hid_device_get_id(device));
-	MTY_AudioDestroy(&audio);
-
 	ctx->event_func(&evt, ctx->opaque);
 }
 
@@ -1033,7 +1029,6 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	ctx->hotkey = MTY_HashCreate(0);
 	ctx->ghotkey = MTY_HashCreate(0);
 	ctx->deduper = MTY_HashCreate(0);
-	ctx->ps5_audio = MTY_HashCreate(0);
 	ctx->instance = GetModuleHandle(NULL);
 	if (!ctx->instance) {
 		r = false;
@@ -1079,11 +1074,6 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	return ctx;
 }
 
-static void app_destroy_ps5_audio(void *audio)
-{
-	MTY_AudioDestroy((MTY_Audio **) &audio);
-}
-
 void MTY_AppDestroy(MTY_App **app)
 {
 	if (!app || !*app)
@@ -1101,7 +1091,6 @@ void MTY_AppDestroy(MTY_App **app)
 	MTY_HashDestroy(&ctx->hotkey, NULL);
 	MTY_HashDestroy(&ctx->ghotkey, NULL);
 	MTY_HashDestroy(&ctx->deduper, NULL);
-	MTY_HashDestroy(&ctx->ps5_audio, app_destroy_ps5_audio);
 
 	for (MTY_Window x = 0; x < MTY_WINDOW_MAX; x++)
 		MTY_WindowDestroy(ctx, x);
