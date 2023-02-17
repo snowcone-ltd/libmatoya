@@ -1051,9 +1051,21 @@ MTY_AppSetOrientation(MTY_App *ctx, MTY_Orientation orientation);
 MTY_EXPORT void
 MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t high);
 
+/// @brief Get the device name of a controller.
+/// @param ctx The MTY_App.
+/// @param id A controller `id` found via MTY_EVENT_CONTROLLER or MTY_EVENT_CONNECT.
+/// @returns The device name of the controller on success, NULL if the controller does
+///   not exist or the controller's device name is not available.
+//- #support Windows
 MTY_EXPORT const char *
 MTY_AppGetControllerDeviceName(MTY_App *ctx, uint32_t id);
 
+/// @brief Get the type of controller.
+/// @param ctx The MTY_App.
+/// @param id A controller `id` found via MTY_EVENT_CONTROLLER or MTY_EVENT_CONNECT.
+/// @returns The type of controller on success, MTY_CTYPE_DEFAULT if the controller does
+///   not exist or the controller type is not available.
+//- #support Windows macOS
 MTY_EXPORT MTY_CType
 MTY_AppGetControllerType(MTY_App *ctx, uint32_t id);
 

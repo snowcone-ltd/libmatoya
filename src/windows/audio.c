@@ -138,14 +138,14 @@ static HRESULT audio_get_extended_format(IMMDevice *device, WAVEFORMATEXTENSIBLE
 {
 	IPropertyStore *props = NULL;
 
+	PROPVARIANT blob = {0};
+	PropVariantInit(&blob);
+
 	HRESULT e = IMMDevice_OpenPropertyStore(device, STGM_READ, &props);
 	if (e != S_OK) {
 		MTY_Log("'IMMDevice_OpenPropertyStore' failed with HRESULT 0x%X", e);
 		goto except;
 	}
-
-	PROPVARIANT blob = {0};
-	PropVariantInit(&blob);
 
 	e = IPropertyStore_GetValue(props, &PKEY_AudioEngine_DeviceFormat, &blob);
 	if (e != S_OK) {
@@ -165,9 +165,9 @@ static HRESULT audio_get_extended_format(IMMDevice *device, WAVEFORMATEXTENSIBLE
 		pwfx->SubFormat = ptfx->SubFormat;
 	}
 
-	PropVariantClear(&blob);
-
 	except:
+
+	PropVariantClear(&blob);
 
 	if (props)
 		IPropertyStore_Release(props);
