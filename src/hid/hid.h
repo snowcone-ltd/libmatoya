@@ -37,7 +37,6 @@ MTY_CType hid_driver(struct hid_dev *device);
 void mty_hid_driver_init(struct hid_dev *device);
 bool mty_hid_driver_state(struct hid_dev *device, const void *buf, size_t size, MTY_ControllerEvent *c);
 void mty_hid_driver_rumble(struct hid *hid, uint32_t id, uint16_t low, uint16_t high);
-const void *mty_hid_device_get_touchpad(struct hid *hid, uint32_t id, size_t *size);
 
 // Win32 specific for interop with RAWINPUT
 void mty_hid_win32_listen(void *hwnd);
