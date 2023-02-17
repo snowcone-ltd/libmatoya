@@ -204,42 +204,49 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 MTY_Audio *MTY_AudioCreate(uint32_t sampleRate, uint32_t minBuffer, uint32_t maxBuffer, uint8_t channels,
 	const char *deviceID, bool fallback)
 {
-	// TODO Should this use the current run loop rather than internal threading?
-
 	MTY_Audio *ctx = MTY_Alloc(1, sizeof(MTY_Audio));
 	ctx->sample_rate = sampleRate;
+	ctx->channels = channels;
+	ctx->fallback = fallback;
 
 	uint32_t frames_per_ms = lrint((float) sampleRate / 1000.0f);
 	ctx->min_buffer = minBuffer * frames_per_ms;
 	ctx->max_buffer = maxBuffer * frames_per_ms;
 
-	AudioStreamBasicDescription format = {0};
-	format.mSampleRate = sampleRate;
-	format.mFormatID = kAudioFormatLinearPCM;
-	format.mFormatFlags = kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked;
-	format.mFramesPerPacket = 1;
-	format.mChannelsPerFrame = AUDIO_CHANNELS;
-	format.mBitsPerChannel = AUDIO_SAMPLE_SIZE * 8;
-	format.mBytesPerPacket = AUDIO_SAMPLE_SIZE * AUDIO_CHANNELS;
-	format.mBytesPerFrame = format.mBytesPerPacket;
+	if (deviceID)
+		ctx->device_id = MTY_MultiToWideD(deviceID);
 
-	OSStatus e = AudioQueueNewOutput(&format, audio_queue_callback, ctx, NULL, NULL, 0, &ctx->q);
-	if (e != kAudioServicesNoError) {
-		MTY_Log("'AudioQueueNewOutput' failed with error 0x%X", e);
+	HRESULT e = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+	if (e != S_FALSE && e != S_OK) {
+		MTY_Log("'CoInitializeEx' failed with HRESULT 0x%X", e);
 		goto except;
 	}
 
-	for (int32_t x = 0; x < AUDIO_BUFS; x++) {
-		e = AudioQueueAllocateBuffer(ctx->q, AUDIO_BUF_SIZE, &ctx->audio_buf[x]);
-		if (e != kAudioServicesNoError) {
-			MTY_Log("'AudioQueueAllocateBuffer' failed with error 0x%X", e);
-			goto except;
-		}
+	ctx->com = true;
+	ctx->com_thread = GetCurrentThreadId();
+
+	e = CoCreateInstance(&CLSID_MMDeviceEnumerator, NULL, CLSCTX_ALL,
+		&IID_IMMDeviceEnumerator, &ctx->enumerator);
+	if (e != S_OK) {
+		MTY_Log("'CoCreateInstance' failed with HRESULT 0x%X", e);
+		goto except;
 	}
+
+	ctx->notification.lpVtbl = &_IMMNotificationClient;
+	e = IMMDeviceEnumerator_RegisterEndpointNotificationCallback(ctx->enumerator, &ctx->notification);
+	if (e != S_OK) {
+		MTY_Log("'IMMDeviceEnumerator_RegisterEndpointNotificationCallback' failed with HRESULT 0x%X", e);
+		goto except;
+	}
+	ctx->notification_init = true;
+
+	e = audio_device_create(ctx);
+	if (e != S_OK)
+		goto except;
 
 	except:
 
-	if (e != kAudioServicesNoError)
+	if (e != S_OK)
 		MTY_AudioDestroy(&ctx);
 
 	return ctx;
