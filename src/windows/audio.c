@@ -163,7 +163,13 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 		goto except;
 	}
 
-	WAVEFORMATEXTENSIBLE pwfx = {0};
+	WAVEFORMATEXTENSIBLE pwfx = {
+		.Format.nChannels = ctx->channels,
+		.Format.nSamplesPerSec = ctx->sample_rate,
+		.Format.wBitsPerSample = AUDIO_SAMPLE_SIZE * 8,
+		.Format.nBlockAlign = ctx->channels * AUDIO_SAMPLE_SIZE,
+		.Format.nAvgBytesPerSec = ctx->sample_rate * ctx->channels * AUDIO_SAMPLE_SIZE,
+	};
 
 	// We must query extended data for greater than two channels
 	if (ctx->channels > 2) {
@@ -180,22 +186,17 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 			goto except;
 		}
 
-		WAVEFORMATEX *ptfx = (WAVEFORMATEX *) blob.blob.pBlobData;
+		WAVEFORMATEXTENSIBLE *ptfx = (WAVEFORMATEXTENSIBLE *) blob.blob.pBlobData;
 
-		memcpy(&pwfx, ptfx, ptfx->wFormatTag == WAVE_FORMAT_EXTENSIBLE ?
-			sizeof(WAVEFORMATEXTENSIBLE) : sizeof(WAVEFORMATEX));
+		if (ptfx->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
+			pwfx.Format.cbSize = 22;
+			pwfx.Samples = ptfx->Samples;
+			pwfx.dwChannelMask = ptfx->dwChannelMask;
+			pwfx.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
+		}
 
 		PropVariantClear(&blob);
-
-	} else {
-		pwfx.Format.wFormatTag = WAVE_FORMAT_PCM;
 	}
-
-	pwfx.Format.nChannels = ctx->channels;
-	pwfx.Format.nSamplesPerSec = ctx->sample_rate;
-	pwfx.Format.wBitsPerSample = AUDIO_SAMPLE_SIZE * 8;
-	pwfx.Format.nBlockAlign = pwfx.Format.nChannels * pwfx.Format.wBitsPerSample / 8;
-	pwfx.Format.nAvgBytesPerSec = pwfx.Format.nSamplesPerSec * pwfx.Format.nBlockAlign;
 
 	e = IAudioClient_Initialize(ctx->client, AUDCLNT_SHAREMODE_SHARED,
 		AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY,
