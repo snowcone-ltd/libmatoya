@@ -1051,6 +1051,12 @@ MTY_AppSetOrientation(MTY_App *ctx, MTY_Orientation orientation);
 MTY_EXPORT void
 MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t high);
 
+MTY_EXPORT const char *
+MTY_AppGetControllerDeviceName(MTY_App *ctx, uint32_t id);
+
+MTY_EXPORT MTY_CType
+MTY_AppGetControllerType(MTY_App *ctx, uint32_t id);
+
 /// @brief Enable or disable HID input reports from certain controllers.
 /// @details If enabled, all controllers except XInput controllers will generate input
 ///   report events.
