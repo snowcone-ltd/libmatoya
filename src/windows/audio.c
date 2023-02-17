@@ -134,11 +134,51 @@ static void audio_device_destroy(MTY_Audio *ctx)
 	ctx->playing = false;
 }
 
+static HRESULT audio_get_extended_format(IMMDevice *device, WAVEFORMATEXTENSIBLE *pwfx)
+{
+	IPropertyStore *props = NULL;
+
+	HRESULT e = IMMDevice_OpenPropertyStore(device, STGM_READ, &props);
+	if (e != S_OK) {
+		MTY_Log("'IMMDevice_OpenPropertyStore' failed with HRESULT 0x%X", e);
+		goto except;
+	}
+
+	PROPVARIANT blob = {0};
+	PropVariantInit(&blob);
+
+	e = IPropertyStore_GetValue(props, &PKEY_AudioEngine_DeviceFormat, &blob);
+	if (e != S_OK) {
+		MTY_Log("'IPropertyStore_GetValue' failed with HRESULT 0x%X", e);
+		goto except;
+	}
+
+	WAVEFORMATEXTENSIBLE *ptfx = (WAVEFORMATEXTENSIBLE *) blob.blob.pBlobData;
+
+	if (ptfx->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
+		pwfx->Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+		pwfx->Format.cbSize = 22;
+
+		// Extended data
+		pwfx->Samples = ptfx->Samples;
+		pwfx->dwChannelMask = ptfx->dwChannelMask;
+		pwfx->SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
+	}
+
+	PropVariantClear(&blob);
+
+	except:
+
+	if (props)
+		IPropertyStore_Release(props);
+
+	return e;
+}
+
 static HRESULT audio_device_create(MTY_Audio *ctx)
 {
 	HRESULT e = S_OK;
 	IMMDevice *device = NULL;
-	IPropertyStore *props = NULL;
 
 	if (ctx->device_id) {
 		e = IMMDeviceEnumerator_GetDevice(ctx->enumerator, ctx->device_id, &device);
@@ -174,34 +214,9 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 
 	// We must query extended data for greater than two channels
 	if (ctx->channels > 2) {
-		e = IMMDevice_OpenPropertyStore(device, STGM_READ, &props);
-		if (e != S_OK) {
-			MTY_Log("'IMMDevice_OpenPropertyStore' failed with HRESULT 0x%X", e);
+		e = audio_get_extended_format(device, &pwfx);
+		if (e != S_OK)
 			goto except;
-		}
-
-		PROPVARIANT blob = {0};
-		PropVariantInit(&blob);
-
-		e = IPropertyStore_GetValue(props, &PKEY_AudioEngine_DeviceFormat, &blob);
-		if (e != S_OK) {
-			MTY_Log("'IPropertyStore_GetValue' failed with HRESULT 0x%X", e);
-			goto except;
-		}
-
-		WAVEFORMATEXTENSIBLE *ptfx = (WAVEFORMATEXTENSIBLE *) blob.blob.pBlobData;
-
-		if (ptfx->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
-			pwfx.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
-			pwfx.Format.cbSize = 22;
-
-			// Extended data
-			pwfx.Samples = ptfx->Samples;
-			pwfx.dwChannelMask = ptfx->dwChannelMask;
-			pwfx.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
-		}
-
-		PropVariantClear(&blob);
 	}
 
 	e = IAudioClient_Initialize(ctx->client, AUDCLNT_SHAREMODE_SHARED,
@@ -226,9 +241,6 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 	}
 
 	except:
-
-	if (props)
-		IPropertyStore_Release(props);
 
 	if (device)
 		IMMDevice_Release(device);
