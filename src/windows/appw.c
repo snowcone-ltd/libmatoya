@@ -1003,7 +1003,7 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 	if (mty_hid_driver_state(device, buf, size, &evt.controller)) {
 		if (ctx->hid_reports)
 			ctx->event_func(&(MTY_Event) {
-				.type = MTY_EVENT_HID_INPUT,
+				.type = MTY_EVENT_HID,
 				.hid.size = size,
 				.hid.report = buf,
 				.hid.type = evt.controller.type,
