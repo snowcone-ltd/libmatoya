@@ -1346,6 +1346,28 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 	mty_hid_driver_rumble(app.hid, id, low, high);
 }
 
+const char *MTY_AppGetControllerDeviceName(MTY_App *ctx, uint32_t id)
+{
+	App *app = (__bridge App *) ctx;
+
+	struct hid_dev *device = mty_hid_get_device_by_id(app.hid, id);
+	if (!device)
+		return NULL;
+
+	return mty_hid_device_get_name(device);
+}
+
+MTY_CType MTY_AppGetControllerType(MTY_App *ctx, uint32_t id)
+{
+	App *app = (__bridge App *) ctx;
+
+	struct hid_dev *device = mty_hid_get_device_by_id(app.hid, id);
+	if (!device)
+		return MTY_CTYPE_DEFAULT;
+
+	return hid_driver(device);
+}
+
 void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
 {
 	App *app = (__bridge App *) ctx;

@@ -454,6 +454,16 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 	web_rumble_gamepad(id, (float) low / (float) UINT16_MAX, (float) high / (float) UINT16_MAX);
 }
 
+const char *MTY_AppGetControllerDeviceName(MTY_App *ctx, uint32_t id)
+{
+	return NULL;
+}
+
+MTY_CType MTY_AppGetControllerType(MTY_App *ctx, uint32_t id)
+{
+	return MTY_CTYPE_DEFAULT;
+}
+
 void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
 {
 }

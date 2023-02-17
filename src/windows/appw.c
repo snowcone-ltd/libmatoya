@@ -1603,6 +1603,24 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 	}
 }
 
+const char *MTY_AppGetControllerDeviceName(MTY_App *ctx, uint32_t id)
+{
+	struct hid_dev *device = mty_hid_get_device_by_id(ctx->hid, id);
+	if (!device)
+		return NULL;
+
+	return mty_hid_device_get_name(device);
+}
+
+MTY_CType MTY_AppGetControllerType(MTY_App *ctx, uint32_t id)
+{
+	struct hid_dev *device = mty_hid_get_device_by_id(ctx->hid, id);
+	if (!device)
+		return MTY_CTYPE_DEFAULT;
+
+	return hid_driver(device);
+}
+
 void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
 {
 	ctx->hid_reports = enable;
