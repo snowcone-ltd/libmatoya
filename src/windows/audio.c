@@ -167,13 +167,17 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 
 	if (ctx->channels > 2) {
 		e = IMMDevice_OpenPropertyStore(device, STGM_READ, &props);
-		if (e != S_OK)
+		if (e != S_OK) {
+			MTY_Log("'IMMDevice_OpenPropertyStore' failed with HRESULT 0x%X", e);
 			goto except;
+		}
 
 		PROPVARIANT blob = {0};
 		e = IPropertyStore_GetValue(props, &PKEY_AudioEngine_DeviceFormat, &blob);
-		if (e != S_OK)
+		if (e != S_OK) {
+			MTY_Log("'IPropertyStore_GetValue' failed with HRESULT 0x%X", e);
 			goto except;
+		}
 
 		WAVEFORMATEX *ptfx = (WAVEFORMATEX *) blob.blob.pBlobData;
 
