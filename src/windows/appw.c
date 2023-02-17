@@ -59,6 +59,7 @@ struct MTY_App {
 	bool hide_cursor;
 	bool ghk_disabled;
 	bool filter_move;
+	bool hid_reports;
 	uint64_t prev_state;
 	uint64_t state;
 	uint32_t timeout;
@@ -1000,17 +1001,16 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 	evt.type = MTY_EVENT_CONTROLLER;
 
 	if (mty_hid_driver_state(device, buf, size, &evt.controller)) {
-		MTY_Event hid_evt = {
-			.type = MTY_EVENT_HID_INPUT,
-			.hid.size = size,
-			.hid.report = buf,
-			.hid.type = evt.controller.type,
-			.hid.vid = evt.controller.vid,
-			.hid.pid = evt.controller.pid,
-			.hid.id = evt.controller.id,
-		};
-
-		ctx->event_func(&hid_evt, ctx->opaque);
+		if (ctx->hid_reports)
+			ctx->event_func(&(MTY_Event) {
+				.type = MTY_EVENT_HID_INPUT,
+				.hid.size = size,
+				.hid.report = buf,
+				.hid.type = evt.controller.type,
+				.hid.vid = evt.controller.vid,
+				.hid.pid = evt.controller.pid,
+				.hid.id = evt.controller.id,
+			}, ctx->opaque);
 
 		// Prevent gamepad input while in the background, dedupe
 		if (MTY_AppIsActive(ctx) && mty_hid_dedupe(ctx->deduper, &evt.controller))
@@ -1603,6 +1603,11 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 	} else {
 		mty_hid_driver_rumble(ctx->hid, id, low, high);
 	}
+}
+
+void MTY_AppEnableHIDInputEvents(MTY_App *ctx, bool enable)
+{
+	ctx->hid_reports = enable;
 }
 
 void MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_t size)

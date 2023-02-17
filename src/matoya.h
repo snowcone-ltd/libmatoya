@@ -729,8 +729,8 @@ typedef struct {
 } MTY_ControllerEvent;
 
 /// @brief HID input report from certain controllers.
-/// @details Controllers that are of an MTY_CType other than MTY_CTYPE_DEFAULT and
-///   MTY_CTYPE_XINPUT will also generate MTY_HIDInput events.
+/// @details If enabled via MTY_AppEnableHIDInputEvents, all controllers except XInput
+///   controllers will generate input report events.
 typedef struct {
 	MTY_CType type;     ///< Game controller type.
 	uint32_t id;        ///< Assigned controller `id`.
@@ -1051,12 +1051,22 @@ MTY_AppSetOrientation(MTY_App *ctx, MTY_Orientation orientation);
 MTY_EXPORT void
 MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t high);
 
+/// @brief Enable or disable HID input reports from certain controllers.
+/// @details If enabled, all controllers except XInput controllers will generate input
+///   report events.
+/// @param ctx The MTY_App.
+/// @param enable Set true to enable HID input reports, false to disable them.
+//- #support Windows macOS
+MTY_EXPORT void
+MTY_AppEnableHIDInputEvents(MTY_App *ctx, bool enable);
+
 /// @brief Submit an HID output report to a controller.
 /// @details Be careful to make sure the report is compatible with the device!
 /// @param ctx The MTY_App.
 /// @param id A controller `id` found via MTY_EVENT_CONTROLLER or MTY_EVENT_CONNECT.
 /// @param report The HID output report.
 /// @param size The size of `report`.
+//- #support Windows macOS
 MTY_EXPORT void
 MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_t size);
 
