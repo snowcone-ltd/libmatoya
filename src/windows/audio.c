@@ -138,9 +138,11 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 {
 	HRESULT e = S_OK;
 	IMMDevice *device = NULL;
+	IPropertyStore *props = NULL;
 
 	if (ctx->device_id) {
 		e = IMMDeviceEnumerator_GetDevice(ctx->enumerator, ctx->device_id, &device);
+
 		if (e != S_OK && !ctx->fallback) {
 			MTY_Log("'IMMDeviceEnumerator_GetDevice' failed with HRESULT 0x%X", e);
 			goto except;
@@ -164,25 +166,21 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 	WAVEFORMATEXTENSIBLE pwfx = {0};
 
 	if (ctx->channels > 2) {
-		IPropertyStore *properties = NULL;
-		IMMDevice_OpenPropertyStore(device, STGM_READ, &properties);
+		e = IMMDevice_OpenPropertyStore(device, STGM_READ, &props);
+		if (e != S_OK)
+			goto except;
 
-		PROPVARIANT blob;
-		PropVariantInit(&blob);
-		e = IPropertyStore_GetValue(properties, &PKEY_AudioEngine_DeviceFormat, &blob);
-		if (e == S_OK) {
-			WAVEFORMATEXTENSIBLE *ptfx_temp = (WAVEFORMATEXTENSIBLE *) blob.blob.pBlobData;
+		PROPVARIANT blob = {0};
+		e = IPropertyStore_GetValue(props, &PKEY_AudioEngine_DeviceFormat, &blob);
+		if (e != S_OK)
+			goto except;
 
-			if (ptfx_temp->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
-				pwfx = *ptfx_temp;
+		WAVEFORMATEX *ptfx = (WAVEFORMATEX *) blob.blob.pBlobData;
 
-			} else {
-				pwfx.Format = ptfx_temp->Format;
-			}
-		}
+		memcpy(&pwfx, ptfx, ptfx->wFormatTag == WAVE_FORMAT_EXTENSIBLE ?
+			sizeof(WAVEFORMATEXTENSIBLE) : sizeof(WAVEFORMATEX));
 
 		PropVariantClear(&blob);
-		IPropertyStore_Release(properties);
 
 	} else {
 		pwfx.Format.wFormatTag = WAVE_FORMAT_PCM;
@@ -215,6 +213,9 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 	}
 
 	except:
+
+	if (props)
+		IPropertyStore_Release(props);
 
 	if (device)
 		IMMDevice_Release(device);
