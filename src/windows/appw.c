@@ -1619,11 +1619,6 @@ void MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_
 	mty_hid_device_write(dev, report, size);
 }
 
-const void *MTY_AppGetControllerTouchpad(MTY_App *ctx, uint32_t id, size_t *size)
-{
-	return id >= 4 ? mty_hid_device_get_touchpad(ctx->hid, id, size) : NULL;
-}
-
 bool MTY_AppIsPenEnabled(MTY_App *ctx)
 {
 	return ctx->pen_enabled;

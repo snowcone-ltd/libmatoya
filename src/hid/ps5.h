@@ -11,7 +11,6 @@
 struct ps5_state {
 	bool init;
 	bool bluetooth;
-	uint8_t touchpad[9];
 };
 
 static void ps5_rumble(struct hid_dev *device, uint16_t low, uint16_t high)
@@ -56,15 +55,6 @@ static void ps5_init(struct hid_dev *device)
 	// Writing a bluetooth output report with id 0x31 will make the DS start sending
 	// 0x31 id input reports
 	ps5_rumble(device, 0, 0);
-}
-
-static const void *ps5_get_touchpad(struct hid_dev *device, size_t *size)
-{
-	struct ps5_state *ctx = mty_hid_device_get_state(device);
-
-	*size = 9;
-
-	return ctx->touchpad;
 }
 
 static bool ps5_state(struct hid_dev *device, const void *data, size_t dsize, MTY_ControllerEvent *c)
@@ -161,14 +151,6 @@ static bool ps5_state(struct hid_dev *device, const void *data, size_t dsize, MT
 		c->axes[MTY_CAXIS_TRIGGER_R].usage = 0x34;
 		c->axes[MTY_CAXIS_TRIGGER_R].min = 0;
 		c->axes[MTY_CAXIS_TRIGGER_R].max = UINT8_MAX;
-
-		// Touchpad
-		if (dsize >= 44) {
-			memcpy(ctx->touchpad, t + 36, 9);
-
-		} else {
-			memset(ctx->touchpad, 0, 9);
-		}
 
 		r = true;
 	}
