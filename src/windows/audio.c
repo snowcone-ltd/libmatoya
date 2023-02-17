@@ -138,34 +138,9 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 {
 	HRESULT e = S_OK;
 	IMMDevice *device = NULL;
-	WAVEFORMATEXTENSIBLE pwfx = {0};
 
 	if (ctx->device_id) {
 		e = IMMDeviceEnumerator_GetDevice(ctx->enumerator, ctx->device_id, &device);
-		if (e == S_OK) {
-			IPropertyStore *properties = NULL;
-			IMMDevice_OpenPropertyStore(device, STGM_READ, &properties);
-
-			PROPVARIANT blob;
-			PropVariantInit(&blob);
-			e = IPropertyStore_GetValue(properties, &PKEY_AudioEngine_DeviceFormat, &blob);
-
-			if (e == S_OK) {
-				WAVEFORMATEX *ptfx_temp = (WAVEFORMATEX *) blob.blob.pBlobData;
-				if (ptfx_temp->wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
-					memcpy(&pwfx, blob.blob.pBlobData, sizeof(WAVEFORMATEXTENSIBLE));
-				} else {
-					memcpy(&pwfx, blob.blob.pBlobData, sizeof(WAVEFORMATEX));
-				}
-			} else {
-				// If for any reason we can't fetch the device properties, nuke it and fail.
-				IMMDevice_Release(device);
-				device = NULL;
-			}
-			PropVariantClear(&blob);
-			IPropertyStore_Release(properties);
-		}
-
 		if (e != S_OK && !ctx->fallback) {
 			MTY_Log("'IMMDeviceEnumerator_GetDevice' failed with HRESULT 0x%X", e);
 			goto except;
@@ -178,14 +153,6 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 			MTY_Log("'IMMDeviceEnumerator_GetDefaultAudioEndpoint' failed with HRESULT 0x%X", e);
 			goto except;
 		}
-		
-		WAVEFORMATEX *pwfx_ex = (WAVEFORMATEX *) &pwfx;
-		pwfx_ex->wFormatTag = WAVE_FORMAT_PCM;
-		pwfx_ex->nChannels = ctx->channels;
-		pwfx_ex->nSamplesPerSec = ctx->sample_rate;
-		pwfx_ex->wBitsPerSample = AUDIO_SAMPLE_SIZE * 8;
-		pwfx_ex->nBlockAlign = pwfx_ex->nChannels * pwfx_ex->wBitsPerSample / 8;
-		pwfx_ex->nAvgBytesPerSec = pwfx_ex->nSamplesPerSec * pwfx_ex->nBlockAlign;
 	}
 
 	e = IMMDevice_Activate(device, &IID_IAudioClient, CLSCTX_ALL, NULL, &ctx->client);
@@ -194,9 +161,41 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 		goto except;
 	}
 
+	WAVEFORMATEXTENSIBLE pwfx = {0};
+
+	if (ctx->channels > 2) {
+		IPropertyStore *properties = NULL;
+		IMMDevice_OpenPropertyStore(device, STGM_READ, &properties);
+
+		PROPVARIANT blob;
+		PropVariantInit(&blob);
+		e = IPropertyStore_GetValue(properties, &PKEY_AudioEngine_DeviceFormat, &blob);
+		if (e == S_OK) {
+			WAVEFORMATEXTENSIBLE *ptfx_temp = (WAVEFORMATEXTENSIBLE *) blob.blob.pBlobData;
+
+			if (ptfx_temp->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
+				pwfx = *ptfx_temp;
+
+			} else {
+				pwfx.Format = ptfx_temp->Format;
+			}
+		}
+
+		PropVariantClear(&blob);
+		IPropertyStore_Release(properties);
+
+	} else {
+		pwfx.Format.wFormatTag = WAVE_FORMAT_PCM;
+		pwfx.Format.nChannels = ctx->channels;
+		pwfx.Format.nSamplesPerSec = ctx->sample_rate;
+		pwfx.Format.wBitsPerSample = AUDIO_SAMPLE_SIZE * 8;
+		pwfx.Format.nBlockAlign = pwfx.Format.nChannels * pwfx.Format.wBitsPerSample / 8;
+		pwfx.Format.nAvgBytesPerSec = pwfx.Format.nSamplesPerSec * pwfx.Format.nBlockAlign;
+	}
+
 	e = IAudioClient_Initialize(ctx->client, AUDCLNT_SHAREMODE_SHARED,
 		AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY,
-		AUDIO_BUFFER_SIZE, 0, (WAVEFORMATEX *) &pwfx, NULL);
+		AUDIO_BUFFER_SIZE, 0, &pwfx.Format, NULL);
 
 	if (e != S_OK) {
 		MTY_Log("'IAudioClient_Initialize' failed with HRESULT 0x%X", e);
