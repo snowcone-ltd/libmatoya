@@ -132,19 +132,3 @@ void mty_hid_driver_rumble(struct hid *hid, uint32_t id, uint16_t low, uint16_t 
 			break;
 	}
 }
-
-const void *mty_hid_device_get_touchpad(struct hid *hid, uint32_t id, size_t *size)
-{
-	struct hid_dev *device = mty_hid_get_device_by_id(hid, id);
-	if (!device)
-		return NULL;
-
-	switch (hid_driver(device)) {
-		case MTY_CTYPE_PS4:
-			return ps4_get_touchpad(device, size);
-		case MTY_CTYPE_PS5:
-			return ps5_get_touchpad(device, size);
-	}
-
-	return NULL;
-}

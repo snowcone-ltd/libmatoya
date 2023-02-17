@@ -1068,14 +1068,6 @@ MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable);
 MTY_EXPORT void
 MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_t size);
 
-/// @brief Get the raw touchpad data from a PS4 or PS5 controller.
-/// @details The return value may be NULL and is not parsed or interpreted in any way.
-/// @param ctx The MTY_App.
-/// @param id A controller `id` found via MTY_EVENT_CONTROLLER or MTY_EVENT_CONNECT.
-/// @param size Set to the size in bytes of the returned buffer.
-MTY_EXPORT const void *
-MTY_AppGetControllerTouchpad(MTY_App *ctx, uint32_t id, size_t *size);
-
 /// @brief Check if pen events are enabled.
 /// @param ctx The MTY_App.
 //- #support Windows macOS
