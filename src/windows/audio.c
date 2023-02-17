@@ -162,7 +162,7 @@ static HRESULT audio_get_extended_format(IMMDevice *device, WAVEFORMATEXTENSIBLE
 		// Extended data
 		pwfx->Samples = ptfx->Samples;
 		pwfx->dwChannelMask = ptfx->dwChannelMask;
-		pwfx->SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
+		pwfx->SubFormat = ptfx->SubFormat;
 	}
 
 	PropVariantClear(&blob);
