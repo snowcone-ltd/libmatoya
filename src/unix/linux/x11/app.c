@@ -1002,6 +1002,14 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 		mty_evdev_rumble(ctx->evdev, id, low, high);
 }
 
+void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
+{
+}
+
+void MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_t size)
+{
+}
+
 const void *MTY_AppGetControllerTouchpad(MTY_App *ctx, uint32_t id, size_t *size)
 {
 	return NULL;
