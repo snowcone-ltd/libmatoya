@@ -164,6 +164,7 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 	}
 
 	WAVEFORMATEXTENSIBLE pwfx = {
+		.Format.wFormatTag = WAVE_FORMAT_PCM,
 		.Format.nChannels = ctx->channels,
 		.Format.nSamplesPerSec = ctx->sample_rate,
 		.Format.wBitsPerSample = AUDIO_SAMPLE_SIZE * 8,
@@ -191,7 +192,10 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 		WAVEFORMATEXTENSIBLE *ptfx = (WAVEFORMATEXTENSIBLE *) blob.blob.pBlobData;
 
 		if (ptfx->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
+			pwfx.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
 			pwfx.Format.cbSize = 22;
+
+			// Extended data
 			pwfx.Samples = ptfx->Samples;
 			pwfx.dwChannelMask = ptfx->dwChannelMask;
 			pwfx.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
