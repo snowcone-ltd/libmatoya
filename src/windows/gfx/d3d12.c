@@ -494,13 +494,11 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	scissor.bottom = desc->viewHeight;
 	ID3D12GraphicsCommandList_RSSetScissorRects(cl, 1, &scissor);
 
-	// Render target view
-	if (_dest) {
-		ID3D12GraphicsCommandList_OMSetRenderTargets(cl, 1, _dest, FALSE, NULL);
+	// Render target
+	ID3D12GraphicsCommandList_OMSetRenderTargets(cl, 1, _dest, FALSE, NULL);
 
-		const float color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-		ID3D12GraphicsCommandList_ClearRenderTargetView(cl, *_dest, color, 0, NULL);
-	}
+	const float color[4] = {0, 0, 0, 1};
+	ID3D12GraphicsCommandList_ClearRenderTargetView(cl, *_dest, color, 0, NULL);
 
 	// Set up pipeline
 	ID3D12GraphicsCommandList_SetGraphicsRootSignature(cl, ctx->rs);
@@ -560,6 +558,16 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	ID3D12GraphicsCommandList_DrawIndexedInstanced(cl, 6, 1, 0, 0, 0);
 
 	return true;
+}
+
+void mty_d3d12_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dest)
+{
+	ID3D12GraphicsCommandList *cl = (ID3D12GraphicsCommandList *) context;
+	D3D12_CPU_DESCRIPTOR_HANDLE *_dest = (D3D12_CPU_DESCRIPTOR_HANDLE *) dest;
+
+	const float color[4] = {r, g, b, a};
+	ID3D12GraphicsCommandList_ClearRenderTargetView(cl, *_dest, color, 0, NULL);
 }
 
 void mty_d3d12_destroy(struct gfx **gfx, MTY_Device *device)

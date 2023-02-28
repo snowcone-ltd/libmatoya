@@ -395,10 +395,7 @@ bool mty_vk_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	VkDevice _device = dobjs->device;
 
 	VkCommandBuffer cmd = (VkCommandBuffer) context;
-
 	VkFramebuffer fb = (VkFramebuffer) dest;
-	if (!fb)
-		return false;
 
 	// Don't do anything until we have real data
 	if (desc->format != MTY_COLOR_FORMAT_UNKNOWN)
@@ -516,6 +513,32 @@ bool mty_vk_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	vkCmdEndRenderPass(cmd);
 
 	return true;
+}
+
+void mty_vk_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dest)
+{
+	struct vk *ctx = (struct vk *) gfx;
+
+	VkCommandBuffer cmd = (VkCommandBuffer) context;
+	VkFramebuffer fb = (VkFramebuffer) dest;
+
+	VkRenderPassBeginInfo rpi = {
+		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+		.renderPass = ctx->rp,
+		.framebuffer = fb,
+		.renderArea.extent = {
+			.width = width,
+			.height = height,
+		},
+		.clearValueCount = 1,
+		.pClearValues = &(VkClearValue) {
+			.color.float32 = {r, g, b, a}
+		},
+	};
+
+	vkCmdBeginRenderPass(cmd, &rpi, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdEndRenderPass(cmd);
 }
 
 void mty_vk_destroy(struct gfx **gfx, MTY_Device *device)

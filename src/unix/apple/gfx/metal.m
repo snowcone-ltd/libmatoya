@@ -195,7 +195,7 @@ bool mty_metal_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	// Begin render pass
 	MTLRenderPassDescriptor *rpd = [MTLRenderPassDescriptor new];
 	rpd.colorAttachments[0].texture = _dest;
-	rpd.colorAttachments[0].clearColor = MTLClearColorMake(0.0, 0.0, 0.0, 1.0);
+	rpd.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 1);
 	rpd.colorAttachments[0].loadAction = MTLLoadActionClear;
 	rpd.colorAttachments[0].storeAction = MTLStoreActionStore;
 
@@ -249,6 +249,25 @@ bool mty_metal_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	[cb commit];
 
 	return true;
+}
+
+void mty_metal_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dest)
+{
+	id<MTLCommandQueue> cq = (__bridge id<MTLCommandQueue>) context;
+	id<MTLTexture> _dest = (__bridge id<MTLTexture>) dest;
+
+	MTLRenderPassDescriptor *rpd = [MTLRenderPassDescriptor new];
+	rpd.colorAttachments[0].texture = _dest;
+	rpd.colorAttachments[0].clearColor = MTLClearColorMake(r, g, b, a);
+	rpd.colorAttachments[0].loadAction = MTLLoadActionClear;
+	rpd.colorAttachments[0].storeAction = MTLStoreActionStore;
+
+	id<MTLCommandBuffer> cb = [cq commandBuffer];
+	id<MTLRenderCommandEncoder> re = [cb renderCommandEncoderWithDescriptor:rpd];
+
+	[re endEncoding];
+	[cb commit];
 }
 
 void mty_metal_destroy(struct gfx **gfx, MTY_Device *device)

@@ -13,18 +13,8 @@ struct gl_ctx {
 	XVisualInfo *vis;
 	Window window;
 	GLXContext gl;
-	MTY_Renderer *renderer;
 	uint32_t fb0;
 };
-
-static void gl_ctx_get_size(struct gl_ctx *ctx, uint32_t *width, uint32_t *height)
-{
-	XWindowAttributes attr = {0};
-	XGetWindowAttributes(ctx->display, ctx->window, &attr);
-
-	*width = attr.width;
-	*height = attr.height;
-}
 
 struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
 {
@@ -41,7 +31,6 @@ struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
 	ctx->display = info->display;
 	ctx->vis = info->vis;
 	ctx->window = info->window;
-	ctx->renderer = MTY_RendererCreate();
 
 	ctx->gl = glXCreateContext(ctx->display, ctx->vis, NULL, GL_TRUE);
 	if (!ctx->gl) {
@@ -73,13 +62,22 @@ void mty_gl_ctx_destroy(struct gfx_ctx **gfx_ctx)
 
 	struct gl_ctx *ctx = (struct gl_ctx *) *gfx_ctx;
 
-	MTY_RendererDestroy(&ctx->renderer);
-
 	if (ctx->gl)
 		glXDestroyContext(ctx->display, ctx->gl);
 
 	MTY_Free(ctx);
 	*gfx_ctx = NULL;
+}
+
+void mty_gl_ctx_get_size(struct gfx_ctx *gfx_ctx, uint32_t *w, uint32_t *h)
+{
+	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
+
+	XWindowAttributes attr = {0};
+	XGetWindowAttributes(ctx->display, ctx->window, &attr);
+
+	*w = attr.width;
+	*h = attr.height;
 }
 
 MTY_Device *mty_gl_ctx_get_device(struct gfx_ctx *gfx_ctx)
@@ -109,34 +107,11 @@ void mty_gl_ctx_present(struct gfx_ctx *gfx_ctx)
 	glFinish();
 }
 
-void mty_gl_ctx_draw_quad(struct gfx_ctx *gfx_ctx, const void *image, const MTY_RenderDesc *desc)
+bool mty_gl_ctx_lock(struct gfx_ctx *gfx_ctx)
 {
-	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
-
-	MTY_RenderDesc mutated = *desc;
-	gl_ctx_get_size(ctx, &mutated.viewWidth, &mutated.viewHeight);
-
-	MTY_RendererDrawQuad(ctx->renderer, MTY_GFX_GL, NULL, NULL, image, &mutated, (MTY_Surface *) &ctx->fb0);
+	return true;
 }
 
-void mty_gl_ctx_draw_ui(struct gfx_ctx *gfx_ctx, const MTY_DrawData *dd)
+void mty_gl_ctx_unlock(void)
 {
-	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
-
-	MTY_RendererDrawUI(ctx->renderer, MTY_GFX_GL, NULL, NULL, dd, (MTY_Surface *) &ctx->fb0);
-}
-
-bool mty_gl_ctx_set_ui_texture(struct gfx_ctx *gfx_ctx, uint32_t id, const void *rgba,
-	uint32_t width, uint32_t height)
-{
-	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
-
-	return MTY_RendererSetUITexture(ctx->renderer, MTY_GFX_GL, NULL, NULL, id, rgba, width, height);
-}
-
-bool mty_gl_ctx_has_ui_texture(struct gfx_ctx *gfx_ctx, uint32_t id)
-{
-	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
-
-	return MTY_RendererHasUITexture(ctx->renderer, id);
 }

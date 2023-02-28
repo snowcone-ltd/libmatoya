@@ -284,9 +284,8 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest)
 {
 	struct d3d11 *ctx = (struct d3d11 *) gfx;
-	ID3D11Device *_device = (ID3D11Device *) device;
 	ID3D11DeviceContext *_context = (ID3D11DeviceContext *) context;
-	ID3D11Texture2D *_dest = (ID3D11Texture2D *) dest;
+	ID3D11RenderTargetView *_dest = (ID3D11RenderTargetView *) dest;
 
 	// Don't do anything until we have real data
 	if (desc->format != MTY_COLOR_FORMAT_UNKNOWN)
@@ -306,29 +305,11 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 
 	ID3D11DeviceContext_RSSetViewports(_context, 1, &vp);
 
-	// Begin render pass (set destination texture if available)
-	ID3D11Resource *rtvresource = NULL;
-	ID3D11RenderTargetView *rtv = NULL;
-	HRESULT e = S_OK;
+	// Begin render pass
+	ID3D11DeviceContext_OMSetRenderTargets(_context, 1, &_dest, NULL);
 
-	if (_dest) {
-		e = ID3D11Texture2D_QueryInterface(_dest, &IID_ID3D11Resource, &rtvresource);
-		if (e != S_OK) {
-			MTY_Log("'ID3D11Texture2D_QueryInterface' failed with HRESULT 0x%X", e);
-			goto except;
-		}
-
-		e = ID3D11Device_CreateRenderTargetView(_device, rtvresource, NULL, &rtv);
-		if (e != S_OK) {
-			MTY_Log("'ID3D11Device_CreateRenderTargetView' failed with HRESULT 0x%X", e);
-			goto except;
-		}
-
-		ID3D11DeviceContext_OMSetRenderTargets(_context, 1, &rtv, NULL);
-
-		FLOAT clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-		ID3D11DeviceContext_ClearRenderTargetView(_context, rtv, clear_color);
-	}
+	FLOAT clear_color[4] = {0, 0, 0, 1};
+	ID3D11DeviceContext_ClearRenderTargetView(_context, _dest, clear_color);
 
 	// Vertex shader
 	UINT stride = 4 * sizeof(float);
@@ -366,10 +347,10 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 
 	if (memcmp(&ctx->ub, &cb, sizeof(struct gfx_uniforms))) {
 		D3D11_MAPPED_SUBRESOURCE res = {0};
-		e = ID3D11DeviceContext_Map(_context, ctx->psbres, 0, D3D11_MAP_WRITE_DISCARD, 0, &res);
+		HRESULT e = ID3D11DeviceContext_Map(_context, ctx->psbres, 0, D3D11_MAP_WRITE_DISCARD, 0, &res);
 		if (e != S_OK) {
 			MTY_Log("'ID3D11DeviceContext_Map' failed with HRESULT 0x%X", e);
-			goto except;
+			return false;
 		}
 
 		memcpy(res.pData, &cb, sizeof(struct gfx_uniforms));
@@ -384,15 +365,17 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	// Draw
 	ID3D11DeviceContext_DrawIndexed(_context, 6, 0, 0);
 
-	except:
+	return true;
+}
 
-	if (rtv)
-		ID3D11RenderTargetView_Release(rtv);
+void mty_d3d11_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dest)
+{
+	ID3D11DeviceContext *_context = (ID3D11DeviceContext *) context;
+	ID3D11RenderTargetView *_dest = (ID3D11RenderTargetView *) dest;
 
-	if (rtvresource)
-		ID3D11Resource_Release(rtvresource);
-
-	return e == S_OK;
+	FLOAT clear_color[4] = {r, g, b, a};
+	ID3D11DeviceContext_ClearRenderTargetView(_context, _dest, clear_color);
 }
 
 void mty_d3d11_destroy(struct gfx **gfx, MTY_Device *device)

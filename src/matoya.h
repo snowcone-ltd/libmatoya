@@ -114,6 +114,8 @@ typedef struct {
 	float levels[2];        ///< Intensity of the applied `effects` between `0.0f` and `1.0f`.
 	bool fullRangeYUV;      ///< Use the full 0-255 color range for YUV formats.
 	bool multiplyYUV;       ///< Properly normalize 10-bit YUV formats if not already done.
+	uint8_t layer;          ///< If drawing multiple layers of quads between present, `layer`
+	                        ///<   determines the order in the blending hierarchy.
 	uint32_t imageWidth;    ///< The width in pixels of the image.
 	uint32_t imageHeight;   ///< The height in pixels of the image.
 	uint32_t cropWidth;     ///< Desired crop width of the image from the top left corner.
@@ -211,6 +213,22 @@ MTY_EXPORT bool
 MTY_RendererDrawQuad(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device,
 	MTY_Context *context, const void *image, const MTY_RenderDesc *desc,
 	MTY_Surface *dst);
+
+/// @brief Clear an MTY_Surface to a solid color.
+/// @param ctx An MTY_Renderer.
+/// @param api Graphics API used for this operation.
+/// @param device See Generic Objects.
+/// @param context See Generic Objects.
+/// @param width Width of the area within `dst` to clear.
+/// @param height Height of the area within `dst` to clear.
+/// @param r The red color channel value between 0 and 1.
+/// @param g The green color channel value between 0 and 1.
+/// @param b The blue color channel value between 0 and 1.
+/// @param a The alpha color channel value between 0 and 1.
+/// @param dst The surface to be cleared. See Generic Objects.
+MTY_EXPORT void
+MTY_RendererClear(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device, MTY_Context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dst);
 
 /// @brief Draw a UI with MTY_DrawData.
 /// @param ctx An MTY_Renderer.
@@ -1253,27 +1271,6 @@ MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen);
 MTY_EXPORT void
 MTY_WindowWarpCursor(MTY_App *app, MTY_Window window, uint32_t x, uint32_t y);
 
-/// @brief Get the window's rendering device.
-/// @param app The MTY_App.
-/// @param window An MTY_Window.
-/// @returns See Generic Objects.
-MTY_EXPORT MTY_Device *
-MTY_WindowGetDevice(MTY_App *app, MTY_Window window);
-
-/// @brief Get the window's rendering context.
-/// @param app The MTY_App.
-/// @param window An MTY_Window.
-/// @returns See Generic Objects.
-MTY_EXPORT MTY_Context *
-MTY_WindowGetContext(MTY_App *app, MTY_Window window);
-
-/// @brief Get the window's drawing surface.
-/// @param app The MTY_App.
-/// @param window An MTY_Window.
-/// @returns See Generic Objects.
-MTY_EXPORT MTY_Surface *
-MTY_WindowGetSurface(MTY_App *app, MTY_Window window);
-
 /// @brief Wrapped MTY_RendererDrawQuad for the window.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
@@ -1283,6 +1280,16 @@ MTY_WindowGetSurface(MTY_App *app, MTY_Window window);
 MTY_EXPORT void
 MTY_WindowDrawQuad(MTY_App *app, MTY_Window window, const void *image,
 	const MTY_RenderDesc *desc);
+
+/// @brief Wrapped MTY_RendererClear for the window.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @param r The red color channel value between 0 and 1.
+/// @param g The green color channel value between 0 and 1.
+/// @param b The blue color channel value between 0 and 1.
+/// @param a The alpha color channel value between 0 and 1.
+MTY_EXPORT void
+MTY_WindowClear(MTY_App *app, MTY_Window window, float r, float g, float b, float a);
 
 /// @brief Wrapped MTY_RendererDrawUI for the window.
 /// @param app The MTY_App.

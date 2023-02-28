@@ -204,7 +204,7 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest)
 {
 	struct gl *ctx = (struct gl *) gfx;
-	GLuint _dest = dest ? *((GLuint *) dest) : 0;
+	GLuint _dest = *((GLuint *) dest);
 
 	// Don't do anything until we have real data
 	if (desc->format != MTY_COLOR_FORMAT_UNKNOWN)
@@ -223,9 +223,8 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 
 	glViewport(lrint(vpx), lrint(vpy) + GL_ORIGIN_Y, lrint(vpw), lrint(vph));
 
-	// Begin render pass (set destination texture if available)
-	if (_dest)
-		glBindFramebuffer(GL_FRAMEBUFFER, _dest);
+	// Begin render pass
+	glBindFramebuffer(GL_FRAMEBUFFER, _dest);
 
 	// Context state, set vertex and fragment shaders
 	glDisable(GL_BLEND);
@@ -271,6 +270,17 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
 
 	return true;
+}
+
+void mty_gl_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dest)
+{
+	GLuint _dest = *((GLuint *) dest);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, _dest);
+	glDisable(GL_SCISSOR_TEST);
+	glClearColor(r, g, b, a);
+	glClear(GL_COLOR_BUFFER_BIT);
 }
 
 void mty_gl_destroy(struct gfx **gfx, MTY_Device *device)
