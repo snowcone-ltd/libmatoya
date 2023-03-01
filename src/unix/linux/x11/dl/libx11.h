@@ -151,6 +151,10 @@
 #define XA_CUT_BUFFER0            ((Atom) 9)
 #define XA_STRING                 ((Atom) 31)
 
+#define XC_hand2                  60
+#define XC_left_ptr               68
+#define XC_xterm                  152
+
 #define USPosition                (1L << 0)
 #define USSize                    (1L << 1)
 #define PPosition                 (1L << 2)

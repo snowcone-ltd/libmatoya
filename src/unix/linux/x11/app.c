@@ -35,9 +35,9 @@ struct MTY_App {
 	Cursor empty_cursor;
 	Cursor custom_cursor;
 	Cursor cursor;
-	bool default_cursor;
 	bool hide_cursor;
 	char *class_name;
+	MTY_Cursor scursor;
 	MTY_DetachState detach;
 	XVisualInfo *vis;
 	Atom wm_close;
@@ -320,9 +320,22 @@ static void app_apply_mouse_grab(MTY_App *app, struct window *win)
 
 static void app_apply_cursor(MTY_App *app, bool focus)
 {
-	Cursor cur = focus && (app->hide_cursor || (app->relative && app->detach == MTY_DETACH_STATE_NONE)) ?
-		app->empty_cursor : app->custom_cursor && !app->default_cursor ?
-		app->custom_cursor : None;
+	Cursor cur = None;
+
+	if (focus && (app->hide_cursor || (app->relative && app->detach == MTY_DETACH_STATE_NONE))) {
+		cur = app->empty_cursor;
+
+	} else {
+		Cursor scursor = None;
+
+		switch (app->scursor) {
+			case MTY_CURSOR_ARROW: scursor = XCreateFontCursor(app->display, XC_left_ptr); break;
+			case MTY_CURSOR_HAND:  scursor = XCreateFontCursor(app->display, XC_hand2);    break;
+			case MTY_CURSOR_IBEAM: scursor = XCreateFontCursor(app->display, XC_xterm);    break;
+		}
+
+		cur = scursor != None ? scursor : app->custom_cursor != None ? app->custom_cursor : None;
+	}
 
 	if (cur != app->cursor) {
 		for (MTY_Window x = 0; x < MTY_WINDOW_MAX; x++) {
@@ -921,10 +934,10 @@ void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t 
 	ctx->state++;
 }
 
-void MTY_AppUseDefaultCursor(MTY_App *ctx, bool useDefault)
+void MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor)
 {
-	if (ctx->default_cursor != useDefault) {
-		ctx->default_cursor = useDefault;
+	if (ctx->scursor != cursor) {
+		ctx->scursor = cursor;
 		ctx->state++;
 	}
 }

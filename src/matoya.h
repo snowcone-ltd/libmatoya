@@ -685,6 +685,15 @@ typedef enum {
 	MTY_WEBVIEW_FLAG_MAKE_32 = INT32_MAX,
 } MTY_WebViewFlag;
 
+/// @brief Predefined cursors set via MTY_AppSetCursor.
+typedef enum {
+	MTY_CURSOR_NONE    = 0, ///< Revert the effects of MTY_AppSetCursor.
+	MTY_CURSOR_ARROW   = 1, ///< Standard arrow cursor.
+	MTY_CURSOR_HAND    = 2, ///< Hand cursor.
+	MTY_CURSOR_IBEAM   = 3, ///< I-beam cursor.
+	MTY_CURSOR_MAKE_32 = INT32_MAX,
+} MTY_Cursor;
+
 /// @brief Key event.
 typedef struct {
 	MTY_Key key;  ///< The key that has been pressed or released.
@@ -964,12 +973,14 @@ MTY_EXPORT void
 MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX,
 	uint32_t hotY);
 
-/// @brief Temporarily use the system's default cursor.
+/// @brief Use a cursor predefined by the OS.
+/// @details The cursor set via this function will take precedence over any set with
+///   MTY_AppSetPNGCursor.
 /// @param ctx The MTY_App.
-/// @param useDefault Set true to use the system's default cursor, false to allow
-///   other cursors.
+/// @param cursor The predefined cursor. Set MTY_CURSOR_NONE to revert the effects
+///   of this function.
 MTY_EXPORT void
-MTY_AppUseDefaultCursor(MTY_App *ctx, bool useDefault);
+MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor);
 
 /// @brief Show or hide the cursor.
 /// @param ctx The MTY_App.

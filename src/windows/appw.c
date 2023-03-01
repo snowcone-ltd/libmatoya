@@ -53,7 +53,6 @@ struct MTY_App {
 	bool relative;
 	bool kbgrab;
 	bool mgrab;
-	bool default_cursor;
 	bool hide_cursor;
 	bool ghk_disabled;
 	bool filter_move;
@@ -65,6 +64,7 @@ struct MTY_App {
 	int32_t last_y;
 	struct hid *hid;
 	struct xip *xip;
+	MTY_Cursor scursor;
 	MTY_Button buttons;
 	MTY_DetachState detach;
 	MTY_Hash *hotkey;
@@ -481,7 +481,15 @@ static void app_apply_cursor(MTY_App *app, bool focus)
 		app->cursor = NULL;
 
 	} else {
-		app->cursor = (app->custom_cursor && !app->default_cursor) ? app->custom_cursor :
+		const WCHAR *scursor = NULL;
+
+		switch (app->scursor) {
+			case MTY_CURSOR_ARROW: scursor = IDC_ARROW; break;
+			case MTY_CURSOR_HAND:  scursor = IDC_HAND;  break;
+			case MTY_CURSOR_IBEAM: scursor = IDC_IBEAM; break;
+		}
+
+		app->cursor = scursor ? LoadCursor(NULL, scursor) : app->custom_cursor ? app->custom_cursor :
 			LoadCursor(NULL, IDC_ARROW);
 	}
 
@@ -1439,10 +1447,10 @@ void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t 
 	}
 }
 
-void MTY_AppUseDefaultCursor(MTY_App *ctx, bool useDefault)
+void MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor)
 {
-	if (ctx->default_cursor != useDefault) {
-		ctx->default_cursor = useDefault;
+	if (ctx->scursor != cursor) {
+		ctx->scursor = cursor;
 		ctx->state++;
 	}
 }

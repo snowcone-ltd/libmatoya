@@ -36,6 +36,7 @@ CGError CGSSetGlobalHotKeyOperatingMode(int32_t conn, enum CGSGlobalHotKeyOperat
 	@property MTY_Hash *hotkey;
 	@property MTY_Hash *deduper;
 	@property MTY_DetachState detach;
+	@property MTY_Cursor scursor;
 	@property void *opaque;
 	@property void *kb_mode;
 	@property bool relative;
@@ -105,8 +106,16 @@ static void app_apply_relative(App *ctx)
 static void app_apply_cursor(App *ctx)
 {
 	NSCursor *arrow = [NSCursor arrowCursor];
-	NSCursor *new = ctx.default_cursor || ctx.cursor_outside || ctx.detach != MTY_DETACH_STATE_NONE ? arrow :
-		ctx.custom_cursor ? ctx.custom_cursor : arrow;
+	NSCursor *scursor = nil;
+
+	switch (ctx.scursor) {
+		case MTY_CURSOR_ARROW: scursor = [NSCursor arrowCursor];        break;
+		case MTY_CURSOR_HAND:  scursor = [NSCursor pointingHandCursor]; break;
+		case MTY_CURSOR_IBEAM: scursor = [NSCursor IBeamCursor];        break;
+	}
+
+	NSCursor *new = ctx.cursor_outside || ctx.detach != MTY_DETACH_STATE_NONE ? arrow :
+		scursor ? scursor : ctx.custom_cursor ? ctx.custom_cursor : arrow;
 
 	ctx.cursor = new;
 	[ctx.cursor set];
@@ -1255,11 +1264,11 @@ void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t 
 	app_apply_cursor(app);
 }
 
-void MTY_AppUseDefaultCursor(MTY_App *ctx, bool useDefault)
+void MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor)
 {
 	App *app = (__bridge App *) ctx;
 
-	app.default_cursor = useDefault;
+	app.scursor = cursor;
 
 	app_apply_cursor(app);
 }
