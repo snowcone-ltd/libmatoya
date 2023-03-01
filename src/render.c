@@ -53,19 +53,14 @@ static void render_destroy(MTY_Renderer *ctx)
 		return;
 
 	for (uint8_t x = 0; x < RENDER_LAYERS; x++)
-		if (ctx->gfx[x])
-			GFX_API[ctx->api].destroy(&ctx->gfx[x], ctx->device);
+		GFX_API[ctx->api].destroy(&ctx->gfx[x], ctx->device);
 
-	if (ctx->gfx_ui) {
-		uint64_t i = 0;
-
-		for (int64_t id = 0; MTY_HashGetNextKeyInt(ctx->textures, &i, &id);) {
-			void *texture = MTY_HashPopInt(ctx->textures, id);
-			GFX_UI_API[ctx->api].destroy_texture(ctx->gfx_ui, &texture, ctx->device);
-		}
-
-		GFX_UI_API[ctx->api].destroy(&ctx->gfx_ui, ctx->device);
+	for (int64_t id = 0, i = 0; MTY_HashGetNextKeyInt(ctx->textures, (uint64_t *) &i, &id);) {
+		void *texture = MTY_HashPopInt(ctx->textures, id);
+		GFX_UI_API[ctx->api].destroy_texture(ctx->gfx_ui, &texture, ctx->device);
 	}
+
+	GFX_UI_API[ctx->api].destroy(&ctx->gfx_ui, ctx->device);
 
 	ctx->api = MTY_GFX_NONE;
 	ctx->device = NULL;
@@ -103,7 +98,7 @@ static bool renderer_begin(MTY_Renderer *ctx, MTY_GFX api, uint8_t layer, MTY_Co
 	render_set_api(ctx, api, device);
 
 	if (!ctx->gfx[layer])
-		ctx->gfx[layer] = GFX_API[api].create(device);
+		ctx->gfx[layer] = GFX_API[api].create(device, layer);
 
 	return ctx->gfx[layer] != NULL;
 }

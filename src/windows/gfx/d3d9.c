@@ -38,7 +38,7 @@ struct d3d9 {
 	IDirect3DIndexBuffer9 *ib;
 };
 
-struct gfx *mty_d3d9_create(MTY_Device *device)
+struct gfx *mty_d3d9_create(MTY_Device *device, uint8_t layer)
 {
 	struct d3d9 *ctx = MTY_Alloc(1, sizeof(struct d3d9));
 	IDirect3DDevice9 *_device = (IDirect3DDevice9 *) device;
@@ -248,10 +248,20 @@ bool mty_d3d9_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 		return false;
 	}
 
-	e = IDirect3DDevice9_Clear(_device, 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_RGBA(0, 0, 0, 0), 0, 0);
-	if (e != D3D_OK) {
-		MTY_Log("'IDirect3DDevice9_Clear' failed with HRESULT 0x%X", e);
-		return false;
+	if (desc->layer == 0) {
+		e = IDirect3DDevice9_Clear(_device, 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_RGBA(0, 0, 0, 1), 0, 0);
+		if (e != D3D_OK) {
+			MTY_Log("'IDirect3DDevice9_Clear' failed with HRESULT 0x%X", e);
+			return false;
+		}
+
+		IDirect3DDevice9_SetRenderState(_device, D3DRS_ALPHABLENDENABLE, FALSE);
+
+	} else {
+		IDirect3DDevice9_SetRenderState(_device, D3DRS_ALPHABLENDENABLE, TRUE);
+		IDirect3DDevice9_SetRenderState(_device, D3DRS_BLENDOP, D3DBLENDOP_ADD);
+		IDirect3DDevice9_SetRenderState(_device, D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+		IDirect3DDevice9_SetRenderState(_device, D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 	}
 
 	// Viewport

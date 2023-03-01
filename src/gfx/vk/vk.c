@@ -67,7 +67,7 @@ static bool vk_one_shot_buffer(const VkPhysicalDeviceMemoryProperties *pdprops, 
 	return r;
 }
 
-struct gfx *mty_vk_create(MTY_Device *device)
+struct gfx *mty_vk_create(MTY_Device *device, uint8_t layer)
 {
 	struct vk *ctx = MTY_Alloc(1, sizeof(struct vk));
 
@@ -164,19 +164,23 @@ struct gfx *mty_vk_create(MTY_Device *device)
 	}
 
 	// Render pass
+	VkAttachmentDescription ad = {
+		.format = VKPROC_FORMAT,
+		.samples = VK_SAMPLE_COUNT_1_BIT,
+		.loadOp = layer == 0 ? VK_ATTACHMENT_LOAD_OP_CLEAR :
+			VK_ATTACHMENT_LOAD_OP_LOAD,
+		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+		.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+		.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+		.initialLayout = layer == 0 ? VK_IMAGE_LAYOUT_UNDEFINED :
+			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+		.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+	};
+
 	VkRenderPassCreateInfo rpci = {
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
 		.attachmentCount = 1,
-		.pAttachments = &(VkAttachmentDescription) {
-			.format = VKPROC_FORMAT,
-			.samples = VK_SAMPLE_COUNT_1_BIT,
-			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-			.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-			.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-		},
+		.pAttachments = &ad,
 		.subpassCount = 1,
 		.pSubpasses = &(VkSubpassDescription) {
 			.colorAttachmentCount = 1,
@@ -309,6 +313,13 @@ struct gfx *mty_vk_create(MTY_Device *device)
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
 			.attachmentCount = 1,
 			.pAttachments = &(VkPipelineColorBlendAttachmentState) {
+				.blendEnable = layer == 0 ? VK_FALSE : VK_TRUE,
+				.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+				.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+				.colorBlendOp = VK_BLEND_OP_ADD,
+				.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+				.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+				.alphaBlendOp = VK_BLEND_OP_ADD,
 				.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
 					VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
 			},
@@ -420,7 +431,7 @@ bool mty_vk_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 		},
 		.clearValueCount = 1,
 		.pClearValues = &(VkClearValue) {
-			.color.float32 = {0.0f, 0.0f, 0.0f, 1.0f}
+			.color.float32 = {0, 0, 0, 1}
 		},
 	};
 

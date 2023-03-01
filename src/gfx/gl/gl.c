@@ -64,7 +64,7 @@ static void gl_log_shader_errors(GLuint shader)
 	}
 }
 
-struct gfx *mty_gl_create(MTY_Device *device)
+struct gfx *mty_gl_create(MTY_Device *device, uint8_t layer)
 {
 	if (!glproc_global_init())
 		return NULL;
@@ -227,7 +227,6 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	glBindFramebuffer(GL_FRAMEBUFFER, _dest);
 
 	// Context state, set vertex and fragment shaders
-	glDisable(GL_BLEND);
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_SCISSOR_TEST);
@@ -241,9 +240,17 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	glVertexAttribPointer(ctx->loc_pos, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
 	glVertexAttribPointer(ctx->loc_uv,  2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *) (2 * sizeof(GLfloat)));
 
-	// Clear
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
+	// Layer alpha blending
+	if (desc->layer == 0) {
+		glDisable(GL_BLEND);
+		glClearColor(0, 0, 0, 1);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+	} else {
+		glEnable(GL_BLEND);
+		glBlendEquation(GL_FUNC_ADD);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	}
 
 	// Fragment shader
 	for (uint8_t x = 0; x < GL_NUM_STAGING; x++) {
