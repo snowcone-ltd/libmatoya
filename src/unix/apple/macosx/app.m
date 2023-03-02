@@ -1506,11 +1506,13 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 	if (!ctx)
 		return;
 
-	mty_webview_destroy(&ctx.cmn->webview);
-	MTY_Free(ctx.cmn);
-
 	ctx.app.windows[window] = NULL;
 	[ctx close];
+
+	// XXX Make sure this is freed after the window is closed, events
+	// can continue to fire until that point
+	mty_webview_destroy(&ctx.cmn->webview);
+	MTY_Free(ctx.cmn);
 }
 
 MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
