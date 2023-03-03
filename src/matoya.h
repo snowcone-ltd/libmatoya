@@ -696,9 +696,10 @@ typedef enum {
 
 /// @brief Key event.
 typedef struct {
-	MTY_Key key;  ///< The key that has been pressed or released.
-	MTY_Mod mod;  ///< Modifiers in effect.
-	bool pressed; ///< State of the key.
+	MTY_Key key;   ///< The key that has been pressed or released.
+	MTY_Mod mod;   ///< Modifiers in effect.
+	uint32_t vkey; ///< The OS specific virtual code. Windows, macOS, and Linux only.
+	bool pressed;  ///< State of the key.
 } MTY_KeyEvent;
 
 /// @brief Scroll event.

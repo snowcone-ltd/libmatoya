@@ -654,6 +654,7 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 			evt.key.mod = app_get_keymod();
 			evt.key.pressed = !(lparam >> 31);
 			evt.key.key = lparam >> 16 & 0xFF;
+			evt.key.vkey = (uint32_t) wparam;
 			if (lparam >> 24 & 0x01)
 				evt.key.key |= 0x0100;
 

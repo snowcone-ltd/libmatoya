@@ -400,6 +400,7 @@ static void app_event(MTY_App *ctx, XEvent *event)
 			if (evt.key.key != MTY_KEY_NONE) {
 				evt.type = MTY_EVENT_KEY;
 				evt.window = app_find_window(ctx, event->xkey.window);
+				evt.key.vkey = XLookupKeysym(&event->xkey, 0);
 				evt.key.pressed = event->type == KeyPress;
 				evt.key.mod = keymap_keystate_to_keymod(evt.key.key,
 					evt.key.pressed, event->xkey.state);

@@ -677,10 +677,11 @@ static void window_text_event(Window *window, const char *text)
 	}
 }
 
-static void window_keyboard_event(Window *window, int16_t key_code, NSEventModifierFlags flags, bool pressed)
+static void window_keyboard_event(Window *window, uint16_t key_code, NSEventModifierFlags flags, bool pressed)
 {
 	MTY_Event evt = window_event(window, MTY_EVENT_KEY);
 	evt.key.key = keymap_keycode_to_key(key_code);
+	evt.key.vkey = key_code;
 	evt.key.mod = keymap_modifier_flags_to_keymod(flags);
 	evt.key.pressed = pressed;
 
@@ -694,6 +695,7 @@ static void window_mod_event(Window *window, NSEvent *event)
 {
 	MTY_Event evt = window_event(window, MTY_EVENT_KEY);
 	evt.key.key = keymap_keycode_to_key(event.keyCode);
+	evt.key.vkey = event.keyCode;
 	evt.key.mod = keymap_modifier_flags_to_keymod(event.modifierFlags);
 
 	switch (evt.key.key) {
