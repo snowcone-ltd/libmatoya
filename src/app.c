@@ -301,6 +301,15 @@ bool MTY_WebViewIsVisible(MTY_App *app, MTY_Window window)
 	return mty_webview_is_visible(cmn->webview);
 }
 
+bool MTY_WebViewNavigate(MTY_App *app, MTY_Window window, const char *source, bool url)
+{
+	struct window_common *cmn = mty_window_get_common(app, window);
+	if (!cmn || !cmn->webview)
+		return false;
+
+	return mty_webview_navigate(cmn->webview, source, url);
+}
+
 void MTY_WebViewSendText(MTY_App *app, MTY_Window window, const char *text)
 {
 	struct window_common *cmn = mty_window_get_common(app, window);

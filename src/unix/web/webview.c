@@ -24,6 +24,11 @@ bool mty_webview_is_visible(struct webview *ctx)
 	return false;
 }
 
+bool mty_webview_navigate(struct webview *ctx, const char *source, bool url)
+{
+	return false;
+}
+
 void mty_webview_send_text(struct webview *ctx, const char *msg)
 {
 }

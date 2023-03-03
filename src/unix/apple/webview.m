@@ -246,6 +246,23 @@ bool mty_webview_is_visible(struct webview *ctx)
 	return !ctx->webview.hidden;
 }
 
+bool mty_webview_navigate(struct webview *ctx, const char *source, bool is_url)
+{
+	NSString *osource = [NSString stringWithUTF8String:source];
+
+	if (is_url) {
+		NSURL *url = [[NSURL alloc] initWithString:osource];
+
+		NSURLRequest *req = [[NSURLRequest alloc] initWithURL:url];
+		[ctx->webview loadRequest:req];
+
+	} else {
+		[ctx->webview loadHTMLString:osource baseURL:nil];
+	}
+
+	return true;
+}
+
 void mty_webview_send_text(struct webview *ctx, const char *msg)
 {
 	if (!ctx->ready) {

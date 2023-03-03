@@ -536,6 +536,29 @@ bool mty_webview_is_visible(struct webview *ctx)
 	return visible;
 }
 
+bool mty_webview_navigate(struct webview *ctx, const char *source_, bool url)
+{
+	WCHAR *source = MTY_MultiToWideD(source_);
+
+	if (!ctx->webview) {
+		if (ctx->source)
+			MTY_Free(ctx->source);
+		ctx->source = source;
+		return false;
+	}
+
+	if (url) {
+		ICoreWebView2_Navigate(ctx->webview, source);
+
+	} else {
+		ICoreWebView2_NavigateToString(ctx->webview, source);
+	}
+
+	MTY_Free(source);
+
+	return true;
+}
+
 void mty_webview_send_text(struct webview *ctx, const char *msg)
 {
 	if (!ctx->ready) {
