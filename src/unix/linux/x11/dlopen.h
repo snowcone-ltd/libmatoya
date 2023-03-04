@@ -6,4 +6,4 @@
 
 #include <dlfcn.h>
 
-#define DLOPEN_FLAGS (RTLD_NOW | RTLD_LOCAL | RTLD_DEEPBIND)
+#define DLOPEN_FLAGS (RTLD_NOW | RTLD_LOCAL)
