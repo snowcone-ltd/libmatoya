@@ -36,11 +36,25 @@ void mty_webview_set_input_passthrough(struct webview *ctx, bool passthrough)
 {
 }
 
-void mty_webview_update_size(struct webview *ctx)
+bool mty_webview_was_hidden_during_keydown(struct webview *ctx)
+{
+	return false;
+}
+
+bool mty_webview_event(struct webview *ctx, MTY_Event *evt)
+{
+	return false;
+}
+
+void mty_webview_run(struct webview *ctx)
 {
 }
 
-bool mty_webview_was_hidden_during_keydown(struct webview *ctx)
+void mty_webview_render(struct webview *ctx)
+{
+}
+
+bool mty_webview_is_steam(void)
 {
 	return false;
 }

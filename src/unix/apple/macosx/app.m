@@ -811,7 +811,7 @@ static void window_mod_event(Window *window, NSEvent *event)
 		self.app.event_func(&evt, self.app.opaque);
 
 		if (self.cmn->webview)
-			mty_webview_update_size(self.cmn->webview);
+			mty_webview_event(self.cmn->webview, &evt);
 	}
 
 	- (void)windowDidMove:(NSNotification *)notification

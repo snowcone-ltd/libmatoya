@@ -111,6 +111,12 @@ else
 #############
 ifeq ($(UNAME_S), Linux)
 
+ifdef STEAM
+WEBVIEW_OBJ = src/swebview.o
+else
+WEBVIEW_OBJ = src/unix/linux/x11/webview.o
+endif
+
 OBJS := $(OBJS) \
 	src/gfx/vk/vk.o \
 	src/gfx/vk/vk-ctx.o \
@@ -129,14 +135,14 @@ OBJS := $(OBJS) \
 	src/unix/linux/x11/request.o \
 	src/unix/linux/x11/system.o \
 	src/unix/linux/x11/tls.o \
-	src/unix/linux/x11/webview.o \
 	src/unix/linux/x11/gfx/gl-ctx.o \
 	src/unix/net/gzip.o \
 	src/unix/net/http.o \
 	src/unix/net/net.o \
 	src/unix/net/secure.o \
 	src/unix/net/tcp.o \
-	src/unix/net/ws.o
+	src/unix/net/ws.o \
+	$(WEBVIEW_OBJ)
 
 SHADERS := $(SHADERS) \
 	src/gfx/vk/shaders/fs.h \

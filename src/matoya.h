@@ -1375,7 +1375,9 @@ MTY_WindowGetNative(MTY_App *app, MTY_Window window);
 ///   WKWebView framework.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
-/// @param dir Path to where temporary files related to the WebView will be stored. Windows only.
+/// @param dir Path to where temporary files related to the WebView will be stored (Windows only).
+///   If MTY_WebViewIsSteam returns true, `dir` will be interpreted as the directory where the
+///   Steam API shared object resides (i.e. `libsteam_api.so`).
 /// @param source Source content to be loaded by the WebView. This argument can either be a
 ///   URL or direct HTML depending on the value of `flags`.
 /// @param flags Flags specifying various WebView behaviors.
@@ -1432,6 +1434,10 @@ MTY_WebViewReload(MTY_App *app, MTY_Window window);
 /// @param Enable or disable input passthrough from the WebView.
 MTY_EXPORT void
 MTY_WebViewSetInputPassthrough(MTY_App *app, MTY_Window window, bool passthrough);
+
+/// @brief Check if libmatoya is using the Steam API for its WebView implementation.
+MTY_EXPORT bool
+MTY_WebViewIsSteam(void);
 
 /// @brief Fill an MTY_Frame taking the current display settings into account.
 /// @details The returned MTY_Frame can be passed directly to MTY_WindowCreate or

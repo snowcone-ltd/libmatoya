@@ -151,6 +151,9 @@ void MTY_WindowPresent(MTY_App *app, MTY_Window window)
 	if (!cmn || cmn->api == MTY_GFX_NONE)
 		return;
 
+	if (cmn->webview)
+		mty_webview_render(cmn->webview);
+
 	gfx_ctx_present(cmn);
 }
 
@@ -323,6 +326,11 @@ void MTY_WebViewSetInputPassthrough(MTY_App *app, MTY_Window window, bool passth
 		return;
 
 	mty_webview_set_input_passthrough(cmn->webview, passthrough);
+}
+
+bool MTY_WebViewIsSteam(void)
+{
+	return mty_webview_is_steam();
 }
 
 

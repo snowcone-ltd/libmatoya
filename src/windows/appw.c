@@ -606,9 +606,6 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 		case WM_SIZE:
 			app->state++;
 			evt.type = MTY_EVENT_SIZE;
-
-			if (ctx->cmn.webview)
-				mty_webview_update_size(ctx->cmn.webview);
 			break;
 		case WM_MOVE:
 			evt.type = MTY_EVENT_MOVE;
@@ -863,7 +860,8 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 
 	// Process the message
 	if (evt.type != MTY_EVENT_NONE) {
-		app->event_func(&evt, app->opaque);
+		if (!ctx->cmn.webview || !mty_webview_event(ctx->cmn.webview, &evt))
+			app->event_func(&evt, app->opaque);
 
 		if (evt.type == MTY_EVENT_DROP)
 			MTY_Free((void *) evt.drop.buf);
@@ -1138,6 +1136,10 @@ void MTY_AppRun(MTY_App *ctx)
 
 		// Mouse button state reconciliation
 		app_fix_mouse_buttons(ctx);
+
+		// WebView main thread upkeep (Steam callbacks)
+		if (window->cmn.webview)
+			mty_webview_run(window->cmn.webview);
 
 		cont = ctx->app_func(ctx->opaque);
 

@@ -28,6 +28,12 @@ NAME = matoya
 .fragvk.h:
 	@deps\bin\glslangValidator -S frag -V --vn FRAG $< -o $@
 
+!IFDEF STEAM
+WEBVIEW_OBJ = src\swebview.obj
+!ELSE
+WEBVIEW_OBJ = src\windows\webview.obj
+!ENDIF
+
 OBJS = \
 	src\app.obj \
 	src\crypto.obj \
@@ -70,7 +76,6 @@ OBJS = \
 	src\windows\threadw.obj \
 	src\windows\time.obj \
 	src\windows\tlsw.obj \
-	src\windows\webview.obj \
 	src\windows\gfx\d3d12.obj \
 	src\windows\gfx\d3d12-ctx.obj \
 	src\windows\gfx\d3d12-ui.obj \
@@ -82,7 +87,8 @@ OBJS = \
 	src\windows\gfx\d3d9-ui.obj \
 	src\windows\gfx\gl-ctx.obj \
 	src\windows\net\request.obj \
-	src\windows\net\ws.obj
+	src\windows\net\ws.obj \
+	$(WEBVIEW_OBJ)
 
 SHADERS = \
 	src\gfx\gl\shaders\fs.h \

@@ -365,7 +365,8 @@ static void window_text_event(MTY_App *ctx, XEvent *event)
 	KeySym ks = 0;
 
 	if (Xutf8LookupString(win->ic, (XKeyPressedEvent *) event, evt.text, 8, &ks, &status) > 0)
-		ctx->event_func(&evt, ctx->opaque);
+		if (!win->cmn.webview || !mty_webview_event(win->cmn.webview, &evt))
+			ctx->event_func(&evt, ctx->opaque);
 }
 
 static float app_get_scale(Display *display)
@@ -546,8 +547,12 @@ static void app_event(MTY_App *ctx, XEvent *event)
 		mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
 
 	// Handle the message
-	if (evt.type != MTY_EVENT_NONE)
-		ctx->event_func(&evt, ctx->opaque);
+	if (evt.type != MTY_EVENT_NONE) {
+		struct window *win = app_get_window(ctx, evt.window);
+
+		if (!win || !win->cmn.webview || !mty_webview_event(win->cmn.webview, &evt))
+			ctx->event_func(&evt, ctx->opaque);
+	}
 }
 
 
@@ -733,6 +738,8 @@ static void app_suspend_ss(MTY_App *ctx)
 void MTY_AppRun(MTY_App *ctx)
 {
 	for (bool cont = true; cont;) {
+		struct window *win0 = app_get_window(ctx, 0);
+
 		// Grab / mouse state evaluation
 		if (ctx->state != ctx->prev_state) {
 			struct window *win = app_get_active_window(ctx);
@@ -758,6 +765,10 @@ void MTY_AppRun(MTY_App *ctx)
 		// evdev events
 		if (ctx->evdev)
 			mty_evdev_poll(ctx->evdev, app_evdev_report);
+
+		// WebView main thread upkeep (Steam callbacks)
+		if (win0->cmn.webview)
+			mty_webview_run(win0->cmn.webview);
 
 		// Fire app func after all events have been processed
 		cont = ctx->app_func(ctx->opaque);
@@ -1199,6 +1210,8 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 		XDestroyIC(ctx->ic);
 
 	XDestroyWindow(app->display, ctx->window);
+
+	mty_webview_destroy(&ctx->cmn.webview);
 
 	MTY_Free(ctx);
 	app->windows[window] = NULL;

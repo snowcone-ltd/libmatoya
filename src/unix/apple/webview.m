@@ -142,16 +142,28 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 
 	// MTY javascript shim
 	WKUserScript *script = [[WKUserScript alloc] initWithSource:
-		@"let __MTY_WEBVIEW = b64 => {};"
+		@"const __MTY_MSGS = [];"
 
-		@"function MTY_NativeSendText(text) {"
+		@"let __MTY_WEBVIEW = b64 => {"
+			@"__MTY_MSGS.push(b64);"
+		@"};"
+
+		@"window.MTY_NativeSendText = text => {"
 			@"window.webkit.messageHandlers.native.postMessage('T' + text);"
-		@"}"
+		@"};"
 
-		@"function MTY_NativeAddListener(func) {"
-			@"__MTY_WEBVIEW = b64 => func(atob(b64));"
-			@"window.webkit.messageHandlers.native.postMessage('R');"
-		@"}"
+		@"window.webkit.messageHandlers.native.postMessage('R');"
+
+		@"const __MTY_INTERVAL = setInterval(() => {"
+			@"if (window.MTY_NativeListener) {"
+				@"__MTY_WEBVIEW = b64 => {window.MTY_NativeListener(atob(b64));};"
+
+				@"for (let msg = __MTY_MSGS.shift(); msg; msg = MTY_MSGS.shift())"
+					@"__MTY_WEBVIEW(msg);"
+
+				@"clearInverval(__MTY_INTERVAL);"
+			@"}"
+		@"}, 100);"
 
 		@"function __mty_key_to_json(evt) {"
 			@"let mods = 0;"
@@ -262,20 +274,37 @@ void mty_webview_set_input_passthrough(struct webview *ctx, bool passthrough)
 	ctx->passthrough = passthrough;
 }
 
-void mty_webview_update_size(struct webview *ctx)
-{
-	#if TARGET_OS_OSX
-		ctx->webview.frame = ctx->webview.window.contentView.frame;
-
-	#else
-		ctx->webview.frame = ctx->webview.window.frame;
-	#endif
-}
-
 bool mty_webview_was_hidden_during_keydown(struct webview *ctx)
 {
 	bool r = ctx->hidden_during_keydown;
 	ctx->hidden_during_keydown = false;
 
 	return r;
+}
+
+bool mty_webview_event(struct webview *ctx, MTY_Event *evt)
+{
+	if (evt->type == MTY_EVENT_SIZE) {
+		#if TARGET_OS_OSX
+			ctx->webview.frame = ctx->webview.window.contentView.frame;
+
+		#else
+			ctx->webview.frame = ctx->webview.window.frame;
+		#endif
+	}
+
+	return false;
+}
+
+void mty_webview_run(struct webview *ctx)
+{
+}
+
+void mty_webview_render(struct webview *ctx)
+{
+}
+
+bool mty_webview_is_steam(void)
+{
+	return false;
 }

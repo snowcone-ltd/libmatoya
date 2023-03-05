@@ -167,6 +167,17 @@ static HRESULT STDMETHODCALLTYPE h1_query_interface(void *This,
 	return E_NOINTERFACE;
 }
 
+static void webview_update_size(struct webview *ctx)
+{
+	MTY_Size size = MTY_WindowGetSize(ctx->app, ctx->window);
+
+	RECT bounds = {0};
+	bounds.right = size.w;
+	bounds.bottom = size.h;
+
+	ICoreWebView2Controller2_put_Bounds(ctx->controller, bounds);
+}
+
 static HRESULT STDMETHODCALLTYPE h1_Invoke(ICoreWebView2CreateCoreWebView2ControllerCompletedHandler *This,
 	HRESULT errorCode, ICoreWebView2Controller *controller)
 {
@@ -184,7 +195,7 @@ static HRESULT STDMETHODCALLTYPE h1_Invoke(ICoreWebView2CreateCoreWebView2Contro
 	COREWEBVIEW2_COLOR bg = {0};
 	ICoreWebView2Controller2_put_DefaultBackgroundColor(ctx->controller, bg);
 
-	mty_webview_update_size(ctx);
+	webview_update_size(ctx);
 
 	BOOL debug = ctx->flags & MTY_WEBVIEW_FLAG_DEBUG;
 
@@ -200,17 +211,31 @@ static HRESULT STDMETHODCALLTYPE h1_Invoke(ICoreWebView2CreateCoreWebView2Contro
 		(ICoreWebView2WebMessageReceivedEventHandler *) &ctx->handler2, &token);
 
 	const WCHAR *script =
-		L"function MTY_NativeSendText(text) {"
+		L"const __MTY_MSGS = [];"
+
+		L"window.chrome.webview.addEventListener('message', evt => {"
+			L"if (window.MTY_NativeListener) {"
+				L"window.MTY_NativeListener(evt.data);"
+
+			L"} else {"
+				L"__MTY_MSGS.push(evt.data);"
+			L"}"
+		L"});"
+
+		L"window.MTY_NativeSendText = text => {"
 			L"window.chrome.webview.postMessage('T' + text);"
-		L"}"
+		L"};"
 
-		L"function MTY_NativeAddListener(func) {"
-			L"window.chrome.webview.addEventListener('message', evt => {"
-				L"func(evt.data);"
-			L"});"
+		L"window.chrome.webview.postMessage('R');"
 
-			L"window.chrome.webview.postMessage('R');"
-		L"}"
+		L"const __MTY_INTERVAL = setInterval(() => {"
+			L"if (window.MTY_NativeListener) {"
+				L"for (let msg = __MTY_MSGS.shift(); msg; msg = MTY_MSGS.shift())"
+					L"window.MTY_NativeListener(msg);"
+
+				L"clearInterval(__MTY_INTERVAL);"
+			L"}"
+		L"}, 100);"
 
 		L"function __mty_key_to_json(evt) {"
 			L"let mods = 0;"
@@ -533,13 +558,28 @@ void mty_webview_set_input_passthrough(struct webview *ctx, bool passthrough)
 	ctx->passthrough = passthrough;
 }
 
-void mty_webview_update_size(struct webview *ctx)
+bool mty_webview_was_hidden_during_keydown(struct webview *ctx)
 {
-	MTY_Size size = MTY_WindowGetSize(ctx->app, ctx->window);
+	return false;
+}
 
-	RECT bounds = {0};
-	bounds.right = size.w;
-	bounds.bottom = size.h;
+bool mty_webview_event(struct webview *ctx, MTY_Event *evt)
+{
+	if (evt->type == MTY_EVENT_SIZE)
+		webview_update_size(ctx);
 
-	ICoreWebView2Controller2_put_Bounds(ctx->controller, bounds);
+	return false;
+}
+
+void mty_webview_run(struct webview *ctx)
+{
+}
+
+void mty_webview_render(struct webview *ctx)
+{
+}
+
+bool mty_webview_is_steam(void)
+{
+	return false;
 }
