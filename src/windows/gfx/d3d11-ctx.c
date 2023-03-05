@@ -297,7 +297,7 @@ void mty_d3d11_ctx_present(struct gfx_ctx *gfx_ctx)
 	struct d3d11_ctx *ctx = (struct d3d11_ctx *) gfx_ctx;
 
 	if (ctx->back_buffer) {
-		bool tearing = ctx->vsync && (ctx->flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING);
+		bool tearing = !ctx->vsync && (ctx->flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING);
 
 		UINT interval = tearing ? 0 : 1;
 		UINT flags = tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
