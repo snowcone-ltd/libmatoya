@@ -100,8 +100,7 @@ struct webview {
 @end
 
 struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *dir,
-	const char *source, MTY_WebViewFlag flags, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func,
-	WEBVIEW_KEY key_func)
+	MTY_WebViewFlag flags, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func, WEBVIEW_KEY key_func)
 {
 	struct webview *ctx = MTY_Alloc(1, sizeof(struct webview));
 
@@ -190,19 +189,6 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 	];
 
 	[ctx->webview.configuration.userContentController addUserScript:script];
-
-	// Load source
-	NSString *osource = [NSString stringWithUTF8String:source];
-
-	if (flags & MTY_WEBVIEW_FLAG_URL) {
-		NSURL *url = [[NSURL alloc] initWithString:osource];
-
-		NSURLRequest *req = [[NSURLRequest alloc] initWithURL:url];
-		[ctx->webview loadRequest:req];
-
-	} else {
-		[ctx->webview loadHTMLString:osource baseURL:nil];
-	}
 
 	return ctx;
 }

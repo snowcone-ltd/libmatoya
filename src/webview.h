@@ -13,8 +13,7 @@ typedef void (*WEBVIEW_TEXT)(MTY_App *app, MTY_Window window, const char *text);
 typedef void (*WEBVIEW_KEY)(MTY_App *app, MTY_Window window, bool pressed, MTY_Key key, MTY_Mod mods);
 
 struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *dir,
-	const char *source, MTY_WebViewFlag flags, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func,
-	WEBVIEW_KEY key_func);
+	MTY_WebViewFlag flags, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func, WEBVIEW_KEY key_func);
 void mty_webview_destroy(struct webview **webview);
 void mty_webview_show(struct webview *ctx, bool show);
 bool mty_webview_is_visible(struct webview *ctx);
