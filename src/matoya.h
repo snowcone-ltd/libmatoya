@@ -1375,11 +1375,13 @@ MTY_WindowGetNative(MTY_App *app, MTY_Window window);
 /// @param dir Path to where temporary files related to the WebView will be stored (Windows only).
 ///   If MTY_WebViewIsSteam returns true, `dir` will be interpreted as the directory where the
 ///   Steam API shared object resides (i.e. `libsteam_api.so`).
+/// @param userAgent Custom string to replace the built-in value of the User-Agent HTTP header.
+///	                 Set this as NULL to use the default implementation-specific value.
 /// @param flags Flags specifying various WebView behaviors.
 /// @returns Returns true on success, false if the WebView failed to be set or already exists.
 //- #support Windows macOS
 MTY_EXPORT bool
-MTY_WindowSetWebView(MTY_App *app, MTY_Window window, const char *dir, MTY_WebViewFlag flags);
+MTY_WindowSetWebView(MTY_App *app, MTY_Window window, const char *dir, const char *userAgent, MTY_WebViewFlag flags);
 
 /// @brief Remove the WebView from a window.
 /// @param app The MTY_App.
