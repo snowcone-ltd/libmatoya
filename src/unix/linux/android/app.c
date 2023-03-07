@@ -53,7 +53,6 @@ static struct MTY_App {
 	bool window_reinit;
 	uint32_t width;
 	uint32_t height;
-	uint32_t kb_height;
 } CTX;
 
 static const MTY_ControllerEvent APP_ZEROED_CTRL = {
@@ -929,17 +928,22 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 {
 }
 
+const char *MTY_AppGetControllerDeviceName(MTY_App *ctx, uint32_t id)
+{
+	return NULL;
+}
+
+MTY_CType MTY_AppGetControllerType(MTY_App *ctx, uint32_t id)
+{
+	return MTY_CTYPE_DEFAULT;
+}
+
 void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
 {
 }
 
 void MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_t size)
 {
-}
-
-const void *MTY_AppGetControllerTouchpad(MTY_App *ctx, uint32_t id, size_t *size)
-{
-	return NULL;
 }
 
 bool MTY_AppIsPenEnabled(MTY_App *ctx)
@@ -975,7 +979,12 @@ void *mty_app_get_obj(void)
 
 uint32_t mty_app_get_kb_height(void)
 {
-	return CTX.kb_height;
+	int32_t kb_height = mty_jni_int(MTY_GetJNIEnv(), CTX.obj, "keyboardHeight", "()I");
+
+	if (kb_height < 0)
+		kb_height = 0;
+
+	return kb_height;
 }
 
 void mty_gfx_size(uint32_t *width, uint32_t *height)
@@ -1035,15 +1044,10 @@ MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 {
 	MTY_Size size = MTY_WindowGetScreenSize(app, window);
 
-	int32_t kb_height = mty_jni_int(MTY_GetJNIEnv(), app->obj, "keyboardHeight", "()I");
+	uint32_t kb_height = mty_app_get_kb_height();
 
-	if (kb_height < 0)
-		kb_height = 0;
-
-	app->kb_height = kb_height;
-
-	if (size.h > app->kb_height)
-		size.h -= app->kb_height;
+	if (size.h > kb_height)
+		size.h -= kb_height;
 
 	return size;
 }

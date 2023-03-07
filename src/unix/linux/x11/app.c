@@ -35,9 +35,9 @@ struct MTY_App {
 	Cursor empty_cursor;
 	Cursor custom_cursor;
 	Cursor cursor;
-	bool default_cursor;
 	bool hide_cursor;
 	char *class_name;
+	MTY_Cursor scursor;
 	MTY_DetachState detach;
 	XVisualInfo *vis;
 	Atom wm_close;
@@ -320,9 +320,22 @@ static void app_apply_mouse_grab(MTY_App *app, struct window *win)
 
 static void app_apply_cursor(MTY_App *app, bool focus)
 {
-	Cursor cur = focus && (app->hide_cursor || (app->relative && app->detach == MTY_DETACH_STATE_NONE)) ?
-		app->empty_cursor : app->custom_cursor && !app->default_cursor ?
-		app->custom_cursor : None;
+	Cursor cur = None;
+
+	if (focus && (app->hide_cursor || (app->relative && app->detach == MTY_DETACH_STATE_NONE))) {
+		cur = app->empty_cursor;
+
+	} else {
+		Cursor scursor = None;
+
+		switch (app->scursor) {
+			case MTY_CURSOR_ARROW: scursor = XCreateFontCursor(app->display, XC_left_ptr); break;
+			case MTY_CURSOR_HAND:  scursor = XCreateFontCursor(app->display, XC_hand2);    break;
+			case MTY_CURSOR_IBEAM: scursor = XCreateFontCursor(app->display, XC_xterm);    break;
+		}
+
+		cur = scursor != None ? scursor : app->custom_cursor != None ? app->custom_cursor : None;
+	}
 
 	if (cur != app->cursor) {
 		for (MTY_Window x = 0; x < MTY_WINDOW_MAX; x++) {
@@ -387,6 +400,7 @@ static void app_event(MTY_App *ctx, XEvent *event)
 			if (evt.key.key != MTY_KEY_NONE) {
 				evt.type = MTY_EVENT_KEY;
 				evt.window = app_find_window(ctx, event->xkey.window);
+				evt.key.vkey = XLookupKeysym(&event->xkey, 0);
 				evt.key.pressed = event->type == KeyPress;
 				evt.key.mod = keymap_keystate_to_keymod(evt.key.key,
 					evt.key.pressed, event->xkey.state);
@@ -921,10 +935,10 @@ void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t 
 	ctx->state++;
 }
 
-void MTY_AppUseDefaultCursor(MTY_App *ctx, bool useDefault)
+void MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor)
 {
-	if (ctx->default_cursor != useDefault) {
-		ctx->default_cursor = useDefault;
+	if (ctx->scursor != cursor) {
+		ctx->scursor = cursor;
 		ctx->state++;
 	}
 }
@@ -1002,17 +1016,22 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 		mty_evdev_rumble(ctx->evdev, id, low, high);
 }
 
+const char *MTY_AppGetControllerDeviceName(MTY_App *ctx, uint32_t id)
+{
+	return NULL;
+}
+
+MTY_CType MTY_AppGetControllerType(MTY_App *ctx, uint32_t id)
+{
+	return MTY_CTYPE_DEFAULT;
+}
+
 void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
 {
 }
 
 void MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_t size)
 {
-}
-
-const void *MTY_AppGetControllerTouchpad(MTY_App *ctx, uint32_t id, size_t *size)
-{
-	return NULL;
 }
 
 bool MTY_AppIsPenEnabled(MTY_App *ctx)

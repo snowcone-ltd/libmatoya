@@ -38,7 +38,7 @@ struct d3d9 {
 	IDirect3DIndexBuffer9 *ib;
 };
 
-struct gfx *mty_d3d9_create(MTY_Device *device)
+struct gfx *mty_d3d9_create(MTY_Device *device, uint8_t layer)
 {
 	struct d3d9 *ctx = MTY_Alloc(1, sizeof(struct d3d9));
 	IDirect3DDevice9 *_device = (IDirect3DDevice9 *) device;
@@ -241,21 +241,27 @@ bool mty_d3d9_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	if (!fmt_reload_textures(gfx, device, (MTY_Context *) device, image, desc, d3d9_refresh_resource))
 		return false;
 
-	// Begin render pass (set destination texture if available)
-	HRESULT e = D3D_OK;
+	// Begin render pass
+	HRESULT e = IDirect3DDevice9_SetRenderTarget(_device, 0, _dest);
+	if (e != D3D_OK) {
+		MTY_Log("'IDirect3DDevice9_SetRenderTarget' failed with HRESULT 0x%X", e);
+		return false;
+	}
 
-	if (_dest) {
-		e = IDirect3DDevice9_SetRenderTarget(_device, 0, _dest);
-		if (e != D3D_OK) {
-			MTY_Log("'IDirect3DDevice9_SetRenderTarget' failed with HRESULT 0x%X", e);
-			goto except;
-		}
-
-		e = IDirect3DDevice9_Clear(_device, 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0);
+	if (desc->layer == 0) {
+		e = IDirect3DDevice9_Clear(_device, 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_RGBA(0, 0, 0, 1), 0, 0);
 		if (e != D3D_OK) {
 			MTY_Log("'IDirect3DDevice9_Clear' failed with HRESULT 0x%X", e);
-			goto except;
+			return false;
 		}
+
+		IDirect3DDevice9_SetRenderState(_device, D3DRS_ALPHABLENDENABLE, FALSE);
+
+	} else {
+		IDirect3DDevice9_SetRenderState(_device, D3DRS_ALPHABLENDENABLE, TRUE);
+		IDirect3DDevice9_SetRenderState(_device, D3DRS_BLENDOP, D3DBLENDOP_ADD);
+		IDirect3DDevice9_SetRenderState(_device, D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+		IDirect3DDevice9_SetRenderState(_device, D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 	}
 
 	// Viewport
@@ -278,25 +284,25 @@ bool mty_d3d9_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	e = IDirect3DDevice9_SetVertexShader(_device, ctx->vs);
 	if (e != D3D_OK) {
 		MTY_Log("'IDirect3DDevice9_SetVertexShader' failed with HRESULT 0x%X", e);
-		goto except;
+		return false;
 	}
 
 	e = IDirect3DDevice9_SetStreamSource(_device, 0, ctx->vb, 0, 4 * sizeof(float));
 	if (e != D3D_OK) {
 		MTY_Log("'IDirect3DDevice9_SetStreamSource' failed with HRESULT 0x%X", e);
-		goto except;
+		return false;
 	}
 
 	e = IDirect3DDevice9_SetVertexDeclaration(_device, ctx->vd);
 	if (e != D3D_OK) {
 		MTY_Log("'IDirect3DDevice9_SetVertexDeclaration' failed with HRESULT 0x%X", e);
-		goto except;
+		return false;
 	}
 
 	e = IDirect3DDevice9_SetIndices(_device, ctx->ib);
 	if (e != D3D_OK) {
 		MTY_Log("'IDirect3DDevice9_SetIndicies' failed with HRESULT 0x%X", e);
-		goto except;
+		return false;
 	}
 
 	// D3D9 half texel fix
@@ -307,14 +313,14 @@ bool mty_d3d9_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	e = IDirect3DDevice9_SetVertexShaderConstantF(_device, 0, texel_offset, 1);
 	if (e != D3D_OK) {
 		MTY_Log("'IDirect3DDevice9_SetVertexShaderConstantF' failed with HRESULT 0x%X", e);
-		goto except;
+		return false;
 	}
 
 	// Pixel shader
 	e = IDirect3DDevice9_SetPixelShader(_device, ctx->ps);
 	if (e != D3D_OK) {
 		MTY_Log("'IDirect3DDevice9_SetPixelShader' failed with HRESULT 0x%X", e);
-		goto except;
+		return false;
 	}
 
 	for (uint8_t x = 0; x < D3D9_NUM_STAGING; x++) {
@@ -325,13 +331,13 @@ bool mty_d3d9_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 			e = IDirect3DDevice9_SetSamplerState(_device, x, D3DSAMP_MAGFILTER, sampler);
 			if (e != D3D_OK) {
 				MTY_Log("'IDirect3DDevice9_SetSamplerState' failed with HRESULT 0x%X", e);
-				goto except;
+				return false;
 			}
 
 			e = IDirect3DDevice9_SetSamplerState(_device, x, D3DSAMP_MINFILTER, sampler);
 			if (e != D3D_OK) {
 				MTY_Log("'IDirect3DDevice9_SetSamplerState' failed with HRESULT 0x%X", e);
-				goto except;
+				return false;
 			}
 		}
 	}
@@ -358,20 +364,35 @@ bool mty_d3d9_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	e = IDirect3DDevice9_SetPixelShaderConstantF(_device, 0, (float *) cb, 3);
 	if (e != D3D_OK) {
 		MTY_Log("'IDirect3DDevice9_SetPixelShaderConstantF' failed with HRESULT 0x%X", e);
-		goto except;
+		return false;
 	}
 
 	// Draw
 	e = IDirect3DDevice9_DrawIndexedPrimitive(_device, D3DPT_TRIANGLELIST, 0, 0, 4, 0, 2);
 	if (e != D3D_OK) {
 		MTY_Log("'IDirect3DDevice9_DrawIndexedPrimitive' failed with HRESULT 0x%X", e);
-		goto except;
+		return false;
 	}
 
-	except:
+	return true;
+}
 
+void mty_d3d9_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dest)
+{
+	IDirect3DDevice9 *_device = (IDirect3DDevice9 *) device;
+	IDirect3DSurface9 *_dest = (IDirect3DSurface9 *) dest;
 
-	return e == D3D_OK;
+	HRESULT e = IDirect3DDevice9_SetRenderTarget(_device, 0, _dest);
+	if (e != D3D_OK) {
+		MTY_Log("'IDirect3DDevice9_SetRenderTarget' failed with HRESULT 0x%X", e);
+		return;
+	}
+
+	e = IDirect3DDevice9_Clear(_device, 0, NULL, D3DCLEAR_TARGET,
+		D3DCOLOR_RGBA(lrint(r * 255), lrint(g * 255), lrint(b * 255), lrint(a * 255)), 0, 0);
+	if (e != D3D_OK)
+		MTY_Log("'IDirect3DDevice9_Clear' failed with HRESULT 0x%X", e);
 }
 
 void mty_d3d9_destroy(struct gfx **gfx, MTY_Device *device)

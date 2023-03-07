@@ -287,6 +287,11 @@ void *mty_hid_device_get_state(struct hid_dev *ctx)
 	return ctx->state;
 }
 
+const char *mty_hid_device_get_name(struct hid_dev *ctx)
+{
+	return NULL;
+}
+
 uint16_t mty_hid_device_get_vid(struct hid_dev *ctx)
 {
 	return ctx->vid;

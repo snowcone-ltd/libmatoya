@@ -32,7 +32,6 @@ struct vk_swapchain {
 
 struct vk_ctx {
 	bool vsync;
-	MTY_Renderer *renderer;
 	MTY_VkDeviceObjects dobjs;
 
 	VkInstance instance;
@@ -327,7 +326,6 @@ static VkBool32 VKAPI_PTR vk_ctx_debug_callback(VkDebugUtilsMessageSeverityFlagB
 struct gfx_ctx *mty_vk_ctx_create(void *native_window, bool vsync)
 {
 	struct vk_ctx *ctx = MTY_Alloc(1, sizeof(struct vk_ctx));
-	ctx->renderer = MTY_RendererCreate();
 	ctx->vsync = vsync;
 
 	bool r = true;
@@ -539,8 +537,6 @@ void mty_vk_ctx_destroy(struct gfx_ctx **gfx_ctx)
 
 	struct vk_ctx *ctx = (struct vk_ctx *) *gfx_ctx;
 
-	MTY_RendererDestroy(&ctx->renderer);
-
 	if (ctx->instance) {
 		if (ctx->device) {
 			vk_ctx_destroy_swapchain(ctx->device, &ctx->sc);
@@ -577,6 +573,22 @@ void mty_vk_ctx_destroy(struct gfx_ctx **gfx_ctx)
 
 	MTY_Free(ctx);
 	*gfx_ctx = NULL;
+}
+
+void mty_vk_ctx_get_size(struct gfx_ctx *gfx_ctx, uint32_t *w, uint32_t *h)
+{
+	struct vk_ctx *ctx = (struct vk_ctx *) gfx_ctx;
+	struct vk_swapchain *sc = &ctx->sc;
+
+	*w = sc->w;
+	*h = sc->h;
+
+	#if defined(MTY_VK_ANDROID)
+		uint32_t kb_height = mty_app_get_kb_height();
+
+		if (*h > kb_height)
+			*h -= kb_height;
+	#endif
 }
 
 MTY_Device *mty_vk_ctx_get_device(struct gfx_ctx *gfx_ctx)
@@ -697,58 +709,11 @@ void mty_vk_ctx_present(struct gfx_ctx *gfx_ctx)
 	sc->bb = VK_NULL_HANDLE;
 }
 
-void mty_vk_ctx_draw_quad(struct gfx_ctx *gfx_ctx, const void *image, const MTY_RenderDesc *desc)
+bool mty_vk_ctx_lock(struct gfx_ctx *gfx_ctx)
 {
-	struct vk_ctx *ctx = (struct vk_ctx *) gfx_ctx;
-
-	struct vk_swapchain *sc = &ctx->sc;
-
-	mty_vk_ctx_get_surface(gfx_ctx);
-
-	if (sc->bb) {
-		MTY_RenderDesc mutated = *desc;
-		mutated.viewWidth = sc->w;
-		mutated.viewHeight = sc->h;
-
-		#if defined(MTY_VK_ANDROID)
-			mutated.viewHeight -= mty_app_get_kb_height();
-		#endif
-
-		MTY_RendererDrawQuad(ctx->renderer, MTY_GFX_VK, mty_vk_ctx_get_device(gfx_ctx),
-			mty_vk_ctx_get_context(gfx_ctx), image, &mutated, (MTY_Surface *) (uintptr_t) sc->bb);
-	}
+	return true;
 }
 
-void mty_vk_ctx_draw_ui(struct gfx_ctx *gfx_ctx, const MTY_DrawData *dd)
+void mty_vk_ctx_unlock(void)
 {
-	struct vk_ctx *ctx = (struct vk_ctx *) gfx_ctx;
-
-	struct vk_swapchain *sc = &ctx->sc;
-
-	mty_vk_ctx_get_surface(gfx_ctx);
-
-	if (sc->bb) {
-		MTY_DrawData mutated = *dd;
-		mutated.displaySize.x = (float) sc->w;
-		mutated.displaySize.y = (float) sc->h;
-
-		MTY_RendererDrawUI(ctx->renderer, MTY_GFX_VK, mty_vk_ctx_get_device(gfx_ctx),
-			mty_vk_ctx_get_context(gfx_ctx), &mutated, (MTY_Surface *) (uintptr_t) sc->bb);
-	}
-}
-
-bool mty_vk_ctx_set_ui_texture(struct gfx_ctx *gfx_ctx, uint32_t id, const void *rgba,
-	uint32_t width, uint32_t height)
-{
-	struct vk_ctx *ctx = (struct vk_ctx *) gfx_ctx;
-
-	return MTY_RendererSetUITexture(ctx->renderer, MTY_GFX_VK, mty_vk_ctx_get_device(gfx_ctx),
-		mty_vk_ctx_get_context(gfx_ctx), id, rgba, width, height);
-}
-
-bool mty_vk_ctx_has_ui_texture(struct gfx_ctx *gfx_ctx, uint32_t id)
-{
-	struct vk_ctx *ctx = (struct vk_ctx *) gfx_ctx;
-
-	return MTY_RendererHasUITexture(ctx->renderer, id);
 }

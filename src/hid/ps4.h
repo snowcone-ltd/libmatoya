@@ -8,7 +8,6 @@
 
 struct ps4_state {
 	bool bluetooth;
-	uint8_t touchpad[10];
 };
 
 
@@ -65,19 +64,8 @@ static void ps4_init(struct hid_dev *device)
 	ps4_rumble(device, 0, 0);
 }
 
-static const void *ps4_get_touchpad(struct hid_dev *device, size_t *size)
-{
-	struct ps4_state *ctx = mty_hid_device_get_state(device);
-
-	*size = 10;
-
-	return ctx->touchpad;
-}
-
 static bool ps4_state(struct hid_dev *device, const void *data, size_t dsize, MTY_ControllerEvent *c)
 {
-	struct ps4_state *ctx = mty_hid_device_get_state(device);
-
 	const uint8_t *d8 = data;
 
 	// Wired
@@ -154,14 +142,6 @@ static bool ps4_state(struct hid_dev *device, const void *data, size_t dsize, MT
 	c->axes[MTY_CAXIS_DPAD].usage = 0x39;
 	c->axes[MTY_CAXIS_DPAD].min = 0;
 	c->axes[MTY_CAXIS_DPAD].max = 7;
-
-	// Touchpad
-	if (dsize >= 41) {
-		memcpy(ctx->touchpad, d8 + 32, 10);
-
-	} else {
-		memset(ctx->touchpad, 0, 10);
-	}
 
 	return true;
 }

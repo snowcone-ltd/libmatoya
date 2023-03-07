@@ -114,6 +114,8 @@ typedef struct {
 	float levels[2];        ///< Intensity of the applied `effects` between `0.0f` and `1.0f`.
 	bool fullRangeYUV;      ///< Use the full 0-255 color range for YUV formats.
 	bool multiplyYUV;       ///< Properly normalize 10-bit YUV formats if not already done.
+	uint8_t layer;          ///< If drawing multiple layers of quads between present, `layer`
+	                        ///<   determines the order in the blending hierarchy.
 	uint32_t imageWidth;    ///< The width in pixels of the image.
 	uint32_t imageHeight;   ///< The height in pixels of the image.
 	uint32_t cropWidth;     ///< Desired crop width of the image from the top left corner.
@@ -211,6 +213,22 @@ MTY_EXPORT bool
 MTY_RendererDrawQuad(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device,
 	MTY_Context *context, const void *image, const MTY_RenderDesc *desc,
 	MTY_Surface *dst);
+
+/// @brief Clear an MTY_Surface to a solid color.
+/// @param ctx An MTY_Renderer.
+/// @param api Graphics API used for this operation.
+/// @param device See Generic Objects.
+/// @param context See Generic Objects.
+/// @param width Width of the area within `dst` to clear.
+/// @param height Height of the area within `dst` to clear.
+/// @param r The red color channel value between 0 and 1.
+/// @param g The green color channel value between 0 and 1.
+/// @param b The blue color channel value between 0 and 1.
+/// @param a The alpha color channel value between 0 and 1.
+/// @param dst The surface to be cleared. See Generic Objects.
+MTY_EXPORT void
+MTY_RendererClear(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device, MTY_Context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dst);
 
 /// @brief Draw a UI with MTY_DrawData.
 /// @param ctx An MTY_Renderer.
@@ -667,11 +685,21 @@ typedef enum {
 	MTY_WEBVIEW_FLAG_MAKE_32 = INT32_MAX,
 } MTY_WebViewFlag;
 
+/// @brief Predefined cursors set via MTY_AppSetCursor.
+typedef enum {
+	MTY_CURSOR_NONE    = 0, ///< Revert the effects of MTY_AppSetCursor.
+	MTY_CURSOR_ARROW   = 1, ///< Standard arrow cursor.
+	MTY_CURSOR_HAND    = 2, ///< Hand cursor.
+	MTY_CURSOR_IBEAM   = 3, ///< I-beam cursor.
+	MTY_CURSOR_MAKE_32 = INT32_MAX,
+} MTY_Cursor;
+
 /// @brief Key event.
 typedef struct {
-	MTY_Key key;  ///< The key that has been pressed or released.
-	MTY_Mod mod;  ///< Modifiers in effect.
-	bool pressed; ///< State of the key.
+	MTY_Key key;   ///< The key that has been pressed or released.
+	MTY_Mod mod;   ///< Modifiers in effect.
+	uint32_t vkey; ///< The OS specific virtual code. Windows, macOS, and Linux only.
+	bool pressed;  ///< State of the key.
 } MTY_KeyEvent;
 
 /// @brief Scroll event.
@@ -946,12 +974,14 @@ MTY_EXPORT void
 MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX,
 	uint32_t hotY);
 
-/// @brief Temporarily use the system's default cursor.
+/// @brief Use a cursor predefined by the OS.
+/// @details The cursor set via this function will take precedence over any set with
+///   MTY_AppSetPNGCursor.
 /// @param ctx The MTY_App.
-/// @param useDefault Set true to use the system's default cursor, false to allow
-///   other cursors.
+/// @param cursor The predefined cursor. Set MTY_CURSOR_NONE to revert the effects
+///   of this function.
 MTY_EXPORT void
-MTY_AppUseDefaultCursor(MTY_App *ctx, bool useDefault);
+MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor);
 
 /// @brief Show or hide the cursor.
 /// @param ctx The MTY_App.
@@ -1049,6 +1079,24 @@ MTY_AppSetOrientation(MTY_App *ctx, MTY_Orientation orientation);
 MTY_EXPORT void
 MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t high);
 
+/// @brief Get the device name of a controller.
+/// @param ctx The MTY_App.
+/// @param id A controller `id` found via MTY_EVENT_CONTROLLER or MTY_EVENT_CONNECT.
+/// @returns The device name of the controller on success, NULL if the controller does
+///   not exist or the controller's device name is not available.
+//- #support Windows
+MTY_EXPORT const char *
+MTY_AppGetControllerDeviceName(MTY_App *ctx, uint32_t id);
+
+/// @brief Get the type of controller.
+/// @param ctx The MTY_App.
+/// @param id A controller `id` found via MTY_EVENT_CONTROLLER or MTY_EVENT_CONNECT.
+/// @returns The type of controller on success, MTY_CTYPE_DEFAULT if the controller does
+///   not exist or the controller type is not available.
+//- #support Windows macOS
+MTY_EXPORT MTY_CType
+MTY_AppGetControllerType(MTY_App *ctx, uint32_t id);
+
 /// @brief Enable or disable HID input reports from certain controllers.
 /// @details If enabled, all controllers except XInput controllers will generate input
 ///   report events.
@@ -1067,14 +1115,6 @@ MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable);
 //- #support Windows macOS
 MTY_EXPORT void
 MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_t size);
-
-/// @brief Get the raw touchpad data from a PS4 or PS5 controller.
-/// @details The return value may be NULL and is not parsed or interpreted in any way.
-/// @param ctx The MTY_App.
-/// @param id A controller `id` found via MTY_EVENT_CONTROLLER or MTY_EVENT_CONNECT.
-/// @param size Set to the size in bytes of the returned buffer.
-MTY_EXPORT const void *
-MTY_AppGetControllerTouchpad(MTY_App *ctx, uint32_t id, size_t *size);
 
 /// @brief Check if pen events are enabled.
 /// @param ctx The MTY_App.
@@ -1243,27 +1283,6 @@ MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen);
 MTY_EXPORT void
 MTY_WindowWarpCursor(MTY_App *app, MTY_Window window, uint32_t x, uint32_t y);
 
-/// @brief Get the window's rendering device.
-/// @param app The MTY_App.
-/// @param window An MTY_Window.
-/// @returns See Generic Objects.
-MTY_EXPORT MTY_Device *
-MTY_WindowGetDevice(MTY_App *app, MTY_Window window);
-
-/// @brief Get the window's rendering context.
-/// @param app The MTY_App.
-/// @param window An MTY_Window.
-/// @returns See Generic Objects.
-MTY_EXPORT MTY_Context *
-MTY_WindowGetContext(MTY_App *app, MTY_Window window);
-
-/// @brief Get the window's drawing surface.
-/// @param app The MTY_App.
-/// @param window An MTY_Window.
-/// @returns See Generic Objects.
-MTY_EXPORT MTY_Surface *
-MTY_WindowGetSurface(MTY_App *app, MTY_Window window);
-
 /// @brief Wrapped MTY_RendererDrawQuad for the window.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
@@ -1273,6 +1292,16 @@ MTY_WindowGetSurface(MTY_App *app, MTY_Window window);
 MTY_EXPORT void
 MTY_WindowDrawQuad(MTY_App *app, MTY_Window window, const void *image,
 	const MTY_RenderDesc *desc);
+
+/// @brief Wrapped MTY_RendererClear for the window.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @param r The red color channel value between 0 and 1.
+/// @param g The green color channel value between 0 and 1.
+/// @param b The blue color channel value between 0 and 1.
+/// @param a The alpha color channel value between 0 and 1.
+MTY_EXPORT void
+MTY_WindowClear(MTY_App *app, MTY_Window window, float r, float g, float b, float a);
 
 /// @brief Wrapped MTY_RendererDrawUI for the window.
 /// @param app The MTY_App.

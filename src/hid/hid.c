@@ -17,7 +17,7 @@
 #include "xbox.h"
 #include "xboxw.h"
 
-static MTY_CType hid_driver(struct hid_dev *device)
+MTY_CType hid_driver(struct hid_dev *device)
 {
 	uint16_t vid = mty_hid_device_get_vid(device);
 	uint16_t pid = mty_hid_device_get_pid(device);
@@ -131,20 +131,4 @@ void mty_hid_driver_rumble(struct hid *hid, uint32_t id, uint16_t low, uint16_t 
 			mty_hid_default_rumble(hid, id, low, high);
 			break;
 	}
-}
-
-const void *mty_hid_device_get_touchpad(struct hid *hid, uint32_t id, size_t *size)
-{
-	struct hid_dev *device = mty_hid_get_device_by_id(hid, id);
-	if (!device)
-		return NULL;
-
-	switch (hid_driver(device)) {
-		case MTY_CTYPE_PS4:
-			return ps4_get_touchpad(device, size);
-		case MTY_CTYPE_PS5:
-			return ps5_get_touchpad(device, size);
-	}
-
-	return NULL;
 }

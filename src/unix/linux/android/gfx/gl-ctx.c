@@ -16,10 +16,10 @@ static struct gl_ctx {
 	EGLDisplay display;
 	EGLSurface surface;
 	EGLContext context;
-	MTY_Renderer *renderer;
 	bool init;
 	bool vsync;
 	uint32_t fb0;
+	uintptr_t device;
 } CTX;
 
 
@@ -103,12 +103,10 @@ static bool gl_ctx_check(struct gl_ctx *ctx)
 	if (ctx->init)
 		return true;
 
-	MTY_RendererDestroy(&ctx->renderer);
 	gl_ctx_destroy_context(ctx);
-
 	gl_ctx_create_context(ctx, window);
-	ctx->renderer = MTY_RendererCreate();
 
+	ctx->device++; // This will force an MTY_Renderer reinit
 	ctx->init = true;
 
 	return true;
@@ -130,7 +128,6 @@ void mty_gl_ctx_destroy(struct gfx_ctx **gfx_ctx)
 
 	mty_gfx_lock();
 
-	MTY_RendererDestroy(&ctx->renderer);
 	gl_ctx_destroy_context(ctx);
 
 	mty_gfx_unlock();
@@ -138,9 +135,24 @@ void mty_gl_ctx_destroy(struct gfx_ctx **gfx_ctx)
 	*gfx_ctx = NULL;
 }
 
+void mty_gl_ctx_get_size(struct gfx_ctx *gfx_ctx, uint32_t *w, uint32_t *h)
+{
+	mty_gfx_size(w, h);
+
+	uint32_t kb_height = mty_app_get_kb_height();
+
+	if (*h > kb_height)
+		*h -= kb_height;
+
+	mty_gl_set_origin_y(kb_height);
+	mty_gl_ui_set_origin_y(kb_height);
+}
+
 MTY_Device *mty_gl_ctx_get_device(struct gfx_ctx *gfx_ctx)
 {
-	return NULL;
+	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
+
+	return (MTY_Device *) ctx->device;
 }
 
 MTY_Context *mty_gl_ctx_get_context(struct gfx_ctx *gfx_ctx)
@@ -171,71 +183,21 @@ void mty_gl_ctx_present(struct gfx_ctx *gfx_ctx)
 	mty_gfx_unlock();
 }
 
-void mty_gl_ctx_draw_quad(struct gfx_ctx *gfx_ctx, const void *image, const MTY_RenderDesc *desc)
+bool mty_gl_ctx_lock(struct gfx_ctx *gfx_ctx)
 {
 	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
 
 	mty_gfx_lock();
 
-	if (gl_ctx_check(ctx)) {
-		MTY_RenderDesc mutated = *desc;
-		mty_gfx_size(&mutated.viewWidth, &mutated.viewHeight);
-
-		int32_t kb_height = mty_app_get_kb_height();
-		mutated.viewHeight -= kb_height;
-
-		mty_gl_set_origin_y(kb_height);
-		MTY_RendererDrawQuad(ctx->renderer, MTY_GFX_GL, NULL, NULL, image, &mutated, (MTY_Surface *) &ctx->fb0);
+	if (!gl_ctx_check(ctx)) {
+		mty_gfx_unlock();
+		return false;
 	}
 
-	mty_gfx_unlock();
+	return true;
 }
 
-void mty_gl_ctx_draw_ui(struct gfx_ctx *gfx_ctx, const MTY_DrawData *dd)
+void mty_gl_ctx_unlock(void)
 {
-	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
-
-	mty_gfx_lock();
-
-	if (gl_ctx_check(ctx)) {
-		int32_t kb_height = mty_app_get_kb_height();
-		mty_gl_ui_set_origin_y(kb_height);
-
-		MTY_RendererDrawUI(ctx->renderer, MTY_GFX_GL, NULL, NULL, dd, (MTY_Surface *) &ctx->fb0);
-	}
-
 	mty_gfx_unlock();
-}
-
-bool mty_gl_ctx_set_ui_texture(struct gfx_ctx *gfx_ctx, uint32_t id, const void *rgba,
-	uint32_t width, uint32_t height)
-{
-	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
-
-	bool r = false;
-
-	mty_gfx_lock();
-
-	if (gl_ctx_check(ctx))
-		r = MTY_RendererSetUITexture(ctx->renderer, MTY_GFX_GL, NULL, NULL, id, rgba, width, height);
-
-	mty_gfx_unlock();
-
-	return r;
-}
-
-bool mty_gl_ctx_has_ui_texture(struct gfx_ctx *gfx_ctx, uint32_t id)
-{
-	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
-
-	bool r = false;
-
-	mty_gfx_lock();
-
-	if (gl_ctx_check(ctx))
-		r = MTY_RendererHasUITexture(ctx->renderer, id);
-
-	mty_gfx_unlock();
-
-	return r;
 }

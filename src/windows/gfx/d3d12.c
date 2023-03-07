@@ -159,7 +159,7 @@ static HRESULT d3d12_root_signature(ID3D12Device *device, ID3D12RootSignature **
 	return e;
 }
 
-static HRESULT d3d12_pipeline(ID3D12Device *device, ID3D12RootSignature *rs, ID3D12PipelineState **pipeline)
+static HRESULT d3d12_pipeline(ID3D12Device *device, ID3D12RootSignature *rs, ID3D12PipelineState **pipeline, uint8_t layer)
 {
 	D3D12_INPUT_ELEMENT_DESC iedescs[2] = {
 		{"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -178,13 +178,13 @@ static HRESULT d3d12_pipeline(ID3D12Device *device, ID3D12RootSignature *rs, ID3
 	psdesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 	psdesc.RasterizerState.DepthClipEnable = TRUE;
 	psdesc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-	psdesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
-	psdesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
+	psdesc.BlendState.RenderTarget[0].BlendEnable = layer == 0 ? FALSE : TRUE;
+	psdesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	psdesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
 	psdesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
 	psdesc.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-	psdesc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+	psdesc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
 	psdesc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-	psdesc.BlendState.RenderTarget[0].LogicOp = D3D12_LOGIC_OP_NOOP;
 	psdesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	psdesc.SampleMask = UINT_MAX;
 	psdesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
@@ -199,7 +199,7 @@ static HRESULT d3d12_pipeline(ID3D12Device *device, ID3D12RootSignature *rs, ID3
 	return e;
 }
 
-struct gfx *mty_d3d12_create(MTY_Device *device)
+struct gfx *mty_d3d12_create(MTY_Device *device, uint8_t layer)
 {
 	struct d3d12 *ctx = MTY_Alloc(1, sizeof(struct d3d12));
 
@@ -210,7 +210,7 @@ struct gfx *mty_d3d12_create(MTY_Device *device)
 	if (e != S_OK)
 		goto except;
 
-	e = d3d12_pipeline(_device, ctx->rs, &ctx->pipeline);
+	e = d3d12_pipeline(_device, ctx->rs, &ctx->pipeline, layer);
 	if (e != S_OK)
 		goto except;
 
@@ -494,11 +494,11 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	scissor.bottom = desc->viewHeight;
 	ID3D12GraphicsCommandList_RSSetScissorRects(cl, 1, &scissor);
 
-	// Render target view
-	if (_dest) {
-		ID3D12GraphicsCommandList_OMSetRenderTargets(cl, 1, _dest, FALSE, NULL);
+	// Render target
+	ID3D12GraphicsCommandList_OMSetRenderTargets(cl, 1, _dest, FALSE, NULL);
 
-		const float color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+	if (desc->layer == 0) {
+		const float color[4] = {0, 0, 0, 1};
 		ID3D12GraphicsCommandList_ClearRenderTargetView(cl, *_dest, color, 0, NULL);
 	}
 
@@ -560,6 +560,16 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	ID3D12GraphicsCommandList_DrawIndexedInstanced(cl, 6, 1, 0, 0, 0);
 
 	return true;
+}
+
+void mty_d3d12_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dest)
+{
+	ID3D12GraphicsCommandList *cl = (ID3D12GraphicsCommandList *) context;
+	D3D12_CPU_DESCRIPTOR_HANDLE *_dest = (D3D12_CPU_DESCRIPTOR_HANDLE *) dest;
+
+	const float color[4] = {r, g, b, a};
+	ID3D12GraphicsCommandList_ClearRenderTargetView(cl, *_dest, color, 0, NULL);
 }
 
 void mty_d3d12_destroy(struct gfx **gfx, MTY_Device *device)

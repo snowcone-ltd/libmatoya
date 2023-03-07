@@ -20,7 +20,6 @@ struct d3d9_ctx {
 	bool vsync;
 	uint32_t width;
 	uint32_t height;
-	MTY_Renderer *renderer;
 	IDirect3D9Ex *factory;
 	IDirect3DDevice9Ex *device;
 	IDirect3DDevice9 *device_og;
@@ -128,7 +127,6 @@ static bool d3d9_ctx_init(struct d3d9_ctx *ctx)
 struct gfx_ctx *mty_d3d9_ctx_create(void *native_window, bool vsync)
 {
 	struct d3d9_ctx *ctx = MTY_Alloc(1, sizeof(struct d3d9_ctx));
-	ctx->renderer = MTY_RendererCreate();
 	ctx->hwnd = (HWND) native_window;
 	ctx->vsync = vsync;
 
@@ -147,11 +145,18 @@ void mty_d3d9_ctx_destroy(struct gfx_ctx **gfx_ctx)
 
 	struct d3d9_ctx *ctx = (struct d3d9_ctx *) *gfx_ctx;
 
-	MTY_RendererDestroy(&ctx->renderer);
 	d3d9_ctx_free(ctx);
 
 	MTY_Free(ctx);
 	*gfx_ctx = NULL;
+}
+
+void mty_d3d9_ctx_get_size(struct gfx_ctx *gfx_ctx, uint32_t *w, uint32_t *h)
+{
+	struct d3d9_ctx *ctx = (struct d3d9_ctx *) gfx_ctx;
+
+	*w = ctx->width;
+	*h = ctx->height;
 }
 
 MTY_Device *mty_d3d9_ctx_get_device(struct gfx_ctx *gfx_ctx)
@@ -209,7 +214,7 @@ MTY_Surface *mty_d3d9_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	struct d3d9_ctx *ctx = (struct d3d9_ctx *) gfx_ctx;
 
 	if (!ctx->device)
-		return (MTY_Surface *) ctx->back_buffer;
+		return NULL;
 
 	if (!ctx->back_buffer) {
 		d3d9_ctx_refresh(ctx);
@@ -267,45 +272,11 @@ void mty_d3d9_ctx_present(struct gfx_ctx *gfx_ctx)
 	}
 }
 
-void mty_d3d9_ctx_draw_quad(struct gfx_ctx *gfx_ctx, const void *image, const MTY_RenderDesc *desc)
+bool mty_d3d9_ctx_lock(struct gfx_ctx *gfx_ctx)
 {
-	struct d3d9_ctx *ctx = (struct d3d9_ctx *) gfx_ctx;
-
-	mty_d3d9_ctx_get_surface(gfx_ctx);
-
-	if (ctx->back_buffer) {
-		MTY_RenderDesc mutated = *desc;
-		mutated.viewWidth = ctx->width;
-		mutated.viewHeight = ctx->height;
-
-		MTY_RendererDrawQuad(ctx->renderer, MTY_GFX_D3D9, (MTY_Device *) ctx->device,
-			NULL, image, &mutated, (MTY_Surface *) ctx->back_buffer);
-	}
+	return true;
 }
 
-void mty_d3d9_ctx_draw_ui(struct gfx_ctx *gfx_ctx, const MTY_DrawData *dd)
+void mty_d3d9_ctx_unlock(void)
 {
-	struct d3d9_ctx *ctx = (struct d3d9_ctx *) gfx_ctx;
-
-	mty_d3d9_ctx_get_surface(gfx_ctx);
-
-	if (ctx->back_buffer)
-		MTY_RendererDrawUI(ctx->renderer, MTY_GFX_D3D9, (MTY_Device *) ctx->device,
-			NULL, dd, (MTY_Surface *) ctx->back_buffer);
-}
-
-bool mty_d3d9_ctx_set_ui_texture(struct gfx_ctx *gfx_ctx, uint32_t id, const void *rgba,
-	uint32_t width, uint32_t height)
-{
-	struct d3d9_ctx *ctx = (struct d3d9_ctx *) gfx_ctx;
-
-	return MTY_RendererSetUITexture(ctx->renderer, MTY_GFX_D3D9, (MTY_Device *) ctx->device,
-		NULL, id, rgba, width, height);
-}
-
-bool mty_d3d9_ctx_has_ui_texture(struct gfx_ctx *gfx_ctx, uint32_t id)
-{
-	struct d3d9_ctx *ctx = (struct d3d9_ctx *) gfx_ctx;
-
-	return MTY_RendererHasUITexture(ctx->renderer, id);
 }

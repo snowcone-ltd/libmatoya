@@ -53,7 +53,6 @@ struct MTY_App {
 	bool relative;
 	bool kbgrab;
 	bool mgrab;
-	bool default_cursor;
 	bool hide_cursor;
 	bool ghk_disabled;
 	bool filter_move;
@@ -65,6 +64,7 @@ struct MTY_App {
 	int32_t last_y;
 	struct hid *hid;
 	struct xip *xip;
+	MTY_Cursor scursor;
 	MTY_Button buttons;
 	MTY_DetachState detach;
 	MTY_Hash *hotkey;
@@ -165,17 +165,6 @@ static bool app_hwnd_visible(HWND hwnd)
 static bool app_hwnd_active(HWND hwnd)
 {
 	return GetForegroundWindow() == hwnd && app_hwnd_visible(hwnd);
-}
-
-static void app_register_raw_input(USHORT usage_page, USHORT usage, DWORD flags, HWND hwnd)
-{
-	RAWINPUTDEVICE rid = {0};
-	rid.usUsagePage = usage_page;
-	rid.usUsage = usage;
-	rid.dwFlags = flags;
-	rid.hwndTarget = hwnd;
-	if (!RegisterRawInputDevices(&rid, 1, sizeof(RAWINPUTDEVICE)))
-		MTY_Log("'RegisterRawInputDevices' failed with error 0x%X", GetLastError());
 }
 
 static void app_adjust_window_rect(MTY_App *app, float scale, RECT *r)
@@ -492,7 +481,15 @@ static void app_apply_cursor(MTY_App *app, bool focus)
 		app->cursor = NULL;
 
 	} else {
-		app->cursor = (app->custom_cursor && !app->default_cursor) ? app->custom_cursor :
+		const WCHAR *scursor = NULL;
+
+		switch (app->scursor) {
+			case MTY_CURSOR_ARROW: scursor = IDC_ARROW; break;
+			case MTY_CURSOR_HAND:  scursor = IDC_HAND;  break;
+			case MTY_CURSOR_IBEAM: scursor = IDC_IBEAM; break;
+		}
+
+		app->cursor = scursor ? LoadCursor(NULL, scursor) : app->custom_cursor ? app->custom_cursor :
 			LoadCursor(NULL, IDC_ARROW);
 	}
 
@@ -502,22 +499,22 @@ static void app_apply_cursor(MTY_App *app, bool focus)
 
 static void app_apply_mouse_ri(MTY_App *app, bool focus)
 {
-	if (app->relative && !app->pen_in_range) {
-		if (focus) {
-			if (app->detach == MTY_DETACH_STATE_FULL) {
-				app_register_raw_input(0x01, 0x02, 0, NULL);
+	RAWINPUTDEVICE rid = {
+		.usUsagePage = 0x01,
+		.usUsage = 0x02,
+	};
 
-			} else {
-				app_register_raw_input(0x01, 0x02, RIDEV_NOLEGACY, NULL);
-			}
-		} else {
-			app_register_raw_input(0x01, 0x02, 0, NULL);
-		}
+	if (app->relative && !app->pen_in_range && focus && app->detach != MTY_DETACH_STATE_FULL) {
+		rid.dwFlags = RIDEV_NOLEGACY;
+
 	} else {
 		// Exiting raw input generates a single WM_MOUSEMOVE, filter it
 		app->filter_move = true;
-		app_register_raw_input(0x01, 0x02, RIDEV_REMOVE, NULL);
+		rid.dwFlags = RIDEV_REMOVE;
 	}
+
+	if (!RegisterRawInputDevices(&rid, 1, sizeof(RAWINPUTDEVICE)))
+		MTY_Log("'RegisterRawInputDevices' failed with error 0x%X", GetLastError());
 }
 
 static void app_apply_keyboard_state(MTY_App *app, bool focus)
@@ -657,6 +654,7 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 			evt.key.mod = app_get_keymod();
 			evt.key.pressed = !(lparam >> 31);
 			evt.key.key = lparam >> 16 & 0xFF;
+			evt.key.vkey = (uint32_t) wparam;
 			if (lparam >> 24 & 0x01)
 				evt.key.key |= 0x0100;
 
@@ -1450,10 +1448,10 @@ void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t 
 	}
 }
 
-void MTY_AppUseDefaultCursor(MTY_App *ctx, bool useDefault)
+void MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor)
 {
-	if (ctx->default_cursor != useDefault) {
-		ctx->default_cursor = useDefault;
+	if (ctx->scursor != cursor) {
+		ctx->scursor = cursor;
 		ctx->state++;
 	}
 }
@@ -1603,6 +1601,24 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 	}
 }
 
+const char *MTY_AppGetControllerDeviceName(MTY_App *ctx, uint32_t id)
+{
+	struct hid_dev *device = mty_hid_get_device_by_id(ctx->hid, id);
+	if (!device)
+		return NULL;
+
+	return mty_hid_device_get_name(device);
+}
+
+MTY_CType MTY_AppGetControllerType(MTY_App *ctx, uint32_t id)
+{
+	struct hid_dev *device = mty_hid_get_device_by_id(ctx->hid, id);
+	if (!device)
+		return MTY_CTYPE_DEFAULT;
+
+	return hid_driver(device);
+}
+
 void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
 {
 	ctx->hid_reports = enable;
@@ -1615,11 +1631,6 @@ void MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_
 		return;
 
 	mty_hid_device_write(dev, report, size);
-}
-
-const void *MTY_AppGetControllerTouchpad(MTY_App *ctx, uint32_t id, size_t *size)
-{
-	return id >= 4 ? mty_hid_device_get_touchpad(ctx->hid, id, size) : NULL;
 }
 
 bool MTY_AppIsPenEnabled(MTY_App *ctx)

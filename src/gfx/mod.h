@@ -31,10 +31,12 @@ struct gfx;
 #define GFX_FP(api, name)    (*name)
 
 #define GFX_DECLARE_API(api, wrap) \
-	struct gfx *wrap(api, create)(MTY_Device *device); \
+	struct gfx *wrap(api, create)(MTY_Device *device, uint8_t layer); \
 	void wrap(api, destroy)(struct gfx **gfx, MTY_Device *device); \
 	bool wrap(api, render)(struct gfx *gfx, MTY_Device *device, MTY_Context *context, \
 		const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest); \
+	void wrap(api, clear)(struct gfx *gfx, MTY_Device *device, MTY_Context *context, \
+		uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dest); \
 	void *wrap(api, get_state)(MTY_Device *device, MTY_Context *context); \
 	void wrap(api, set_state)(MTY_Device *device, MTY_Context *context, void *state); \
 	void wrap(api, free_state)(void **state);
@@ -47,6 +49,7 @@ struct gfx;
 		mty##api##create, \
 		mty##api##destroy, \
 		mty##api##render, \
+		mty##api##clear, \
 		mty##api##get_state, \
 		mty##api##set_state, \
 		mty##api##free_state, \

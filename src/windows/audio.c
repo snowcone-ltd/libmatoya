@@ -132,6 +132,47 @@ static void audio_device_destroy(MTY_Audio *ctx)
 	ctx->playing = false;
 }
 
+static HRESULT audio_get_extended_format(IMMDevice *device, WAVEFORMATEXTENSIBLE *pwfx)
+{
+	IPropertyStore *props = NULL;
+
+	PROPVARIANT blob = {0};
+	PropVariantInit(&blob);
+
+	HRESULT e = IMMDevice_OpenPropertyStore(device, STGM_READ, &props);
+	if (e != S_OK) {
+		MTY_Log("'IMMDevice_OpenPropertyStore' failed with HRESULT 0x%X", e);
+		goto except;
+	}
+
+	e = IPropertyStore_GetValue(props, &PKEY_AudioEngine_DeviceFormat, &blob);
+	if (e != S_OK) {
+		MTY_Log("'IPropertyStore_GetValue' failed with HRESULT 0x%X", e);
+		goto except;
+	}
+
+	WAVEFORMATEXTENSIBLE *ptfx = (WAVEFORMATEXTENSIBLE *) blob.blob.pBlobData;
+
+	if (ptfx->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
+		pwfx->Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+		pwfx->Format.cbSize = 22;
+
+		// Extended data
+		pwfx->Samples = ptfx->Samples;
+		pwfx->dwChannelMask = ptfx->dwChannelMask;
+		pwfx->SubFormat = ptfx->SubFormat;
+	}
+
+	except:
+
+	PropVariantClear(&blob);
+
+	if (props)
+		IPropertyStore_Release(props);
+
+	return e;
+}
+
 static HRESULT audio_device_create(MTY_Audio *ctx)
 {
 	HRESULT e = S_OK;
@@ -160,17 +201,26 @@ static HRESULT audio_device_create(MTY_Audio *ctx)
 		goto except;
 	}
 
-	WAVEFORMATEX pwfx = {0};
-	pwfx.wFormatTag = WAVE_FORMAT_PCM;
-	pwfx.nChannels = ctx->channels;
-	pwfx.nSamplesPerSec = ctx->sample_rate;
-	pwfx.wBitsPerSample = AUDIO_SAMPLE_SIZE * 8;
-	pwfx.nBlockAlign = pwfx.nChannels * pwfx.wBitsPerSample / 8;
-	pwfx.nAvgBytesPerSec = pwfx.nSamplesPerSec * pwfx.nBlockAlign;
+	WAVEFORMATEXTENSIBLE pwfx = {
+		.Format.wFormatTag = WAVE_FORMAT_PCM,
+		.Format.nChannels = ctx->channels,
+		.Format.nSamplesPerSec = ctx->sample_rate,
+		.Format.wBitsPerSample = AUDIO_SAMPLE_SIZE * 8,
+		.Format.nBlockAlign = ctx->channels * AUDIO_SAMPLE_SIZE,
+		.Format.nAvgBytesPerSec = ctx->sample_rate * ctx->channels * AUDIO_SAMPLE_SIZE,
+	};
+
+	// We must query extended data for greater than two channels
+	if (ctx->channels > 2) {
+		e = audio_get_extended_format(device, &pwfx);
+		if (e != S_OK)
+			goto except;
+	}
 
 	e = IAudioClient_Initialize(ctx->client, AUDCLNT_SHAREMODE_SHARED,
 		AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY,
-		AUDIO_BUFFER_SIZE, 0, &pwfx, NULL);
+		AUDIO_BUFFER_SIZE, 0, &pwfx.Format, NULL);
+
 	if (e != S_OK) {
 		MTY_Log("'IAudioClient_Initialize' failed with HRESULT 0x%X", e);
 		goto except;

@@ -7,6 +7,7 @@
 #include "matoya.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "tlocal.h"
 
@@ -43,8 +44,13 @@ const char *MTY_OpenFile(const char *title, MTY_App *app, MTY_Window window)
 	if (f) {
 		name = mty_tlocal(MTY_PATH_MAX);
 
-		if (!fgets(name, MTY_PATH_MAX, f))
+		if (!fgets(name, MTY_PATH_MAX, f)) {
 			name = NULL;
+
+		} else {
+			// Zenity appends a newline, strip it
+			name[strlen(name) - 1] = '\0';
+		}
 
 		pclose(f);
 	}

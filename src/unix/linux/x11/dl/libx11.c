@@ -65,6 +65,7 @@ static int (*XSync)(Display *display, Bool discard);
 static Pixmap (*XCreateBitmapFromData)(Display *display, Drawable d, _Xconst char *data, unsigned int width, unsigned int height);
 static Cursor (*XCreatePixmapCursor)(Display *display, Pixmap source, Pixmap mask, XColor *foreground_color,
 	XColor *background_color, unsigned int x, unsigned int y);
+static Cursor (*XCreateFontCursor)(Display *display, unsigned int shape);
 static int (*XFreePixmap)(Display *display, Pixmap pixmap);
 static int (*XDefineCursor)(Display *display, Window w, Cursor cursor);
 static int (*XFreeCursor)(Display *display, Cursor cursor);
@@ -209,6 +210,7 @@ static bool libX11_global_init(void)
 		LOAD_SYM(LIBX11_SO, XSync);
 		LOAD_SYM(LIBX11_SO, XCreateBitmapFromData);
 		LOAD_SYM(LIBX11_SO, XCreatePixmapCursor);
+		LOAD_SYM(LIBX11_SO, XCreateFontCursor);
 		LOAD_SYM(LIBX11_SO, XFreePixmap);
 		LOAD_SYM(LIBX11_SO, XDefineCursor);
 		LOAD_SYM(LIBX11_SO, XFreeCursor);

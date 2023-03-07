@@ -32,7 +32,6 @@ struct d3d12_ctx_buffer {
 struct d3d12_ctx {
 	HWND hwnd;
 	bool vsync;
-	MTY_Renderer *renderer;
 	uint32_t width;
 	uint32_t height;
 
@@ -286,8 +285,6 @@ struct gfx_ctx *mty_d3d12_ctx_create(void *native_window, bool vsync)
 	if (!r)
 		goto except;
 
-	ctx->renderer = MTY_RendererCreate();
-
 	except:
 
 	if (!r)
@@ -303,12 +300,18 @@ void mty_d3d12_ctx_destroy(struct gfx_ctx **gfx_ctx)
 
 	struct d3d12_ctx *ctx = (struct d3d12_ctx *) *gfx_ctx;
 
-	MTY_RendererDestroy(&ctx->renderer);
-
 	d3d12_core_free(&ctx->core);
 
 	MTY_Free(ctx);
 	*gfx_ctx = NULL;
+}
+
+void mty_d3d12_ctx_get_size(struct gfx_ctx *gfx_ctx, uint32_t *w, uint32_t *h)
+{
+	struct d3d12_ctx *ctx = (struct d3d12_ctx *) gfx_ctx;
+
+	*w = ctx->width;
+	*h = ctx->height;
 }
 
 MTY_Device *mty_d3d12_ctx_get_device(struct gfx_ctx *gfx_ctx)
@@ -466,48 +469,11 @@ void mty_d3d12_ctx_present(struct gfx_ctx *gfx_ctx)
 	}
 }
 
-void mty_d3d12_ctx_draw_quad(struct gfx_ctx *gfx_ctx, const void *image, const MTY_RenderDesc *desc)
+bool mty_d3d12_ctx_lock(struct gfx_ctx *gfx_ctx)
 {
-	struct d3d12_ctx *ctx = (struct d3d12_ctx *) gfx_ctx;
-	struct d3d12_core *core = &ctx->core;
-
-	mty_d3d12_ctx_get_surface(gfx_ctx);
-
-	if (core->back_buffer) {
-		MTY_RenderDesc mutated = *desc;
-		mutated.viewWidth = ctx->width;
-		mutated.viewHeight = ctx->height;
-
-		MTY_RendererDrawQuad(ctx->renderer, MTY_GFX_D3D12, (MTY_Device *) core->device,
-			(MTY_Context *) core->cl, image, &mutated, (MTY_Surface *) &core->back_buffer->dh);
-	}
+	return true;
 }
 
-void mty_d3d12_ctx_draw_ui(struct gfx_ctx *gfx_ctx, const MTY_DrawData *dd)
+void mty_d3d12_ctx_unlock(void)
 {
-	struct d3d12_ctx *ctx = (struct d3d12_ctx *) gfx_ctx;
-	struct d3d12_core *core = &ctx->core;
-
-	mty_d3d12_ctx_get_surface(gfx_ctx);
-
-	if (core->back_buffer)
-		MTY_RendererDrawUI(ctx->renderer, MTY_GFX_D3D12, (MTY_Device *) core->device,
-			(MTY_Context *) core->cl, dd, (MTY_Surface *) &core->back_buffer->dh);
-}
-
-bool mty_d3d12_ctx_set_ui_texture(struct gfx_ctx *gfx_ctx, uint32_t id, const void *rgba,
-	uint32_t width, uint32_t height)
-{
-	struct d3d12_ctx *ctx = (struct d3d12_ctx *) gfx_ctx;
-	struct d3d12_core *core = &ctx->core;
-
-	return MTY_RendererSetUITexture(ctx->renderer, MTY_GFX_D3D12, (MTY_Device *) core->device,
-		(MTY_Context *) core->cl, id, rgba, width, height);
-}
-
-bool mty_d3d12_ctx_has_ui_texture(struct gfx_ctx *gfx_ctx, uint32_t id)
-{
-	struct d3d12_ctx *ctx = (struct d3d12_ctx *) gfx_ctx;
-
-	return MTY_RendererHasUITexture(ctx->renderer, id);
 }

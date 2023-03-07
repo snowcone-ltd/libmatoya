@@ -36,6 +36,7 @@ CGError CGSSetGlobalHotKeyOperatingMode(int32_t conn, enum CGSGlobalHotKeyOperat
 	@property MTY_Hash *hotkey;
 	@property MTY_Hash *deduper;
 	@property MTY_DetachState detach;
+	@property MTY_Cursor scursor;
 	@property void *opaque;
 	@property void *kb_mode;
 	@property bool relative;
@@ -105,8 +106,16 @@ static void app_apply_relative(App *ctx)
 static void app_apply_cursor(App *ctx)
 {
 	NSCursor *arrow = [NSCursor arrowCursor];
-	NSCursor *new = ctx.default_cursor || ctx.cursor_outside || ctx.detach != MTY_DETACH_STATE_NONE ? arrow :
-		ctx.custom_cursor ? ctx.custom_cursor : arrow;
+	NSCursor *scursor = nil;
+
+	switch (ctx.scursor) {
+		case MTY_CURSOR_ARROW: scursor = [NSCursor arrowCursor];        break;
+		case MTY_CURSOR_HAND:  scursor = [NSCursor pointingHandCursor]; break;
+		case MTY_CURSOR_IBEAM: scursor = [NSCursor IBeamCursor];        break;
+	}
+
+	NSCursor *new = ctx.cursor_outside || ctx.detach != MTY_DETACH_STATE_NONE ? arrow :
+		scursor ? scursor : ctx.custom_cursor ? ctx.custom_cursor : arrow;
 
 	ctx.cursor = new;
 	[ctx.cursor set];
@@ -668,10 +677,11 @@ static void window_text_event(Window *window, const char *text)
 	}
 }
 
-static void window_keyboard_event(Window *window, int16_t key_code, NSEventModifierFlags flags, bool pressed)
+static void window_keyboard_event(Window *window, uint16_t key_code, NSEventModifierFlags flags, bool pressed)
 {
 	MTY_Event evt = window_event(window, MTY_EVENT_KEY);
 	evt.key.key = keymap_keycode_to_key(key_code);
+	evt.key.vkey = key_code;
 	evt.key.mod = keymap_modifier_flags_to_keymod(flags);
 	evt.key.pressed = pressed;
 
@@ -685,6 +695,7 @@ static void window_mod_event(Window *window, NSEvent *event)
 {
 	MTY_Event evt = window_event(window, MTY_EVENT_KEY);
 	evt.key.key = keymap_keycode_to_key(event.keyCode);
+	evt.key.vkey = event.keyCode;
 	evt.key.mod = keymap_modifier_flags_to_keymod(event.modifierFlags);
 
 	switch (evt.key.key) {
@@ -1290,11 +1301,11 @@ void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t 
 	app_apply_cursor(app);
 }
 
-void MTY_AppUseDefaultCursor(MTY_App *ctx, bool useDefault)
+void MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor)
 {
 	App *app = (__bridge App *) ctx;
 
-	app.default_cursor = useDefault;
+	app.scursor = cursor;
 
 	app_apply_cursor(app);
 }
@@ -1381,6 +1392,28 @@ void MTY_AppRumbleController(MTY_App *ctx, uint32_t id, uint16_t low, uint16_t h
 	mty_hid_driver_rumble(app.hid, id, low, high);
 }
 
+const char *MTY_AppGetControllerDeviceName(MTY_App *ctx, uint32_t id)
+{
+	App *app = (__bridge App *) ctx;
+
+	struct hid_dev *device = mty_hid_get_device_by_id(app.hid, id);
+	if (!device)
+		return NULL;
+
+	return mty_hid_device_get_name(device);
+}
+
+MTY_CType MTY_AppGetControllerType(MTY_App *ctx, uint32_t id)
+{
+	App *app = (__bridge App *) ctx;
+
+	struct hid_dev *device = mty_hid_get_device_by_id(app.hid, id);
+	if (!device)
+		return MTY_CTYPE_DEFAULT;
+
+	return hid_driver(device);
+}
+
 void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
 {
 	App *app = (__bridge App *) ctx;
@@ -1397,13 +1430,6 @@ void MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_
 		return;
 
 	mty_hid_device_write(dev, report, size);
-}
-
-const void *MTY_AppGetControllerTouchpad(MTY_App *ctx, uint32_t id, size_t *size)
-{
-	App *app = (__bridge App *) ctx;
-
-	return mty_hid_device_get_touchpad(app.hid, id, size);
 }
 
 bool MTY_AppIsPenEnabled(MTY_App *ctx)
@@ -1517,11 +1543,13 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 	if (!ctx)
 		return;
 
-	mty_webview_destroy(&ctx.cmn->webview);
-	MTY_Free(ctx.cmn);
-
 	ctx.app.windows[window] = NULL;
 	[ctx close];
+
+	// XXX Make sure this is freed after the window is closed, events
+	// can continue to fire until that point
+	mty_webview_destroy(&ctx.cmn->webview);
+	MTY_Free(ctx.cmn);
 }
 
 MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)

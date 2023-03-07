@@ -64,7 +64,7 @@ static void gl_log_shader_errors(GLuint shader)
 	}
 }
 
-struct gfx *mty_gl_create(MTY_Device *device)
+struct gfx *mty_gl_create(MTY_Device *device, uint8_t layer)
 {
 	if (!glproc_global_init())
 		return NULL;
@@ -204,7 +204,7 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest)
 {
 	struct gl *ctx = (struct gl *) gfx;
-	GLuint _dest = dest ? *((GLuint *) dest) : 0;
+	GLuint _dest = *((GLuint *) dest);
 
 	// Don't do anything until we have real data
 	if (desc->format != MTY_COLOR_FORMAT_UNKNOWN)
@@ -223,12 +223,10 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 
 	glViewport(lrint(vpx), lrint(vpy) + GL_ORIGIN_Y, lrint(vpw), lrint(vph));
 
-	// Begin render pass (set destination texture if available)
-	if (_dest)
-		glBindFramebuffer(GL_FRAMEBUFFER, _dest);
+	// Begin render pass
+	glBindFramebuffer(GL_FRAMEBUFFER, _dest);
 
 	// Context state, set vertex and fragment shaders
-	glDisable(GL_BLEND);
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_SCISSOR_TEST);
@@ -242,9 +240,17 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	glVertexAttribPointer(ctx->loc_pos, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
 	glVertexAttribPointer(ctx->loc_uv,  2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *) (2 * sizeof(GLfloat)));
 
-	// Clear
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
+	// Layer alpha blending
+	if (desc->layer == 0) {
+		glDisable(GL_BLEND);
+		glClearColor(0, 0, 0, 1);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+	} else {
+		glEnable(GL_BLEND);
+		glBlendEquation(GL_FUNC_ADD);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	}
 
 	// Fragment shader
 	for (uint8_t x = 0; x < GL_NUM_STAGING; x++) {
@@ -271,6 +277,17 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
 
 	return true;
+}
+
+void mty_gl_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dest)
+{
+	GLuint _dest = *((GLuint *) dest);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, _dest);
+	glDisable(GL_SCISSOR_TEST);
+	glClearColor(r, g, b, a);
+	glClear(GL_COLOR_BUFFER_BIT);
 }
 
 void mty_gl_destroy(struct gfx **gfx, MTY_Device *device)

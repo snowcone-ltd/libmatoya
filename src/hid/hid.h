@@ -22,6 +22,7 @@ void mty_hid_destroy(struct hid **hid);
 void mty_hid_device_write(struct hid_dev *ctx, const void *buf, size_t size);
 bool mty_hid_device_feature(struct hid_dev *ctx, void *buf, size_t size, size_t *size_out);
 void *mty_hid_device_get_state(struct hid_dev *ctx);
+const char *mty_hid_device_get_name(struct hid_dev *ctx);
 uint16_t mty_hid_device_get_vid(struct hid_dev *ctx);
 uint16_t mty_hid_device_get_pid(struct hid_dev *ctx);
 uint32_t mty_hid_device_get_id(struct hid_dev *ctx);
@@ -30,10 +31,10 @@ uint32_t mty_hid_device_get_input_report_size(struct hid_dev *ctx);
 void mty_hid_default_state(struct hid_dev *ctx, const void *buf, size_t size, MTY_ControllerEvent *c);
 void mty_hid_default_rumble(struct hid *ctx, uint32_t id, uint16_t low, uint16_t high);
 
+MTY_CType hid_driver(struct hid_dev *device);
 void mty_hid_driver_init(struct hid_dev *device);
 bool mty_hid_driver_state(struct hid_dev *device, const void *buf, size_t size, MTY_ControllerEvent *c);
 void mty_hid_driver_rumble(struct hid *hid, uint32_t id, uint16_t low, uint16_t high);
-const void *mty_hid_device_get_touchpad(struct hid *hid, uint32_t id, size_t *size);
 
 // Win32 specific for interop with RAWINPUT
 void mty_hid_win32_listen(void *hwnd);

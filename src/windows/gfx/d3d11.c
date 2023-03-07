@@ -42,11 +42,12 @@ struct d3d11 {
 	ID3D11InputLayout *il;
 	ID3D11SamplerState *ss_nearest;
 	ID3D11SamplerState *ss_linear;
+	ID3D11BlendState *bs;
 	ID3D11RasterizerState *rs;
 	ID3D11DepthStencilState *dss;
 };
 
-struct gfx *mty_d3d11_create(MTY_Device *device)
+struct gfx *mty_d3d11_create(MTY_Device *device, uint8_t layer)
 {
 	struct d3d11 *ctx = MTY_Alloc(1, sizeof(struct d3d11));
 	ID3D11Device *_device = (ID3D11Device *) device;
@@ -146,6 +147,26 @@ struct gfx *mty_d3d11_create(MTY_Device *device)
 	e = ID3D11Device_CreateSamplerState(_device, &sdesc, &ctx->ss_linear);
 	if (e != S_OK) {
 		MTY_Log("'ID3D11Device_CreateSamplerState' failed with HRESULT 0x%X", e);
+		goto except;
+	}
+
+	D3D11_BLEND_DESC bdesc = {
+		.AlphaToCoverageEnable = FALSE,
+		.RenderTarget[0] = {
+			.BlendEnable = TRUE,
+			.SrcBlend = D3D11_BLEND_SRC_ALPHA,
+			.DestBlend = D3D11_BLEND_INV_SRC_ALPHA,
+			.BlendOp = D3D11_BLEND_OP_ADD,
+			.SrcBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA,
+			.DestBlendAlpha = D3D11_BLEND_ZERO,
+			.BlendOpAlpha = D3D11_BLEND_OP_ADD,
+			.RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL,
+		},
+	};
+
+	e = ID3D11Device_CreateBlendState(_device, &bdesc, &ctx->bs);
+	if (e != S_OK) {
+		MTY_Log("'ID3D11Device_CreateBlendState' failed with HRESULT 0x%X", e);
 		goto except;
 	}
 
@@ -284,9 +305,8 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest)
 {
 	struct d3d11 *ctx = (struct d3d11 *) gfx;
-	ID3D11Device *_device = (ID3D11Device *) device;
 	ID3D11DeviceContext *_context = (ID3D11DeviceContext *) context;
-	ID3D11Texture2D *_dest = (ID3D11Texture2D *) dest;
+	ID3D11RenderTargetView *_dest = (ID3D11RenderTargetView *) dest;
 
 	// Don't do anything until we have real data
 	if (desc->format != MTY_COLOR_FORMAT_UNKNOWN)
@@ -306,28 +326,17 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 
 	ID3D11DeviceContext_RSSetViewports(_context, 1, &vp);
 
-	// Begin render pass (set destination texture if available)
-	ID3D11Resource *rtvresource = NULL;
-	ID3D11RenderTargetView *rtv = NULL;
-	HRESULT e = S_OK;
+	// Begin render pass
+	ID3D11DeviceContext_OMSetRenderTargets(_context, 1, &_dest, NULL);
 
-	if (_dest) {
-		e = ID3D11Texture2D_QueryInterface(_dest, &IID_ID3D11Resource, &rtvresource);
-		if (e != S_OK) {
-			MTY_Log("'ID3D11Texture2D_QueryInterface' failed with HRESULT 0x%X", e);
-			goto except;
-		}
+	if (desc->layer == 0) {
+		FLOAT clear_color[4] = {0, 0, 0, 1};
+		ID3D11DeviceContext_ClearRenderTargetView(_context, _dest, clear_color);
+		ID3D11DeviceContext_OMSetBlendState(_context, NULL, NULL, 0xFFFFFFFF);
 
-		e = ID3D11Device_CreateRenderTargetView(_device, rtvresource, NULL, &rtv);
-		if (e != S_OK) {
-			MTY_Log("'ID3D11Device_CreateRenderTargetView' failed with HRESULT 0x%X", e);
-			goto except;
-		}
-
-		ID3D11DeviceContext_OMSetRenderTargets(_context, 1, &rtv, NULL);
-
-		FLOAT clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-		ID3D11DeviceContext_ClearRenderTargetView(_context, rtv, clear_color);
+	} else {
+		const float blend_factor[4] = {0, 0, 0, 0};
+		ID3D11DeviceContext_OMSetBlendState(_context, ctx->bs, blend_factor, 0xFFFFFFFF);
 	}
 
 	// Vertex shader
@@ -339,7 +348,7 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	ID3D11DeviceContext_IASetIndexBuffer(_context, ctx->ib, DXGI_FORMAT_R32_UINT, 0);
 	ID3D11DeviceContext_IASetInputLayout(_context, ctx->il);
 	ID3D11DeviceContext_IASetPrimitiveTopology(_context, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	ID3D11DeviceContext_OMSetBlendState(_context, NULL, NULL, 0xFFFFFFFF);
+
 	ID3D11DeviceContext_OMSetDepthStencilState(_context, ctx->dss, 0);
 	ID3D11DeviceContext_RSSetState(_context, ctx->rs);
 
@@ -366,10 +375,10 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 
 	if (memcmp(&ctx->ub, &cb, sizeof(struct gfx_uniforms))) {
 		D3D11_MAPPED_SUBRESOURCE res = {0};
-		e = ID3D11DeviceContext_Map(_context, ctx->psbres, 0, D3D11_MAP_WRITE_DISCARD, 0, &res);
+		HRESULT e = ID3D11DeviceContext_Map(_context, ctx->psbres, 0, D3D11_MAP_WRITE_DISCARD, 0, &res);
 		if (e != S_OK) {
 			MTY_Log("'ID3D11DeviceContext_Map' failed with HRESULT 0x%X", e);
-			goto except;
+			return false;
 		}
 
 		memcpy(res.pData, &cb, sizeof(struct gfx_uniforms));
@@ -384,15 +393,17 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	// Draw
 	ID3D11DeviceContext_DrawIndexed(_context, 6, 0, 0);
 
-	except:
+	return true;
+}
 
-	if (rtv)
-		ID3D11RenderTargetView_Release(rtv);
+void mty_d3d11_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dest)
+{
+	ID3D11DeviceContext *_context = (ID3D11DeviceContext *) context;
+	ID3D11RenderTargetView *_dest = (ID3D11RenderTargetView *) dest;
 
-	if (rtvresource)
-		ID3D11Resource_Release(rtvresource);
-
-	return e == S_OK;
+	FLOAT clear_color[4] = {r, g, b, a};
+	ID3D11DeviceContext_ClearRenderTargetView(_context, _dest, clear_color);
 }
 
 void mty_d3d11_destroy(struct gfx **gfx, MTY_Device *device)
@@ -410,6 +421,9 @@ void mty_d3d11_destroy(struct gfx **gfx, MTY_Device *device)
 
 	if (ctx->dss)
 		ID3D11DepthStencilState_Release(ctx->dss);
+
+	if (ctx->bs)
+		ID3D11BlendState_Release(ctx->bs);
 
 	if (ctx->ss_linear)
 		ID3D11SamplerState_Release(ctx->ss_linear);

@@ -198,10 +198,7 @@ bool mty_d3d11_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context 
 	struct d3d11_ui *ctx = (struct d3d11_ui *) gfx_ui;
 	ID3D11Device *_device = (ID3D11Device *) device;
 	ID3D11DeviceContext *_context = (ID3D11DeviceContext *) context;
-	ID3D11Texture2D *_dest = (ID3D11Texture2D *) dest;
-
-	ID3D11Resource *tex_res = NULL;
-	ID3D11RenderTargetView *rtv = NULL;
+	ID3D11RenderTargetView *_dest = (ID3D11RenderTargetView *) dest;
 
 	// Prevent rendering under invalid scenarios
 	if (dd->displaySize.x <= 0 || dd->displaySize.y <= 0 || dd->cmdListLength == 0)
@@ -211,26 +208,26 @@ bool mty_d3d11_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context 
 	HRESULT e = d3d11_ui_resize_buffer(_device, &ctx->vb, dd->vtxTotalLength, GFX_UI_VTX_INCR, sizeof(MTY_Vtx),
 		D3D11_BIND_VERTEX_BUFFER);
 	if (e != S_OK)
-		goto except;
+		return false;
 
 	e = d3d11_ui_resize_buffer(_device, &ctx->ib, dd->idxTotalLength, GFX_UI_IDX_INCR, sizeof(uint16_t),
 		D3D11_BIND_INDEX_BUFFER);
 	if (e != S_OK)
-		goto except;
+		return false;
 
 	// Map both vertex and index buffers and bulk copy the data
 	D3D11_MAPPED_SUBRESOURCE vtx_map = {0};
 	e = ID3D11DeviceContext_Map(_context, ctx->vb.res, 0, D3D11_MAP_WRITE_DISCARD, 0, &vtx_map);
 	if (e != S_OK) {
 		MTY_Log("'ID3D11DeviceContext_Map' failed with HRESULT 0x%X", e);
-		goto except;
+		return false;
 	}
 
 	D3D11_MAPPED_SUBRESOURCE idx_map = {0};
 	e = ID3D11DeviceContext_Map(_context, ctx->ib.res, 0, D3D11_MAP_WRITE_DISCARD, 0, &idx_map);
 	if (e != S_OK) {
 		MTY_Log("'ID3D11DeviceContext_Map' failed with HRESULT 0x%X", e);
-		goto except;
+		return false;
 	}
 
 	MTY_Vtx *vtx_dst = (MTY_Vtx *) vtx_map.pData;
@@ -264,28 +261,15 @@ bool mty_d3d11_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context 
 	D3D11_MAPPED_SUBRESOURCE cb_map = {0};
 	e = ID3D11DeviceContext_Map(_context, ctx->cb_res, 0, D3D11_MAP_WRITE_DISCARD, 0, &cb_map);
 	if (e != S_OK)
-		goto except;
+		return false;
 
 	struct d3d11_ui_cb *cb = (struct d3d11_ui_cb *) cb_map.pData;
 	memcpy(&cb->proj, proj, sizeof(proj));
 	ID3D11DeviceContext_Unmap(_context, ctx->cb_res, 0);
 
 	// Set render target (wraps the texture)
-	if (_dest) {
-		e = ID3D11Texture2D_QueryInterface(_dest, &IID_ID3D11Resource, &tex_res);
-		if (e != S_OK) {
-			MTY_Log("'ID3D11Texture2D_QueryInterface' failed with HRESULT 0x%X", e);
-			goto except;
-		}
-
-		e = ID3D11Device_CreateRenderTargetView(_device, tex_res, NULL, &rtv);
-		if (e != S_OK) {
-			MTY_Log("'ID3D11Device_CreateRenderTargetView' failed with HRESULT 0x%X", e);
-			goto except;
-		}
-
-		ID3D11DeviceContext_OMSetRenderTargets(_context, 1, &rtv, NULL);
-	}
+	if (_dest)
+		ID3D11DeviceContext_OMSetRenderTargets(_context, 1, &_dest, NULL);
 
 	// Set viewport based on display size
 	D3D11_VIEWPORT vp = {0};
@@ -295,9 +279,9 @@ bool mty_d3d11_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context 
 	ID3D11DeviceContext_RSSetViewports(_context, 1, &vp);
 
 	// Clear render target to black
-	if (rtv && dd->clear) {
-		FLOAT clear_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-		ID3D11DeviceContext_ClearRenderTargetView(_context, rtv, clear_color);
+	if (_dest && dd->clear) {
+		FLOAT clear_color[4] = {0, 0, 0, 1};
+		ID3D11DeviceContext_ClearRenderTargetView(_context, _dest, clear_color);
 	}
 
 	// Set up rendering pipeline
@@ -354,15 +338,7 @@ bool mty_d3d11_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context 
 		vtxOffset += cmdList->vtxLength;
 	}
 
-	except:
-
-	if (rtv)
-		ID3D11RenderTargetView_Release(rtv);
-
-	if (tex_res)
-		ID3D11Resource_Release(tex_res);
-
-	return e == S_OK;
+	return true;
 }
 
 void *mty_d3d11_ui_create_texture(struct gfx_ui *gfx_ui, MTY_Device *device, const void *rgba,

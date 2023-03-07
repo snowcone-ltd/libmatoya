@@ -12,6 +12,7 @@
 	MTY_MakeDefaultFrame(0, 0, 800, 600, 1.0f);
 
 struct window_common {
+	MTY_Renderer *renderer;
 	struct webview *webview;
 	struct gfx_ctx *gfx_ctx;
 	MTY_GFX api;

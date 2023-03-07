@@ -81,6 +81,7 @@ OBJS = \
 	src\windows\gfx\d3d9-ctx.obj \
 	src\windows\gfx\d3d9-ui.obj \
 	src\windows\gfx\gl-ctx.obj \
+	src\windows\net\request.obj \
 	src\windows\net\ws.obj
 
 SHADERS = \
@@ -126,12 +127,6 @@ FLAGS = \
 
 LIB_FLAGS = \
 	/nologo
-
-!IFDEF MTY_NO_WINHTTP
-OBJS = $(OBJS) src\unix\net\request.obj
-!ELSE
-OBJS = $(OBJS) src\windows\net\request.obj
-!ENDIF
 
 !IFDEF DEBUG
 FLAGS = $(FLAGS) /Ob0 /Zi
