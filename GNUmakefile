@@ -42,7 +42,6 @@ OBJS = \
 	src/hid/utils.o \
 	src/unix/file.o \
 	src/unix/memory.o \
-	src/unix/system.o \
 	src/unix/thread.o \
 	src/unix/time.o
 
@@ -96,7 +95,6 @@ OBJS := $(OBJS) \
 	src/unix/web/gfx/gl-ctx.o
 
 DEFS := $(DEFS) \
-	-D_WASI_EMULATED_SIGNAL \
 	-DCLOCK_MONOTONIC_RAW=CLOCK_MONOTONIC \
 	-DMTY_GLUI_CLEAR_ALPHA=0.0f \
 	-DMTY_GL_EXTERNAL \
@@ -126,6 +124,7 @@ OBJS := $(OBJS) \
 	src/net/http-parse.o \
 	src/net/http-proxy.o \
 	src/unix/image.o \
+	src/unix/system.o \
 	src/unix/linux/dialog.o \
 	src/unix/linux/x11/aes-gcm.o \
 	src/unix/linux/x11/app.o \
@@ -204,6 +203,7 @@ OBJS := $(OBJS) \
 	src/net/dns.o \
 	src/net/http-parse.o \
 	src/net/http-proxy.o \
+	src/unix/system.o \
 	src/unix/apple/request.o \
 	src/unix/apple/audio.o \
 	src/unix/apple/crypto.o \
@@ -263,8 +263,7 @@ android: clean clear $(SHADERS)
 		APP_BUILD_SCRIPT=Android.mk \
 		APP_PLATFORM=android-26 \
 		NDK_PROJECT_PATH=. \
-		--no-print-directory \
-		| grep -v 'fcntl(): Operation not supported'
+		--no-print-directory
 
 clean: clean-build
 	@rm -rf obj

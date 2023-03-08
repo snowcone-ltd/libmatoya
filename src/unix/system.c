@@ -11,17 +11,17 @@
 #include <stdio.h>
 #include <errno.h>
 
+#include <dlfcn.h>
 #include <unistd.h>
 
 #include "tlocal.h"
-#include "dlopen.h"
 
 static MTY_CrashFunc SYSTEM_CRASH_FUNC;
 static void *SYSTEM_OPAQUE;
 
 MTY_SO *MTY_SOLoad(const char *path)
 {
-	MTY_SO *so = dlopen(path, DLOPEN_FLAGS);
+	MTY_SO *so = dlopen(path, RTLD_NOW | RTLD_LOCAL);
 	if (!so) {
 		const char *estr = dlerror();
 		if (estr)

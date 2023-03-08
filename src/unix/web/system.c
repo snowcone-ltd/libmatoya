@@ -8,9 +8,32 @@
 
 #include "web.h"
 
+MTY_SO *MTY_SOLoad(const char *path)
+{
+	return NULL;
+}
+
+void *MTY_SOGetSymbol(MTY_SO *so, const char *name)
+{
+	return NULL;
+}
+
+void MTY_SOUnload(MTY_SO **so)
+{
+	if (!so || !*so)
+		return;
+
+	*so = NULL;
+}
+
 const char *MTY_GetSOExtension(void)
 {
-	return "so";
+	return "wasm";
+}
+
+const char *MTY_GetHostname(void)
+{
+	return "";
 }
 
 uint32_t MTY_GetPlatform(void)
@@ -49,6 +72,27 @@ const char *MTY_GetProcessPath(void)
 bool MTY_RestartProcess(char * const *argv)
 {
 	return false;
+}
+
+void MTY_SetCrashFunc(MTY_CrashFunc func, void *opaque)
+{
+}
+
+void MTY_OpenConsole(const char *title)
+{
+}
+
+void MTY_CloseConsole(void)
+{
+}
+
+bool MTY_GetRunOnStartup(const char *name)
+{
+	return false;
+}
+
+void MTY_SetRunOnStartup(const char *name, const char *path, const char *args)
+{
 }
 
 void *MTY_GetJNIEnv(void)
