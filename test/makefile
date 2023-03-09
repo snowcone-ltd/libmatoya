@@ -17,7 +17,6 @@ LIBS = \
 	..\bin\windows\$(ARCH)\matoya.lib \
 	advapi32.lib \
 	bcrypt.lib \
-	d3d9.lib \
 	d3d11.lib \
 	d3d12.lib \
 	dxgi.lib \
@@ -26,7 +25,6 @@ LIBS = \
 	hid.lib \
 	imm32.lib \
 	ole32.lib \
-	opengl32.lib \
 	shcore.lib \
 	shell32.lib \
 	shlwapi.lib \
