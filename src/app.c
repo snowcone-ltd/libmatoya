@@ -191,9 +191,6 @@ bool MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync)
 		if (api == MTY_GFX_D3D12)
 			return MTY_WindowSetGFX(app, window, MTY_GFX_D3D11, vsync);
 
-		if (api == MTY_GFX_D3D11)
-			return MTY_WindowSetGFX(app, window, MTY_GFX_D3D9, vsync);
-
 	} else {
 		cmn->renderer = MTY_RendererCreate();
 		cmn->api = api;
