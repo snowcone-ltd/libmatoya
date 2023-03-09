@@ -1,13 +1,38 @@
+// Copyright (c) Christopher D. Dickson <cdd@matoya.group>
+//
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
 #include "matoya.h"
-
+#include <IOKit/hid/IOHIDUsageTables.h>
+#include <AppKit/AppKit.h>
+#include <Carbon/Carbon.h>
+#include <IOKit/pwr_mgt/IOPMLib.h>
 
 // Carbon private interface
 
+
+// Missing entries in the kVK table.
+// 84 - 8F and 93 - 9F are seemingly unused for now
+#define kVK_Play 0x34
+#define kVK_Next 0x42
+#define kVK_Unknown1 0x44
+#define kVK_Unknown2 0x46
+#define kVK_Previous 0x4D
+#define kVK_Unknown3 0x6C
 #define kVK_WinApp 0x6E
+#define kVK_VidMirror 0x70
+#define kVK_Power 0x7F
+#define kVK_Unknown4 0x80
+#define kVK_Spotlight 0x81
+#define kVK_Dashboard 0x82
+#define kVK_Launchpad 0x83
+#define kVK_BrightnessUp 0x90
+#define kVK_BrightnessDown 0x91
+#define kVK_Eject 0x92
+#define kVK_ExposesAll 0xA0
+#define kVK_ExposesDesktop 0xA1
 
 enum {
 	NS_MOD_LCTRL  = 0x000001,
@@ -95,7 +120,7 @@ static MTY_Key keymap_keycode_to_key(uint16_t kc)
 		case kVK_Space:               return MTY_KEY_SPACE;
 		case kVK_ANSI_Grave:          return MTY_KEY_GRAVE;
 		case kVK_Delete:              return MTY_KEY_BACKSPACE;
-		case 0x34:                    return MTY_KEY_NONE;
+		case kVK_Play:                return MTY_KEY_AUDIO_PLAY;
 		case kVK_Escape:              return MTY_KEY_ESCAPE;
 		case kVK_RightCommand:        return MTY_KEY_RWIN;
 		case kVK_Command:             return MTY_KEY_LWIN;
@@ -109,17 +134,18 @@ static MTY_Key keymap_keycode_to_key(uint16_t kc)
 		case kVK_Function:            return MTY_KEY_NONE;
 		case kVK_F17:                 return MTY_KEY_F17;
 		case kVK_ANSI_KeypadDecimal:  return MTY_KEY_NP_PERIOD;
-		case 0x42:                    return MTY_KEY_NONE;
+		case kVK_Next:                return MTY_KEY_AUDIO_NEXT;
 		case kVK_ANSI_KeypadMultiply: return MTY_KEY_NP_MULTIPLY;
-		case 0x44:                    return MTY_KEY_NONE;
+		case kVK_Unknown1:            return MTY_KEY_NONE;
 		case kVK_ANSI_KeypadPlus:     return MTY_KEY_NP_PLUS;
-		case 0x46:                    return MTY_KEY_NONE;
+		case kVK_Unknown2:            return MTY_KEY_NONE;
 		case kVK_ANSI_KeypadClear:    return MTY_KEY_NUM_LOCK;
 		case kVK_VolumeUp:            return MTY_KEY_VOLUME_UP;
 		case kVK_VolumeDown:          return MTY_KEY_VOLUME_DOWN;
 		case kVK_Mute:                return MTY_KEY_MUTE;
 		case kVK_ANSI_KeypadDivide:   return MTY_KEY_NP_DIVIDE;
 		case kVK_ANSI_KeypadEnter:    return MTY_KEY_NP_ENTER;
+		case kVK_Previous:            return MTY_KEY_AUDIO_PREV;
 		case kVK_ANSI_KeypadMinus:    return MTY_KEY_NP_MINUS;
 		case kVK_F18:                 return MTY_KEY_F18;
 		case kVK_F19:                 return MTY_KEY_F19;
@@ -132,7 +158,7 @@ static MTY_Key keymap_keycode_to_key(uint16_t kc)
 		case kVK_ANSI_Keypad5:        return MTY_KEY_NP_5;
 		case kVK_ANSI_Keypad6:        return MTY_KEY_NP_6;
 		case kVK_ANSI_Keypad7:        return MTY_KEY_NP_7;
-		case kVK_F20:                 return MTY_KEY_NONE;
+		case kVK_F20:                 return MTY_KEY_F20;
 		case kVK_ANSI_Keypad8:        return MTY_KEY_NP_8;
 		case kVK_ANSI_Keypad9:        return MTY_KEY_NP_9;
 		case kVK_JIS_Yen:             return MTY_KEY_YEN;
@@ -150,10 +176,11 @@ static MTY_Key keymap_keycode_to_key(uint16_t kc)
 		case kVK_F13:                 return MTY_KEY_PRINT_SCREEN;
 		case kVK_F16:                 return MTY_KEY_F16;
 		case kVK_F14:                 return MTY_KEY_SCROLL_LOCK;
+		case kVK_Unknown3:            return MTY_KEY_NONE;
 		case kVK_F10:                 return MTY_KEY_F10;
 		case kVK_WinApp:              return MTY_KEY_APP;
 		case kVK_F12:                 return MTY_KEY_F12;
-		case 0x70:                    return MTY_KEY_NONE;
+		case kVK_VidMirror:           return MTY_KEY_NONE;
 		case kVK_F15:                 return MTY_KEY_PAUSE;
 		case kVK_Help:                return MTY_KEY_INSERT;
 		case kVK_Home:                return MTY_KEY_HOME;
@@ -168,6 +195,16 @@ static MTY_Key keymap_keycode_to_key(uint16_t kc)
 		case kVK_RightArrow:          return MTY_KEY_RIGHT;
 		case kVK_DownArrow:           return MTY_KEY_DOWN;
 		case kVK_UpArrow:             return MTY_KEY_UP;
+		case kVK_Power:               return MTY_KEY_POWER;
+		case kVK_Unknown4:            return MTY_KEY_NONE;
+		case kVK_Spotlight:           return MTY_KEY_F21;
+		case kVK_Dashboard:           return MTY_KEY_F22;
+		case kVK_Launchpad:           return MTY_KEY_F23;
+		case kVK_BrightnessUp:        return MTY_KEY_NONE;
+		case kVK_BrightnessDown:      return MTY_KEY_NONE;
+		case kVK_Eject:               return MTY_KEY_NONE;
+		case kVK_ExposesAll:          return MTY_KEY_F24;
+		case kVK_ExposesDesktop:      return MTY_KEY_NONE;
 	}
 
 	return MTY_KEY_NONE;
@@ -227,3 +264,183 @@ static const char *keymap_keycode_to_text(uint16_t kc)
 
 	return NULL;
 }
+
+// The enumerations in this table actually are just standard HID usage values for all of USB
+// in the keyboard usage page.
+static MTY_Key keymap_usage_to_key(uint32_t usage)
+{
+
+	switch(usage) {
+		case kHIDUsage_KeyboardA:                    return MTY_KEY_A; /* a or A */
+		case kHIDUsage_KeyboardB:                    return MTY_KEY_B; /* b or B */
+		case kHIDUsage_KeyboardC:                    return MTY_KEY_C; /* c or C */
+		case kHIDUsage_KeyboardD:                    return MTY_KEY_D; /* d or D */
+		case kHIDUsage_KeyboardE:                    return MTY_KEY_E; /* e or E */
+		case kHIDUsage_KeyboardF:                    return MTY_KEY_F; /* f or F */
+		case kHIDUsage_KeyboardG:                    return MTY_KEY_G; /* g or G */
+		case kHIDUsage_KeyboardH:                    return MTY_KEY_H; /* h or H */
+		case kHIDUsage_KeyboardI:                    return MTY_KEY_I; /* i or I */
+		case kHIDUsage_KeyboardJ:                    return MTY_KEY_J; /* j or J */
+		case kHIDUsage_KeyboardK:                    return MTY_KEY_K; /* k or K */
+		case kHIDUsage_KeyboardL:                    return MTY_KEY_L; /* l or L */
+		case kHIDUsage_KeyboardM:                    return MTY_KEY_M; /* m or M */
+		case kHIDUsage_KeyboardN:                    return MTY_KEY_N; /* n or N */
+		case kHIDUsage_KeyboardO:                    return MTY_KEY_O; /* o or O */
+		case kHIDUsage_KeyboardP:                    return MTY_KEY_P; /* p or P */
+		case kHIDUsage_KeyboardQ:                    return MTY_KEY_Q; /* q or Q */
+		case kHIDUsage_KeyboardR:                    return MTY_KEY_R; /* r or R */
+		case kHIDUsage_KeyboardS:                    return MTY_KEY_S; /* s or S */
+		case kHIDUsage_KeyboardT:                    return MTY_KEY_T; /* t or T */
+		case kHIDUsage_KeyboardU:                    return MTY_KEY_U; /* u or U */
+		case kHIDUsage_KeyboardV:                    return MTY_KEY_V; /* v or V */
+		case kHIDUsage_KeyboardW:                    return MTY_KEY_W; /* w or W */
+		case kHIDUsage_KeyboardX:                    return MTY_KEY_X; /* x or X */
+		case kHIDUsage_KeyboardY:                    return MTY_KEY_Y; /* y or Y */
+		case kHIDUsage_KeyboardZ:                    return MTY_KEY_Z; /* z or Z */
+		case kHIDUsage_Keyboard1:                    return MTY_KEY_1; /* 1 or ! */
+		case kHIDUsage_Keyboard2:                    return MTY_KEY_2; /* 2 or @ */
+		case kHIDUsage_Keyboard3:                    return MTY_KEY_3; /* 3 or # */
+		case kHIDUsage_Keyboard4:                    return MTY_KEY_4; /* 4 or $ */
+		case kHIDUsage_Keyboard5:                    return MTY_KEY_5; /* 5 or % */
+		case kHIDUsage_Keyboard6:                    return MTY_KEY_6; /* 6 or ^ */
+		case kHIDUsage_Keyboard7:                    return MTY_KEY_7; /* 7 or & */
+		case kHIDUsage_Keyboard8:                    return MTY_KEY_8; /* 8 or * */
+		case kHIDUsage_Keyboard9:                    return MTY_KEY_9; /* 9 or ( */
+		case kHIDUsage_Keyboard0:                    return MTY_KEY_0; /* 0 or ) */
+		case kHIDUsage_KeyboardReturnOrEnter:        return MTY_KEY_ENTER; /* Return (Enter) */
+		case kHIDUsage_KeyboardEscape:               return MTY_KEY_ESCAPE; /* Escape */
+		case kHIDUsage_KeyboardDeleteOrBackspace:    return MTY_KEY_BACKSPACE; /* Delete (Backspace) */
+		case kHIDUsage_KeyboardTab:                  return MTY_KEY_TAB; /* Tab */
+		case kHIDUsage_KeyboardSpacebar:             return MTY_KEY_SPACE; /* Spacebar */
+		case kHIDUsage_KeyboardHyphen:               return MTY_KEY_MINUS; /* - or _ */
+		case kHIDUsage_KeyboardEqualSign:            return MTY_KEY_EQUALS; /* = or + */
+		case kHIDUsage_KeyboardOpenBracket:          return MTY_KEY_LBRACKET; /* [ or { */
+		case kHIDUsage_KeyboardCloseBracket:         return MTY_KEY_RBRACKET; /* ] or } */
+		case kHIDUsage_KeyboardBackslash:            return MTY_KEY_BACKSLASH; /* \ or | */
+		case kHIDUsage_KeyboardNonUSPound:           return MTY_KEY_BACKSLASH; /* Non-US # or _ */
+		case kHIDUsage_KeyboardSemicolon:            return MTY_KEY_SEMICOLON; /* ; or : */
+		case kHIDUsage_KeyboardQuote:                return MTY_KEY_QUOTE; /* ' or " */
+		case kHIDUsage_KeyboardGraveAccentAndTilde:  return MTY_KEY_GRAVE; /* Grave Accent and Tilde */
+		case kHIDUsage_KeyboardComma:                return MTY_KEY_COMMA; /* , or < */
+		case kHIDUsage_KeyboardPeriod:               return MTY_KEY_PERIOD; /* . or > */
+		case kHIDUsage_KeyboardSlash:                return MTY_KEY_SLASH; /* / or ? */
+		case kHIDUsage_KeyboardCapsLock:             return MTY_KEY_CAPS; /* Caps Lock */
+		case kHIDUsage_KeyboardF1:                   return MTY_KEY_F1; /* F1 */
+		case kHIDUsage_KeyboardF2:                   return MTY_KEY_F2; /* F2 */
+		case kHIDUsage_KeyboardF3:                   return MTY_KEY_F3; /* F3 */
+		case kHIDUsage_KeyboardF4:                   return MTY_KEY_F4; /* F4 */
+		case kHIDUsage_KeyboardF5:                   return MTY_KEY_F5; /* F5 */
+		case kHIDUsage_KeyboardF6:                   return MTY_KEY_F6; /* F6 */
+		case kHIDUsage_KeyboardF7:                   return MTY_KEY_F7; /* F7 */
+		case kHIDUsage_KeyboardF8:                   return MTY_KEY_F8; /* F8 */
+		case kHIDUsage_KeyboardF9:                   return MTY_KEY_F9; /* F9 */
+		case kHIDUsage_KeyboardF10:                  return MTY_KEY_F10; /* F10 */
+		case kHIDUsage_KeyboardF11:                  return MTY_KEY_F11; /* F11 */
+		case kHIDUsage_KeyboardF12:                  return MTY_KEY_F12; /* F12 */
+		case kHIDUsage_KeyboardPrintScreen:          return MTY_KEY_PRINT_SCREEN; /* Print Screen */
+		case kHIDUsage_KeyboardScrollLock:           return MTY_KEY_SCROLL_LOCK; /* Scroll Lock */
+		case kHIDUsage_KeyboardPause:                return MTY_KEY_PAUSE; /* Pause */
+		case kHIDUsage_KeyboardInsert:               return MTY_KEY_INSERT; /* Insert */
+		case kHIDUsage_KeyboardHome:                 return MTY_KEY_HOME; /* Home */
+		case kHIDUsage_KeyboardPageUp:               return MTY_KEY_PAGE_UP; /* Page Up */
+		case kHIDUsage_KeyboardDeleteForward:        return MTY_KEY_DELETE; /* Delete Forward */
+		case kHIDUsage_KeyboardEnd:                  return MTY_KEY_END; /* End */
+		case kHIDUsage_KeyboardPageDown:             return MTY_KEY_PAGE_DOWN; /* Page Down */
+		case kHIDUsage_KeyboardRightArrow:           return MTY_KEY_RIGHT; /* Right Arrow */
+		case kHIDUsage_KeyboardLeftArrow:            return MTY_KEY_LEFT; /* Left Arrow */
+		case kHIDUsage_KeyboardDownArrow:            return MTY_KEY_DOWN; /* Down Arrow */
+		case kHIDUsage_KeyboardUpArrow:              return MTY_KEY_UP; /* Up Arrow */
+		case kHIDUsage_KeypadNumLock:                return MTY_KEY_NUM_LOCK; /* Keypad NumLock or Clear */
+		case kHIDUsage_KeypadSlash:                  return MTY_KEY_NP_DIVIDE; /* Keypad / */
+		case kHIDUsage_KeypadAsterisk:               return MTY_KEY_NP_MULTIPLY; /* Keypad * */
+		case kHIDUsage_KeypadHyphen:                 return MTY_KEY_NP_MINUS; /* Keypad - */
+		case kHIDUsage_KeypadPlus:                   return MTY_KEY_NP_PLUS; /* Keypad + */
+		case kHIDUsage_KeypadEnter:                  return MTY_KEY_NP_ENTER; /* Keypad Enter */
+		case kHIDUsage_Keypad1:                      return MTY_KEY_NP_1; /* Keypad 1 or End */
+		case kHIDUsage_Keypad2:                      return MTY_KEY_NP_2; /* Keypad 2 or Down Arrow */
+		case kHIDUsage_Keypad3:                      return MTY_KEY_NP_3; /* Keypad 3 or Page Down */
+		case kHIDUsage_Keypad4:                      return MTY_KEY_NP_4; /* Keypad 4 or Left Arrow */
+		case kHIDUsage_Keypad5:                      return MTY_KEY_NP_5; /* Keypad 5 */
+		case kHIDUsage_Keypad6:                      return MTY_KEY_NP_6; /* Keypad 6 or Right Arrow */
+		case kHIDUsage_Keypad7:                      return MTY_KEY_NP_7; /* Keypad 7 or Home */
+		case kHIDUsage_Keypad8:                      return MTY_KEY_NP_8; /* Keypad 8 or Up Arrow */
+		case kHIDUsage_Keypad9:                      return MTY_KEY_NP_9; /* Keypad 9 or Page Up */
+		case kHIDUsage_Keypad0:                      return MTY_KEY_NP_0; /* Keypad 0 or Insert */
+		case kHIDUsage_KeypadPeriod:                 return MTY_KEY_NP_PERIOD; /* Keypad . or Delete */
+		case kHIDUsage_KeyboardNonUSBackslash:       return MTY_KEY_INTL_BACKSLASH; /* Non-US \ or | */
+		case kHIDUsage_KeyboardApplication:          return MTY_KEY_APP; /* Application */
+		case kHIDUsage_KeyboardPower:                return MTY_KEY_POWER; /* Power */
+		case kHIDUsage_KeypadEqualSign:              return MTY_KEY_NP_EQUAL; /* Keypad = */
+		case kHIDUsage_KeyboardF13:                  return MTY_KEY_F13; /* F13 */
+		case kHIDUsage_KeyboardF14:                  return MTY_KEY_F14; /* F14 */
+		case kHIDUsage_KeyboardF15:                  return MTY_KEY_F15; /* F15 */
+		case kHIDUsage_KeyboardF16:                  return MTY_KEY_F16; /* F16 */
+		case kHIDUsage_KeyboardF17:                  return MTY_KEY_F17; /* F17 */
+		case kHIDUsage_KeyboardF18:                  return MTY_KEY_F18; /* F18 */
+		case kHIDUsage_KeyboardF19:                  return MTY_KEY_F19; /* F19 */
+		case kHIDUsage_KeyboardF20:                  return MTY_KEY_F20; /* F20 */
+		case kHIDUsage_KeyboardF21:                  return MTY_KEY_F21; /* F21 */
+		case kHIDUsage_KeyboardF22:                  return MTY_KEY_F22; /* F22 */
+		case kHIDUsage_KeyboardF23:                  return MTY_KEY_F23; /* F23 */
+		case kHIDUsage_KeyboardF24:                  return MTY_KEY_F24; /* F24 */
+		// case kHIDUsage_KeyboardExecute:              return MTY_KEY_; /* Execute */
+		// case kHIDUsage_KeyboardHelp:                 return MTY_KEY_; /* Help */
+		// case kHIDUsage_KeyboardMenu:                 return MTY_KEY_; /* Menu -- May be wrong?*/
+		// case kHIDUsage_KeyboardSelect:               return MTY_KEY_; /* Select */
+		// case kHIDUsage_KeyboardStop:                 return MTY_KEY_; /* Stop */
+		// case kHIDUsage_KeyboardAgain:                return MTY_KEY_; /* Again */
+		// case kHIDUsage_KeyboardUndo:                 return MTY_KEY_; /* Undo */
+		// case kHIDUsage_KeyboardCut:                  return MTY_KEY_; /* Cut */
+		// case kHIDUsage_KeyboardCopy:                 return MTY_KEY_; /* Copy */
+		// case kHIDUsage_KeyboardPaste:                return MTY_KEY_; /* Paste */
+		// case kHIDUsage_KeyboardFind:                 return MTY_KEY_; /* Find */
+		case kHIDUsage_KeyboardMute:                 return MTY_KEY_MUTE; /* Mute */
+		case kHIDUsage_KeyboardVolumeUp:             return MTY_KEY_VOLUME_UP; /* Volume Up */
+		case kHIDUsage_KeyboardVolumeDown:           return MTY_KEY_VOLUME_DOWN; /* Volume Down */
+		// case kHIDUsage_KeyboardLockingCapsLock:      return MTY_KEY_; /* Locking Caps Lock */
+		// case kHIDUsage_KeyboardLockingNumLock:       return MTY_KEY_; /* Locking Num Lock */
+		// case kHIDUsage_KeyboardLockingScrollLock:    return MTY_KEY_; /* Locking Scroll Lock */
+		case kHIDUsage_KeypadComma:                  return MTY_KEY_INTL_COMMA; /* Keypad Comma */
+		// case kHIDUsage_KeypadEqualSignAS400:         return MTY_KEY_; /* Keypad Equal Sign for AS/400 */
+		case kHIDUsage_KeyboardInternational1:       return MTY_KEY_RO; /* International1 */
+		case kHIDUsage_KeyboardInternational2:       return MTY_KEY_JP; /* International2 */
+		case kHIDUsage_KeyboardInternational3:       return MTY_KEY_YEN; /* International3 */
+		case kHIDUsage_KeyboardInternational4:       return MTY_KEY_HENKAN; /* International4 */
+		case kHIDUsage_KeyboardInternational5:       return MTY_KEY_MUHENKAN; /* International5 */
+		// case kHIDUsage_KeyboardInternational6:       return MTY_KEY_; /* International6 */
+		// case kHIDUsage_KeyboardInternational7:       return MTY_KEY_; /* International7 */
+		// case kHIDUsage_KeyboardInternational8:       return MTY_KEY_; /* International8 */
+		// case kHIDUsage_KeyboardInternational9:       return MTY_KEY_; /* International9 */
+		case kHIDUsage_KeyboardLANG1:                return MTY_KEY_LANG_1; /* LANG1 Hanguel*/
+		case kHIDUsage_KeyboardLANG2:                return MTY_KEY_LANG_2; /* LANG2 Hanja*/
+		case kHIDUsage_KeyboardLANG3:                return MTY_KEY_LANG_3; /* LANG3 Katakana*/
+		case kHIDUsage_KeyboardLANG4:                return MTY_KEY_LANG_4; /* LANG4 Hiragana*/
+		case kHIDUsage_KeyboardLANG5:                return MTY_KEY_LANG_5; /* LANG5 Zenkakau/Hankaku*/
+		// case kHIDUsage_KeyboardLANG6:                return MTY_KEY_; /* LANG6 */
+		// case kHIDUsage_KeyboardLANG7:                return MTY_KEY_; /* LANG7 */
+		// case kHIDUsage_KeyboardLANG8:                return MTY_KEY_; /* LANG8 */
+		// case kHIDUsage_KeyboardLANG9:                return MTY_KEY_; /* LANG9 */
+		// case kHIDUsage_KeyboardAlternateErase:       return MTY_KEY_; /* AlternateErase */
+		// case kHIDUsage_KeyboardSysReqOrAttention:    return MTY_KEY_; /* SysReq/Attention */
+		// case kHIDUsage_KeyboardCancel:               return MTY_KEY_; /* Cancel */
+		// case kHIDUsage_KeyboardClear:                return MTY_KEY_; /* Clear */
+		// case kHIDUsage_KeyboardPrior:                return MTY_KEY_; /* Prior */
+		// case kHIDUsage_KeyboardReturn:               return MTY_KEY_; /* Return */
+		// case kHIDUsage_KeyboardSeparator:            return MTY_KEY_; /* Separator */
+		// case kHIDUsage_KeyboardOut:                  return MTY_KEY_; /* Out */
+		// case kHIDUsage_KeyboardOper:                 return MTY_KEY_; /* Oper */
+		// case kHIDUsage_KeyboardClearOrAgain:         return MTY_KEY_; /* Clear/Again */
+		// case kHIDUsage_KeyboardCrSelOrProps:         return MTY_KEY_; /* CrSel/Props */
+		// case kHIDUsage_KeyboardExSel:                return MTY_KEY_; /* ExSel */
+		case kHIDUsage_KeyboardLeftControl:          return MTY_KEY_LCTRL; /* Left Control */
+		case kHIDUsage_KeyboardLeftShift:            return MTY_KEY_LSHIFT; /* Left Shift */
+		case kHIDUsage_KeyboardLeftAlt:              return MTY_KEY_LALT; /* Left Alt */
+		case kHIDUsage_KeyboardLeftGUI:              return MTY_KEY_LWIN; /* Left GUI */
+		case kHIDUsage_KeyboardRightControl:         return MTY_KEY_RCTRL; /* Right Control */
+		case kHIDUsage_KeyboardRightShift:           return MTY_KEY_RSHIFT; /* Right Shift */
+		case kHIDUsage_KeyboardRightAlt:             return MTY_KEY_RALT; /* Right Alt */
+		case kHIDUsage_KeyboardRightGUI:             return MTY_KEY_RWIN; /* Right GUI */
+	}
+
+	return MTY_KEY_NONE;
+};

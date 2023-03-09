@@ -36,6 +36,7 @@ CGError CGSSetGlobalHotKeyOperatingMode(int32_t conn, enum CGSGlobalHotKeyOperat
 	@property MTY_Hash *hotkey;
 	@property MTY_Hash *deduper;
 	@property MTY_DetachState detach;
+	@property MTY_Mod mod_state;
 	@property MTY_Cursor scursor;
 	@property void *opaque;
 	@property void *kb_mode;
@@ -1033,6 +1034,68 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 	}
 }
 
+static bool app_update_mod_flags(App *ctx, MTY_Key keycode, bool key_down)
+{
+	MTY_Mod mod_flags = 0;
+	switch (keycode) {
+		case MTY_KEY_CAPS: mod_flags = MTY_MOD_CAPS;   break;
+		case MTY_KEY_NUM_LOCK:  mod_flags = MTY_MOD_NUM;    break;
+		case MTY_KEY_LSHIFT:    mod_flags = MTY_MOD_LSHIFT; break;
+		case MTY_KEY_LCTRL:     mod_flags = MTY_MOD_LCTRL;  break;
+		case MTY_KEY_LALT:      mod_flags = MTY_MOD_LALT;   break;
+		case MTY_KEY_LWIN:      mod_flags = MTY_MOD_LWIN;   break;
+		case MTY_KEY_RSHIFT:    mod_flags = MTY_MOD_RSHIFT; break;
+		case MTY_KEY_RCTRL:     mod_flags = MTY_MOD_RCTRL;  break;
+		case MTY_KEY_RALT:      mod_flags = MTY_MOD_RALT;   break;
+		case MTY_KEY_RWIN:      mod_flags = MTY_MOD_RWIN;   break;
+		default:
+			return false;
+	}
+
+	if (key_down)
+		ctx.mod_state |= mod_flags;
+	else
+		ctx.mod_state =  ctx.mod_state & ~mod_flags;
+
+	return true;
+
+}
+
+static void app_hid_key_value(uint32_t usage, bool down, void *opaque)
+{
+	App *ctx = (__bridge App *) opaque;
+
+	MTY_Event evt = {0};
+	evt.type = MTY_EVENT_KEY;
+	evt.window = 0;
+	evt.key.key = keymap_usage_to_key(usage);
+	bool is_mod = app_update_mod_flags(ctx, evt.key.key, down);
+
+	evt.key.mod = ctx.mod_state;
+	evt.key.pressed = down;
+
+	MTY_Mod mod = evt.key.mod & 0xFF;
+
+	uint32_t hotkey = (uint32_t) (uintptr_t) MTY_HashGetInt(ctx.hotkey, (mod << 16) | evt.key.key);
+
+	// MacOS misses a lot of key-ups on hotkeys and other special keys, but does pretty well with
+	// key-downs, so we use low level HID events for ups, and normal window events for downs so as
+	// to get OS behavior like key repeating.
+	if ((is_mod || !evt.key.pressed) && MTY_AppIsActive((MTY_App *) opaque) && evt.key.key != MTY_KEY_NONE) {
+		if (hotkey != 0) {
+			if (evt.key.pressed) {
+				evt.type = MTY_EVENT_HOTKEY;
+				evt.hotkey = hotkey;
+
+				ctx.event_func(&evt, ctx.opaque);
+			}
+
+		} else {
+				ctx.event_func(&evt, ctx.opaque);
+		}
+	}
+}
+
 static void app_pump_events(App *ctx, NSDate *until)
 {
 	while (ctx.cont) {
@@ -1059,7 +1122,7 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	ctx.cursor_showing = true;
 	ctx.cont = true;
 
-	ctx.hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report, app);
+	ctx.hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report, app_hid_key_value, app);
 
 	ctx.windows = MTY_Alloc(MTY_WINDOW_MAX, sizeof(void *));
 	ctx.hotkey = MTY_HashCreate(0);
