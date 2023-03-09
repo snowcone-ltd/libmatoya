@@ -54,7 +54,6 @@ struct webview {
 	struct webview_handler2 handler2;
 	struct webview_opts opts;
 	WCHAR *source;
-	char *user_agent;
 	bool url;
 	bool debug;
 	bool passthrough;
@@ -323,23 +322,7 @@ static HRESULT STDMETHODCALLTYPE opts_QueryInterface(void *This,
 static HRESULT STDMETHODCALLTYPE opts_get_AdditionalBrowserArguments(
 	ICoreWebView2EnvironmentOptions *This, LPWSTR *value)
 {
-	struct webview_opts *opts = (struct webview_opts *) This;
-	struct webview *ctx = opts->opaque;
-
-	HRESULT e = E_FAIL;
-
-	if (ctx->user_agent && ctx->user_agent[0]) {
-		const char *src = MTY_SprintfDL("--user-agent=\"%s\"", ctx->user_agent);
-		uint32_t len = (uint32_t) strlen(src) + 1;
-		size_t size = len * sizeof(WCHAR);
-		WCHAR *dst = CoTaskMemAlloc(size);
-		MTY_MultiToWide(src, dst, len);
-
-		*value = dst;
-		e = S_OK;
-	}
-
-	return e;
+	return E_FAIL;
 }
 
 static HRESULT STDMETHODCALLTYPE opts_put_AdditionalBrowserArguments(
@@ -475,7 +458,7 @@ static HMODULE webview_load_dll(void)
 	return lib;
 }
 
-struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *dir, const char *ua,
+struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *dir,
 	bool debug, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func, WEBVIEW_KEY key_func)
 {
 	struct webview *ctx = MTY_Alloc(1, sizeof(struct webview));
@@ -511,9 +494,6 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 	if (!func)
 		goto except;
 
-	if (ua && ua[0])
-		ctx->user_agent = MTY_Strdup(ua);
-
 	e = func(1, 0, dirw, (ICoreWebView2EnvironmentOptions *) &ctx->opts, (ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler *) &ctx->handler0);
 
 	except:
@@ -543,7 +523,6 @@ void mty_webview_destroy(struct webview **webview)
 	MTY_QueueDestroy(&ctx->pushq);
 	MTY_HashDestroy(&ctx->keys, NULL);
 
-	MTY_Free(ctx->user_agent);
 	MTY_Free(ctx->source);
 
 	MTY_Free(ctx);
