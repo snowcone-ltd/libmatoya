@@ -9,9 +9,6 @@
 #define GFX_API_SUPPORTED(api) \
 	((api) == MTY_GFX_METAL)
 
-#define GFX_CTX_SUPPORTED(api) \
-	GFX_API_SUPPORTED(api)
-
 #define GFX_DECLARE_TABLE()             \
 	static const struct {               \
 		GFX_DECLARE_API(_, GFX_FP)      \

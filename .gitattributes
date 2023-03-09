@@ -3,9 +3,7 @@ deps/* linguist-vendored
 test/* linguist-vendored
 
 *.h linguist-language=C
-*.ps3 linguist-language=HLSL
-*.vs3 linguist-language=HLSL
-*.ps4 linguist-language=HLSL
-*.vs4 linguist-language=HLSL
+*.ps linguist-language=HLSL
+*.vs linguist-language=HLSL
 *.fragvk linguist-language=GLSL
 *.vertvk linguist-language=GLSL

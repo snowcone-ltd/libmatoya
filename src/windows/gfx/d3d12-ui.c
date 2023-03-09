@@ -12,10 +12,10 @@ GFX_UI_PROTOTYPES(_d3d12_)
 #include <d3d12.h>
 
 static
-#include "shaders/d3d11/psui.h"
+#include "shaders/psui.h"
 
 static
-#include "shaders/d3d11/vsui.h"
+#include "shaders/vsui.h"
 
 #define D3D12_UI_PITCH(w, bpp) \
 	(((w) * (bpp) + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1))

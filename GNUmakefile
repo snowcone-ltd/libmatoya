@@ -175,9 +175,6 @@ endif
 ifeq ($(TARGET), macosx)
 MIN_VER = 10.15
 
-#TODO Remove after phase3
-FLAGS := $(FLAGS) -Wno-deprecated-declarations
-
 OBJS := $(OBJS) \
 	src/hid/hid.o \
 	src/unix/apple/image.o \
@@ -187,7 +184,6 @@ OBJS := $(OBJS) \
 else
 MIN_VER = 13.0
 FLAGS := $(FLAGS) -fembed-bitcode
-DEFS := $(DEFS) -DMTY_GL_ES
 
 ifeq ($(ARCH), x86_64)
 FLAGS := $(FLAGS) -maes -mpclmul
@@ -213,11 +209,8 @@ OBJS := $(OBJS) \
 	src/unix/apple/$(TARGET)/system.o
 
 SHADERS = \
-	src/unix/apple/gfx/shaders/metal/quad.h \
-	src/unix/apple/gfx/shaders/metal/ui.h
-
-DEFS := $(DEFS) \
-	-DMTY_GL_EXTERNAL
+	src/unix/apple/gfx/shaders/quad.h \
+	src/unix/apple/gfx/shaders/ui.h
 
 FLAGS := $(FLAGS) \
 	-m$(TARGET)-version-min=$(MIN_VER) \

@@ -13,10 +13,10 @@ GFX_PROTOTYPES(_d3d11_)
 #include "gfx/fmt.h"
 
 static
-#include "shaders/d3d11/ps.h"
+#include "shaders/ps.h"
 
 static
-#include "shaders/d3d11/vs.h"
+#include "shaders/vs.h"
 
 #define D3D11_NUM_STAGING 3
 

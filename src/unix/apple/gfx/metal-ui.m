@@ -9,7 +9,7 @@ GFX_UI_PROTOTYPES(_metal_)
 
 #import <Metal/Metal.h>
 
-#include "shaders/metal/ui.h"
+#include "shaders/ui.h"
 
 struct metal_ui {
 	id<MTLRenderPipelineState> rps;

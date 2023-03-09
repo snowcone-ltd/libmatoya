@@ -11,7 +11,7 @@ GFX_PROTOTYPES(_metal_)
 #include "gfx/fmt-metal.h"
 #include "gfx/fmt.h"
 
-#include "shaders/metal/quad.h"
+#include "shaders/quad.h"
 
 #define METAL_NUM_STAGING 3
 
