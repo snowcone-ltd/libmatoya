@@ -220,9 +220,9 @@ void mty_webview_navigate(struct webview *ctx, const char *source, bool url)
 	NSString *osource = [NSString stringWithUTF8String:source];
 
 	if (url) {
-		NSURL *url = [[NSURL alloc] initWithString:osource];
+		NSURL *ourl = [[NSURL alloc] initWithString:osource];
 
-		NSURLRequest *req = [[NSURLRequest alloc] initWithURL:url];
+		NSURLRequest *req = [[NSURLRequest alloc] initWithURL:ourl];
 		[ctx->webview loadRequest:req];
 
 	} else {
