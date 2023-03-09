@@ -127,14 +127,14 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 
 	ctx->webview.hidden = YES;
 
-	if (ua && ua[0])
-		ctx->webview.customUserAgent = [NSString stringWithUTF8String:ua];
-
 	// Settings
 	NSNumber *ndebug = debug ? @YES : @NO;
 
 	[ctx->webview setValue:@NO forKey:@"drawsBackground"];
 	[ctx->webview.configuration.preferences setValue:ndebug forKey:@"developerExtrasEnabled"];
+
+	if (ua)
+		ctx->webview.customUserAgent = [NSString stringWithUTF8String:ua];
 
 	// Message handler
 	WebViewMessageHandler *handler = [WebViewMessageHandler alloc];
