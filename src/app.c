@@ -254,13 +254,14 @@ static void webview_key_func(MTY_App *app, MTY_Window window, bool pressed, MTY_
 	event_func(&evt, opaque);
 }
 
-bool MTY_WindowSetWebView(MTY_App *app, MTY_Window window, const char *dir, const char *ua, MTY_WebViewFlag flags)
+bool MTY_WindowSetWebView(MTY_App *app, MTY_Window window, const char *dir, const char *userAgent,
+	bool debug)
 {
 	struct window_common *cmn = mty_window_get_common(app, window);
 	if (!cmn || cmn->webview)
 		return false;
 
-	cmn->webview = mty_webview_create(app, window, dir, ua, flags,
+	cmn->webview = mty_webview_create(app, window, dir, userAgent, debug,
 		webview_ready_func, webview_text_func, webview_key_func);
 
 	return cmn->webview != NULL;

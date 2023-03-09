@@ -100,7 +100,7 @@ struct webview {
 @end
 
 struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *dir, const char *ua,
-	MTY_WebViewFlag flags, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func, WEBVIEW_KEY key_func)
+	bool debug, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func, WEBVIEW_KEY key_func)
 {
 	struct webview *ctx = MTY_Alloc(1, sizeof(struct webview));
 
@@ -131,10 +131,10 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 		ctx->webview.customUserAgent = [NSString stringWithUTF8String:ua];
 
 	// Settings
-	NSNumber *debug = flags & MTY_WEBVIEW_FLAG_DEBUG ? @YES : @NO;
+	NSNumber *ndebug = debug ? @YES : @NO;
 
 	[ctx->webview setValue:@NO forKey:@"drawsBackground"];
-	[ctx->webview.configuration.preferences setValue:debug forKey:@"developerExtrasEnabled"];
+	[ctx->webview.configuration.preferences setValue:ndebug forKey:@"developerExtrasEnabled"];
 
 	// Message handler
 	WebViewMessageHandler *handler = [WebViewMessageHandler alloc];

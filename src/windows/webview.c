@@ -54,8 +54,8 @@ struct webview {
 	struct webview_handler2 handler2;
 	struct webview_opts opts;
 	char *user_agent;
-	MTY_WebViewFlag flags;
 	WCHAR *init_source;
+	bool debug;
 	bool init_source_url;
 	bool passthrough;
 	bool ready;
@@ -219,12 +219,10 @@ static HRESULT STDMETHODCALLTYPE h1_Invoke(ICoreWebView2CreateCoreWebView2Contro
 
 	webview_update_size(ctx);
 
-	BOOL debug = ctx->flags & MTY_WEBVIEW_FLAG_DEBUG;
-
 	ICoreWebView2Settings *settings = NULL;
 	ICoreWebView2_get_Settings(ctx->webview, &settings);
-	ICoreWebView2Settings_put_AreDevToolsEnabled(settings, debug);
-	ICoreWebView2Settings_put_AreDefaultContextMenusEnabled(settings, debug);
+	ICoreWebView2Settings_put_AreDevToolsEnabled(settings, ctx->debug);
+	ICoreWebView2Settings_put_AreDefaultContextMenusEnabled(settings, ctx->debug);
 	ICoreWebView2Settings_put_IsZoomControlEnabled(settings, FALSE);
 	ICoreWebView2Settings_Release(settings);
 
@@ -484,13 +482,13 @@ static HMODULE webview_load_dll(void)
 }
 
 struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *dir, const char *ua,
-	MTY_WebViewFlag flags, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func, WEBVIEW_KEY key_func)
+	bool debug, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func, WEBVIEW_KEY key_func)
 {
 	struct webview *ctx = MTY_Alloc(1, sizeof(struct webview));
 
 	ctx->app = app;
 	ctx->window = window;
-	ctx->flags = flags;
+	ctx->debug = debug;
 	ctx->ready_func = ready_func;
 	ctx->text_func = text_func;
 	ctx->key_func = key_func;

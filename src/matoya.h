@@ -676,12 +676,6 @@ typedef enum {
 	MTY_WINDOW_MAKE_32    = INT32_MAX,
 } MTY_WindowType;
 
-/// @brief WebView flags set during creation.
-typedef enum {
-	MTY_WEBVIEW_FLAG_DEBUG   = 0x1, ///< Debugging tools enabled.
-	MTY_WEBVIEW_FLAG_MAKE_32 = INT32_MAX,
-} MTY_WebViewFlag;
-
 /// @brief Predefined cursors set via MTY_AppSetCursor.
 typedef enum {
 	MTY_CURSOR_NONE    = 0, ///< Revert the effects of MTY_AppSetCursor.
@@ -1376,12 +1370,13 @@ MTY_WindowGetNative(MTY_App *app, MTY_Window window);
 ///   If MTY_WebViewIsSteam returns true, `dir` will be interpreted as the directory where the
 ///   Steam API shared object resides (i.e. `libsteam_api.so`).
 /// @param userAgent Custom string to replace the built-in value of the User-Agent HTTP header.
-///	                 Set this as NULL to use the default implementation-specific value.
-/// @param flags Flags specifying various WebView behaviors.
+///	  Set this as NULL to use the default implementation-specific value.
+/// @param debug Flags Set to true to enable debugging tools.
 /// @returns Returns true on success, false if the WebView failed to be set or already exists.
 //- #support Windows macOS
 MTY_EXPORT bool
-MTY_WindowSetWebView(MTY_App *app, MTY_Window window, const char *dir, const char *userAgent, MTY_WebViewFlag flags);
+MTY_WindowSetWebView(MTY_App *app, MTY_Window window, const char *dir, const char *userAgent,
+	bool debug);
 
 /// @brief Remove the WebView from a window.
 /// @param app The MTY_App.
