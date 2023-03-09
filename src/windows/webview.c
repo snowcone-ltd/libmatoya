@@ -53,10 +53,10 @@ struct webview {
 	struct webview_handler1 handler1;
 	struct webview_handler2 handler2;
 	struct webview_opts opts;
+	WCHAR *source;
 	char *user_agent;
-	WCHAR *init_source;
+	bool url;
 	bool debug;
-	bool init_source_url;
 	bool passthrough;
 	bool ready;
 };
@@ -185,19 +185,14 @@ static void webview_update_size(struct webview *ctx)
 	ICoreWebView2Controller2_put_Bounds(ctx->controller, bounds);
 }
 
-static bool mty_webview_navigate_impl(struct webview *ctx, WCHAR *source, bool url)
+static void webview_navigate(struct webview *ctx, WCHAR *source, bool url)
 {
-	if (!source)
-		return false;
-
 	if (url) {
 		ICoreWebView2_Navigate(ctx->webview, source);
 
 	} else {
 		ICoreWebView2_NavigateToString(ctx->webview, source);
 	}
-
-	return true;
 }
 
 static HRESULT STDMETHODCALLTYPE h1_Invoke(ICoreWebView2CreateCoreWebView2ControllerCompletedHandler *This,
@@ -279,9 +274,8 @@ static HRESULT STDMETHODCALLTYPE h1_Invoke(ICoreWebView2CreateCoreWebView2Contro
 
 	ICoreWebView2_AddScriptToExecuteOnDocumentCreated(ctx->webview, script, NULL);
 
-	mty_webview_navigate_impl(ctx, ctx->init_source, ctx->init_source_url);
-	MTY_Free(ctx->init_source);
-	ctx->init_source = NULL;
+	if (ctx->source)
+		webview_navigate(ctx, ctx->source, ctx->url);
 
 	return S_OK;
 }
@@ -550,25 +544,25 @@ void mty_webview_destroy(struct webview **webview)
 	MTY_HashDestroy(&ctx->keys, NULL);
 
 	MTY_Free(ctx->user_agent);
-
-	MTY_Free(ctx->init_source);
+	MTY_Free(ctx->source);
 
 	MTY_Free(ctx);
 	*webview = NULL;
 }
 
-void mty_webview_navigate(struct webview *ctx, const char *source_, bool url)
+void mty_webview_navigate(struct webview *ctx, const char *source, bool url)
 {
-	WCHAR *source = MTY_MultiToWideD(source_);
+	WCHAR *wsource = MTY_MultiToWideD(source);
 
-	if (!ctx->webview) {
-		MTY_Free(ctx->init_source);
-		ctx->init_source = source;
-		ctx->init_source_url = url;
+	if (ctx->webview) {
+		webview_navigate(ctx, wsource, url);
+		MTY_Free(wsource);
+
+	} else {
+		MTY_Free(ctx->source);
+		ctx->source = wsource;
+		ctx->url = url;
 	}
-
-	mty_webview_navigate_impl(ctx, source, url);
-	MTY_Free(source);
 }
 
 void mty_webview_show(struct webview *ctx, bool show)
