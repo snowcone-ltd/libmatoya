@@ -22,8 +22,8 @@
 | Platform   | Minimum Version            |
 | ---------- | -------------------------- |
 | Windows    | 10                         |
-| Android    | API 26 (8.0)               |
-| macOS      | 10.14                      |
+| Android    | Android 9 (API Level 28)   |
+| macOS      | 10.15                      |
 | iOS / tvOS | *Coming soon!*             |
 | Linux      | `*`                        |
 | Web        | `**` Chrome 86, Firefox 79 |

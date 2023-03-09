@@ -800,7 +800,7 @@ static void window_mod_event(Window *window, NSEvent *event)
 	{
 		// This event fires at the right time to re-apply the window level above the dock
 		if (self.top && self.isKeyWindow && (self.styleMask & NSWindowStyleMaskFullScreen)) {
-			[self setLevel:NSDockWindowLevel + 1];
+			[self setLevel:NSMainMenuWindowLevel - 1];
 			app_apply_cursor(self.app);
 		}
 	}
@@ -940,7 +940,7 @@ static void window_mod_event(Window *window, NSEvent *event)
 	- (void)windowDidEnterFullScreen:(NSNotification *)notification
 	{
 		if (self.top)
-			[self setLevel:NSDockWindowLevel + 1];
+			[self setLevel:NSMainMenuWindowLevel - 1];
 	}
 
 	- (void)windowWillExitFullScreen:(NSNotification *)notification

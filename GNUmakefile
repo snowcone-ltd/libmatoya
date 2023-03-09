@@ -22,6 +22,7 @@ NAME = libmatoya
 OBJS = \
 	src/app.o \
 	src/crypto.o \
+	src/dtls.o \
 	src/file.o \
 	src/hash.o \
 	src/image.o \
@@ -35,7 +36,6 @@ OBJS = \
 	src/system.o \
 	src/thread.o \
 	src/tlocal.o \
-	src/tls.o \
 	src/version.o \
 	src/gfx/gl/gl.o \
 	src/gfx/gl/gl-ui.o \
@@ -116,31 +116,25 @@ WEBVIEW_OBJ = src/unix/linux/x11/webview.o
 endif
 
 OBJS := $(OBJS) \
+	src/async.o \
+	src/http.o \
 	src/gfx/vk/vk.o \
 	src/gfx/vk/vk-ctx.o \
 	src/gfx/vk/vk-ui.o \
-	src/net/async.o \
-	src/net/dns.o \
-	src/net/http-parse.o \
-	src/net/http-proxy.o \
-	src/unix/image.o \
 	src/unix/system.o \
 	src/unix/linux/dialog.o \
+	src/unix/linux/ws.o \
 	src/unix/linux/x11/aes-gcm.o \
 	src/unix/linux/x11/app.o \
 	src/unix/linux/x11/audio.o \
 	src/unix/linux/x11/crypto.o \
+	src/unix/linux/x11/dtls.o \
 	src/unix/linux/x11/evdev.o \
 	src/unix/linux/x11/request.o \
+	src/unix/linux/x11/image.o \
+	src/unix/linux/x11/net.o \
 	src/unix/linux/x11/system.o \
-	src/unix/linux/x11/tls.o \
 	src/unix/linux/x11/gfx/gl-ctx.o \
-	src/unix/net/gzip.o \
-	src/unix/net/http.o \
-	src/unix/net/net.o \
-	src/unix/net/secure.o \
-	src/unix/net/tcp.o \
-	src/unix/net/ws.o \
 	$(WEBVIEW_OBJ)
 
 SHADERS := $(SHADERS) \
@@ -175,7 +169,7 @@ ARCH = x86_64
 endif
 
 ifeq ($(TARGET), macosx)
-MIN_VER = 10.14
+MIN_VER = 10.15
 
 #TODO Remove after phase3
 FLAGS := $(FLAGS) -Wno-deprecated-declarations
@@ -188,7 +182,7 @@ OBJS := $(OBJS) \
 	src/unix/apple/macosx/gfx/metal-ctx.o
 
 else
-MIN_VER = 11.0
+MIN_VER = 13.0
 FLAGS := $(FLAGS) -fembed-bitcode
 DEFS := $(DEFS) -DMTY_GL_ES
 
@@ -199,28 +193,21 @@ endif
 endif
 
 OBJS := $(OBJS) \
-	src/net/async.o \
-	src/net/dns.o \
-	src/net/http-parse.o \
-	src/net/http-proxy.o \
+	src/async.o \
+	src/http.o \
 	src/unix/system.o \
 	src/unix/apple/request.o \
 	src/unix/apple/audio.o \
 	src/unix/apple/crypto.o \
-	src/unix/apple/tls.o \
+	src/unix/apple/dtls.o \
 	src/unix/apple/webview.o \
+	src/unix/apple/ws.o \
 	src/unix/apple/gfx/metal.o \
 	src/unix/apple/gfx/metal-ui.o \
 	src/unix/apple/$(TARGET)/aes-gcm.o \
 	src/unix/apple/$(TARGET)/app.o \
 	src/unix/apple/$(TARGET)/dialog.o \
-	src/unix/apple/$(TARGET)/system.o \
-	src/unix/net/gzip.o \
-	src/unix/net/http.o \
-	src/unix/net/net.o \
-	src/unix/net/secure.o \
-	src/unix/net/tcp.o \
-	src/unix/net/ws.o
+	src/unix/apple/$(TARGET)/system.o
 
 SHADERS := $(SHADERS) \
 	src/unix/apple/gfx/shaders/metal/quad.h \
@@ -261,7 +248,7 @@ endif
 android: clean clear $(SHADERS)
 	@$(ANDROID_NDK_ROOT)/ndk-build -j4 \
 		APP_BUILD_SCRIPT=Android.mk \
-		APP_PLATFORM=android-26 \
+		APP_PLATFORM=android-28 \
 		NDK_PROJECT_PATH=. \
 		--no-print-directory
 

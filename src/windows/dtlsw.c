@@ -17,22 +17,20 @@ struct MTY_Cert {
 	const CERT_CONTEXT *cert;
 };
 
-struct MTY_TLS {
-	WCHAR *host;
+struct MTY_DTLS {
 	char *fp;
 
 	CredHandle ch;
 	CtxtHandle ctx;
 
 	ULONG mtu;
-	MTY_TLSProtocol proto;
 	unsigned long flags;
 	bool ctx_init;
 };
 
-#define TLS_MTU_PADDING 64
+#define DTLS_MTU_PADDING 64
 
-#define TLS_PROVIDER L"Microsoft Unified Security Protocol Provider"
+#define DTLS_PROVIDER L"Microsoft Unified Security Protocol Provider"
 
 
 // Cert (self signed)
@@ -84,7 +82,7 @@ void MTY_CertDestroy(MTY_Cert **cert)
 	*cert = NULL;
 }
 
-static void tls_cert_context_to_fingerprint(const CERT_CONTEXT *cert, char *fingerprint, size_t size)
+static void dtls_cert_context_to_fingerprint(const CERT_CONTEXT *cert, char *fingerprint, size_t size)
 {
 	snprintf(fingerprint, size, "sha-256 ");
 
@@ -110,45 +108,33 @@ void MTY_CertGetFingerprint(MTY_Cert *ctx, char *fingerprint, size_t size)
 		return;
 	}
 
-	tls_cert_context_to_fingerprint(ctx->cert, fingerprint, size);
+	dtls_cert_context_to_fingerprint(ctx->cert, fingerprint, size);
 }
 
 
-// TLS, DTLS
+// DTLS
 
-MTY_TLS *MTY_TLSCreate(MTY_TLSProtocol proto, MTY_Cert *cert, const char *host, const char *peerFingerprint, uint32_t mtu)
+MTY_DTLS *MTY_DTLSCreate(MTY_Cert *cert, const char *peerFingerprint, uint32_t mtu)
 {
-	MTY_TLS *ctx = MTY_Alloc(1, sizeof(MTY_TLS));
-	ctx->proto = proto;
+	MTY_DTLS *ctx = MTY_Alloc(1, sizeof(MTY_DTLS));
 
 	// Even if the message is exactly cbMaximumMessage, EncryptMessage can still fail
 	// Give it a bit of extra padding for presumably header/trailer
-	ctx->mtu = mtu + TLS_MTU_PADDING;
-
-	if (host)
-		ctx->host = MTY_MultiToWideD(host);
+	ctx->mtu = mtu + DTLS_MTU_PADDING;
 
 	if (peerFingerprint)
 		ctx->fp = MTY_Strdup(peerFingerprint);
 
-	ctx->flags = ISC_REQ_SEQUENCE_DETECT | ISC_REQ_REPLAY_DETECT |
+	ctx->flags = ISC_REQ_DATAGRAM | ISC_REQ_SEQUENCE_DETECT | ISC_REQ_REPLAY_DETECT |
 		ISC_REQ_CONFIDENTIALITY | ISC_REQ_ALLOCATE_MEMORY | ISC_REQ_STREAM;
 
 	SCHANNEL_CRED sc = {0};
+	sc.grbitEnabledProtocols = SP_PROT_DTLS1_2_CLIENT;
 	sc.dwVersion = SCHANNEL_CRED_VERSION;
 	sc.dwFlags = SCH_USE_STRONG_CRYPTO;
 
-	if (proto == MTY_TLS_PROTOCOL_DTLS) {
-		sc.grbitEnabledProtocols = SP_PROT_DTLS1_2_CLIENT;
-		ctx->flags |= ISC_REQ_DATAGRAM;
-
-		// DTLS uses self signed certificates, so disable certificate validation
-		sc.dwFlags |= SCH_CRED_NO_SERVERNAME_CHECK | SCH_CRED_MANUAL_CRED_VALIDATION;
-
-	} else {
-		sc.grbitEnabledProtocols = SP_PROT_TLS1_2_CLIENT;
-		ctx->flags |= ISC_REQ_STREAM;
-	}
+	// DTLS uses self signed certificates, so disable certificate validation
+	sc.dwFlags |= SCH_CRED_NO_SERVERNAME_CHECK | SCH_CRED_MANUAL_CRED_VALIDATION;
 
 	// Set self signed client cert if provided
 	if (cert) {
@@ -156,35 +142,34 @@ MTY_TLS *MTY_TLSCreate(MTY_TLSProtocol proto, MTY_Cert *cert, const char *host, 
 		sc.paCred = &cert->cert;
 	}
 
-	SECURITY_STATUS e = AcquireCredentialsHandle(NULL, TLS_PROVIDER, SECPKG_CRED_OUTBOUND,
+	SECURITY_STATUS e = AcquireCredentialsHandle(NULL, DTLS_PROVIDER, SECPKG_CRED_OUTBOUND,
 		NULL, &sc, NULL, NULL, &ctx->ch, NULL);
 
 	if (e != SEC_E_OK) {
 		MTY_Log("'AcquireCredentialsHandle' failed with error 0x%X", e);
-		MTY_TLSDestroy(&ctx);
+		MTY_DTLSDestroy(&ctx);
 	}
 
 	return ctx;
 }
 
-void MTY_TLSDestroy(MTY_TLS **tls)
+void MTY_DTLSDestroy(MTY_DTLS **dtls)
 {
-	if (!tls || !*tls)
+	if (!dtls || !*dtls)
 		return;
 
-	MTY_TLS *ctx = *tls;
+	MTY_DTLS *ctx = *dtls;
 
 	DeleteSecurityContext(&ctx->ctx);
 	FreeCredentialsHandle(&ctx->ch);
 
-	MTY_Free(ctx->host);
 	MTY_Free(ctx->fp);
 
 	MTY_Free(ctx);
-	*tls = NULL;
+	*dtls = NULL;
 }
 
-static MTY_Async tls_handshake_init(MTY_TLS *ctx, MTY_TLSWriteFunc func, void *opaque)
+static MTY_Async dtls_handshake_init(MTY_DTLS *ctx, MTY_DTLSWriteFunc func, void *opaque)
 {
 	MTY_Async r = MTY_ASYNC_CONTINUE;
 
@@ -200,7 +185,7 @@ static MTY_Async tls_handshake_init(MTY_TLS *ctx, MTY_TLSWriteFunc func, void *o
 	desc.cBuffers = 1;
 
 	// Client only -- generates the Client Hello and initializes the context
-	SECURITY_STATUS e = InitializeSecurityContext(&ctx->ch, NULL, ctx->host, ctx->flags,
+	SECURITY_STATUS e = InitializeSecurityContext(&ctx->ch, NULL, NULL, ctx->flags,
 		0, 0, NULL, 0, &ctx->ctx, &desc, &out_flags, NULL);
 
 	if (e != SEC_I_CONTINUE_NEEDED) {
@@ -209,14 +194,12 @@ static MTY_Async tls_handshake_init(MTY_TLS *ctx, MTY_TLSWriteFunc func, void *o
 		goto except;
 	}
 
-	// Set the MTU if DTLS
-	if (ctx->proto == MTY_TLS_PROTOCOL_DTLS) {
-		e = SetContextAttributes(&ctx->ctx, SECPKG_ATTR_DTLS_MTU, &ctx->mtu, sizeof(ULONG));
-		if (e != SEC_E_OK) {
-			MTY_Log("'SetContextAttributes' failed with error 0x%X", e);
-			r = MTY_ASYNC_ERROR;
-			goto except;
-		}
+	// Set the MTU
+	e = SetContextAttributes(&ctx->ctx, SECPKG_ATTR_DTLS_MTU, &ctx->mtu, sizeof(ULONG));
+	if (e != SEC_E_OK) {
+		MTY_Log("'SetContextAttributes' failed with error 0x%X", e);
+		r = MTY_ASYNC_ERROR;
+		goto except;
 	}
 
 	// Write the client hello via the callback
@@ -236,7 +219,7 @@ static MTY_Async tls_handshake_init(MTY_TLS *ctx, MTY_TLSWriteFunc func, void *o
 	return r;
 }
 
-static bool tls_verify_peer_fingerprint(MTY_TLS *ctx, const char *fingerprint)
+static bool dtls_verify_peer_fingerprint(MTY_DTLS *ctx, const char *fingerprint)
 {
 	CERT_CONTEXT *rcert = NULL;
 	SECURITY_STATUS e = QueryContextAttributes(&ctx->ctx, SECPKG_ATTR_REMOTE_CERT_CONTEXT, &rcert);
@@ -247,7 +230,7 @@ static bool tls_verify_peer_fingerprint(MTY_TLS *ctx, const char *fingerprint)
 
 	if (rcert) {
 		char found[MTY_FINGERPRINT_MAX];
-		tls_cert_context_to_fingerprint(rcert, found, MTY_FINGERPRINT_MAX);
+		dtls_cert_context_to_fingerprint(rcert, found, MTY_FINGERPRINT_MAX);
 
 		bool match = !strcmp(found, fingerprint);
 
@@ -259,16 +242,16 @@ static bool tls_verify_peer_fingerprint(MTY_TLS *ctx, const char *fingerprint)
 	return false;
 }
 
-MTY_Async MTY_TLSHandshake(MTY_TLS *ctx, const void *buf, size_t size, MTY_TLSWriteFunc writeFunc, void *opaque)
+MTY_Async MTY_DTLSHandshake(MTY_DTLS *ctx, const void *buf, size_t size, MTY_DTLSWriteFunc writeFunc, void *opaque)
 {
 	if (!buf || size == 0)
-		return !ctx->ctx_init ? tls_handshake_init(ctx, writeFunc, opaque) : MTY_ASYNC_CONTINUE;
+		return !ctx->ctx_init ? dtls_handshake_init(ctx, writeFunc, opaque) : MTY_ASYNC_CONTINUE;
 
 	MTY_Async r = MTY_ASYNC_OK;
 
 	unsigned long out_flags = 0;
 
-	// Input buffer contains TLS messages from the server
+	// Input buffer contains DTLS messages from the server
 	SecBuffer in[2] = {0};
 	in[0].BufferType = SECBUFFER_TOKEN | SECBUFFER_READONLY;
 	in[0].pvBuffer = (void *) buf;
@@ -281,7 +264,7 @@ MTY_Async MTY_TLSHandshake(MTY_TLS *ctx, const void *buf, size_t size, MTY_TLSWr
 	in_desc.pBuffers = in;
 	in_desc.cBuffers = 2;
 
-	// Output buffer constains TLS handshake messages to be sent to the server
+	// Output buffer constains DTLS handshake messages to be sent to the server
 	SecBuffer out[3] = {0};
 	out[0].BufferType = SECBUFFER_TOKEN;
 	out[1].BufferType = SECBUFFER_ALERT;
@@ -292,8 +275,8 @@ MTY_Async MTY_TLSHandshake(MTY_TLS *ctx, const void *buf, size_t size, MTY_TLSWr
 	out_desc.pBuffers = out;
 	out_desc.cBuffers = 3;
 
-	// Feed the TLS handshake message to schannel
-	SECURITY_STATUS e = InitializeSecurityContext(&ctx->ch, &ctx->ctx, ctx->host, ctx->flags,
+	// Feed the DTLS handshake message to schannel
+	SECURITY_STATUS e = InitializeSecurityContext(&ctx->ch, &ctx->ctx, NULL, ctx->flags,
 		0, 0, &in_desc, 0, NULL, &out_desc, &out_flags, NULL);
 
 	// Call write func if we have output data
@@ -308,7 +291,7 @@ MTY_Async MTY_TLSHandshake(MTY_TLS *ctx, const void *buf, size_t size, MTY_TLSWr
 
 		// Validate peer certificate fingerprint if supplied
 		if (ctx->fp && r == MTY_ASYNC_OK)
-			r = tls_verify_peer_fingerprint(ctx, ctx->fp) ? MTY_ASYNC_OK : MTY_ASYNC_ERROR;
+			r = dtls_verify_peer_fingerprint(ctx, ctx->fp) ? MTY_ASYNC_OK : MTY_ASYNC_ERROR;
 
 	// Fatal error
 	} else {
@@ -324,7 +307,7 @@ MTY_Async MTY_TLSHandshake(MTY_TLS *ctx, const void *buf, size_t size, MTY_TLSWr
 	return r;
 }
 
-bool MTY_TLSEncrypt(MTY_TLS *ctx, const void *in, size_t inSize, void *out, size_t outSize, size_t *written)
+bool MTY_DTLSEncrypt(MTY_DTLS *ctx, const void *in, size_t inSize, void *out, size_t outSize, size_t *written)
 {
 	// https://docs.microsoft.com/en-us/windows/win32/secauthn/encrypting-a-message
 
@@ -338,7 +321,7 @@ bool MTY_TLSEncrypt(MTY_TLS *ctx, const void *in, size_t inSize, void *out, size
 
 	// Max message check
 	if (inSize > sizes.cbMaximumMessage) {
-		MTY_Log("TLS message size is too large (%zu > %u)", inSize, sizes.cbMaximumMessage);
+		MTY_Log("DTLS message size is too large (%zu > %u)", inSize, sizes.cbMaximumMessage);
 		return false;
 	}
 
@@ -387,7 +370,7 @@ bool MTY_TLSEncrypt(MTY_TLS *ctx, const void *in, size_t inSize, void *out, size
 	return true;
 }
 
-bool MTY_TLSDecrypt(MTY_TLS *ctx, const void *in, size_t inSize, void *out, size_t outSize, size_t *read)
+bool MTY_DTLSDecrypt(MTY_DTLS *ctx, const void *in, size_t inSize, void *out, size_t outSize, size_t *read)
 {
 	// https://docs.microsoft.com/en-us/windows/win32/secauthn/decrypting-a-message
 

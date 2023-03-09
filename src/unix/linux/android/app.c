@@ -857,9 +857,9 @@ void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t 
 	mty_jni_free(env, jimage);
 }
 
-void MTY_AppUseDefaultCursor(MTY_App *ctx, bool useDefault)
+void MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor)
 {
-	mty_jni_void(MTY_GetJNIEnv(), ctx->obj, "useDefaultCursor", "(Z)V", useDefault);
+	mty_jni_void(MTY_GetJNIEnv(), ctx->obj, "useDefaultCursor", "(Z)V", cursor != MTY_CURSOR_NONE);
 }
 
 void MTY_AppShowCursor(MTY_App *ctx, bool show)

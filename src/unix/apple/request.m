@@ -7,10 +7,7 @@
 #include <Foundation/NSURLRequest.h>
 #include <Foundation/Foundation.h>
 
-#include "net/http-parse.h"
-#include "net/http-proxy.h"
-
-#define MTY_USER_AGENT @"libmatoya/v" MTY_VERSION_STRING
+#include "http.h"
 
 struct request_parse_args {
 	NSMutableURLRequest *req;
@@ -65,7 +62,7 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 		mty_http_parse_headers(headers, request_parse_headers, &pargs);
 
 	if (!pargs.ua_found)
-		[req setValue:MTY_USER_AGENT forHTTPHeaderField:@"User-Agent"];
+		[req setValue:@MTY_USER_AGENT forHTTPHeaderField:@"User-Agent"];
 
 	// Body
 	if (body && bodySize > 0)
