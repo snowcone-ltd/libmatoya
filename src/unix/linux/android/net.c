@@ -47,7 +47,7 @@ struct net *mty_net_connect(const char *host, uint16_t port, bool secure, uint32
 	mty_jni_retain(env, &ctx->s);
 
 	// Connect timeout
-	// TODO Does this accet the underlying TCP "connect" call?
+	// TODO Does this affect the underlying TCP "connect" call?
 	mty_jni_void(env, ctx->s, "setSoTimeout", "(I)V", timeout);
 
 	// Perform connection/handshake
@@ -120,6 +120,7 @@ MTY_Async mty_net_poll(struct net *ctx, uint32_t timeout)
 	if (ctx->b != -1)
 		return MTY_ASYNC_OK;
 
+	// Try to read one byte -- a timeout throws an exception
 	ctx->b = mty_jni_int(env, ctx->in, "read", "()I");
 	if (!mty_jni_catch(env)) {
 		ctx->b = -1;
@@ -151,12 +152,14 @@ bool mty_net_read(struct net *ctx, void *buf, size_t size, uint32_t timeout)
 	uint8_t *buf8 = buf;
 
 	for (size_t total = 0; total < size; total++) {
+		// First add the cached byte from mty_net_poll
 		if (ctx->b != -1) {
 			buf8[total] = (uint8_t) ctx->b;
 			ctx->b = -1;
 			continue;
 		}
 
+		// Read one byte at a time
 		int32_t b = mty_jni_int(env, ctx->in, "read", "()I");
 		if (!mty_jni_catch(env))
 			return false;
