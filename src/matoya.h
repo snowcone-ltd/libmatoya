@@ -563,6 +563,7 @@ typedef enum {
 	MTY_MOD_CTRL    = 0x00C, ///< Left or right Ctrl
 	MTY_MOD_ALT     = 0x030, ///< Left or right Alt
 	MTY_MOD_WIN     = 0x0C0, ///< Left or right Windows (Meta/Super)
+	MTY_MOD_FN      = 0x100, ///< MacOS Function
 	MTY_MOD_MAKE_32 = INT32_MAX,
 } MTY_Mod;
 
