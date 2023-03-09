@@ -22,6 +22,7 @@ enum {
 
 struct MTY_WebSocket {
 	struct net *net;
+	bool connected;
 
 	MTY_Time last_ping;
 	MTY_Time last_pong;
@@ -410,6 +411,7 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure
 	if (!r)
 		goto except;
 
+	ctx->connected = true;
 	ctx->last_ping = ctx->last_pong = MTY_GetTime();
 
 	except:
@@ -427,8 +429,10 @@ void MTY_WebSocketDestroy(MTY_WebSocket **webSocket)
 
 	MTY_WebSocket *ctx = *webSocket;
 
-	uint16_t code_be = MTY_SwapToBE16(1000);
-	ws_write(ctx, &code_be, 2, WS_OPCODE_CLOSE);
+	if (ctx->connected) {
+		uint16_t code_be = MTY_SwapToBE16(1000);
+		ws_write(ctx, &code_be, 2, WS_OPCODE_CLOSE);
+	}
 
 	mty_net_destroy(&ctx->net);
 
