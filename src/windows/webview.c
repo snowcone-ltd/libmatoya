@@ -33,11 +33,6 @@ struct webview_handler2 {
 	void *opaque;
 };
 
-struct webview_opts {
-	ICoreWebView2EnvironmentOptions opts;
-	void *opaque;
-};
-
 struct webview {
 	MTY_App *app;
 	MTY_Window window;
@@ -52,7 +47,7 @@ struct webview {
 	struct webview_handler0 handler0;
 	struct webview_handler1 handler1;
 	struct webview_handler2 handler2;
-	struct webview_opts opts;
+	ICoreWebView2EnvironmentOptions opts;
 	WCHAR *source;
 	bool url;
 	bool debug;
@@ -479,8 +474,7 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 	ctx->handler1.opaque = ctx;
 	ctx->handler2.handler.lpVtbl = &VTBL2;
 	ctx->handler2.opaque = ctx;
-	ctx->opts.opts.lpVtbl = &VTBL3;
-	ctx->opts.opaque = ctx;
+	ctx->opts.lpVtbl = &VTBL3;
 
 	const WCHAR *dirw = dir ? MTY_MultiToWideDL(dir) : L"webview-data";
 
@@ -494,7 +488,7 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 	if (!func)
 		goto except;
 
-	e = func(1, 0, dirw, (ICoreWebView2EnvironmentOptions *) &ctx->opts, (ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler *) &ctx->handler0);
+	e = func(1, 0, dirw, &ctx->opts, (ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler *) &ctx->handler0);
 
 	except:
 
