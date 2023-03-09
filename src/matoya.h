@@ -1371,7 +1371,7 @@ MTY_WindowGetNative(MTY_App *app, MTY_Window window);
 ///   Steam API shared object resides (i.e. `libsteam_api.so`).
 /// @param userAgent Custom string to replace the built-in value of the User-Agent HTTP header.
 ///	  Set this as NULL to use the default implementation-specific value.
-/// @param debug Flags Set to true to enable debugging tools.
+/// @param debug Set to true to enable debugging tools.
 /// @returns Returns true on success, false if the WebView failed to be set or already exists.
 //- #support Windows macOS
 MTY_EXPORT bool
@@ -1383,6 +1383,16 @@ MTY_WindowSetWebView(MTY_App *app, MTY_Window window, const char *dir, const cha
 /// @param window An MTY_Window.
 MTY_EXPORT void
 MTY_WindowRemoveWebView(MTY_App *app, MTY_Window window);
+
+/// @brief Navigate the WebView to a given URL or HTML string.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @param source Source content to be loaded by the WebView. This argument can either be a
+///   URL or direct HTML depending on the value of `url`.
+/// @param url If true, `source` will be treated as a URL, else `source` will be loaded
+///   directly as HTML.
+MTY_EXPORT void
+MTY_WebViewNavigate(MTY_App *app, MTY_Window window, const char *source, bool url);
 
 /// @brief Check if a WebView exists on a window.
 /// @param app The MTY_App.
@@ -1402,15 +1412,6 @@ MTY_WebViewShow(MTY_App *app, MTY_Window window, bool show);
 /// @param window An MTY_Window.
 MTY_EXPORT bool
 MTY_WebViewIsVisible(MTY_App *app, MTY_Window window);
-
-/// @brief Navigate to the given url/HTML string.
-/// @param app The MTY_App.
-/// @param window An MTY_Window.
-/// @param source Source content to be loaded by the WebView. This argument can either be a
-///   URL or direct HTML depending on the value of `url`.
-/// @param url If true, `source` is interpreted as a URL, else it is considered to be direct HTML.
-MTY_EXPORT void
-MTY_WebViewNavigate(MTY_App *app, MTY_Window window, const char *source, bool url);
 
 /// @brief Send text to the WebView's JavaScript environment.
 /// @param app The MTY_App.
