@@ -254,14 +254,13 @@ static void webview_key_func(MTY_App *app, MTY_Window window, bool pressed, MTY_
 	event_func(&evt, opaque);
 }
 
-bool MTY_WindowSetWebView(MTY_App *app, MTY_Window window, const char *dir, const char *source,
-	MTY_WebViewFlag flags)
+bool MTY_WindowSetWebView(MTY_App *app, MTY_Window window, const char *dir, bool debug)
 {
 	struct window_common *cmn = mty_window_get_common(app, window);
 	if (!cmn || cmn->webview)
 		return false;
 
-	cmn->webview = mty_webview_create(app, window, dir, source, flags,
+	cmn->webview = mty_webview_create(app, window, dir, debug,
 		webview_ready_func, webview_text_func, webview_key_func);
 
 	return cmn->webview != NULL;
@@ -274,6 +273,15 @@ void MTY_WindowRemoveWebView(MTY_App *app, MTY_Window window)
 		return;
 
 	mty_webview_destroy(&cmn->webview);
+}
+
+void MTY_WebViewNavigate(MTY_App *app, MTY_Window window, const char *source, bool url)
+{
+	struct window_common *cmn = mty_window_get_common(app, window);
+	if (!cmn || !cmn->webview)
+		return;
+
+	mty_webview_navigate(cmn->webview, source, url);
 }
 
 bool MTY_WebViewExists(MTY_App *app, MTY_Window window)

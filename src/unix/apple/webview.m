@@ -100,8 +100,7 @@ struct webview {
 @end
 
 struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *dir,
-	const char *source, MTY_WebViewFlag flags, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func,
-	WEBVIEW_KEY key_func)
+	bool debug, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func, WEBVIEW_KEY key_func)
 {
 	struct webview *ctx = MTY_Alloc(1, sizeof(struct webview));
 
@@ -129,10 +128,10 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 	ctx->webview.hidden = YES;
 
 	// Settings
-	NSNumber *debug = flags & MTY_WEBVIEW_FLAG_DEBUG ? @YES : @NO;
+	NSNumber *ndebug = debug ? @YES : @NO;
 
 	[ctx->webview setValue:@NO forKey:@"drawsBackground"];
-	[ctx->webview.configuration.preferences setValue:debug forKey:@"developerExtrasEnabled"];
+	[ctx->webview.configuration.preferences setValue:ndebug forKey:@"developerExtrasEnabled"];
 
 	// Message handler
 	WebViewMessageHandler *handler = [WebViewMessageHandler alloc];
@@ -158,10 +157,10 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 			@"if (window.MTY_NativeListener) {"
 				@"__MTY_WEBVIEW = b64 => {window.MTY_NativeListener(atob(b64));};"
 
-				@"for (let msg = __MTY_MSGS.shift(); msg; msg = MTY_MSGS.shift())"
+				@"for (let msg = __MTY_MSGS.shift(); msg; msg = __MTY_MSGS.shift())"
 					@"__MTY_WEBVIEW(msg);"
 
-				@"clearInverval(__MTY_INTERVAL);"
+				@"clearInterval(__MTY_INTERVAL);"
 			@"}"
 		@"}, 100);"
 
@@ -191,19 +190,6 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 
 	[ctx->webview.configuration.userContentController addUserScript:script];
 
-	// Load source
-	NSString *osource = [NSString stringWithUTF8String:source];
-
-	if (flags & MTY_WEBVIEW_FLAG_URL) {
-		NSURL *url = [[NSURL alloc] initWithString:osource];
-
-		NSURLRequest *req = [[NSURLRequest alloc] initWithURL:url];
-		[ctx->webview loadRequest:req];
-
-	} else {
-		[ctx->webview loadHTMLString:osource baseURL:nil];
-	}
-
 	return ctx;
 }
 
@@ -227,6 +213,21 @@ void mty_webview_destroy(struct webview **webview)
 
 	MTY_Free(ctx);
 	*webview = NULL;
+}
+
+void mty_webview_navigate(struct webview *ctx, const char *source, bool url)
+{
+	NSString *osource = [NSString stringWithUTF8String:source];
+
+	if (url) {
+		NSURL *url = [[NSURL alloc] initWithString:osource];
+
+		NSURLRequest *req = [[NSURLRequest alloc] initWithURL:url];
+		[ctx->webview loadRequest:req];
+
+	} else {
+		[ctx->webview loadHTMLString:osource baseURL:nil];
+	}
 }
 
 void mty_webview_show(struct webview *ctx, bool show)

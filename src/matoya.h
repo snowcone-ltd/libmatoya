@@ -676,15 +676,6 @@ typedef enum {
 	MTY_WINDOW_MAKE_32    = INT32_MAX,
 } MTY_WindowType;
 
-/// @brief WebView flags set during creation.
-typedef enum {
-	MTY_WEBVIEW_FLAG_URL     = 0x1, ///< The `source` argument to MTY_WindowSetWebView will be
-	                                ///<   treated as a URL, otherwise `source` will be loaded
-	                                ///<   directly as HTML.
-	MTY_WEBVIEW_FLAG_DEBUG   = 0x2, ///< Debugging tools enabled.
-	MTY_WEBVIEW_FLAG_MAKE_32 = INT32_MAX,
-} MTY_WebViewFlag;
-
 /// @brief Predefined cursors set via MTY_AppSetCursor.
 typedef enum {
 	MTY_CURSOR_NONE    = 0, ///< Revert the effects of MTY_AppSetCursor.
@@ -1378,20 +1369,27 @@ MTY_WindowGetNative(MTY_App *app, MTY_Window window);
 /// @param dir Path to where temporary files related to the WebView will be stored (Windows only).
 ///   If MTY_WebViewIsSteam returns true, `dir` will be interpreted as the directory where the
 ///   Steam API shared object resides (i.e. `libsteam_api.so`).
-/// @param source Source content to be loaded by the WebView. This argument can either be a
-///   URL or direct HTML depending on the value of `flags`.
-/// @param flags Flags specifying various WebView behaviors.
+/// @param debug Set to true to enable debugging tools.
 /// @returns Returns true on success, false if the WebView failed to be set or already exists.
 //- #support Windows macOS
 MTY_EXPORT bool
-MTY_WindowSetWebView(MTY_App *app, MTY_Window window, const char *dir, const char *source,
-	MTY_WebViewFlag flags);
+MTY_WindowSetWebView(MTY_App *app, MTY_Window window, const char *dir, bool debug);
 
 /// @brief Remove the WebView from a window.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 MTY_EXPORT void
 MTY_WindowRemoveWebView(MTY_App *app, MTY_Window window);
+
+/// @brief Navigate the WebView to a given URL or HTML string.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @param source Source content to be loaded by the WebView. This argument can either be a
+///   URL or direct HTML depending on the value of `url`.
+/// @param url If true, `source` will be treated as a URL, else `source` will be loaded
+///   directly as HTML.
+MTY_EXPORT void
+MTY_WebViewNavigate(MTY_App *app, MTY_Window window, const char *source, bool url);
 
 /// @brief Check if a WebView exists on a window.
 /// @param app The MTY_App.
