@@ -87,8 +87,8 @@ static void webview_on_browser_ready(struct webview *ctx, HTML_BrowserReady_t *p
 	if (ctx->source)
 		SteamAPI_ISteamHTMLSurface_LoadURL(ctx->surface, ctx->browser, ctx->source, NULL);
 
-	// if (ctx->debug)
-	//	SteamAPI_ISteamHTMLSurface_OpenDeveloperTools(ctx->surface, ctx->browser);
+	if (ctx->debug)
+		SteamAPI_ISteamHTMLSurface_OpenDeveloperTools(ctx->surface, ctx->browser);
 }
 
 static void browser_ready_run0(void *This, void *pvParam)
@@ -197,10 +197,10 @@ static void finished_request_run0(void *This, void *pvParam)
 			"if (window.MTY_NativeListener) {"
 				"__MTY_WEBVIEW = b64 => {window.MTY_NativeListener(atob(b64));};"
 
-				"for (let msg = __MTY_MSGS.shift(); msg; msg = MTY_MSGS.shift())"
+				"for (let msg = __MTY_MSGS.shift(); msg; msg = __MTY_MSGS.shift())"
 					"__MTY_WEBVIEW(msg);"
 
-				"clearInverval(__MTY_INTERVAL);"
+				"clearInterval(__MTY_INTERVAL);"
 			"}"
 		"}, 100);";
 
@@ -410,9 +410,7 @@ void mty_webview_destroy(struct webview **webview)
 void mty_webview_navigate(struct webview *ctx, const char *source, bool url)
 {
 	if (ctx->browser == 0) {
-		if (ctx->source)
-			MTY_Free(ctx->source);
-
+		MTY_Free(ctx->source);
 		ctx->source = MTY_Strdup(source);
 
 	} else {

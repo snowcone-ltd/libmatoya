@@ -250,7 +250,7 @@ static HRESULT STDMETHODCALLTYPE h1_Invoke(ICoreWebView2CreateCoreWebView2Contro
 
 		L"const __MTY_INTERVAL = setInterval(() => {"
 			L"if (window.MTY_NativeListener) {"
-				L"for (let msg = __MTY_MSGS.shift(); msg; msg = MTY_MSGS.shift())"
+				L"for (let msg = __MTY_MSGS.shift(); msg; msg = __MTY_MSGS.shift())"
 					L"window.MTY_NativeListener(msg);"
 
 				L"clearInterval(__MTY_INTERVAL);"

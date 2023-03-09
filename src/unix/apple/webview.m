@@ -160,10 +160,10 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 			@"if (window.MTY_NativeListener) {"
 				@"__MTY_WEBVIEW = b64 => {window.MTY_NativeListener(atob(b64));};"
 
-				@"for (let msg = __MTY_MSGS.shift(); msg; msg = MTY_MSGS.shift())"
+				@"for (let msg = __MTY_MSGS.shift(); msg; msg = __MTY_MSGS.shift())"
 					@"__MTY_WEBVIEW(msg);"
 
-				@"clearInverval(__MTY_INTERVAL);"
+				@"clearInterval(__MTY_INTERVAL);"
 			@"}"
 		@"}, 100);"
 
@@ -218,11 +218,11 @@ void mty_webview_destroy(struct webview **webview)
 	*webview = NULL;
 }
 
-void mty_webview_navigate(struct webview *ctx, const char *source, bool is_url)
+void mty_webview_navigate(struct webview *ctx, const char *source, bool url)
 {
 	NSString *osource = [NSString stringWithUTF8String:source];
 
-	if (is_url) {
+	if (url) {
 		NSURL *url = [[NSURL alloc] initWithString:osource];
 
 		NSURLRequest *req = [[NSURLRequest alloc] initWithURL:url];
