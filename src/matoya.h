@@ -1409,7 +1409,7 @@ MTY_WebViewIsVisible(MTY_App *app, MTY_Window window);
 /// @param source Source content to be loaded by the WebView. This argument can either be a
 ///   URL or direct HTML depending on the value of `url`.
 /// @param url If true, `source` is interpreted as a URL, else it is considered to be direct HTML.
-MTY_EXPORT bool
+MTY_EXPORT void
 MTY_WebViewNavigate(MTY_App *app, MTY_Window window, const char *source, bool url);
 
 /// @brief Send text to the WebView's JavaScript environment.

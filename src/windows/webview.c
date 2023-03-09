@@ -557,6 +557,20 @@ void mty_webview_destroy(struct webview **webview)
 	*webview = NULL;
 }
 
+void mty_webview_navigate(struct webview *ctx, const char *source_, bool url)
+{
+	WCHAR *source = MTY_MultiToWideD(source_);
+
+	if (!ctx->webview) {
+		MTY_Free(ctx->init_source);
+		ctx->init_source = source;
+		ctx->init_source_url = url;
+	}
+
+	mty_webview_navigate_impl(ctx, source, url);
+	MTY_Free(source);
+}
+
 void mty_webview_show(struct webview *ctx, bool show)
 {
 	ICoreWebView2Controller2_put_IsVisible(ctx->controller, show);
@@ -571,23 +585,6 @@ bool mty_webview_is_visible(struct webview *ctx)
 	ICoreWebView2Controller2_get_IsVisible(ctx->controller, &visible);
 
 	return visible;
-}
-
-bool mty_webview_navigate(struct webview *ctx, const char *source_, bool url)
-{
-	WCHAR *source = MTY_MultiToWideD(source_);
-
-	if (!ctx->webview) {
-		MTY_Free(ctx->init_source);
-		ctx->init_source = source;
-		ctx->init_source_url = url;
-		return false;
-	}
-
-	mty_webview_navigate_impl(ctx, source, url);
-	MTY_Free(source);
-
-	return true;
 }
 
 void mty_webview_send_text(struct webview *ctx, const char *msg)

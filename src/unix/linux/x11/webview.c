@@ -14,16 +14,15 @@ void mty_webview_destroy(struct webview **webview)
 {
 }
 
+void mty_webview_navigate(struct webview *ctx, const char *source, bool url)
+{
+}
+
 void mty_webview_show(struct webview *ctx, bool show)
 {
 }
 
 bool mty_webview_is_visible(struct webview *ctx)
-{
-	return false;
-}
-
-bool mty_webview_navigate(struct webview *ctx, const char *source, bool url)
 {
 	return false;
 }

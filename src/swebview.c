@@ -37,7 +37,6 @@ struct sbase {
 struct webview {
 	MTY_App *app;
 	MTY_Window window;
-	MTY_WebViewFlag flags;
 	WEBVIEW_READY ready_func;
 	WEBVIEW_TEXT text_func;
 	WEBVIEW_KEY key_func;
@@ -47,6 +46,7 @@ struct webview {
 	EHTMLKeyModifiers smods;
 	HHTMLBrowser browser;
 	char *source;
+	bool debug;
 	bool ready;
 	bool visible;
 	bool passthrough;
@@ -84,9 +84,10 @@ static void webview_on_browser_ready(struct webview *ctx, HTML_BrowserReady_t *p
 
 	webview_update_size(ctx);
 
-	SteamAPI_ISteamHTMLSurface_LoadURL(ctx->surface, ctx->browser, ctx->source, NULL);
+	if (ctx->source)
+		SteamAPI_ISteamHTMLSurface_LoadURL(ctx->surface, ctx->browser, ctx->source, NULL);
 
-	// if (ctx->flags & MTY_WEBVIEW_FLAG_DEBUG)
+	// if (ctx->debug)
 	//	SteamAPI_ISteamHTMLSurface_OpenDeveloperTools(ctx->surface, ctx->browser);
 }
 
@@ -325,19 +326,17 @@ static void webview_class(struct webview *ctx, SteamAPICall_t call, int callback
 	}
 }
 
-struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *dir,
-	const char *source, MTY_WebViewFlag flags, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func,
-	WEBVIEW_KEY key_func)
+struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *dir, const char *ua,
+	bool debug, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func, WEBVIEW_KEY key_func)
 {
 	struct webview *ctx = MTY_Alloc(1, sizeof(struct webview));
 	ctx->app = app;
 	ctx->window = window;
 	ctx->mutex = MTY_MutexCreate();
-	ctx->source = MTY_Strdup(source);
 	ctx->ready_func = ready_func;
 	ctx->text_func = text_func;
 	ctx->key_func = key_func;
-	ctx->flags = flags;
+	ctx->debug = debug;
 
 	steam_global_init(dir ? dir : ".");
 
@@ -406,6 +405,19 @@ void mty_webview_destroy(struct webview **webview)
 
 	MTY_Free(ctx);
 	*webview = NULL;
+}
+
+void mty_webview_navigate(struct webview *ctx, const char *source, bool url)
+{
+	if (ctx->browser == 0) {
+		if (ctx->source)
+			MTY_Free(ctx->source);
+
+		ctx->source = MTY_Strdup(source);
+
+	} else {
+		SteamAPI_ISteamHTMLSurface_LoadURL(ctx->surface, ctx->browser, source, NULL);
+	}
 }
 
 void mty_webview_show(struct webview *ctx, bool show)
