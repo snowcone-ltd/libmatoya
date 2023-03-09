@@ -19,6 +19,7 @@
 	@property dispatch_semaphore_t conn;
 	@property MTY_Time last_ping;
 	@property MTY_Time last_pong;
+	@property bool closed;
 @end
 
 @implementation WebSocket : NSObject
@@ -26,7 +27,7 @@
 		didCompleteWithError:(NSError *)error
 	{
 		if (error)
-			printf("ERROR %ld\n", error.code);
+			MTY_Log("'WebSocket:didCompleteWithError' fired with code %ld\n", error.code);
 	}
 
 	- (void)URLSession:(NSURLSession *)session webSocketTask:(NSURLSessionWebSocketTask *)webSocketTask
@@ -38,7 +39,10 @@
 	- (void)URLSession:(NSURLSession *)session webSocketTask:(NSURLSessionWebSocketTask *)webSocketTask
 		didCloseWithCode:(NSURLSessionWebSocketCloseCode)closeCode reason:(NSData *)reason
 	{
-		printf("CLOSE %ld\n", closeCode);
+		self.closed = true;
+
+		if (closeCode != 1000)
+			MTY_Log("'WebSocket:didCloseWithCode' fired with closeCode %ld\n", closeCode);
 	}
 @end
 
@@ -97,7 +101,7 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure
 		mty_http_parse_headers(headers, ws_parse_headers, &pargs);
 
 	if (!pargs.ua_found)
-		[req setValue:MTY_USER_AGENT forHTTPHeaderField:@"User-Agent"];
+		[req setValue:@MTY_USER_AGENT forHTTPHeaderField:@"User-Agent"];
 
 	// Proxy
 	const char *proxy = mty_http_get_proxy();
@@ -107,10 +111,12 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure
 
 		if (comps) {
 			cfg.connectionProxyDictionary = @{
-				(NSString *) kCFNetworkProxiesHTTPProxy: comps.host,
-				(NSString *) kCFNetworkProxiesHTTPSProxy: comps.host,
-				(NSString *) kCFNetworkProxiesHTTPPort: comps.port,
-				(NSString *) kCFNetworkProxiesHTTPSPort: comps.port,
+				@"HTTPEnable": @YES,
+				@"HTTPProxy": comps.host,
+				@"HTTPPort": comps.port,
+				@"HTTPSEnable": @YES,
+				@"HTTPSProxy": comps.host,
+				@"HTTPSPort": comps.port,
 			};
 		}
 	}
@@ -175,7 +181,7 @@ MTY_Async MTY_WebSocketRead(MTY_WebSocket *webSocket, uint32_t timeout, char *ms
 		return MTY_ASYNC_ERROR;
 
 	// WebSocket is already closed
-	if (ctx.task.closeCode != NSURLSessionWebSocketCloseCodeInvalid)
+	if (ctx.closed || ctx.task.closeCode != NSURLSessionWebSocketCloseCodeInvalid)
 		return MTY_ASYNC_DONE;
 
 	// Set completion handler and sempaphore

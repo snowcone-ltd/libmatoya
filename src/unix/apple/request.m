@@ -62,7 +62,7 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 		mty_http_parse_headers(headers, request_parse_headers, &pargs);
 
 	if (!pargs.ua_found)
-		[req setValue:MTY_USER_AGENT forHTTPHeaderField:@"User-Agent"];
+		[req setValue:@MTY_USER_AGENT forHTTPHeaderField:@"User-Agent"];
 
 	// Body
 	if (body && bodySize > 0)
