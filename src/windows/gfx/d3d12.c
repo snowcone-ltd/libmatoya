@@ -201,7 +201,7 @@ static HRESULT d3d12_pipeline(ID3D12Device *device, ID3D12RootSignature *rs, ID3
 	return e;
 }
 
-struct gfx *mty_d3d12_create(MTY_Device *device, uint8_t layer)
+struct gfx *mty_d3d12_create(struct gfx_device *device, uint8_t layer)
 {
 	struct d3d12 *ctx = MTY_Alloc(1, sizeof(struct d3d12));
 
@@ -330,7 +330,7 @@ static void d3d12_destroy_resource(struct d3d12_res *res)
 	res->height = 0;
 }
 
-static bool d3d12_crop_copy(struct d3d12_res *res, MTY_Context *context, const uint8_t *image, uint32_t full_w,
+static bool d3d12_crop_copy(struct d3d12_res *res, struct gfx_context *context, const uint8_t *image, uint32_t full_w,
 	uint32_t w, uint32_t h, uint8_t bpp)
 {
 	ID3D12GraphicsCommandList *cl = (ID3D12GraphicsCommandList *) context;
@@ -386,7 +386,7 @@ static bool d3d12_crop_copy(struct d3d12_res *res, MTY_Context *context, const u
 	return true;
 }
 
-static bool d3d12_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Context *context, MTY_ColorFormat fmt,
+static bool d3d12_refresh_resource(struct gfx *gfx, struct gfx_device *_device, struct gfx_context *context, MTY_ColorFormat fmt,
 	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, uint8_t bpp)
 {
 	struct d3d12 *ctx = (struct d3d12 *) gfx;
@@ -474,8 +474,8 @@ static bool d3d12_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Con
 	return r;
 }
 
-bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
-	const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest)
+bool mty_d3d12_render(struct gfx *gfx, struct gfx_device *device, struct gfx_context *context,
+	const void *image, const MTY_RenderDesc *desc, struct gfx_surface *dest)
 {
 	struct d3d12 *ctx = (struct d3d12 *) gfx;
 
@@ -578,8 +578,8 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	return true;
 }
 
-void mty_d3d12_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
-	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dest)
+void mty_d3d12_clear(struct gfx *gfx, struct gfx_device *device, struct gfx_context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, struct gfx_surface *dest)
 {
 	ID3D12GraphicsCommandList *cl = (ID3D12GraphicsCommandList *) context;
 	D3D12_CPU_DESCRIPTOR_HANDLE *_dest = (D3D12_CPU_DESCRIPTOR_HANDLE *) dest;
@@ -588,7 +588,7 @@ void mty_d3d12_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	ID3D12GraphicsCommandList_ClearRenderTargetView(cl, *_dest, color, 0, NULL);
 }
 
-void mty_d3d12_destroy(struct gfx **gfx, MTY_Device *device)
+void mty_d3d12_destroy(struct gfx **gfx, struct gfx_device *device)
 {
 	if (!gfx || !*gfx)
 		return;

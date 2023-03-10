@@ -78,18 +78,18 @@ void mty_metal_ctx_get_size(struct gfx_ctx *gfx_ctx, uint32_t *w, uint32_t *h)
 	*h = lrint(ctx->size.height);
 }
 
-MTY_Device *mty_metal_ctx_get_device(struct gfx_ctx *gfx_ctx)
+struct gfx_device *mty_metal_ctx_get_device(struct gfx_ctx *gfx_ctx)
 {
 	struct metal_ctx *ctx = (struct metal_ctx *) gfx_ctx;
 
-	return (__bridge MTY_Device *) ctx->cq.device;
+	return (__bridge struct gfx_device *) ctx->cq.device;
 }
 
-MTY_Context *mty_metal_ctx_get_context(struct gfx_ctx *gfx_ctx)
+struct gfx_context *mty_metal_ctx_get_context(struct gfx_ctx *gfx_ctx)
 {
 	struct metal_ctx *ctx = (struct metal_ctx *) gfx_ctx;
 
-	return (__bridge MTY_Context *) ctx->cq;
+	return (__bridge struct gfx_context *) ctx->cq;
 }
 
 static void metal_ctx_refresh(struct metal_ctx *ctx)
@@ -106,7 +106,7 @@ static void metal_ctx_refresh(struct metal_ctx *ctx)
 	}
 }
 
-MTY_Surface *mty_metal_ctx_get_surface(struct gfx_ctx *gfx_ctx)
+struct gfx_surface *mty_metal_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 {
 	struct metal_ctx *ctx = (struct metal_ctx *) gfx_ctx;
 
@@ -117,7 +117,7 @@ MTY_Surface *mty_metal_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 		}
 	}
 
-	return (__bridge MTY_Surface *) ctx->back_buffer.texture;
+	return (__bridge struct gfx_surface *) ctx->back_buffer.texture;
 }
 
 void mty_metal_ctx_present(struct gfx_ctx *gfx_ctx)

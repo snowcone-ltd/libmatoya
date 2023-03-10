@@ -148,25 +148,25 @@ void mty_gl_ctx_get_size(struct gfx_ctx *gfx_ctx, uint32_t *w, uint32_t *h)
 	mty_gl_ui_set_origin_y(kb_height);
 }
 
-MTY_Device *mty_gl_ctx_get_device(struct gfx_ctx *gfx_ctx)
+struct gfx_device *mty_gl_ctx_get_device(struct gfx_ctx *gfx_ctx)
 {
 	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
 
-	return (MTY_Device *) ctx->device;
+	return (struct gfx_device *) ctx->device;
 }
 
-MTY_Context *mty_gl_ctx_get_context(struct gfx_ctx *gfx_ctx)
+struct gfx_context *mty_gl_ctx_get_context(struct gfx_ctx *gfx_ctx)
 {
 	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
 
-	return (MTY_Context *) ctx->context;
+	return (struct gfx_context *) ctx->context;
 }
 
-MTY_Surface *mty_gl_ctx_get_surface(struct gfx_ctx *gfx_ctx)
+struct gfx_surface *mty_gl_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 {
 	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
 
-	return (MTY_Surface *) &ctx->fb0;
+	return (struct gfx_surface *) &ctx->fb0;
 }
 
 void mty_gl_ctx_present(struct gfx_ctx *gfx_ctx)

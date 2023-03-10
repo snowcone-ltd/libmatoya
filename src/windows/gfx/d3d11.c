@@ -47,7 +47,7 @@ struct d3d11 {
 	ID3D11DepthStencilState *dss;
 };
 
-struct gfx *mty_d3d11_create(MTY_Device *device, uint8_t layer)
+struct gfx *mty_d3d11_create(struct gfx_device *device, uint8_t layer)
 {
 	struct d3d11 *ctx = MTY_Alloc(1, sizeof(struct d3d11));
 	ID3D11Device *_device = (ID3D11Device *) device;
@@ -205,7 +205,7 @@ static void d3d11_destroy_resource(struct d3d11_res *res)
 	memset(res, 0, sizeof(struct d3d11_res));
 }
 
-static bool d3d11_crop_copy(struct d3d11_res *res, MTY_Context *_context, const uint8_t *image, uint32_t full_w,
+static bool d3d11_crop_copy(struct d3d11_res *res, struct gfx_context *_context, const uint8_t *image, uint32_t full_w,
 	uint32_t w, uint32_t h, uint8_t bpp)
 {
 	ID3D11DeviceContext *context = (ID3D11DeviceContext *) _context;
@@ -225,7 +225,7 @@ static bool d3d11_crop_copy(struct d3d11_res *res, MTY_Context *_context, const 
 	return true;
 }
 
-static bool d3d11_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Context *context, MTY_ColorFormat fmt,
+static bool d3d11_refresh_resource(struct gfx *gfx, struct gfx_device *_device, struct gfx_context *context, MTY_ColorFormat fmt,
 	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, uint8_t bpp)
 {
 	struct d3d11 *ctx = (struct d3d11 *) gfx;
@@ -301,8 +301,8 @@ static bool d3d11_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Con
 	return r;
 }
 
-bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
-	const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest)
+bool mty_d3d11_render(struct gfx *gfx, struct gfx_device *device, struct gfx_context *context,
+	const void *image, const MTY_RenderDesc *desc, struct gfx_surface *dest)
 {
 	struct d3d11 *ctx = (struct d3d11 *) gfx;
 	ID3D11DeviceContext *_context = (ID3D11DeviceContext *) context;
@@ -396,8 +396,8 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	return true;
 }
 
-void mty_d3d11_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
-	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dest)
+void mty_d3d11_clear(struct gfx *gfx, struct gfx_device *device, struct gfx_context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, struct gfx_surface *dest)
 {
 	ID3D11DeviceContext *_context = (ID3D11DeviceContext *) context;
 	ID3D11RenderTargetView *_dest = (ID3D11RenderTargetView *) dest;
@@ -406,7 +406,7 @@ void mty_d3d11_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	ID3D11DeviceContext_ClearRenderTargetView(_context, _dest, clear_color);
 }
 
-void mty_d3d11_destroy(struct gfx **gfx, MTY_Device *device)
+void mty_d3d11_destroy(struct gfx **gfx, struct gfx_device *device)
 {
 	if (!gfx || !*gfx)
 		return;

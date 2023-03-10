@@ -47,13 +47,13 @@ struct vk_ui {
 	struct vk_ui_buffer ib;
 };
 
-struct gfx_ui *mty_vk_ui_create(MTY_Device *device)
+struct gfx_ui *mty_vk_ui_create(struct gfx_device *device)
 {
 	struct vk_ui *ctx = MTY_Alloc(1, sizeof(struct vk_ui));
 
 	bool r = true;
 
-	MTY_VkDeviceObjects *dobjs = (MTY_VkDeviceObjects *) device;
+	struct vk_device_objects *dobjs = (struct vk_device_objects *) device;
 
 	VkDevice _device = dobjs->device;
 
@@ -326,12 +326,12 @@ static bool vk_ui_resize_buffer(struct vk_ui_buffer *uibuf, const VkPhysicalDevi
 	return true;
 }
 
-bool mty_vk_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context *context,
-	const MTY_DrawData *dd, MTY_Hash *cache, MTY_Surface *dest)
+bool mty_vk_ui_render(struct gfx_ui *gfx_ui, struct gfx_device *device, struct gfx_context *context,
+	const MTY_DrawData *dd, MTY_Hash *cache, struct gfx_surface *dest)
 {
 	struct vk_ui *ctx = (struct vk_ui *) gfx_ui;
 
-	MTY_VkDeviceObjects *dobjs = (MTY_VkDeviceObjects *) device;
+	struct vk_device_objects *dobjs = (struct vk_device_objects *) device;
 
 	const VkPhysicalDeviceMemoryProperties *pdprops = dobjs->physicalDeviceMemoryProperties;
 	VkDevice _device = dobjs->device;
@@ -497,12 +497,12 @@ bool mty_vk_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context *co
 	return true;
 }
 
-void *mty_vk_ui_create_texture(struct gfx_ui *gfx_ui, MTY_Device *device, const void *rgba,
+void *mty_vk_ui_create_texture(struct gfx_ui *gfx_ui, struct gfx_device *device, const void *rgba,
 	uint32_t width, uint32_t height)
 {
 	struct vk_ui *ctx = (struct vk_ui *) gfx_ui;
 
-	MTY_VkDeviceObjects *dobjs = (MTY_VkDeviceObjects *) device;
+	struct vk_device_objects *dobjs = (struct vk_device_objects *) device;
 
 	const VkPhysicalDeviceMemoryProperties *pdprops = dobjs->physicalDeviceMemoryProperties;
 	VkDevice _device = dobjs->device;
@@ -559,7 +559,7 @@ void *mty_vk_ui_create_texture(struct gfx_ui *gfx_ui, MTY_Device *device, const 
 	return uiimg;
 }
 
-void mty_vk_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, MTY_Device *device)
+void mty_vk_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, struct gfx_device *device)
 {
 	struct vk_ui *ctx = (struct vk_ui *) gfx_ui;
 	if (!ctx)
@@ -568,7 +568,7 @@ void mty_vk_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, MTY_Device
 	if (!texture || !*texture)
 		return;
 
-	MTY_VkDeviceObjects *dobjs = (MTY_VkDeviceObjects *) device;
+	struct vk_device_objects *dobjs = (struct vk_device_objects *) device;
 	if (!dobjs)
 		return;
 
@@ -587,14 +587,14 @@ void mty_vk_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, MTY_Device
 	*texture = NULL;
 }
 
-void mty_vk_ui_destroy(struct gfx_ui **gfx_ui, MTY_Device *device)
+void mty_vk_ui_destroy(struct gfx_ui **gfx_ui, struct gfx_device *device)
 {
 	if (!gfx_ui || !*gfx_ui)
 		return;
 
 	struct vk_ui *ctx = (struct vk_ui *) *gfx_ui;
 
-	MTY_VkDeviceObjects *dobjs = (MTY_VkDeviceObjects *) device;
+	struct vk_device_objects *dobjs = (struct vk_device_objects *) device;
 
 	if (dobjs) {
 		VkDevice _device = dobjs->device;

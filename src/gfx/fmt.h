@@ -31,9 +31,9 @@ static const struct {
 	[MTY_COLOR_FORMAT_3PLANES_16] = {3, 2, 1, 1},
 };
 
-static bool fmt_reload_textures(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
+static bool fmt_reload_textures(struct gfx *gfx, struct gfx_device *device, struct gfx_context *context,
 	const uint8_t *image, const MTY_RenderDesc *desc, bool (*refresh_resource)(struct gfx *gfx,
-	MTY_Device *device, MTY_Context *context, MTY_ColorFormat fmt, uint8_t plane, const uint8_t *image,
+	struct gfx_device *device, struct gfx_context *context, MTY_ColorFormat fmt, uint8_t plane, const uint8_t *image,
 	uint32_t full_w, uint32_t w, uint32_t h, uint8_t bpp))
 {
 	uint8_t bpp = FMT_INFO[desc->format].bpp;

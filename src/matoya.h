@@ -30,13 +30,12 @@ extern "C" {
 /// @brief 3D graphics APIs.
 typedef enum {
 	MTY_GFX_NONE    = 0, ///< No 3D graphics API.
-	MTY_GFX_GL      = 1, ///< OpenGL/GLES. Linux and Android only.
+	MTY_GFX_GL      = 1, ///< OpenGL/GLES. Linux, Android, and Web only.
 	MTY_GFX_VK      = 2, ///< Vulkan. Not available on Apple OS's.
-	MTY_GFX_D3D9    = 3, ///< FIXME Shim
-	MTY_GFX_D3D11   = 4, ///< Direct3D 11. Windows only.
-	MTY_GFX_D3D12   = 5, ///< Direct3D 12. Windows only.
-	MTY_GFX_METAL   = 6, ///< Metal. Apple only.
-	MTY_GFX_MAX     = 7, ///< Maximum number of 3D graphics APIs.
+	MTY_GFX_D3D11   = 3, ///< Direct3D 11. Windows only.
+	MTY_GFX_D3D12   = 4, ///< Direct3D 12. Windows only.
+	MTY_GFX_METAL   = 5, ///< Metal. Apple only.
+	MTY_GFX_MAX     = 6, ///< Maximum number of 3D graphics APIs.
 	MTY_GFX_MAKE_32 = INT32_MAX,
 } MTY_GFX;
 
@@ -168,12 +167,6 @@ typedef struct {
 	bool clear;              ///< Surface should be cleared before drawing.
 } MTY_DrawData;
 
-/// @brief Vulkan specific device handles.
-typedef struct {
-	void *device;                               ///< VkDevice
-	const void *physicalDeviceMemoryProperties; ///< VkPhysicalDeviceMemoryProperties
-} MTY_VkDeviceObjects;
-
 /// @brief Get a list of available graphics APIs on the current OS.
 /// @param apis Array to receive the list of available graphics APIs. This buffer
 ///   should be MTY_GFX_MAX elements.
@@ -186,18 +179,20 @@ MTY_EXPORT MTY_GFX
 MTY_GetDefaultGFX(void);
 
 // FIXME Shims
+/*
 typedef void * MTY_Device;
 typedef void * MTY_Context;
 typedef void * MTY_Surface;
-/*
 typedef void * MTY_Renderer;
 typedef void * MTY_RenderState;
 
+#define MTY_GFX_D3D9 MTY_GFX_MAX
+
 #define MTY_RendererCreate() NULL
 #define MTY_RendererDestroy(renderer)
-#define MTY_RendererDrawQuad(ctx, api, device, context, image, desc, dst) false
-#define MTY_RendererClear(ctx, api, device, context, width, height, r, g, b, a, dst)
-#define MTY_RendererDrawUI(ctx, api, device, context, dd, dst) false
+#define MTY_RendererDrawQuad(ctx, api, device, context, image, desc, dest) false
+#define MTY_RendererClear(ctx, api, device, context, width, height, r, g, b, a, dest)
+#define MTY_RendererDrawUI(ctx, api, device, context, dd, dest) false
 #define MTY_RendererSetUITexture(ctx, api, device, context, id, rgba, width, height) false
 #define MTY_RendererHasUITexture(ctx, id) false
 #define MTY_GetRenderState(api, device, context) NULL

@@ -44,7 +44,7 @@ void MTY_WindowDrawQuad(MTY_App *app, MTY_Window window, const void *image, cons
 	if (!cmn || cmn->api == MTY_GFX_NONE)
 		return;
 
-	MTY_Surface *surface = gfx_ctx_get_surface(cmn);
+	struct gfx_surface *surface = gfx_ctx_get_surface(cmn);
 	if (!surface)
 		return;
 
@@ -66,7 +66,7 @@ void MTY_WindowClear(MTY_App *app, MTY_Window window, float r, float g, float b,
 	if (!cmn || cmn->api == MTY_GFX_NONE)
 		return;
 
-	MTY_Surface *surface = gfx_ctx_get_surface(cmn);
+	struct gfx_surface *surface = gfx_ctx_get_surface(cmn);
 	if (!surface)
 		return;
 
@@ -89,7 +89,7 @@ void MTY_WindowDrawUI(MTY_App *app, MTY_Window window, const MTY_DrawData *dd)
 	if (!cmn || cmn->api == MTY_GFX_NONE)
 		return;
 
-	MTY_Surface *surface = gfx_ctx_get_surface(cmn);
+	struct gfx_surface *surface = gfx_ctx_get_surface(cmn);
 	if (!surface)
 		return;
 

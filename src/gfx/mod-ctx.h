@@ -10,6 +10,7 @@
 #include <stdbool.h>
 
 #include "gfx/mod-support.h"
+#include "gfx/mod-common.h"
 
 struct gfx_ctx;
 
@@ -21,9 +22,9 @@ struct gfx_ctx;
 	void wrap(api, destroy)(struct gfx_ctx **gfx_ctx); \
 	void wrap(api, present)(struct gfx_ctx *gfx_ctx); \
 	void wrap(api, get_size)(struct gfx_ctx *gfx_ctx, uint32_t *w, uint32_t *h); \
-	MTY_Device *wrap(api, get_device)(struct gfx_ctx *gfx_ctx); \
-	MTY_Context *wrap(api, get_context)(struct gfx_ctx *gfx_ctx); \
-	MTY_Surface *wrap(api, get_surface)(struct gfx_ctx *gfx_ctx); \
+	struct gfx_device *wrap(api, get_device)(struct gfx_ctx *gfx_ctx); \
+	struct gfx_context *wrap(api, get_context)(struct gfx_ctx *gfx_ctx); \
+	struct gfx_surface *wrap(api, get_surface)(struct gfx_ctx *gfx_ctx); \
 	bool wrap(api, lock)(struct gfx_ctx *gfx_ctx); \
 	void wrap(api, unlock)(void);
 

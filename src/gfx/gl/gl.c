@@ -64,7 +64,7 @@ static void gl_log_shader_errors(GLuint shader)
 	}
 }
 
-struct gfx *mty_gl_create(MTY_Device *device, uint8_t layer)
+struct gfx *mty_gl_create(struct gfx_device *device, uint8_t layer)
 {
 	if (!glproc_global_init())
 		return NULL;
@@ -167,7 +167,7 @@ static void gl_res_destroy(struct gl_res *rtv)
 	}
 }
 
-static bool gl_refresh_resource(struct gfx *gfx, MTY_Device *device, MTY_Context *context, MTY_ColorFormat fmt,
+static bool gl_refresh_resource(struct gfx *gfx, struct gfx_device *device, struct gfx_context *context, MTY_ColorFormat fmt,
 	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, uint8_t bpp)
 {
 	struct gl *ctx = (struct gl *) gfx;
@@ -200,8 +200,8 @@ static bool gl_refresh_resource(struct gfx *gfx, MTY_Device *device, MTY_Context
 	return true;
 }
 
-bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
-	const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest)
+bool mty_gl_render(struct gfx *gfx, struct gfx_device *device, struct gfx_context *context,
+	const void *image, const MTY_RenderDesc *desc, struct gfx_surface *dest)
 {
 	struct gl *ctx = (struct gl *) gfx;
 	GLuint _dest = *((GLuint *) dest);
@@ -279,8 +279,8 @@ bool mty_gl_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	return true;
 }
 
-void mty_gl_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
-	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dest)
+void mty_gl_clear(struct gfx *gfx, struct gfx_device *device, struct gfx_context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, struct gfx_surface *dest)
 {
 	GLuint _dest = *((GLuint *) dest);
 
@@ -290,7 +290,7 @@ void mty_gl_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	glClear(GL_COLOR_BUFFER_BIT);
 }
 
-void mty_gl_destroy(struct gfx **gfx, MTY_Device *device)
+void mty_gl_destroy(struct gfx **gfx, struct gfx_device *device)
 {
 	if (!gfx || !*gfx)
 		return;

@@ -25,7 +25,7 @@ GFX_UI_DECLARE_TABLE()
 
 struct renderer {
 	MTY_GFX api;
-	MTY_Device *device;
+	struct gfx_device *device;
 	MTY_Hash *textures;
 
 	struct gfx *gfx[RENDER_LAYERS];
@@ -73,7 +73,7 @@ void mty_renderer_destroy(struct renderer **renderer)
 	*renderer = NULL;
 }
 
-static void render_set_api(struct renderer *ctx, MTY_GFX api, MTY_Device *device)
+static void render_set_api(struct renderer *ctx, MTY_GFX api, struct gfx_device *device)
 {
 	if (ctx->api != api || ctx->device != device) {
 		render_destroy(ctx);
@@ -83,7 +83,7 @@ static void render_set_api(struct renderer *ctx, MTY_GFX api, MTY_Device *device
 	}
 }
 
-static bool renderer_begin(struct renderer *ctx, MTY_GFX api, uint8_t layer, MTY_Context *context, MTY_Device *device)
+static bool renderer_begin(struct renderer *ctx, MTY_GFX api, uint8_t layer, struct gfx_context *context, struct gfx_device *device)
 {
 	if (layer >= RENDER_LAYERS)
 		return false;
@@ -96,7 +96,7 @@ static bool renderer_begin(struct renderer *ctx, MTY_GFX api, uint8_t layer, MTY
 	return ctx->gfx[layer] != NULL;
 }
 
-static bool renderer_begin_ui(struct renderer *ctx, MTY_GFX api, MTY_Context *context, MTY_Device *device)
+static bool renderer_begin_ui(struct renderer *ctx, MTY_GFX api, struct gfx_context *context, struct gfx_device *device)
 {
 	render_set_api(ctx, api, device);
 
@@ -106,35 +106,35 @@ static bool renderer_begin_ui(struct renderer *ctx, MTY_GFX api, MTY_Context *co
 	return ctx->gfx_ui != NULL;
 }
 
-bool mty_renderer_draw_quad(struct renderer *ctx, MTY_GFX api, MTY_Device *device, MTY_Context *context,
-	const void *image, const MTY_RenderDesc *desc, MTY_Surface *dst)
+bool mty_renderer_draw_quad(struct renderer *ctx, MTY_GFX api, struct gfx_device *device, struct gfx_context *context,
+	const void *image, const MTY_RenderDesc *desc, struct gfx_surface *dest)
 {
 	if (!renderer_begin(ctx, api, desc->layer, context, device))
 		return false;
 
-	return GFX_API[api].render(ctx->gfx[desc->layer], device, context, image, desc, dst);
+	return GFX_API[api].render(ctx->gfx[desc->layer], device, context, image, desc, dest);
 }
 
-void mty_renderer_clear(struct renderer *ctx, MTY_GFX api, MTY_Device *device, MTY_Context *context,
-	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dst)
+void mty_renderer_clear(struct renderer *ctx, MTY_GFX api, struct gfx_device *device, struct gfx_context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, struct gfx_surface *dest)
 {
 	if (!renderer_begin(ctx, api, 0, context, device))
 		return;
 
-	GFX_API[api].clear(ctx->gfx[0], device, context, width, height, r, g, b, a, dst);
+	GFX_API[api].clear(ctx->gfx[0], device, context, width, height, r, g, b, a, dest);
 }
 
-bool mty_renderer_draw_ui(struct renderer *ctx, MTY_GFX api, MTY_Device *device,
-	MTY_Context *context, const MTY_DrawData *dd, MTY_Surface *dst)
+bool mty_renderer_draw_ui(struct renderer *ctx, MTY_GFX api, struct gfx_device *device,
+	struct gfx_context *context, const MTY_DrawData *dd, struct gfx_surface *dest)
 {
 	if (!renderer_begin_ui(ctx, api, context, device))
 		return false;
 
-	return GFX_UI_API[api].render(ctx->gfx_ui, device, context, dd, ctx->textures, dst);
+	return GFX_UI_API[api].render(ctx->gfx_ui, device, context, dd, ctx->textures, dest);
 }
 
-bool mty_renderer_set_ui_texture(struct renderer *ctx, MTY_GFX api, MTY_Device *device,
-	MTY_Context *context, uint32_t id, const void *rgba, uint32_t width, uint32_t height)
+bool mty_renderer_set_ui_texture(struct renderer *ctx, MTY_GFX api, struct gfx_device *device,
+	struct gfx_context *context, uint32_t id, const void *rgba, uint32_t width, uint32_t height)
 {
 	if (!renderer_begin_ui(ctx, api, context, device))
 		return false;

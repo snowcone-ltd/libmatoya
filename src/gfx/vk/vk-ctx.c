@@ -32,7 +32,7 @@ struct vk_swapchain {
 
 struct vk_ctx {
 	bool vsync;
-	MTY_VkDeviceObjects dobjs;
+	struct vk_device_objects dobjs;
 
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debug;
@@ -591,24 +591,24 @@ void mty_vk_ctx_get_size(struct gfx_ctx *gfx_ctx, uint32_t *w, uint32_t *h)
 	#endif
 }
 
-MTY_Device *mty_vk_ctx_get_device(struct gfx_ctx *gfx_ctx)
+struct gfx_device *mty_vk_ctx_get_device(struct gfx_ctx *gfx_ctx)
 {
 	struct vk_ctx *ctx = (struct vk_ctx *) gfx_ctx;
 
 	ctx->dobjs.device = ctx->device;
 	ctx->dobjs.physicalDeviceMemoryProperties = &ctx->pdprops;
 
-	return (MTY_Device *) &ctx->dobjs;
+	return (struct gfx_device *) &ctx->dobjs;
 }
 
-MTY_Context *mty_vk_ctx_get_context(struct gfx_ctx *gfx_ctx)
+struct gfx_context *mty_vk_ctx_get_context(struct gfx_ctx *gfx_ctx)
 {
 	struct vk_ctx *ctx = (struct vk_ctx *) gfx_ctx;
 
-	return (MTY_Context *) ctx->cmd;
+	return (struct gfx_context *) ctx->cmd;
 }
 
-MTY_Surface *mty_vk_ctx_get_surface(struct gfx_ctx *gfx_ctx)
+struct gfx_surface *mty_vk_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 {
 	struct vk_ctx *ctx = (struct vk_ctx *) gfx_ctx;
 
@@ -652,7 +652,7 @@ MTY_Surface *mty_vk_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 		sc->bb = sc->fbs[sc->bbi];
 	}
 
-	return (MTY_Surface *) (uintptr_t) sc->bb;
+	return (struct gfx_surface *) (uintptr_t) sc->bb;
 }
 
 void mty_vk_ctx_present(struct gfx_ctx *gfx_ctx)
