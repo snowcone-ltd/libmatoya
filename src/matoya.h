@@ -1169,7 +1169,7 @@ MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen);
 MTY_EXPORT void
 MTY_WindowWarpCursor(MTY_App *app, MTY_Window window, uint32_t x, uint32_t y);
 
-/// @brief Wrapped MTY_RendererDrawQuad for the window.
+/// @brief Draw a quad with a raw image and MTY_RenderDesc.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 /// @param image The raw image.
@@ -1179,7 +1179,7 @@ MTY_EXPORT void
 MTY_WindowDrawQuad(MTY_App *app, MTY_Window window, const void *image,
 	const MTY_RenderDesc *desc);
 
-/// @brief Wrapped MTY_RendererClear for the window.
+/// @brief Clear the window surface to a solid color.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 /// @param r The red color channel value between 0 and 1.
@@ -1189,21 +1189,21 @@ MTY_WindowDrawQuad(MTY_App *app, MTY_Window window, const void *image,
 MTY_EXPORT void
 MTY_WindowClear(MTY_App *app, MTY_Window window, float r, float g, float b, float a);
 
-/// @brief Wrapped MTY_RendererDrawUI for the window.
+/// @brief Draw a UI with MTY_DrawData.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 /// @param dd The UI draw data containing a full frame.
 MTY_EXPORT void
 MTY_WindowDrawUI(MTY_App *app, MTY_Window window, const MTY_DrawData *dd);
 
-/// @brief Wraped MTY_RendererHasUITexture for the window.
+/// @brief Check if a texture with `id` has been set.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 /// @param id An `id` specified via MTY_WindowSetUITexture.
 MTY_EXPORT bool
 MTY_WindowHasUITexture(MTY_App *app, MTY_Window window, uint32_t id);
 
-/// @brief Wrapped MTY_RendererSetUITexture for the window.
+/// @brief Set an RGBA texture image for use in MTY_DrawData.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 /// @param id The desired `id` for the texture.
