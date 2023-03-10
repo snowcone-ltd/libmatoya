@@ -11,7 +11,6 @@
 
 GFX_PROTOTYPES(_gl_)
 GFX_PROTOTYPES(_vk_)
-GFX_PROTOTYPES(_d3d9_)
 GFX_PROTOTYPES(_d3d11_)
 GFX_PROTOTYPES(_d3d12_)
 GFX_PROTOTYPES(_metal_)
@@ -19,7 +18,6 @@ GFX_DECLARE_TABLE()
 
 GFX_UI_PROTOTYPES(_gl_)
 GFX_UI_PROTOTYPES(_vk_)
-GFX_UI_PROTOTYPES(_d3d9_)
 GFX_UI_PROTOTYPES(_d3d11_)
 GFX_UI_PROTOTYPES(_d3d12_)
 GFX_UI_PROTOTYPES(_metal_)
@@ -32,11 +30,6 @@ struct MTY_Renderer {
 
 	struct gfx *gfx[RENDER_LAYERS];
 	struct gfx_ui *gfx_ui;
-};
-
-struct MTY_RenderState {
-	MTY_GFX api;
-	void *opaque;
 };
 
 MTY_Renderer *MTY_RendererCreate(void)
@@ -177,36 +170,4 @@ uint32_t MTY_GetAvailableGFX(MTY_GFX *apis)
 MTY_GFX MTY_GetDefaultGFX(void)
 {
 	return GFX_API_DEFAULT;
-}
-
-MTY_RenderState *MTY_GetRenderState(MTY_GFX api, MTY_Device *device, MTY_Context *context)
-{
-	MTY_RenderState *state = MTY_Alloc(1, sizeof(MTY_RenderState));
-
-	state->api = api;
-	state->opaque = GFX_API[api].get_state(device, context);
-
-	return state;
-}
-
-void MTY_SetRenderState(MTY_GFX api, MTY_Device *device, MTY_Context *context,
-	MTY_RenderState *state)
-{
-	if (!state || !state->opaque || state->api != api)
-		return;
-
-	GFX_API[api].set_state(device, context, state->opaque);
-}
-
-void MTY_FreeRenderState(MTY_RenderState **state)
-{
-	if (!state || !*state)
-		return;
-
-	MTY_RenderState *s = *state;
-
-	GFX_API[s->api].free_state(&s->opaque);
-
-	MTY_Free(s);
-	*state = NULL;
 }

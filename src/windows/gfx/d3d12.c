@@ -622,19 +622,3 @@ void mty_d3d12_destroy(struct gfx **gfx, MTY_Device *device)
 	MTY_Free(ctx);
 	*gfx = NULL;
 }
-
-
-// State
-
-void *mty_d3d12_get_state(MTY_Device *device, MTY_Context *context)
-{
-	return NULL;
-}
-
-void mty_d3d12_set_state(MTY_Device *device, MTY_Context *context, void *state)
-{
-}
-
-void mty_d3d12_free_state(void **state)
-{
-}

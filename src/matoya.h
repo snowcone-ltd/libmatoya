@@ -273,33 +273,9 @@ MTY_GetAvailableGFX(MTY_GFX *apis);
 MTY_EXPORT MTY_GFX
 MTY_GetDefaultGFX(void);
 
-/// @brief Get the current rendering context state.
-/// @details This function can be used to snapshot the current context state before
-///   rendering with libmatoya.\n\n
-///   MTY_GFX_METAL is stateless and using MTY_RenderState has no effect.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @returns On failure, NULL is returned. Call MTY_GetLog for details.\n\n
-///   The returned MTY_RenderState must be destroyed with MTY_FreeRenderState.
-MTY_EXPORT MTY_RenderState *
-MTY_GetRenderState(MTY_GFX api, MTY_Device *device, MTY_Context *context);
-
-/// @brief Restore a previously acquired MTY_RenderState.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @param state Renderer state acquired via MTY_GetRenderState.
-MTY_EXPORT void
-MTY_SetRenderState(MTY_GFX api, MTY_Device *device, MTY_Context *context,
-	MTY_RenderState *state);
-
-/// @brief Free all resources associated with an MTY_RenderState.
-/// @param state Passed by reference and set to NULL after being destroyed.
-MTY_EXPORT void
-MTY_FreeRenderState(MTY_RenderState **state);
+#define MTY_GetRenderState(api, device, context) NULL
+#define MTY_SetRenderState(api, device, context, state)
+#define MTY_FreeRenderState(state)
 
 
 //- #module App
