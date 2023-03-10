@@ -47,10 +47,11 @@ typedef enum {
 	MTY_GFX_NONE    = 0, ///< No 3D graphics API.
 	MTY_GFX_GL      = 1, ///< OpenGL/GLES. Linux and Android only.
 	MTY_GFX_VK      = 2, ///< Vulkan. Not available on Apple OS's.
-	MTY_GFX_D3D11   = 3, ///< Direct3D 11. Windows only.
-	MTY_GFX_D3D12   = 4, ///< Direct3D 12. Windows only.
-	MTY_GFX_METAL   = 5, ///< Metal. Apple only.
-	MTY_GFX_MAX     = 6, ///< Maximum number of 3D graphics APIs.
+	MTY_GFX_D3D9    = 3, ///< FIXME Shim
+	MTY_GFX_D3D11   = 4, ///< Direct3D 11. Windows only.
+	MTY_GFX_D3D12   = 5, ///< Direct3D 12. Windows only.
+	MTY_GFX_METAL   = 6, ///< Metal. Apple only.
+	MTY_GFX_MAX     = 7, ///< Maximum number of 3D graphics APIs.
 	MTY_GFX_MAKE_32 = INT32_MAX,
 } MTY_GFX;
 
@@ -273,6 +274,7 @@ MTY_GetAvailableGFX(MTY_GFX *apis);
 MTY_EXPORT MTY_GFX
 MTY_GetDefaultGFX(void);
 
+// FIXME Shims
 #define MTY_GetRenderState(api, device, context) NULL
 #define MTY_SetRenderState(api, device, context, state)
 #define MTY_FreeRenderState(state)
