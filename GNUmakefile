@@ -31,7 +31,6 @@ OBJS = \
 	src/log.o \
 	src/memory.o \
 	src/queue.o \
-	src/render.o \
 	src/resample.o \
 	src/system.o \
 	src/thread.o \

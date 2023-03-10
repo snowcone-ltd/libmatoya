@@ -36,7 +36,6 @@ OBJS = \
 	src\log.obj \
 	src\memory.obj \
 	src\queue.obj \
-	src\render.obj \
 	src\resample.obj \
 	src\system.obj \
 	src\thread.obj \
