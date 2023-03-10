@@ -199,6 +199,22 @@ bool MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync)
 	return cmn->gfx_ctx != NULL;
 }
 
+uint32_t MTY_GetAvailableGFX(MTY_GFX *apis)
+{
+	uint32_t r = 0;
+
+	for (uint32_t x = 0; x < MTY_GFX_MAX; x++)
+		if (GFX_API_SUPPORTED(x))
+			apis[r++] = x;
+
+	return r;
+}
+
+MTY_GFX MTY_GetDefaultGFX(void)
+{
+	return GFX_API_DEFAULT;
+}
+
 
 // WebView
 

@@ -155,19 +155,3 @@ bool mty_renderer_has_ui_texture(struct renderer *ctx, uint32_t id)
 {
 	return MTY_HashGetInt(ctx->textures, id) != NULL;
 }
-
-uint32_t MTY_GetAvailableGFX(MTY_GFX *apis)
-{
-	uint32_t r = 0;
-
-	for (uint32_t x = 0; x < MTY_GFX_MAX; x++)
-		if (GFX_API_SUPPORTED(x))
-			apis[r++] = x;
-
-	return r;
-}
-
-MTY_GFX MTY_GetDefaultGFX(void)
-{
-	return GFX_API_DEFAULT;
-}

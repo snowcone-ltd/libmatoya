@@ -167,17 +167,6 @@ typedef struct {
 	bool clear;              ///< Surface should be cleared before drawing.
 } MTY_DrawData;
 
-/// @brief Get a list of available graphics APIs on the current OS.
-/// @param apis Array to receive the list of available graphics APIs. This buffer
-///   should be MTY_GFX_MAX elements.
-/// @returns The number of graphics APIs set in `apis`.
-MTY_EXPORT uint32_t
-MTY_GetAvailableGFX(MTY_GFX *apis);
-
-/// @brief Get the default graphics API for the current OS.
-MTY_EXPORT MTY_GFX
-MTY_GetDefaultGFX(void);
-
 // FIXME Shims
 /*
 typedef void * MTY_Device;
@@ -1251,6 +1240,17 @@ MTY_WindowGetGFX(MTY_App *app, MTY_Window window);
 /// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
 MTY_EXPORT bool
 MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync);
+
+/// @brief Get a list of available graphics APIs on the current OS.
+/// @param apis Array to receive the list of available graphics APIs. This buffer
+///   should be MTY_GFX_MAX elements.
+/// @returns The number of graphics APIs set in `apis`.
+MTY_EXPORT uint32_t
+MTY_GetAvailableGFX(MTY_GFX *apis);
+
+/// @brief Get the default graphics API for the current OS.
+MTY_EXPORT MTY_GFX
+MTY_GetDefaultGFX(void);
 
 /// @brief Get the graphics context's current state.
 /// @details The context state can inform you if your textures need to be reloaded.
