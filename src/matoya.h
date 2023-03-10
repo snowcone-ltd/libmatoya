@@ -27,146 +27,6 @@ extern "C" {
 #endif
 
 
-/// @brief 3D graphics APIs.
-typedef enum {
-	MTY_GFX_NONE    = 0, ///< No 3D graphics API.
-	MTY_GFX_GL      = 1, ///< OpenGL/GLES. Linux, Android, and Web only.
-	MTY_GFX_VK      = 2, ///< Vulkan. Not available on Apple OS's.
-	MTY_GFX_D3D11   = 3, ///< Direct3D 11. Windows only.
-	MTY_GFX_D3D12   = 4, ///< Direct3D 12. Windows only.
-	MTY_GFX_METAL   = 5, ///< Metal. Apple only.
-	MTY_GFX_MAX     = 6, ///< Maximum number of 3D graphics APIs.
-	MTY_GFX_MAKE_32 = INT32_MAX,
-} MTY_GFX;
-
-/// @brief Raw image color formats.
-typedef enum {
-	MTY_COLOR_FORMAT_UNKNOWN    = 0,  ///< Unknown color format.
-	MTY_COLOR_FORMAT_BGRA       = 1,  ///< 32-bit BGRA, 8 bits per channel.
-	MTY_COLOR_FORMAT_RGBA       = 2,  ///< 32-bit RGBA, 8 bits per channel.
-	MTY_COLOR_FORMAT_BGR565     = 3,  ///< 16-bit BGR, 5 bits B, 6 bits G, 5 bits R.
-	MTY_COLOR_FORMAT_BGRA5551   = 4,  ///< 16-bit BGRA, 5 bits per BGR, 1 bit A.
-	MTY_COLOR_FORMAT_AYUV       = 5,  ///< 32-bit 4:4:4 AYUV, 8 bits per channel.
-	MTY_COLOR_FORMAT_Y410       = 6,  ///< 32-bit 4:4:4 YUVA, 10 bits per YUV, 2 bits A.
-	MTY_COLOR_FORMAT_Y416       = 7,  ///< 64-bit 4:4:4 YUVA, 16 bits per channel.
-	MTY_COLOR_FORMAT_2PLANES    = 8,  ///< 1 plane Y, 1 plane interleaved UV, 8 bits per channel.
-	MTY_COLOR_FORMAT_3PLANES    = 9,  ///< 3 consecutive planes of YUV, 8 bits per channel.
-	MTY_COLOR_FORMAT_2PLANES_16 = 10, ///< 1 plane Y, 1 plane interleaved UV, 16 bits per channel.
-	MTY_COLOR_FORMAT_3PLANES_16 = 11, ///< 3 consecutive planes of YUV, 16 bits per channel.
-	MTY_COLOR_FORMAT_MAX        = 12, ///< Maximum number of color formats.
-	MTY_COLOR_FORMAT_MAKE_32    = INT32_MAX,
-} MTY_ColorFormat;
-
-/// @brief Quad texture filtering.
-typedef enum {
-	MTY_FILTER_NEAREST = 0, ///< Nearest neighbor filter, can cause shimmering.
-	MTY_FILTER_LINEAR  = 1, ///< Bilinear interpolation filter, can cause noticeable blurring.
-	MTY_FILTER_MAKE_32 = INT32_MAX,
-} MTY_Filter;
-
-/// @brief Quad texture effects.
-typedef enum {
-	MTY_EFFECT_NONE      = 0, ///< No effect applied.
-	MTY_EFFECT_SCANLINES = 1, ///< A scanline effect simulating a 480i CRT television.
-	MTY_EFFECT_SHARPEN   = 2, ///< Sharpens bilinear filter.
-	MTY_EFFECT_MAKE_32   = INT32_MAX,
-} MTY_Effect;
-
-/// @brief Quad rotation.
-typedef enum {
-	MTY_ROTATION_NONE    = 0, ///< No rotation.
-	MTY_ROTATION_90      = 1, ///< Rotate 90 degrees.
-	MTY_ROTATION_180     = 2, ///< Rotate 180 degrees.
-	MTY_ROTATION_270     = 3, ///< Rotate 270 degrees.
-	MTY_ROTATION_MAKE_32 = INT32_MAX,
-} MTY_Rotation;
-
-typedef enum {
-	MTY_CHROMA_444     = 0, ///< Full width, full height UV.
-	MTY_CHROMA_422     = 1, ///< Half width, full height UV.
-	MTY_CHROMA_420     = 2, ///< Half width, half height UV.
-	MTY_CHROMA_MAKE_32 = INT32_MAX,
-} MTY_Chroma;
-
-/// @brief Description of a render operation.
-typedef struct {
-	MTY_ColorFormat format; ///< The color format of a raw image.
-	MTY_Rotation rotation;  ///< Rotation applied to the image.
-	MTY_Chroma chroma;      ///< Color subsampling, chroma layout for planar YUV formats.
-	MTY_Filter filter;      ///< Filter applied to the image.
-	MTY_Effect effects[2];  ///< Effects applied to the image.
-	float levels[2];        ///< Intensity of the applied `effects` between `0.0f` and `1.0f`.
-	bool fullRangeYUV;      ///< Use the full 0-255 color range for YUV formats.
-	bool multiplyYUV;       ///< Properly normalize 10-bit YUV formats if not already done.
-	uint8_t layer;          ///< If drawing multiple layers of quads between present, `layer`
-	                        ///<   determines the order in the blending hierarchy.
-	uint32_t imageWidth;    ///< The width in pixels of the image.
-	uint32_t imageHeight;   ///< The height in pixels of the image.
-	uint32_t cropWidth;     ///< Desired crop width of the image from the top left corner.
-	uint32_t cropHeight;    ///< Desired crop height of the image from the top left corner.
-	uint32_t viewWidth;     ///< The width of the viewport.
-	uint32_t viewHeight;    ///< The height of the viewport.
-	float aspectRatio;      ///< Desired aspect ratio of the image. The renderer will letterbox
-	                        ///<   the image to maintain the specified aspect ratio.
-	float scale;            ///< Multiplier applied to the dimensions of the image, producing an
-	                        ///<   minimized or magnified image. This can be set to 0
-	                        ///<   if unnecessary.
-} MTY_RenderDesc;
-
-/// @brief A point with an `x` and `y` coordinate.
-typedef struct {
-	float x; ///< Horizontal position.
-	float y; ///< Vertical position
-} MTY_Point;
-
-/// @brief A rectangle with `left`, `top`, `right`, and `bottom` coordinates.
-typedef struct {
-	float left;   ///< Left edge position.
-	float top;    ///< Top edge position.
-	float right;  ///< Right edge position.
-	float bottom; ///< Bottom edge position.
-} MTY_Rect;
-
-/// @brief UI vertex.
-typedef struct {
-	MTY_Point pos; ///< Vertex position.
-	MTY_Point uv;  ///< Vertex texcoord.
-	uint32_t col;  ///< Element color.
-} MTY_Vtx;
-
-/// @brief UI draw command.
-typedef struct {
-	MTY_Rect clip;      ///< Clip rectangle.
-	uint32_t texture;   ///< Texture reference.
-	uint32_t elemCount; ///< Number of indices.
-	uint32_t idxOffset; ///< Index buffer offset.
-	uint32_t vtxOffset; ///< Vertex buffer offset.
-} MTY_Cmd;
-
-/// @brief UI draw command list.
-typedef struct {
-	MTY_Cmd *cmd;       ///< List of commands.
-	MTY_Vtx *vtx;       ///< Vertex buffer data.
-	uint16_t *idx;      ///< Index buffer data.
-	uint32_t cmdLength; ///< Number of commands.
-	uint32_t cmdMax;    ///< Size of the `cmd` buffer, used internally for deduping.
-	uint32_t vtxLength; ///< Total number of vertices.
-	uint32_t vtxMax;    ///< Size of the `vtx` buffer, used internally for deduping.
-	uint32_t idxLength; ///< Total number of indices.
-	uint32_t idxMax;    ///< Size of the `idx` buffer, used internally for deduping.
-} MTY_CmdList;
-
-/// @brief UI draw data.
-typedef struct {
-	MTY_Point displaySize;   ///< Size of the viewport.
-	MTY_CmdList *cmdList;    ///< Command lists.
-	uint32_t cmdListLength;  ///< Number of command lists.
-	uint32_t cmdListMax;     ///< Size of `cmdList`, used internally for deduping.
-	uint32_t idxTotalLength; ///< Total number of indices in all command lists.
-	uint32_t vtxTotalLength; ///< Total number of vertices in all command lists.
-	bool clear;              ///< Surface should be cleared before drawing.
-} MTY_DrawData;
-
 // FIXME Shims
 /*
 typedef void * MTY_Device;
@@ -249,6 +109,68 @@ typedef bool (*MTY_MenuItemCheckedFunc)(void *opaque);
 //- #support Windows
 typedef intptr_t (*MTY_WMsgFunc)(MTY_App *app, MTY_Window window, void *hwnd, uint32_t msg,
 	intptr_t wparam, uintptr_t lparam, bool *shouldReturn, void *opaque);
+
+/// @brief 3D graphics APIs.
+typedef enum {
+	MTY_GFX_NONE    = 0, ///< No 3D graphics API.
+	MTY_GFX_GL      = 1, ///< OpenGL/GLES. Linux, Android, and Web only.
+	MTY_GFX_VK      = 2, ///< Vulkan. Not available on Apple OS's.
+	MTY_GFX_D3D11   = 3, ///< Direct3D 11. Windows only.
+	MTY_GFX_D3D12   = 4, ///< Direct3D 12. Windows only.
+	MTY_GFX_METAL   = 5, ///< Metal. Apple only.
+	MTY_GFX_MAX     = 6, ///< Maximum number of 3D graphics APIs.
+	MTY_GFX_MAKE_32 = INT32_MAX,
+} MTY_GFX;
+
+/// @brief Raw image color formats.
+typedef enum {
+	MTY_COLOR_FORMAT_UNKNOWN    = 0,  ///< Unknown color format.
+	MTY_COLOR_FORMAT_BGRA       = 1,  ///< 32-bit BGRA, 8 bits per channel.
+	MTY_COLOR_FORMAT_RGBA       = 2,  ///< 32-bit RGBA, 8 bits per channel.
+	MTY_COLOR_FORMAT_BGR565     = 3,  ///< 16-bit BGR, 5 bits B, 6 bits G, 5 bits R.
+	MTY_COLOR_FORMAT_BGRA5551   = 4,  ///< 16-bit BGRA, 5 bits per BGR, 1 bit A.
+	MTY_COLOR_FORMAT_AYUV       = 5,  ///< 32-bit 4:4:4 AYUV, 8 bits per channel.
+	MTY_COLOR_FORMAT_Y410       = 6,  ///< 32-bit 4:4:4 YUVA, 10 bits per YUV, 2 bits A.
+	MTY_COLOR_FORMAT_Y416       = 7,  ///< 64-bit 4:4:4 YUVA, 16 bits per channel.
+	MTY_COLOR_FORMAT_2PLANES    = 8,  ///< 1 plane Y, 1 plane interleaved UV, 8 bits per channel.
+	MTY_COLOR_FORMAT_3PLANES    = 9,  ///< 3 consecutive planes of YUV, 8 bits per channel.
+	MTY_COLOR_FORMAT_2PLANES_16 = 10, ///< 1 plane Y, 1 plane interleaved UV, 16 bits per channel.
+	MTY_COLOR_FORMAT_3PLANES_16 = 11, ///< 3 consecutive planes of YUV, 16 bits per channel.
+	MTY_COLOR_FORMAT_MAX        = 12, ///< Maximum number of color formats.
+	MTY_COLOR_FORMAT_MAKE_32    = INT32_MAX,
+} MTY_ColorFormat;
+
+/// @brief Quad texture filtering.
+typedef enum {
+	MTY_FILTER_NEAREST = 0, ///< Nearest neighbor filter, can cause shimmering.
+	MTY_FILTER_LINEAR  = 1, ///< Bilinear interpolation filter, can cause noticeable blurring.
+	MTY_FILTER_MAKE_32 = INT32_MAX,
+} MTY_Filter;
+
+/// @brief Quad texture effects.
+typedef enum {
+	MTY_EFFECT_NONE      = 0, ///< No effect applied.
+	MTY_EFFECT_SCANLINES = 1, ///< A scanline effect simulating a 480i CRT television.
+	MTY_EFFECT_SHARPEN   = 2, ///< Sharpens bilinear filter.
+	MTY_EFFECT_MAKE_32   = INT32_MAX,
+} MTY_Effect;
+
+/// @brief Quad rotation.
+typedef enum {
+	MTY_ROTATION_NONE    = 0, ///< No rotation.
+	MTY_ROTATION_90      = 1, ///< Rotate 90 degrees.
+	MTY_ROTATION_180     = 2, ///< Rotate 180 degrees.
+	MTY_ROTATION_270     = 3, ///< Rotate 270 degrees.
+	MTY_ROTATION_MAKE_32 = INT32_MAX,
+} MTY_Rotation;
+
+/// @brief Chroma subsampling for planar color formats.
+typedef enum {
+	MTY_CHROMA_444 = 0, ///< Full width, full height UV.
+	MTY_CHROMA_422 = 1, ///< Half width, full height UV.
+	MTY_CHROMA_420 = 2, ///< Half width, half height UV.
+	MTY_CHROMA_MAKE_32 = INT32_MAX,
+} MTY_Chroma;
 
 /// @brief Alternative MTY_App behaviors.
 typedef enum {
@@ -591,6 +513,85 @@ typedef enum {
 	MTY_CURSOR_IBEAM   = 3, ///< I-beam cursor.
 	MTY_CURSOR_MAKE_32 = INT32_MAX,
 } MTY_Cursor;
+
+/// @brief Description of a render operation.
+typedef struct {
+	MTY_ColorFormat format; ///< The color format of a raw image.
+	MTY_Rotation rotation;  ///< Rotation applied to the image.
+	MTY_Chroma chroma;      ///< Color subsampling, chroma layout for planar YUV formats.
+	MTY_Filter filter;      ///< Filter applied to the image.
+	MTY_Effect effects[2];  ///< Effects applied to the image.
+	float levels[2];        ///< Intensity of the applied `effects` between `0.0f` and `1.0f`.
+	bool fullRangeYUV;      ///< Use the full 0-255 color range for YUV formats.
+	bool multiplyYUV;       ///< Properly normalize 10-bit YUV formats if not already done.
+	uint8_t layer;          ///< If drawing multiple layers of quads between present, `layer`
+	                        ///<   determines the order in the blending hierarchy.
+	uint32_t imageWidth;    ///< The width in pixels of the image.
+	uint32_t imageHeight;   ///< The height in pixels of the image.
+	uint32_t cropWidth;     ///< Desired crop width of the image from the top left corner.
+	uint32_t cropHeight;    ///< Desired crop height of the image from the top left corner.
+	uint32_t viewWidth;     ///< The width of the viewport.
+	uint32_t viewHeight;    ///< The height of the viewport.
+	float aspectRatio;      ///< Desired aspect ratio of the image. The renderer will letterbox
+	                        ///<   the image to maintain the specified aspect ratio.
+	float scale;            ///< Multiplier applied to the dimensions of the image, producing an
+	                        ///<   minimized or magnified image. This can be set to 0
+	                        ///<   if unnecessary.
+} MTY_RenderDesc;
+
+/// @brief A point with an `x` and `y` coordinate.
+typedef struct {
+	float x; ///< Horizontal position.
+	float y; ///< Vertical position
+} MTY_Point;
+
+/// @brief A rectangle with `left`, `top`, `right`, and `bottom` coordinates.
+typedef struct {
+	float left;   ///< Left edge position.
+	float top;    ///< Top edge position.
+	float right;  ///< Right edge position.
+	float bottom; ///< Bottom edge position.
+} MTY_Rect;
+
+/// @brief UI vertex.
+typedef struct {
+	MTY_Point pos; ///< Vertex position.
+	MTY_Point uv;  ///< Vertex texcoord.
+	uint32_t col;  ///< Element color.
+} MTY_Vtx;
+
+/// @brief UI draw command.
+typedef struct {
+	MTY_Rect clip;      ///< Clip rectangle.
+	uint32_t texture;   ///< Texture reference.
+	uint32_t elemCount; ///< Number of indices.
+	uint32_t idxOffset; ///< Index buffer offset.
+	uint32_t vtxOffset; ///< Vertex buffer offset.
+} MTY_Cmd;
+
+/// @brief UI draw command list.
+typedef struct {
+	MTY_Cmd *cmd;       ///< List of commands.
+	MTY_Vtx *vtx;       ///< Vertex buffer data.
+	uint16_t *idx;      ///< Index buffer data.
+	uint32_t cmdLength; ///< Number of commands.
+	uint32_t cmdMax;    ///< Size of the `cmd` buffer, used internally for deduping.
+	uint32_t vtxLength; ///< Total number of vertices.
+	uint32_t vtxMax;    ///< Size of the `vtx` buffer, used internally for deduping.
+	uint32_t idxLength; ///< Total number of indices.
+	uint32_t idxMax;    ///< Size of the `idx` buffer, used internally for deduping.
+} MTY_CmdList;
+
+/// @brief UI draw data.
+typedef struct {
+	MTY_Point displaySize;   ///< Size of the viewport.
+	MTY_CmdList *cmdList;    ///< Command lists.
+	uint32_t cmdListLength;  ///< Number of command lists.
+	uint32_t cmdListMax;     ///< Size of `cmdList`, used internally for deduping.
+	uint32_t idxTotalLength; ///< Total number of indices in all command lists.
+	uint32_t vtxTotalLength; ///< Total number of vertices in all command lists.
+	bool clear;              ///< Surface should be cleared before drawing.
+} MTY_DrawData;
 
 /// @brief Key event.
 typedef struct {
