@@ -2,7 +2,7 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
-#include "matoya.h"
+#include "render.h"
 
 #include "gfx/mod.h"
 #include "gfx/mod-ui.h"
@@ -23,7 +23,7 @@ GFX_UI_PROTOTYPES(_d3d12_)
 GFX_UI_PROTOTYPES(_metal_)
 GFX_UI_DECLARE_TABLE()
 
-struct MTY_Renderer {
+struct renderer {
 	MTY_GFX api;
 	MTY_Device *device;
 	MTY_Hash *textures;
@@ -32,15 +32,15 @@ struct MTY_Renderer {
 	struct gfx_ui *gfx_ui;
 };
 
-MTY_Renderer *MTY_RendererCreate(void)
+struct renderer *mty_renderer_create(void)
 {
-	MTY_Renderer *ctx = MTY_Alloc(1, sizeof(MTY_Renderer));
+	struct renderer *ctx = MTY_Alloc(1, sizeof(struct renderer));
 	ctx->textures = MTY_HashCreate(0);
 
 	return ctx;
 }
 
-static void render_destroy(MTY_Renderer *ctx)
+static void render_destroy(struct renderer *ctx)
 {
 	if (ctx->api == MTY_GFX_NONE)
 		return;
@@ -59,12 +59,12 @@ static void render_destroy(MTY_Renderer *ctx)
 	ctx->device = NULL;
 }
 
-void MTY_RendererDestroy(MTY_Renderer **renderer)
+void mty_renderer_destroy(struct renderer **renderer)
 {
 	if (!renderer || !*renderer)
 		return;
 
-	MTY_Renderer *ctx = *renderer;
+	struct renderer *ctx = *renderer;
 
 	render_destroy(ctx);
 	MTY_HashDestroy(&ctx->textures, NULL);
@@ -73,7 +73,7 @@ void MTY_RendererDestroy(MTY_Renderer **renderer)
 	*renderer = NULL;
 }
 
-static void render_set_api(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device)
+static void render_set_api(struct renderer *ctx, MTY_GFX api, MTY_Device *device)
 {
 	if (ctx->api != api || ctx->device != device) {
 		render_destroy(ctx);
@@ -83,7 +83,7 @@ static void render_set_api(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device)
 	}
 }
 
-static bool renderer_begin(MTY_Renderer *ctx, MTY_GFX api, uint8_t layer, MTY_Context *context, MTY_Device *device)
+static bool renderer_begin(struct renderer *ctx, MTY_GFX api, uint8_t layer, MTY_Context *context, MTY_Device *device)
 {
 	if (layer >= RENDER_LAYERS)
 		return false;
@@ -96,7 +96,7 @@ static bool renderer_begin(MTY_Renderer *ctx, MTY_GFX api, uint8_t layer, MTY_Co
 	return ctx->gfx[layer] != NULL;
 }
 
-static bool renderer_begin_ui(MTY_Renderer *ctx, MTY_GFX api, MTY_Context *context, MTY_Device *device)
+static bool renderer_begin_ui(struct renderer *ctx, MTY_GFX api, MTY_Context *context, MTY_Device *device)
 {
 	render_set_api(ctx, api, device);
 
@@ -106,7 +106,7 @@ static bool renderer_begin_ui(MTY_Renderer *ctx, MTY_GFX api, MTY_Context *conte
 	return ctx->gfx_ui != NULL;
 }
 
-bool MTY_RendererDrawQuad(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device, MTY_Context *context,
+bool mty_renderer_draw_quad(struct renderer *ctx, MTY_GFX api, MTY_Device *device, MTY_Context *context,
 	const void *image, const MTY_RenderDesc *desc, MTY_Surface *dst)
 {
 	if (!renderer_begin(ctx, api, desc->layer, context, device))
@@ -115,7 +115,7 @@ bool MTY_RendererDrawQuad(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device, MT
 	return GFX_API[api].render(ctx->gfx[desc->layer], device, context, image, desc, dst);
 }
 
-void MTY_RendererClear(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device, MTY_Context *context,
+void mty_renderer_clear(struct renderer *ctx, MTY_GFX api, MTY_Device *device, MTY_Context *context,
 	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dst)
 {
 	if (!renderer_begin(ctx, api, 0, context, device))
@@ -124,7 +124,7 @@ void MTY_RendererClear(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device, MTY_C
 	GFX_API[api].clear(ctx->gfx[0], device, context, width, height, r, g, b, a, dst);
 }
 
-bool MTY_RendererDrawUI(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device,
+bool mty_renderer_draw_ui(struct renderer *ctx, MTY_GFX api, MTY_Device *device,
 	MTY_Context *context, const MTY_DrawData *dd, MTY_Surface *dst)
 {
 	if (!renderer_begin_ui(ctx, api, context, device))
@@ -133,7 +133,7 @@ bool MTY_RendererDrawUI(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device,
 	return GFX_UI_API[api].render(ctx->gfx_ui, device, context, dd, ctx->textures, dst);
 }
 
-bool MTY_RendererSetUITexture(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device,
+bool mty_renderer_set_ui_texture(struct renderer *ctx, MTY_GFX api, MTY_Device *device,
 	MTY_Context *context, uint32_t id, const void *rgba, uint32_t width, uint32_t height)
 {
 	if (!renderer_begin_ui(ctx, api, context, device))
@@ -151,7 +151,7 @@ bool MTY_RendererSetUITexture(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device
 	return texture != NULL;
 }
 
-bool MTY_RendererHasUITexture(MTY_Renderer *ctx, uint32_t id)
+bool mty_renderer_has_ui_texture(struct renderer *ctx, uint32_t id)
 {
 	return MTY_HashGetInt(ctx->textures, id) != NULL;
 }

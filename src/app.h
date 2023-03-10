@@ -6,13 +6,14 @@
 
 #include "matoya.h"
 #include "webview.h"
+#include "render.h"
 #include "gfx/mod-ctx.h"
 
 #define APP_DEFAULT_FRAME() \
 	MTY_MakeDefaultFrame(0, 0, 800, 600, 1.0f);
 
 struct window_common {
-	MTY_Renderer *renderer;
+	struct renderer *renderer;
 	struct webview *webview;
 	struct gfx_ctx *gfx_ctx;
 	MTY_GFX api;

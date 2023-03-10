@@ -54,7 +54,7 @@ void MTY_WindowDrawQuad(MTY_App *app, MTY_Window window, const void *image, cons
 	MTY_RenderDesc mutated = *desc;
 	gfx_ctx_get_size(cmn, &mutated.viewWidth, &mutated.viewHeight);
 
-	MTY_RendererDrawQuad(cmn->renderer, cmn->api, gfx_ctx_get_device(cmn),
+	mty_renderer_draw_quad(cmn->renderer, cmn->api, gfx_ctx_get_device(cmn),
 		gfx_ctx_get_context(cmn), image, &mutated, surface);
 
 	gfx_ctx_unlock(cmn);
@@ -77,7 +77,7 @@ void MTY_WindowClear(MTY_App *app, MTY_Window window, float r, float g, float b,
 	uint32_t h = 0;
 	gfx_ctx_get_size(cmn, &w, &h);
 
-	MTY_RendererClear(cmn->renderer, cmn->api, gfx_ctx_get_device(cmn),
+	mty_renderer_clear(cmn->renderer, cmn->api, gfx_ctx_get_device(cmn),
 		gfx_ctx_get_context(cmn), w, h, r, g, b, a, surface);
 
 	gfx_ctx_unlock(cmn);
@@ -105,7 +105,7 @@ void MTY_WindowDrawUI(MTY_App *app, MTY_Window window, const MTY_DrawData *dd)
 	mutated.displaySize.x = (float) w;
 	mutated.displaySize.y = (float) h;
 
-	MTY_RendererDrawUI(cmn->renderer, cmn->api, gfx_ctx_get_device(cmn),
+	mty_renderer_draw_ui(cmn->renderer, cmn->api, gfx_ctx_get_device(cmn),
 		gfx_ctx_get_context(cmn), &mutated, surface);
 
 	gfx_ctx_unlock(cmn);
@@ -120,7 +120,7 @@ bool MTY_WindowHasUITexture(MTY_App *app, MTY_Window window, uint32_t id)
 	if (!gfx_ctx_lock(cmn))
 		return false;
 
-	bool r = MTY_RendererHasUITexture(cmn->renderer, id);
+	bool r = mty_renderer_has_ui_texture(cmn->renderer, id);
 
 	gfx_ctx_unlock(cmn);
 
@@ -136,7 +136,7 @@ bool MTY_WindowSetUITexture(MTY_App *app, MTY_Window window, uint32_t id, const 
 	if (!gfx_ctx_lock(cmn))
 		return false;
 
-	bool r = MTY_RendererSetUITexture(cmn->renderer, cmn->api, gfx_ctx_get_device(cmn),
+	bool r = mty_renderer_set_ui_texture(cmn->renderer, cmn->api, gfx_ctx_get_device(cmn),
 		gfx_ctx_get_context(cmn), id, rgba, width, height);;
 
 	gfx_ctx_unlock(cmn);
@@ -172,7 +172,7 @@ bool MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync)
 		return false;
 
 	if (cmn->api != MTY_GFX_NONE) {
-		MTY_RendererDestroy(&cmn->renderer);
+		mty_renderer_destroy(&cmn->renderer);
 		GFX_CTX_API[cmn->api].destroy(&cmn->gfx_ctx);
 		cmn->api = MTY_GFX_NONE;
 	}
@@ -192,7 +192,7 @@ bool MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync)
 			return MTY_WindowSetGFX(app, window, MTY_GFX_D3D11, vsync);
 
 	} else {
-		cmn->renderer = MTY_RendererCreate();
+		cmn->renderer = mty_renderer_create();
 		cmn->api = api;
 	}
 

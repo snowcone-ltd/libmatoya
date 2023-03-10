@@ -27,21 +27,6 @@ extern "C" {
 #endif
 
 
-//- #module Render
-//- #mbrief Common rendering tasks.
-//- #mdetails Currently there are only two operations: drawing a quad (rectangle)
-//-   intended for video frames from a player or emulator, and drawing a 2D command
-//-   list intended for drawing user interfaces.\n\n
-//-   Textures can be loaded via MTY_RendererSetUITexture and referenced in the
-//-   MTY_DrawData struct for loading images in a UI.\n\n
-//-   When creating an MTY_Window, the App module wraps an MTY_Renderer for you.
-
-typedef struct MTY_Device MTY_Device;
-typedef struct MTY_Context MTY_Context;
-typedef struct MTY_Surface MTY_Surface;
-typedef struct MTY_Renderer MTY_Renderer;
-typedef struct MTY_RenderState MTY_RenderState;
-
 /// @brief 3D graphics APIs.
 typedef enum {
 	MTY_GFX_NONE    = 0, ///< No 3D graphics API.
@@ -189,80 +174,6 @@ typedef struct {
 	const void *physicalDeviceMemoryProperties; ///< VkPhysicalDeviceMemoryProperties
 } MTY_VkDeviceObjects;
 
-/// @brief Create an MTY_Renderer capable of executing drawing commands.
-/// @returns On failure, NULL is returned. Call MTY_GetLog for details.\n\n
-///   The returned MTY_Renderer must be destroyed with MTY_RendererDestroy.
-MTY_EXPORT MTY_Renderer *
-MTY_RendererCreate(void);
-
-/// @brief Destroy an MTY_Renderer.
-/// @param renderer Passed by reference and set to NULL after being destroyed.
-MTY_EXPORT void
-MTY_RendererDestroy(MTY_Renderer **renderer);
-
-/// @brief Draw a quad with a raw image and MTY_RenderDesc.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @param image The raw image.
-/// @param desc Description of the raw image and how it should be rendered.
-/// @param dst The output drawing surface. See Generic Objects.
-/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
-MTY_EXPORT bool
-MTY_RendererDrawQuad(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device,
-	MTY_Context *context, const void *image, const MTY_RenderDesc *desc,
-	MTY_Surface *dst);
-
-/// @brief Clear an MTY_Surface to a solid color.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @param width Width of the area within `dst` to clear.
-/// @param height Height of the area within `dst` to clear.
-/// @param r The red color channel value between 0 and 1.
-/// @param g The green color channel value between 0 and 1.
-/// @param b The blue color channel value between 0 and 1.
-/// @param a The alpha color channel value between 0 and 1.
-/// @param dst The surface to be cleared. See Generic Objects.
-MTY_EXPORT void
-MTY_RendererClear(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device, MTY_Context *context,
-	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dst);
-
-/// @brief Draw a UI with MTY_DrawData.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @param dd The UI draw data containing a full frame of commands.
-/// @param dst The output drawing surface. See Generic Objects.
-/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
-MTY_EXPORT bool
-MTY_RendererDrawUI(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device,
-	MTY_Context *context, const MTY_DrawData *dd, MTY_Surface *dst);
-
-/// @brief Set an RGBA texture image for use in MTY_DrawData.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @param id The desired `id` for the texture.
-/// @param rgba RGBA 8-bits per channel image.
-/// @param width Width of `rgba`.
-/// @param height Height of `rgba`.
-/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
-MTY_EXPORT bool
-MTY_RendererSetUITexture(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device,
-	MTY_Context *context, uint32_t id, const void *rgba, uint32_t width,
-	uint32_t height);
-
-/// @brief Check if a texture with `id` has been set.
-/// @param ctx An MTY_Renderer.
-/// @param id An `id` specified via MTY_RendererSetUITexture.
-MTY_EXPORT bool
-MTY_RendererHasUITexture(MTY_Renderer *ctx, uint32_t id);
-
 /// @brief Get a list of available graphics APIs on the current OS.
 /// @param apis Array to receive the list of available graphics APIs. This buffer
 ///   should be MTY_GFX_MAX elements.
@@ -275,9 +186,24 @@ MTY_EXPORT MTY_GFX
 MTY_GetDefaultGFX(void);
 
 // FIXME Shims
+typedef void * MTY_Device;
+typedef void * MTY_Context;
+typedef void * MTY_Surface;
+/*
+typedef void * MTY_Renderer;
+typedef void * MTY_RenderState;
+
+#define MTY_RendererCreate() NULL
+#define MTY_RendererDestroy(renderer)
+#define MTY_RendererDrawQuad(ctx, api, device, context, image, desc, dst) false
+#define MTY_RendererClear(ctx, api, device, context, width, height, r, g, b, a, dst)
+#define MTY_RendererDrawUI(ctx, api, device, context, dd, dst) false
+#define MTY_RendererSetUITexture(ctx, api, device, context, id, rgba, width, height) false
+#define MTY_RendererHasUITexture(ctx, id) false
 #define MTY_GetRenderState(api, device, context) NULL
 #define MTY_SetRenderState(api, device, context, state)
 #define MTY_FreeRenderState(state)
+*/
 
 
 //- #module App
