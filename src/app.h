@@ -11,13 +11,17 @@
 #define APP_DEFAULT_FRAME() \
 	MTY_MakeDefaultFrame(0, 0, 800, 600, 1.0f);
 
-struct renderer;
+#define APP_GFX_LAYERS 2
 
 struct window_common {
-	struct renderer *renderer;
 	struct webview *webview;
-	struct gfx_ctx *gfx_ctx;
+
 	MTY_GFX api;
+	MTY_Hash *ui_textures;
+	struct gfx_device *device;
+	struct gfx *gfx[APP_GFX_LAYERS];
+	struct gfx_ui *gfx_ui;
+	struct gfx_ctx *gfx_ctx;
 };
 
 // App
