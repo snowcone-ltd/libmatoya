@@ -6,6 +6,7 @@
 
 #include <string.h>
 
+#include "tlocal.h"
 #include "web.h"
 
 MTY_SO *MTY_SOLoad(const char *path)
@@ -33,7 +34,12 @@ const char *MTY_GetSOExtension(void)
 
 const char *MTY_GetHostname(void)
 {
-	return "";
+	char *hostname = web_get_hostname();
+	const char *local = mty_tlocal_strcpy(hostname);
+
+	MTY_Free(hostname);
+
+	return local;
 }
 
 uint32_t MTY_GetPlatform(void)

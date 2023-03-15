@@ -388,6 +388,11 @@ void MTY_AppUseDefaultCursor(MTY_App *ctx, bool useDefault)
 	web_use_default_cursor(useDefault);
 }
 
+void MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor)
+{
+	web_use_default_cursor(cursor != MTY_CURSOR_NONE);
+}
+
 void MTY_AppShowCursor(MTY_App *ctx, bool show)
 {
 	web_show_cursor(show);
