@@ -812,8 +812,8 @@ function mty_poll_gamepads(app, controller) {
 			let buttons = 0;
 
 			if (gp.buttons) {
-				lt = gp.buttons[6].value;
-				rt = gp.buttons[7].value;
+				if (gp.buttons[6]) lt = gp.buttons[6].value;
+				if (gp.buttons[7]) rt = gp.buttons[7].value;
 
 				for (let i = 0; i < gp.buttons.length && i < 32; i++)
 					if (gp.buttons[i].pressed)
