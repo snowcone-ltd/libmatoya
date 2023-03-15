@@ -7,49 +7,94 @@
 #include <Foundation/NSURLRequest.h>
 #include <Foundation/Foundation.h>
 
+#include "objc.h"
 #include "http.h"
 
 #define WS_PING_INTERVAL 60000.0
 #define WS_PONG_TO       (WS_PING_INTERVAL * 3)
 
-@interface WebSocket : NSObject <NSURLSessionTaskDelegate, NSURLSessionWebSocketDelegate>
-	@property NSURLSessionWebSocketTask *task;
-	@property NSURLSessionWebSocketMessage *msg;
-	@property dispatch_semaphore_t read;
-	@property dispatch_semaphore_t conn;
-	@property MTY_Time last_ping;
-	@property MTY_Time last_pong;
-	@property bool closed;
-@end
-
-@implementation WebSocket : NSObject
-	- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task
-		didCompleteWithError:(NSError *)error
-	{
-		if (error)
-			MTY_Log("'WebSocket:didCompleteWithError' fired with code %ld\n", error.code);
-	}
-
-	- (void)URLSession:(NSURLSession *)session webSocketTask:(NSURLSessionWebSocketTask *)webSocketTask
-		didOpenWithProtocol:(NSString *)protocol
-	{
-		dispatch_semaphore_signal(self.conn);
-	}
-
-	- (void)URLSession:(NSURLSession *)session webSocketTask:(NSURLSessionWebSocketTask *)webSocketTask
-		didCloseWithCode:(NSURLSessionWebSocketCloseCode)closeCode reason:(NSData *)reason
-	{
-		self.closed = true;
-
-		if (closeCode != 1000)
-			MTY_Log("'WebSocket:didCloseWithCode' fired with closeCode %ld\n", closeCode);
-	}
-@end
+struct MTY_WebSocket {
+	NSURLSession *session;
+	NSURLSessionWebSocketTask *task;
+	MTY_Waitable *read;
+	MTY_Waitable *conn;
+	MTY_Waitable *write;
+	MTY_Time last_ping;
+	MTY_Time last_pong;
+	char *msg;
+	bool read_started;
+	bool read_error;
+	bool closed;
+};
 
 struct ws_parse_args {
 	NSMutableURLRequest *req;
 	bool ua_found;
 };
+
+
+// Class: WebSocket
+
+static void websocket_URLSession_task_didCompleteWithError(id self, SEL _cmd, NSURLSession *session,
+	NSURLSessionTask *task, NSError *error)
+{
+	if (error)
+		MTY_Log("'WebSocket:didCompleteWithError' fired with code %ld\n", error.code);
+}
+
+static void websocket_URLSession_webSocketTask_didOpenWithProtocol(id self, SEL _cmd, NSURLSession *session,
+	NSURLSessionWebSocketTask *webSocketTask, NSString *protocol)
+{
+	MTY_WebSocket *ctx = OBJC_CTX();
+
+	MTY_WaitableSignal(ctx->conn);
+}
+
+static void websocket_URLSession_webSocketTask_didCloseWithCode_reason(id self, SEL _cmd, NSURLSession *session,
+	NSURLSessionWebSocketTask *webSocketTask, NSURLSessionWebSocketCloseCode closeCode, NSData *reason)
+{
+	MTY_WebSocket *ctx = OBJC_CTX();
+
+	ctx->closed = true;
+
+	if (closeCode != NSURLSessionWebSocketCloseCodeNormalClosure)
+		MTY_Log("'WebSocket:didCloseWithCode' fired with closeCode %ld\n", closeCode);
+}
+
+static void websocket_URLSession_didBecomeInvalidWithError(id self, SEL _cmd, NSURLSession *session, NSError *error)
+{
+	MTY_WebSocket *ctx = OBJC_CTX();
+
+	MTY_WaitableSignal(ctx->conn);
+}
+
+static Class websocket_class(void)
+{
+	Class cls = objc_getClass(WEBSOCKET_CLASS_NAME);
+	if (cls)
+		return cls;
+
+	cls = OBJC_ALLOCATE("NSObject", WEBSOCKET_CLASS_NAME);
+
+	OBJC_PROTOCOL(cls, "NSURLSessionTaskDelegate");
+	OBJC_PROTOCOL(cls, "NSURLSessionWebSocketDelegate");
+
+	OBJC_OVERRIDE(cls, @selector(URLSession:task:didCompleteWithError:),
+		websocket_URLSession_task_didCompleteWithError);
+	OBJC_OVERRIDE(cls, @selector(URLSession:webSocketTask:didOpenWithProtocol:),
+		websocket_URLSession_webSocketTask_didOpenWithProtocol);
+	OBJC_OVERRIDE(cls, @selector(URLSession:webSocketTask:didCloseWithCode:reason:),
+		websocket_URLSession_webSocketTask_didCloseWithCode_reason);
+	OBJC_OVERRIDE(cls, @selector(URLSession:didBecomeInvalidWithError:),
+		websocket_URLSession_didBecomeInvalidWithError);
+
+	objc_registerClassPair(cls);
+
+	return cls;
+}
+
+
+// Public
 
 static void ws_parse_headers(const char *key, const char *val, void *opaque)
 {
@@ -65,11 +110,12 @@ static void ws_parse_headers(const char *key, const char *val, void *opaque)
 MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure, const char *path,
 	const char *headers, uint32_t timeout, uint16_t *upgradeStatus)
 {
-	WebSocket *ctx = [WebSocket new];
-	MTY_WebSocket *webSocket = (__bridge_retained MTY_WebSocket *) ctx;
+	MTY_WebSocket *ctx = MTY_Alloc(1, sizeof(MTY_WebSocket));
 
-	ctx.conn = dispatch_semaphore_create(0);
-	ctx.last_ping = ctx.last_pong = MTY_GetTime();
+	ctx->conn = MTY_WaitableCreate();
+	ctx->read = MTY_WaitableCreate();
+	ctx->write = MTY_WaitableCreate();
+	ctx->last_ping = ctx->last_pong = MTY_GetTime();
 
 	NSURLSessionConfiguration *cfg = [NSURLSessionConfiguration defaultSessionConfiguration];
 	NSMutableURLRequest *req = [NSMutableURLRequest new];
@@ -103,6 +149,8 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure
 	if (!pargs.ua_found)
 		[req setValue:@MTY_USER_AGENT forHTTPHeaderField:@"User-Agent"];
 
+	pargs.req = nil;
+
 	// Proxy
 	const char *proxy = mty_http_get_proxy();
 
@@ -122,18 +170,17 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure
 	}
 
 	// Connect
-	NSURLSession *session = [NSURLSession sessionWithConfiguration:cfg
-		delegate:ctx delegateQueue:nil];
+	ctx->session = [NSURLSession sessionWithConfiguration:cfg
+		delegate:OBJC_NEW(websocket_class(), ctx) delegateQueue:nil];
 
-	ctx.task = [session webSocketTaskWithRequest:req];
+	ctx->task = [ctx->session webSocketTaskWithRequest:req];
 
-	[ctx.task resume];
+	[ctx->task resume];
 
-	intptr_t e = dispatch_semaphore_wait(ctx.conn, dispatch_time(DISPATCH_TIME_NOW, timeout * NSEC_PER_MSEC));
-	if (e != 0)
-		MTY_WebSocketDestroy(&webSocket);
+	if (!MTY_WaitableWait(ctx->conn, timeout))
+		MTY_WebSocketDestroy(&ctx);
 
-	return webSocket;
+	return ctx;
 }
 
 void MTY_WebSocketDestroy(MTY_WebSocket **webSocket)
@@ -141,86 +188,98 @@ void MTY_WebSocketDestroy(MTY_WebSocket **webSocket)
 	if (!webSocket || !*webSocket)
 		return;
 
-	WebSocket *ctx = (__bridge_transfer WebSocket *) *webSocket;
+	MTY_WebSocket *ctx = *webSocket;
 
-	if (ctx.task)
-		[ctx.task cancelWithCloseCode:NSURLSessionWebSocketCloseCodeNormalClosure reason:nil];
+	if (ctx->task)
+		[ctx->task cancelWithCloseCode:NSURLSessionWebSocketCloseCodeNormalClosure reason:nil];
 
-	ctx.task = nil;
-	ctx.conn = nil;
-	ctx.read = nil;
-	ctx.msg = nil;
-	ctx = nil;
+	if (ctx->session) {
+		[ctx->session finishTasksAndInvalidate];
 
+		if (ctx->conn)
+			MTY_WaitableWait(ctx->conn, INT32_MAX);
+	}
+
+	ctx->session = nil;
+	ctx->task = nil;
+
+	MTY_WaitableDestroy(&ctx->read);
+	MTY_WaitableDestroy(&ctx->conn);
+	MTY_WaitableDestroy(&ctx->write);
+
+	MTY_Free(ctx->msg);
+	MTY_Free(ctx);
 	*webSocket = NULL;
 }
 
-MTY_Async MTY_WebSocketRead(MTY_WebSocket *webSocket, uint32_t timeout, char *msg, size_t size)
+MTY_Async MTY_WebSocketRead(MTY_WebSocket *ctx, uint32_t timeout, char *msg, size_t size)
 {
-	WebSocket *ctx = (__bridge WebSocket *) webSocket;
-
 	// Implicit ping handler
 	MTY_Time now = MTY_GetTime();
 
-	if (MTY_TimeDiff(ctx.last_ping, now) > WS_PING_INTERVAL) {
-		[ctx.task sendPingWithPongReceiveHandler:^(NSError *e) {
+	if (MTY_TimeDiff(ctx->last_ping, now) > WS_PING_INTERVAL) {
+		[ctx->task sendPingWithPongReceiveHandler:^(NSError *e) {
 			if (e) {
 				MTY_Log("NSURLSessionWebSocketTask:sendPingWithPongReceiveHandler failed: %s",
 					[e.localizedDescription UTF8String]);
 
 			} else {
-				ctx.last_pong = MTY_GetTime();
+				ctx->last_pong = MTY_GetTime();
 			}
 		}];
 
-		ctx.last_ping = now;
+		ctx->last_ping = now;
 	}
 
 	// If we haven't gotten a pong within WS_PONG_TO, error
-	if (MTY_TimeDiff(ctx.last_pong, now) > WS_PONG_TO)
+	if (MTY_TimeDiff(ctx->last_pong, now) > WS_PONG_TO)
 		return MTY_ASYNC_ERROR;
 
 	// WebSocket is already closed
-	if (ctx.closed || ctx.task.closeCode != NSURLSessionWebSocketCloseCodeInvalid)
+	if (ctx->closed || ctx->task.closeCode != NSURLSessionWebSocketCloseCodeInvalid)
 		return MTY_ASYNC_DONE;
 
 	// Set completion handler and sempaphore
-	if (!ctx.read) {
-		ctx.read = dispatch_semaphore_create(0);
+	if (!ctx->read_started) {
+		ctx->read_started = true;
+		ctx->read_error = false;
 
-		[ctx.task receiveMessageWithCompletionHandler:^(NSURLSessionWebSocketMessage *ws_msg, NSError *e) {
+		MTY_Free(ctx->msg);
+		ctx->msg = NULL;
+
+		[ctx->task receiveMessageWithCompletionHandler:^(NSURLSessionWebSocketMessage *ws_msg, NSError *e) {
 			if (e) {
 				MTY_Log("NSURLSessionWebSocketTask:receiveMessage failed: %s", [e.localizedDescription UTF8String]);
+				ctx->read_error = true;
 
 			} else {
-				ctx.msg = ws_msg;
+				if (ws_msg.type == NSURLSessionWebSocketMessageTypeString)
+					ctx->msg = MTY_Strdup([ws_msg.string UTF8String]);
 			}
 
-			dispatch_semaphore_signal(ctx.read);
+			MTY_WaitableSignal(ctx->read);
 		}];
 	}
 
 	// Wait for a new message
-	intptr_t e = dispatch_semaphore_wait(ctx.read, dispatch_time(DISPATCH_TIME_NOW, timeout * NSEC_PER_MSEC));
-
-	if (e == 0) {
-		ctx.read = nil;
+	if (MTY_WaitableWait(ctx->read, timeout)) {
+		ctx->read_started = false;
 
 		// Error
-		if (!ctx.msg)
+		if (ctx->read_error)
 			return MTY_ASYNC_ERROR;
 
-		NSURLSessionWebSocketMessage *ws_msg = ctx.msg;
-		ctx.msg = nil;
-
-		if (ws_msg.type == NSURLSessionWebSocketMessageTypeString) {
-			const char *ws_msg_c = [ws_msg.string UTF8String];
-			size_t ws_msg_size = strlen(ws_msg_c) + 1;
+		if (ctx->msg) {
+			size_t ws_msg_size = strlen(ctx->msg) + 1;
 
 			if (size < ws_msg_size)
 				return MTY_ASYNC_ERROR;
 
-			memcpy(msg, ws_msg_c, ws_msg_size);
+			memcpy(msg, ctx->msg, ws_msg_size);
+
+			MTY_Free(ctx->msg);
+			ctx->msg = NULL;
+
 			return MTY_ASYNC_OK;
 		}
 	}
@@ -228,34 +287,26 @@ MTY_Async MTY_WebSocketRead(MTY_WebSocket *webSocket, uint32_t timeout, char *ms
 	return MTY_ASYNC_CONTINUE;
 }
 
-bool MTY_WebSocketWrite(MTY_WebSocket *webSocket, const char *msg)
+bool MTY_WebSocketWrite(MTY_WebSocket *ctx, const char *msg)
 {
-	WebSocket *ctx = (__bridge WebSocket *) webSocket;
-
 	__block bool r = true;
 
 	NSURLSessionWebSocketMessage *ws_msg = [[NSURLSessionWebSocketMessage alloc]
 		initWithString:[NSString stringWithUTF8String:msg]];
 
-	dispatch_semaphore_t s = dispatch_semaphore_create(0);
-
-	[ctx.task sendMessage:ws_msg completionHandler:^(NSError *e) {
+	[ctx->task sendMessage:ws_msg completionHandler:^(NSError *e) {
 		if (e) {
 			r = false;
 			MTY_Log("NSURLSessionWebSocketTask:sendMessage failed with error %d", (int32_t) [e code]);
 		}
 
-		dispatch_semaphore_signal(s);
+		MTY_WaitableSignal(ctx->write);
 	}];
 
-	dispatch_semaphore_wait(s, dispatch_time(DISPATCH_TIME_NOW, 1000 * NSEC_PER_MSEC));
-
-	return r;
+	return MTY_WaitableWait(ctx->write, 1000);
 }
 
-uint16_t MTY_WebSocketGetCloseCode(MTY_WebSocket *webSocket)
+uint16_t MTY_WebSocketGetCloseCode(MTY_WebSocket *ctx)
 {
-	WebSocket *ctx = (__bridge WebSocket *) webSocket;
-
-	return ctx.task.closeCode;
+	return ctx->task.closeCode;
 }

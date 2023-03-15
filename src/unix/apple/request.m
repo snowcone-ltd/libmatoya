@@ -64,6 +64,8 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 	if (!pargs.ua_found)
 		[req setValue:@MTY_USER_AGENT forHTTPHeaderField:@"User-Agent"];
 
+	pargs.req = nil;
+
 	// Body
 	if (body && bodySize > 0)
 		[req setHTTPBody:[NSData dataWithBytes:body length:bodySize]];
@@ -118,6 +120,8 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 	[task resume];
 
 	dispatch_semaphore_wait(semaphore, dispatch_time(DISPATCH_TIME_NOW, timeout * NSEC_PER_MSEC));
+
+	[session invalidateAndCancel];
 
 	return r;
 }
