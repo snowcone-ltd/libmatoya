@@ -192,7 +192,7 @@ static void app_applicationWillFinishLaunching(id self, SEL _cmd, NSNotification
 	[[NSUserNotificationCenter defaultUserNotificationCenter] setDelegate:self];
 
 	[[NSAppleEventManager sharedAppleEventManager] setEventHandler:self
-		andSelector:@selector(handleGetURLEvent:withReplyEvent:) forEventClass:kInternetEventClass
+		andSelector:@selector(appHandleGetURLEvent:withReplyEvent:) forEventClass:kInternetEventClass
 		andEventID:kAEGetURL];
 }
 
@@ -294,7 +294,7 @@ static void app_applicationDidFinishLaunching(id self, SEL _cmd, NSNotification 
 	[NSApp activateIgnoringOtherApps:YES];
 }
 
-static void app_handleGetURLEvent_withReplyEvent(id self, SEL _cmd, NSAppleEventDescriptor *event,
+static void app_appHandleGetURLEvent_withReplyEvent(id self, SEL _cmd, NSAppleEventDescriptor *event,
 	NSAppleEventDescriptor *replyEvent)
 {
 	MTY_App *ctx = OBJC_CTX();
@@ -331,26 +331,31 @@ static Class app_class(void)
 
 	cls = OBJC_ALLOCATE("NSObject", APP_CLASS_NAME);
 
-	OBJC_PROTOCOL(cls, "NSApplicationDelegate");
-	OBJC_PROTOCOL(cls, "NSUserNotificationCenterDelegate");
+	// NSApplicationDelegate
+	Protocol *proto = OBJC_PROTOCOL(cls, @protocol(NSApplicationDelegate));
+	if (proto) {
+		OBJC_POVERRIDE(cls, proto, NO, @selector(applicationWillFinishLaunching:), app_applicationWillFinishLaunching);
+		OBJC_POVERRIDE(cls, proto, NO, @selector(applicationShouldHandleReopen:hasVisibleWindows:),
+			app_applicationShouldHandleReopen_hasVisibleWindows);
+		OBJC_POVERRIDE(cls, proto, NO, @selector(applicationShouldTerminate:), app_applicationShouldTerminate);
+		OBJC_POVERRIDE(cls, proto, NO, @selector(applicationDidFinishLaunching:), app_applicationDidFinishLaunching);
+		OBJC_POVERRIDE(cls, proto, NO, @selector(applicationDockMenu:), app_applicationDockMenu);
+	}
 
-	// Overrides
-	OBJC_OVERRIDE(cls, @selector(userNotificationCenter:shouldPresentNotification:),
-		app_userNotificationCenter_shouldPresentNotification);
-	OBJC_OVERRIDE(cls, @selector(applicationWillFinishLaunching:), app_applicationWillFinishLaunching);
-	OBJC_OVERRIDE(cls, @selector(applicationShouldHandleReopen:hasVisibleWindows:),
-		app_applicationShouldHandleReopen_hasVisibleWindows);
-	OBJC_OVERRIDE(cls, @selector(applicationShouldTerminate:), app_applicationShouldTerminate);
-	OBJC_OVERRIDE(cls, @selector(applicationDidFinishLaunching:), app_applicationDidFinishLaunching);
-	OBJC_OVERRIDE(cls, @selector(handleGetURLEvent:withReplyEvent:), app_handleGetURLEvent_withReplyEvent);
-	OBJC_OVERRIDE(cls, @selector(applicationDockMenu:), app_applicationDockMenu);
+	// NSUserNotificationCenterDelegate
+	proto = OBJC_PROTOCOL(cls, @protocol(NSUserNotificationCenterDelegate));
+	if (proto)
+		OBJC_POVERRIDE(cls, proto, NO, @selector(userNotificationCenter:shouldPresentNotification:),
+			app_userNotificationCenter_shouldPresentNotification);
 
-	// Custom methods
+	// New methods
 	class_addMethod(cls, @selector(appQuit), (IMP) app_appQuit, "v@:");
 	class_addMethod(cls, @selector(appClose), (IMP) app_appClose, "v@:");
 	class_addMethod(cls, @selector(appRestart), (IMP) app_appRestart, "v@:");
 	class_addMethod(cls, @selector(appMinimize), (IMP) app_appMinimize, "v@:");
 	class_addMethod(cls, @selector(appFunc:), (IMP) app_appFunc, "v@:@");
+	class_addMethod(cls, @selector(appHandleGetURLEvent:withReplyEvent:),
+		(IMP) app_appHandleGetURLEvent_withReplyEvent, "v@:@@");
 
 	objc_registerClassPair(cls);
 
@@ -1033,19 +1038,27 @@ static Class window_class(void)
 
 	cls = OBJC_ALLOCATE("NSWindow", WINDOW_CLASS_NAME);
 
-	OBJC_PROTOCOL(cls, "NSWindowDelegate");
+	// NSWindowDelegate
+	Protocol *proto = OBJC_PROTOCOL(cls, @protocol(NSWindowDelegate));
+	if (proto) {
+		OBJC_POVERRIDE(cls, proto, NO, @selector(windowWillUseStandardFrame:defaultFrame:),
+			window_windowWillUseStandardFrame_defaultFrame);
+		OBJC_POVERRIDE(cls, proto, NO, @selector(windowShouldClose:), window_windowShouldClose);
+		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidResignKey:), window_windowDidResignKey);
+		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidBecomeKey:), window_windowDidBecomeKey);
+		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidChangeScreen:), window_windowDidChangeScreen);
+		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidResize:), window_windowDidResize);
+		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidMove:), window_windowDidMove);
+		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidEnterFullScreen:), window_windowDidEnterFullScreen);
+		OBJC_POVERRIDE(cls, proto, NO, @selector(windowWillExitFullScreen:), window_windowWillExitFullScreen);
+		OBJC_POVERRIDE(cls, proto, NO, @selector(window:willUseFullScreenPresentationOptions:),
+			window_window_willUseFullScreenPresentationOptions);
+	}
 
+	// Overrides
 	OBJC_OVERRIDE(cls, @selector(canBecomeKeyWindow), window_canBecomeKeyWindow);
 	OBJC_OVERRIDE(cls, @selector(canBecomeMainWindow), window_canBecomeMainWindow);
-	OBJC_OVERRIDE(cls, @selector(windowWillUseStandardFrame:defaultFrame:),
-		window_windowWillUseStandardFrame_defaultFrame);
 	OBJC_OVERRIDE(cls, @selector(performKeyEquivalent:), window_performKeyEquivalent);
-	OBJC_OVERRIDE(cls, @selector(windowShouldClose:), window_windowShouldClose);
-	OBJC_OVERRIDE(cls, @selector(windowDidResignKey:), window_windowDidResignKey);
-	OBJC_OVERRIDE(cls, @selector(windowDidBecomeKey:), window_windowDidBecomeKey);
-	OBJC_OVERRIDE(cls, @selector(windowDidChangeScreen:), window_windowDidChangeScreen);
-	OBJC_OVERRIDE(cls, @selector(windowDidResize:), window_windowDidResize);
-	OBJC_OVERRIDE(cls, @selector(windowDidMove:), window_windowDidMove);
 	OBJC_OVERRIDE(cls, @selector(keyUp:), window_keyUp);
 	OBJC_OVERRIDE(cls, @selector(keyDown:), window_keyDown);
 	OBJC_OVERRIDE(cls, @selector(flagsChanged:), window_flagsChanged);
@@ -1063,10 +1076,6 @@ static Class window_class(void)
 	OBJC_OVERRIDE(cls, @selector(mouseExited:), window_mouseExited);
 	OBJC_OVERRIDE(cls, @selector(scrollWheel:), window_scrollWheel);
 	OBJC_OVERRIDE(cls, @selector(tabletProximity:), window_tabletProximity);
-	OBJC_OVERRIDE(cls, @selector(window:willUseFullScreenPresentationOptions:),
-		window_window_willUseFullScreenPresentationOptions);
-	OBJC_OVERRIDE(cls, @selector(windowDidEnterFullScreen:), window_windowDidEnterFullScreen);
-	OBJC_OVERRIDE(cls, @selector(windowWillExitFullScreen:), window_windowWillExitFullScreen);
 
 	objc_registerClassPair(cls);
 
@@ -1105,6 +1114,7 @@ static Class view_class(void)
 
 	cls = OBJC_ALLOCATE("NSView", VIEW_CLASS_NAME);
 
+	// Overrides
 	OBJC_OVERRIDE(cls, @selector(acceptsFirstMouse:), view_acceptsFirstMouse);
 	OBJC_OVERRIDE(cls, @selector(updateTrackingAreas), view_updateTrackingAreas);
 
@@ -1199,10 +1209,9 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 
 	ctx->cb_seq = [[NSPasteboard generalPasteboard] changeCount];
 
-	// XXX This appears to need to be created before calling [NSApplication sharedApplication]
-	ctx->nsapp = OBJC_NEW(app_class(), ctx);
-
 	[NSApplication sharedApplication];
+
+	ctx->nsapp = OBJC_NEW(app_class(), ctx);
 	[NSApp setDelegate:ctx->nsapp];
 
 	// Ensure applicationDidFinishLaunching fires before this function returns

@@ -20,15 +20,52 @@
 #define OBJC_ALLOCATE(super, name) \
 	objc_allocateClassPair(objc_getClass(super), name, sizeof(void *))
 
-#define OBJC_PROTOCOL(cls, name) \
-	class_addProtocol(cls, objc_getProtocol(name))
-
-#define OBJC_OVERRIDE(cls, sel, func) \
-	class_addMethod(cls, sel, (IMP) func, method_getTypeEncoding(class_getInstanceMethod(cls, sel)))
-
 typedef void (*OBJC_METHOD)(id self, SEL _cmd, ...);
 
-static id OBJC_NEW(Class cls, void *ctx)
+static inline void OBJC_POVERRIDE(Class cls, Protocol *proto, BOOL required, SEL sel, void *func)
+{
+	struct objc_method_description desc = protocol_getMethodDescription(proto, sel, required, YES);
+	if (!desc.types) {
+		MTY_Log("'protocol_getMethodDescription failed for '%s:%s'", protocol_getName(proto), sel_getName(sel));
+		return;
+	}
+
+	if (!class_addMethod(cls, sel, (IMP) func, desc.types))
+		MTY_Log("'class_addMethod' failed for '%s:%s'", protocol_getName(proto), sel_getName(sel));
+}
+
+static inline void OBJC_OVERRIDE(Class cls, SEL sel, void *func)
+{
+	Method method = class_getInstanceMethod(cls, sel);
+	if (!method) {
+		MTY_Log("'class_getInstanceMethod' failed for '%s'", sel_getName(sel));
+		return;
+	}
+
+	const char *type_encoding = method_getTypeEncoding(method);
+	if (!type_encoding) {
+		MTY_Log("'method_getTypeEncoding' failed for '%s'", sel_getName(sel));
+		return;
+	}
+
+	if (!class_addMethod(cls, sel, (IMP) func, type_encoding))
+		MTY_Log("'class_addMethod' failed for '%s'", sel_getName(sel));
+}
+
+static inline Protocol *OBJC_PROTOCOL(Class cls, Protocol *proto)
+{
+	if (proto) {
+		if (!class_addProtocol(cls, proto))
+			MTY_Log("'class_addProtocol' failed for '%s'", protocol_getName(proto));
+
+	} else {
+		MTY_Log("'OBJC_PROTOCOL' was called with NULL argument");
+	}
+
+	return proto;
+}
+
+static inline id OBJC_NEW(Class cls, void *ctx)
 {
 	id obj = class_createInstance(cls, sizeof(void *));
 	*((void **) object_getIndexedIvars(obj)) = ctx;

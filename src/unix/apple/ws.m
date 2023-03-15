@@ -76,17 +76,23 @@ static Class websocket_class(void)
 
 	cls = OBJC_ALLOCATE("NSObject", WEBSOCKET_CLASS_NAME);
 
-	OBJC_PROTOCOL(cls, "NSURLSessionTaskDelegate");
-	OBJC_PROTOCOL(cls, "NSURLSessionWebSocketDelegate");
+	// NSURLSessionTaskDelegate
+	Protocol *proto = OBJC_PROTOCOL(cls, @protocol(NSURLSessionTaskDelegate));
+	if (proto) {
+		OBJC_POVERRIDE(cls, proto, NO, @selector(URLSession:task:didCompleteWithError:),
+			websocket_URLSession_task_didCompleteWithError);
+		OBJC_POVERRIDE(cls, proto, NO, @selector(URLSession:didBecomeInvalidWithError:),
+			websocket_URLSession_didBecomeInvalidWithError);
+	}
 
-	OBJC_OVERRIDE(cls, @selector(URLSession:task:didCompleteWithError:),
-		websocket_URLSession_task_didCompleteWithError);
-	OBJC_OVERRIDE(cls, @selector(URLSession:webSocketTask:didOpenWithProtocol:),
-		websocket_URLSession_webSocketTask_didOpenWithProtocol);
-	OBJC_OVERRIDE(cls, @selector(URLSession:webSocketTask:didCloseWithCode:reason:),
-		websocket_URLSession_webSocketTask_didCloseWithCode_reason);
-	OBJC_OVERRIDE(cls, @selector(URLSession:didBecomeInvalidWithError:),
-		websocket_URLSession_didBecomeInvalidWithError);
+	// NSURLSessionWebSocketDelegate
+	proto = OBJC_PROTOCOL(cls, @protocol(NSURLSessionWebSocketDelegate));
+	if (proto) {
+		OBJC_POVERRIDE(cls, proto, NO, @selector(URLSession:webSocketTask:didOpenWithProtocol:),
+			websocket_URLSession_webSocketTask_didOpenWithProtocol);
+		OBJC_POVERRIDE(cls, proto, NO, @selector(URLSession:webSocketTask:didCloseWithCode:reason:),
+			websocket_URLSession_webSocketTask_didCloseWithCode_reason);
+	}
 
 	objc_registerClassPair(cls);
 

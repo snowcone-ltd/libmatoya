@@ -38,6 +38,7 @@ static Class webview_class(void)
 
 	cls = OBJC_ALLOCATE("WKWebView", WEBVIEW_CLASS_NAME);
 
+	// Overrides
 	OBJC_OVERRIDE(cls, @selector(noResponderFor:), webview_noResponderFor);
 
 	objc_registerClassPair(cls);
@@ -118,10 +119,11 @@ static Class msg_handler_class(void)
 
 	cls = OBJC_ALLOCATE("NSObject", MSG_HANDLER_CLASS_NAME);
 
-	OBJC_PROTOCOL(cls, "WKScriptMessageHandler");
-
-	OBJC_OVERRIDE(cls, @selector(userContentController:didReceiveScriptMessage:),
-		msg_handler_userContentController_didReceiveScriptMessage);
+	// WKScriptMessageHandler
+	Protocol *proto = OBJC_PROTOCOL(cls, @protocol(WKScriptMessageHandler));
+	if (proto)
+		OBJC_POVERRIDE(cls, proto, YES, @selector(userContentController:didReceiveScriptMessage:),
+			msg_handler_userContentController_didReceiveScriptMessage);
 
 	objc_registerClassPair(cls);
 
