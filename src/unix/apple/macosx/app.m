@@ -1237,7 +1237,7 @@ static void app_hid_key_value(uint32_t usage, bool down, void *opaque)
 			}
 
 		} else {
-				ctx->event_func(&evt, ctx->opaque);
+			ctx->event_func(&evt, ctx->opaque);
 		}
 	}
 }
