@@ -269,7 +269,6 @@ static const char *keymap_keycode_to_text(uint16_t kc)
 // in the keyboard usage page.
 static MTY_Key keymap_usage_to_key(uint32_t usage)
 {
-
 	switch(usage) {
 		case kHIDUsage_KeyboardA:                    return MTY_KEY_A; /* a or A */
 		case kHIDUsage_KeyboardB:                    return MTY_KEY_B; /* b or B */
