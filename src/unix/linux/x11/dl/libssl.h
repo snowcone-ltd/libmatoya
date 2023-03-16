@@ -15,28 +15,19 @@
 
 #define SSL_CTRL_SET_MTU                              17
 #define SSL_CTRL_OPTIONS                              32
-#define SSL_CTRL_SET_TLSEXT_HOSTNAME                  55
-#define SSL_CTRL_SET_TLSEXT_STATUS_REQ_TYPE           65
 #define SSL_CTRL_SET_VERIFY_CERT_STORE                106
-
-#define TLSEXT_NAMETYPE_host_name                     0
-#define TLSEXT_STATUSTYPE_ocsp                        1
 
 #define SSL_VERIFY_PEER                               0x01
 #define SSL_VERIFY_FAIL_IF_NO_PEER_CERT               0x02
-#define SSL_OP_NO_SSLv2                               0x0
 #define SSL_OP_NO_QUERY_MTU                           0x00001000U
 #define SSL_OP_NO_TICKET                              0x00004000U
 #define SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION 0x00010000U
-#define SSL_OP_NO_COMPRESSION                         0x00020000U
-#define SSL_OP_NO_SSLv3                               0x02000000U
 
 #define NID_rsaEncryption                             6
 #define EVP_PKEY_RSA                                  NID_rsaEncryption
 
 #define MBSTRING_FLAG                                 0x1000
 #define MBSTRING_ASC                                  (MBSTRING_FLAG | 1)
-#define X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS          0x4
 #define RSA_F4                                        0x10001L
 #define EVP_MAX_MD_SIZE                               64
 
@@ -46,7 +37,6 @@ typedef struct bignum_st BIGNUM;
 typedef struct x509_st X509;
 typedef struct X509_name_st X509_NAME;
 typedef struct x509_store_ctx_st X509_STORE_CTX;
-typedef struct X509_VERIFY_PARAM_st X509_VERIFY_PARAM;
 typedef struct evp_pkey_st EVP_PKEY;
 typedef struct bn_gencb_st BN_GENCB;
 typedef struct asn1_string_st ASN1_INTEGER;
@@ -68,9 +58,7 @@ static void (*SSL_free)(SSL *ssl);
 static int (*SSL_read)(SSL *ssl, void *buf, int num);
 static int (*SSL_write)(SSL *ssl, const void *buf, int num);
 static void (*SSL_set_verify)(SSL *s, int mode, SSL_verify_cb callback);
-static void (*SSL_set_verify_depth)(SSL *s, int depth);
 static int (*SSL_get_error)(const SSL *s, int ret_code);
-static X509_VERIFY_PARAM *(*SSL_get0_param)(SSL *ssl);
 static long (*SSL_ctrl)(SSL *ssl, int cmd, long larg, void *parg);
 static void (*SSL_set_bio)(SSL *s, BIO *rbio, BIO *wbio);
 static void (*SSL_set_connect_state)(SSL *s);
@@ -80,10 +68,8 @@ static int (*SSL_use_RSAPrivateKey)(SSL *ssl, RSA *rsa);
 static X509 *(*SSL_get_peer_certificate)(const SSL *s);
 static X509 *(*SSL_get1_peer_certificate)(const SSL *s);
 
-static const SSL_METHOD *(*TLSv1_2_method)(void);
 static const SSL_METHOD *(*DTLS_method)(void);
 static SSL_CTX *(*SSL_CTX_new)(const SSL_METHOD *meth);
-static int (*SSL_CTX_set_default_verify_paths)(SSL_CTX *ctx);
 
 static void (*SSL_CTX_free)(SSL_CTX *);
 
@@ -94,8 +80,6 @@ static int (*BIO_write)(BIO *b, const void *data, int len);
 static size_t (*BIO_ctrl_pending)(BIO *b);
 static int (*BIO_read)(BIO *b, void *data, int len);
 
-static int (*X509_VERIFY_PARAM_set1_host)(X509_VERIFY_PARAM *param, const char *name, size_t namelen);
-static void (*X509_VERIFY_PARAM_set_hostflags)(X509_VERIFY_PARAM *param, unsigned int flags);
 static void (*X509_free)(X509 *a);
 static X509 *(*X509_new)(void);
 static int (*X509_set_pubkey)(X509 *x, EVP_PKEY *pkey);
@@ -172,9 +156,7 @@ static bool libssl_global_init(void)
 		LOAD_SYM(LIBSSL_SO, SSL_read);
 		LOAD_SYM(LIBSSL_SO, SSL_write);
 		LOAD_SYM(LIBSSL_SO, SSL_set_verify);
-		LOAD_SYM(LIBSSL_SO, SSL_set_verify_depth);
 		LOAD_SYM(LIBSSL_SO, SSL_get_error);
-		LOAD_SYM(LIBSSL_SO, SSL_get0_param);
 		LOAD_SYM(LIBSSL_SO, SSL_ctrl);
 		LOAD_SYM(LIBSSL_SO, SSL_set_bio);
 		LOAD_SYM(LIBSSL_SO, SSL_set_connect_state);
@@ -191,11 +173,9 @@ static bool libssl_global_init(void)
 			LOAD_SYM(LIBSSL_SO, SSL_get_peer_certificate);
 		}
 
-		LOAD_SYM(LIBSSL_SO, TLSv1_2_method);
 		LOAD_SYM(LIBSSL_SO, DTLS_method);
 		LOAD_SYM(LIBSSL_SO, SSL_CTX_new);
 		LOAD_SYM(LIBSSL_SO, SSL_CTX_free);
-		LOAD_SYM(LIBSSL_SO, SSL_CTX_set_default_verify_paths);
 
 		LOAD_SYM(LIBSSL_SO, BIO_new);
 		LOAD_SYM(LIBSSL_SO, BIO_s_mem);
@@ -204,8 +184,6 @@ static bool libssl_global_init(void)
 		LOAD_SYM(LIBSSL_SO, BIO_read);
 		LOAD_SYM(LIBSSL_SO, BIO_free);
 
-		LOAD_SYM(LIBSSL_SO, X509_VERIFY_PARAM_set1_host);
-		LOAD_SYM(LIBSSL_SO, X509_VERIFY_PARAM_set_hostflags);
 		LOAD_SYM(LIBSSL_SO, X509_new);
 		LOAD_SYM(LIBSSL_SO, X509_free);
 		LOAD_SYM(LIBSSL_SO, X509_set_pubkey);

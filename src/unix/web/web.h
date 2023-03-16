@@ -36,6 +36,7 @@ void web_use_default_cursor(bool use_default);
 void web_set_png_cursor(const void *image, size_t size, uint32_t hotX, uint32_t hotY);
 void web_set_pointer_lock(bool enable);
 bool web_get_relative(void);
+char *web_get_hostname(void);
 char *web_get_clipboard(void);
 void web_set_clipboard(const char *text);
 void web_set_mem_funcs(WEB_ALLOC alloc, WEB_FREE free);

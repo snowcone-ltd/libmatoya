@@ -48,8 +48,9 @@ struct webview {
 	struct webview_handler1 handler1;
 	struct webview_handler2 handler2;
 	ICoreWebView2EnvironmentOptions opts;
-	MTY_WebViewFlag flags;
 	WCHAR *source;
+	bool url;
+	bool debug;
 	bool passthrough;
 	bool ready;
 };
@@ -178,6 +179,16 @@ static void webview_update_size(struct webview *ctx)
 	ICoreWebView2Controller2_put_Bounds(ctx->controller, bounds);
 }
 
+static void webview_navigate(struct webview *ctx, WCHAR *source, bool url)
+{
+	if (url) {
+		ICoreWebView2_Navigate(ctx->webview, source);
+
+	} else {
+		ICoreWebView2_NavigateToString(ctx->webview, source);
+	}
+}
+
 static HRESULT STDMETHODCALLTYPE h1_Invoke(ICoreWebView2CreateCoreWebView2ControllerCompletedHandler *This,
 	HRESULT errorCode, ICoreWebView2Controller *controller)
 {
@@ -197,12 +208,10 @@ static HRESULT STDMETHODCALLTYPE h1_Invoke(ICoreWebView2CreateCoreWebView2Contro
 
 	webview_update_size(ctx);
 
-	BOOL debug = ctx->flags & MTY_WEBVIEW_FLAG_DEBUG;
-
 	ICoreWebView2Settings *settings = NULL;
 	ICoreWebView2_get_Settings(ctx->webview, &settings);
-	ICoreWebView2Settings_put_AreDevToolsEnabled(settings, debug);
-	ICoreWebView2Settings_put_AreDefaultContextMenusEnabled(settings, debug);
+	ICoreWebView2Settings_put_AreDevToolsEnabled(settings, ctx->debug);
+	ICoreWebView2Settings_put_AreDefaultContextMenusEnabled(settings, ctx->debug);
 	ICoreWebView2Settings_put_IsZoomControlEnabled(settings, FALSE);
 	ICoreWebView2Settings_Release(settings);
 
@@ -230,7 +239,7 @@ static HRESULT STDMETHODCALLTYPE h1_Invoke(ICoreWebView2CreateCoreWebView2Contro
 
 		L"const __MTY_INTERVAL = setInterval(() => {"
 			L"if (window.MTY_NativeListener) {"
-				L"for (let msg = __MTY_MSGS.shift(); msg; msg = MTY_MSGS.shift())"
+				L"for (let msg = __MTY_MSGS.shift(); msg; msg = __MTY_MSGS.shift())"
 					L"window.MTY_NativeListener(msg);"
 
 				L"clearInterval(__MTY_INTERVAL);"
@@ -259,12 +268,8 @@ static HRESULT STDMETHODCALLTYPE h1_Invoke(ICoreWebView2CreateCoreWebView2Contro
 
 	ICoreWebView2_AddScriptToExecuteOnDocumentCreated(ctx->webview, script, NULL);
 
-	if (ctx->flags & MTY_WEBVIEW_FLAG_URL) {
-		ICoreWebView2_Navigate(ctx->webview, ctx->source);
-
-	} else {
-		ICoreWebView2_NavigateToString(ctx->webview, ctx->source);
-	}
+	if (ctx->source)
+		webview_navigate(ctx, ctx->source, ctx->url);
 
 	return S_OK;
 }
@@ -449,15 +454,13 @@ static HMODULE webview_load_dll(void)
 }
 
 struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *dir,
-	const char *source, MTY_WebViewFlag flags, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func,
-	WEBVIEW_KEY key_func)
+	bool debug, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func, WEBVIEW_KEY key_func)
 {
 	struct webview *ctx = MTY_Alloc(1, sizeof(struct webview));
 
 	ctx->app = app;
 	ctx->window = window;
-	ctx->source = MTY_MultiToWideD(source);
-	ctx->flags = flags;
+	ctx->debug = debug;
 	ctx->ready_func = ready_func;
 	ctx->text_func = text_func;
 	ctx->key_func = key_func;
@@ -518,6 +521,21 @@ void mty_webview_destroy(struct webview **webview)
 
 	MTY_Free(ctx);
 	*webview = NULL;
+}
+
+void mty_webview_navigate(struct webview *ctx, const char *source, bool url)
+{
+	WCHAR *wsource = MTY_MultiToWideD(source);
+
+	if (ctx->webview) {
+		webview_navigate(ctx, wsource, url);
+		MTY_Free(wsource);
+
+	} else {
+		MTY_Free(ctx->source);
+		ctx->source = wsource;
+		ctx->url = url;
+	}
 }
 
 void mty_webview_show(struct webview *ctx, bool show)

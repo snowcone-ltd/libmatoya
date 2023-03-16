@@ -690,15 +690,6 @@ typedef enum {
 	MTY_WINDOW_MAKE_32    = INT32_MAX,
 } MTY_WindowType;
 
-/// @brief WebView flags set during creation.
-typedef enum {
-	MTY_WEBVIEW_FLAG_URL     = 0x1, ///< The `source` argument to MTY_WindowSetWebView will be
-	                                ///<   treated as a URL, otherwise `source` will be loaded
-	                                ///<   directly as HTML.
-	MTY_WEBVIEW_FLAG_DEBUG   = 0x2, ///< Debugging tools enabled.
-	MTY_WEBVIEW_FLAG_MAKE_32 = INT32_MAX,
-} MTY_WebViewFlag;
-
 /// @brief Predefined cursors set via MTY_AppSetCursor.
 typedef enum {
 	MTY_CURSOR_NONE    = 0, ///< Revert the effects of MTY_AppSetCursor.
@@ -1392,20 +1383,27 @@ MTY_WindowGetNative(MTY_App *app, MTY_Window window);
 /// @param dir Path to where temporary files related to the WebView will be stored (Windows only).
 ///   If MTY_WebViewIsSteam returns true, `dir` will be interpreted as the directory where the
 ///   Steam API shared object resides (i.e. `libsteam_api.so`).
-/// @param source Source content to be loaded by the WebView. This argument can either be a
-///   URL or direct HTML depending on the value of `flags`.
-/// @param flags Flags specifying various WebView behaviors.
+/// @param debug Set to true to enable debugging tools.
 /// @returns Returns true on success, false if the WebView failed to be set or already exists.
 //- #support Windows macOS
 MTY_EXPORT bool
-MTY_WindowSetWebView(MTY_App *app, MTY_Window window, const char *dir, const char *source,
-	MTY_WebViewFlag flags);
+MTY_WindowSetWebView(MTY_App *app, MTY_Window window, const char *dir, bool debug);
 
 /// @brief Remove the WebView from a window.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 MTY_EXPORT void
 MTY_WindowRemoveWebView(MTY_App *app, MTY_Window window);
+
+/// @brief Navigate the WebView to a given URL or HTML string.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @param source Source content to be loaded by the WebView. This argument can either be a
+///   URL or direct HTML depending on the value of `url`.
+/// @param url If true, `source` will be treated as a URL, else `source` will be loaded
+///   directly as HTML.
+MTY_EXPORT void
+MTY_WebViewNavigate(MTY_App *app, MTY_Window window, const char *source, bool url);
 
 /// @brief Check if a WebView exists on a window.
 /// @param app The MTY_App.
@@ -3460,34 +3458,24 @@ MTY_EXPORT void *
 MTY_GetJNIEnv(void);
 
 
-//- #module TLS
-//- #mbrief TLS/DTLS protocol wrapper.
-//- #mdetails This module performs no IO and acts as a TLS engine that requires you
+//- #module DTLS
+//- #mbrief DTLS protocol wrapper.
+//- #mdetails This module performs no IO and acts as a DTLS engine that requires you
 //-   to feed it input and in turn will output data suitable for sending over a network.
-//- #msupport Windows macOS Android Linux
+//- #msupport Windows Linux
 
 #define MTY_FINGERPRINT_MAX 112 ///< Maximum size of the string set by MTY_CertGetFingerprint.
 
 typedef struct MTY_Cert MTY_Cert;
-typedef struct MTY_TLS MTY_TLS;
+typedef struct MTY_DTLS MTY_DTLS;
 
-/// @brief Function called when TLS handshake data is ready to be sent.
-/// @param buf The outbound TLS message.
+/// @brief Function called when DTLS handshake data is ready to be sent.
+/// @param buf The outbound DTLS message.
 /// @param size Size in bytes of `buf`.
-/// @param opaque Pointer set via MTY_TLSHandshake.
+/// @param opaque Pointer set via MTY_DTLSHandshake.
 /// @returns Return true on success, false on failure. Returning false will cause
-///   MTY_TLSHandshake to return MTY_ASYNC_ERROR.
-typedef bool (*MTY_TLSWriteFunc)(const void *buf, size_t size, void *opaque);
-
-/// @brief TLS protocols.
-/// @details Currently TLS 1.2 is supported on all platforms, but DTLS 1.2 is only
-///   available on Windows 10 and Linux. DTLS is unsupported on Android and limited
-///   to 1.0 on macOS.
-typedef enum {
-	MTY_TLS_PROTOCOL_TLS     = 0, ///< TLS 1.2.
-	MTY_TLS_PROTOCOL_DTLS    = 1, ///< DTLS 1.0 or 1.2, depending on the platform.
-	MTY_TLS_PROTOCOL_MAKE_32 = INT32_MAX,
-} MTY_TLSProtocol;
+///   MTY_DTLSHandshake to return MTY_ASYNC_ERROR.
+typedef bool (*MTY_DTLSWriteFunc)(const void *buf, size_t size, void *opaque);
 
 /// @brief Create an MTY_Cert, a self-signed X.509 certificate.
 /// @details This certificate is suitable for a WebRTC style peer-to-peer
@@ -3514,34 +3502,27 @@ MTY_CertDestroy(MTY_Cert **cert);
 MTY_EXPORT void
 MTY_CertGetFingerprint(MTY_Cert *ctx, char *fingerprint, size_t size);
 
-/// @brief Create an MTY_TLS context for secure data transfer.
-/// @details Currently this interface only supports the client end of the TLS
-///   protocol.
-/// @param proto TLS protocol, currently a choice between stream oriented TLS and
-///   datagram oriented DTLS.
-/// @param cert An MTY_Cert to set during the client handshake. May be NULL for no
+/// @brief Create an MTY_DTLS context for secure data transfer.
+/// @param cert An MTY_Cert to set during the handshake. May be NULL for no
 ///   client cert.
-/// @param host The peer's hostname. This is an important security feature and must
-///   be set for TLS. For DTLS, it may be NULL.
 /// @param peerFingerprint Fingerprint string to verify the peer's cert. May be NULL
 ///   for no cert verification.
-/// @param mtu Specify the UDP maximum transmission unit for DTLS. Ignored for TLS.
+/// @param mtu Specify the UDP maximum transmission unit.
 /// @returns On failure, NULL is returned. Call MTY_GetLog for details.\n\n
-///   The returned MTY_TLS context must be destroyed with MTY_TLSDestroy.
-MTY_EXPORT MTY_TLS *
-MTY_TLSCreate(MTY_TLSProtocol proto, MTY_Cert *cert, const char *host,
-	const char *peerFingerprint, uint32_t mtu);
+///   The returned MTY_DTLS context must be destroyed with MTY_DTLSDestroy.
+MTY_EXPORT MTY_DTLS *
+MTY_DTLSCreate(MTY_Cert *cert, const char *peerFingerprint, uint32_t mtu);
 
-/// @brief Destroy an MTY_TLS context.
-/// @param tls Passed by reference and set to NULL after being destroyed.
+/// @brief Destroy an MTY_DTLS context.
+/// @param dtls Passed by reference and set to NULL after being destroyed.
 MTY_EXPORT void
-MTY_TLSDestroy(MTY_TLS **tls);
+MTY_DTLSDestroy(MTY_DTLS **dtls);
 
-/// @brief Perform the next step in the TLS handshake.
-/// @details This function should be called in a loop, feeding in TLS messages
+/// @brief Perform the next step in the DTLS handshake.
+/// @details This function should be called in a loop, feeding in DTLS messages
 ///   received from the host and sending output data to the host via `writeFunc`.
-/// @param ctx An MTY_TLS context.
-/// @param buf Input buffer with a TLS message received from the host. May be NULL
+/// @param ctx An MTY_DTLS context.
+/// @param buf Input buffer with a DTLS message received from the host. May be NULL
 ///   on the first call to this function to generate the Client Hello.
 /// @param size Size in bytes of `buf`.
 /// @param writeFunc Function called when output data is ready to be sent to the host.
@@ -3550,44 +3531,44 @@ MTY_TLSDestroy(MTY_TLS **tls);
 ///   MTY_ASYNC_CONTINUE means the handshake needs more data to complete.\n\n
 ///   MTY_ASYNC_ERROR means an error has occurred. Call MTY_GetLog for details.
 MTY_EXPORT MTY_Async
-MTY_TLSHandshake(MTY_TLS *ctx, const void *buf, size_t size, MTY_TLSWriteFunc writeFunc,
+MTY_DTLSHandshake(MTY_DTLS *ctx, const void *buf, size_t size, MTY_DTLSWriteFunc writeFunc,
 	void *opaque);
 
-/// @brief Encrypt data with the current TLS context.
-/// @param ctx An MTY_TLS context.
+/// @brief Encrypt data with the current DTLS context.
+/// @param ctx An MTY_DTLS context.
 /// @param in Input plain text data.
 /// @param inSize Size in bytes of `in`.
-/// @param out Output encrypted TLS message.
+/// @param out Output encrypted DTLS message.
 /// @param outSize Size in bytes of `out`.
 /// @param written Set to the number of bytes written to `out`.
 /// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
 MTY_EXPORT bool
-MTY_TLSEncrypt(MTY_TLS *ctx, const void *in, size_t inSize, void *out, size_t outSize,
+MTY_DTLSEncrypt(MTY_DTLS *ctx, const void *in, size_t inSize, void *out, size_t outSize,
 	size_t *written);
 
-/// @brief Decrypt data with the current TLS context.
-/// @param ctx An MTY_TLS context.
-/// @param in Input TLS message.
+/// @brief Decrypt data with the current DTLS context.
+/// @param ctx An MTY_DTLS context.
+/// @param in Input DTLS message.
 /// @param inSize Size in bytes of `in`.
 /// @param out Output decrypted plain text.
 /// @param outSize Size in bytes of `out`.
 /// @param read Set to the number of bytes written to `out`.
 /// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
 MTY_EXPORT bool
-MTY_TLSDecrypt(MTY_TLS *ctx, const void *in, size_t inSize, void *out, size_t outSize,
+MTY_DTLSDecrypt(MTY_DTLS *ctx, const void *in, size_t inSize, void *out, size_t outSize,
 	size_t *read);
 
-/// @brief Check if a buffer is a TLS 1.2 or DTLS 1.2 handshake message.
+/// @brief Check if a buffer is a DTLS 1.2 handshake message.
 /// @param buf Input buffer.
 /// @param size Size in bytes of `buf`.
 MTY_EXPORT bool
-MTY_IsTLSHandshake(const void *buf, size_t size);
+MTY_IsDTLSHandshake(const void *buf, size_t size);
 
-/// @brief Check if a buffer is a TLS 1.2 or DTLS 1.2 application data message.
+/// @brief Check if a buffer is a DTLS 1.2 application data message.
 /// @param buf Input buffer.
 /// @param size Size in bytes of `buf`.
 MTY_EXPORT bool
-MTY_IsTLSApplicationData(const void *buf, size_t size);
+MTY_IsDTLSApplicationData(const void *buf, size_t size);
 
 
 //- #module Time

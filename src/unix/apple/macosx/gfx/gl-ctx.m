@@ -48,7 +48,7 @@ struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
 	[ctx->gl makeCurrentContext];
 
 	GLint interval = vsync ? 1 : 0;
-	[ctx->gl setValues:&interval forParameter:NSOpenGLCPSwapInterval];
+	[ctx->gl setValues:&interval forParameter:NSOpenGLContextParameterSwapInterval];
 
 	gl_ctx_mt_block(^{
 		[ctx->gl setView:ctx->window.contentView];

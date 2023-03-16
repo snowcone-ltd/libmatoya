@@ -36,9 +36,12 @@ WEBVIEW_OBJ = src\windows\webview.obj
 
 OBJS = \
 	src\app.obj \
+	src\async.obj \
 	src\crypto.obj \
+	src\dtls.obj \
 	src\file.obj \
 	src\hash.obj \
+	src\http.obj \
 	src\image.obj \
 	src\json.obj \
 	src\list.obj \
@@ -50,7 +53,6 @@ OBJS = \
 	src\system.obj \
 	src\thread.obj \
 	src\tlocal.obj \
-	src\tls.obj \
 	src\version.obj \
 	src\gfx\gl\gl.obj \
 	src\gfx\gl\gl-ui.obj \
@@ -59,23 +61,21 @@ OBJS = \
 	src\gfx\vk\vk-ui.obj \
 	src\hid\hid.obj \
 	src\hid\utils.obj \
-	src\net\async.obj \
-	src\net\dns.obj \
-	src\net\http-parse.obj \
-	src\net\http-proxy.obj \
 	src\windows\aes-gcm.obj \
 	src\windows\appw.obj \
 	src\windows\audio.obj \
 	src\windows\cryptow.obj \
 	src\windows\dialog.obj \
+	src\windows\dtlsw.obj \
 	src\windows\filew.obj \
 	src\windows\hidw.obj \
 	src\windows\imagew.obj \
 	src\windows\memoryw.obj \
+	src\windows\request.obj \
 	src\windows\systemw.obj \
 	src\windows\threadw.obj \
 	src\windows\time.obj \
-	src\windows\tlsw.obj \
+	src\windows\ws.obj \
 	src\windows\gfx\d3d12.obj \
 	src\windows\gfx\d3d12-ctx.obj \
 	src\windows\gfx\d3d12-ui.obj \
@@ -86,8 +86,6 @@ OBJS = \
 	src\windows\gfx\d3d9-ctx.obj \
 	src\windows\gfx\d3d9-ui.obj \
 	src\windows\gfx\gl-ctx.obj \
-	src\windows\net\request.obj \
-	src\windows\net\ws.obj \
 	$(WEBVIEW_OBJ)
 
 SHADERS = \

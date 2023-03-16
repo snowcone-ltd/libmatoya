@@ -10,8 +10,7 @@
 #include <windows.h>
 #include <winhttp.h>
 
-#include "net/http-parse.h"
-#include "net/http-proxy.h"
+#include "http.h"
 
 #define MTY_USER_AGENTW L"libmatoya/v" MTY_VERSION_STRINGW
 

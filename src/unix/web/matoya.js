@@ -53,17 +53,8 @@ function mty_mem_view() {
 	return new DataView(mty_mem());
 }
 
-function mty_char_to_js(buf) {
-	let str = '';
-
-	for (let x = 0; x < 0x7FFFFFFF && x < buf.length; x++) {
-		if (buf[x] == 0)
-			break;
-
-		str += String.fromCharCode(buf[x]);
-	}
-
-	return str;
+function mty_buf_to_js_str(buf) {
+	return (new TextDecoder()).decode(buf);
 }
 
 function mty_b64_to_buf(str) {
@@ -76,6 +67,19 @@ function mty_buf_to_b64(buf) {
 		str += String.fromCharCode(buf[x]);
 
 	return btoa(str);
+}
+
+function mty_copy_str(ptr, buf) {
+	const heap = new Uint8Array(mty_mem(), ptr);
+	heap.set(buf);
+	heap[buf.length] = 0;
+}
+
+function mty_strlen(buf) {
+	let len = 0;
+	for (; len < 0x7FFFFFFF && buf[len] != 0; len++);
+
+	return len;
 }
 
 
@@ -127,18 +131,27 @@ function MTY_Memcpy(cptr, abuffer) {
 }
 
 function MTY_StrToJS(ptr) {
-	return mty_char_to_js(new Uint8Array(mty_mem(), ptr));
+	const len = mty_strlen(new Uint8Array(mty_mem(), ptr));
+	const slice = new Uint8Array(mty_mem(), ptr, len)
+
+	return (new TextDecoder()).decode(slice);
 }
 
 function MTY_StrToC(js_str, ptr, size) {
-	const view = new Uint8Array(mty_mem(), ptr);
+	if (size == 0)
+		return;
 
-	let len = 0;
-	for (; len < js_str.length && len < size - 1; len++)
-		view[len] = js_str.charCodeAt(len);
+	const buf = (new TextEncoder()).encode(js_str);
+	const copy_size = buf.length < size ? buf.length : size - 1;
+	mty_copy_str(ptr, new Uint8Array(buf, 0, copy_size));
 
-	// '\0' character
-	view[len] = 0;
+	return ptr;
+}
+
+function MTY_StrToCD(js_str) {
+	const buf = (new TextEncoder()).encode(js_str);
+	const ptr = MTY_Alloc(buf.length);
+	mty_copy_str(ptr, buf);
 
 	return ptr;
 }
@@ -147,9 +160,6 @@ function MTY_StrToC(js_str, ptr, size) {
 // <unistd.h> stubs
 
 const MTY_UNISTD_API = {
-	gethostname: function (cbuf, size) {
-		MTY_StrToC(location.hostname, cbuf, size);
-	},
 	flock: function (fd, flags) {
 		return 0;
 	},
@@ -802,8 +812,8 @@ function mty_poll_gamepads(app, controller) {
 			let buttons = 0;
 
 			if (gp.buttons) {
-				lt = gp.buttons[6].value;
-				rt = gp.buttons[7].value;
+				if (gp.buttons[6]) lt = gp.buttons[6].value;
+				if (gp.buttons[7]) rt = gp.buttons[7].value;
 
 				for (let i = 0; i < gp.buttons.length && i < 32; i++)
 					if (gp.buttons[i].pressed)
@@ -912,16 +922,15 @@ const MTY_WEB_API = {
 	web_show_cursor: function (show) {
 		MTY.gl.canvas.style.cursor = show ? '': 'none';
 	},
+	web_get_hostname: function () {
+		return MTY_StrToCD(location.hostname);
+	},
 	web_get_clipboard: function () {
 		MTY.clip.focus();
 		MTY.clip.select();
 		document.execCommand('paste');
 
-		const size = MTY.clip.value.length * 4;
-		const text_c = MTY_Alloc(size);
-		MTY_StrToC(MTY.clip.value, text_c, size);
-
-		return text_c;
+		return MTY_StrToCD(MTY.clip.value);
 	},
 	web_set_clipboard: function (text_c) {
 		MTY.clip.value = MTY_StrToJS(text_c);
@@ -1297,17 +1306,22 @@ const MTY_WASI_API = {
 
 		if (finfo && localStorage[finfo.path]) {
 			const full_buf = mty_b64_to_buf(localStorage[finfo.path]);
+			let total = 0;
 
-			let ptr = iovs;
-			let cbuf = MTY_GetUint32(ptr);
-			let cbuf_len = MTY_GetUint32(ptr + 4);
-			let len = cbuf_len < full_buf.length ? cbuf_len : full_buf.length;
+			for (let x = 0; x < iovs_len; x++) {
+				let ptr = iovs + x * 8;
+				let cbuf = MTY_GetUint32(ptr);
+				let cbuf_len = MTY_GetUint32(ptr + 4);
+				let len = cbuf_len < full_buf.length - total ? cbuf_len : full_buf.length - total;
 
-			let view = new Uint8Array(mty_mem(), cbuf, cbuf_len);
-			let slice = new Uint8Array(full_buf.buffer, 0, len);
-			view.set(slice);
+				let view = new Uint8Array(mty_mem(), cbuf, cbuf_len);
+				let slice = new Uint8Array(full_buf.buffer, total, len);
+				view.set(slice);
 
-			MTY_SetUint32(nread, len);
+				total += len;
+			}
+
+			MTY_SetUint32(nread, total);
 		}
 
 		return 0;
@@ -1334,13 +1348,13 @@ const MTY_WASI_API = {
 
 		// stdout
 		if (fd == 1) {
-			const str = mty_char_to_js(full_buf);
+			const str = mty_buf_to_js_str(full_buf);
 			if (str != '\n')
 				console.log(str);
 
 		// stderr
 		} else if (fd == 2) {
-			const str = mty_char_to_js(full_buf)
+			const str = mty_buf_to_js_str(full_buf)
 			if (str != '\n')
 				console.error(str);
 
@@ -1368,6 +1382,7 @@ const MTY_WASI_API = {
 		return 0;
 	},
 	poll_oneoff: function (sin, sout, nsubscriptions, nevents) {
+		MTY_SetUint32(sout + 8, 0);
 		return 0;
 	},
 	proc_exit: function () {

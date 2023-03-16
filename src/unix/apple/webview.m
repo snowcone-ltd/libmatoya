@@ -6,6 +6,7 @@
 
 #include <WebKit/WebKit.h>
 
+#include "objc.h"
 #include "web/keymap.h"
 
 struct webview {
@@ -22,86 +23,118 @@ struct webview {
 	bool hidden_during_keydown;
 };
 
-@interface MTY_WebView : WKWebView
-@end
 
-@implementation MTY_WebView
-	- (void)noResponderFor:(SEL)eventSelector
-	{
+// Class: Webview
+
+static void webview_noResponderFor(id self, SEL _cmd, SEL eventSelector)
+{
+}
+
+static Class webview_class(void)
+{
+	Class cls = objc_getClass(WEBVIEW_CLASS_NAME);
+	if (cls)
+		return cls;
+
+	cls = OBJC_ALLOCATE("WKWebView", WEBVIEW_CLASS_NAME);
+
+	// Overrides
+	OBJC_OVERRIDE(cls, @selector(noResponderFor:), webview_noResponderFor);
+
+	objc_registerClassPair(cls);
+
+	return cls;
+}
+
+
+// Class: MsgHandler
+
+static void msg_handler_userContentController_didReceiveScriptMessage(id self, SEL _cmd,
+	WKUserContentController *userContentController, WKScriptMessage *message)
+{
+	struct webview *ctx = OBJC_CTX();
+
+	const char *str = [message.body UTF8String];
+	MTY_JSON *j = NULL;
+
+	switch (str[0]) {
+		// MTY_EVENT_WEBVIEW_READY
+		case 'R':
+			ctx->ready = true;
+
+			// Send any queued messages before the WebView became ready
+			for (char *msg = NULL; MTY_QueuePopPtr(ctx->pushq, 0, (void **) &msg, NULL);) {
+				mty_webview_send_text(ctx, msg);
+				MTY_Free(msg);
+			}
+
+			ctx->ready_func(ctx->app, ctx->window);
+			break;
+
+		// MTY_EVENT_WEBVIEW_TEXT
+		case 'T':
+			ctx->text_func(ctx->app, ctx->window, str + 1);
+			break;
+
+		// MTY_EVENT_KEY
+		case 'D':
+		case 'U':
+			if (!ctx->passthrough)
+				break;
+
+			j = MTY_JSONParse(str + 1);
+			if (!j)
+				break;
+
+			const char *code = MTY_JSONObjGetStringPtr(j, "code");
+			if (!code)
+				break;
+
+			uint32_t jmods = 0;
+			if (!MTY_JSONObjGetInt(j, "mods", (int32_t *) &jmods))
+				break;
+
+			MTY_Key key = (MTY_Key) (uintptr_t) MTY_HashGet(ctx->keys, code) & 0xFFFF;
+			if (key == MTY_KEY_NONE)
+				break;
+
+			MTY_Mod mods = web_keymap_mods(jmods);
+
+			bool visible = mty_webview_is_visible(ctx);
+
+			ctx->key_func(ctx->app, ctx->window, str[0] == 'D', key, mods);
+
+			ctx->hidden_during_keydown = visible && !mty_webview_is_visible(ctx);
+			break;
 	}
-@end
 
-@interface WebViewMessageHandler : NSObject <WKScriptMessageHandler>
-	@property struct webview *webview;
-@end
+	MTY_JSONDestroy(&j);
+}
 
-@implementation WebViewMessageHandler
-	- (void)userContentController:(WKUserContentController *)userContentController
-		didReceiveScriptMessage:(WKScriptMessage *)message
-	{
-		struct webview *ctx = self.webview;
+static Class msg_handler_class(void)
+{
+	Class cls = objc_getClass(MSG_HANDLER_CLASS_NAME);
+	if (cls)
+		return cls;
 
-		const char *str = [message.body UTF8String];
-		MTY_JSON *j = NULL;
+	cls = OBJC_ALLOCATE("NSObject", MSG_HANDLER_CLASS_NAME);
 
-		switch (str[0]) {
-			// MTY_EVENT_WEBVIEW_READY
-			case 'R':
-				ctx->ready = true;
+	// WKScriptMessageHandler
+	Protocol *proto = OBJC_PROTOCOL(cls, @protocol(WKScriptMessageHandler));
+	if (proto)
+		OBJC_POVERRIDE(cls, proto, YES, @selector(userContentController:didReceiveScriptMessage:),
+			msg_handler_userContentController_didReceiveScriptMessage);
 
-				// Send any queued messages before the WebView became ready
-				for (char *msg = NULL; MTY_QueuePopPtr(ctx->pushq, 0, (void **) &msg, NULL);) {
-					mty_webview_send_text(ctx, msg);
-					MTY_Free(msg);
-				}
+	objc_registerClassPair(cls);
 
-				ctx->ready_func(ctx->app, ctx->window);
-				break;
+	return cls;
+}
 
-			// MTY_EVENT_WEBVIEW_TEXT
-			case 'T':
-				ctx->text_func(ctx->app, ctx->window, str + 1);
-				break;
 
-			// MTY_EVENT_KEY
-			case 'D':
-			case 'U':
-				if (!ctx->passthrough)
-					break;
-
-				j = MTY_JSONParse(str + 1);
-				if (!j)
-					break;
-
-				const char *code = MTY_JSONObjGetStringPtr(j, "code");
-				if (!code)
-					break;
-
-				uint32_t jmods = 0;
-				if (!MTY_JSONObjGetInt(j, "mods", (int32_t *) &jmods))
-					break;
-
-				MTY_Key key = (MTY_Key) (uintptr_t) MTY_HashGet(ctx->keys, code) & 0xFFFF;
-				if (key == MTY_KEY_NONE)
-					break;
-
-				MTY_Mod mods = web_keymap_mods(jmods);
-
-				bool visible = mty_webview_is_visible(ctx);
-
-				ctx->key_func(ctx->app, ctx->window, str[0] == 'D', key, mods);
-
-				ctx->hidden_during_keydown = visible && !mty_webview_is_visible(ctx);
-				break;
-		}
-
-		MTY_JSONDestroy(&j);
-	}
-@end
+// Public
 
 struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *dir,
-	const char *source, MTY_WebViewFlag flags, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func,
-	WEBVIEW_KEY key_func)
+	bool debug, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func, WEBVIEW_KEY key_func)
 {
 	struct webview *ctx = MTY_Alloc(1, sizeof(struct webview));
 
@@ -123,20 +156,19 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 		UIWindow *view = (__bridge UIWindow *) MTY_WindowGetNative(app, window);
 	#endif
 
-	ctx->webview = (WKWebView *) [[MTY_WebView alloc] initWithFrame:view.frame];
+	ctx->webview = [OBJC_NEW(webview_class(), NULL) initWithFrame:view.frame];
 	[view addSubview:ctx->webview];
 
 	ctx->webview.hidden = YES;
 
 	// Settings
-	NSNumber *debug = flags & MTY_WEBVIEW_FLAG_DEBUG ? @YES : @NO;
+	NSNumber *ndebug = debug ? @YES : @NO;
 
 	[ctx->webview setValue:@NO forKey:@"drawsBackground"];
-	[ctx->webview.configuration.preferences setValue:debug forKey:@"developerExtrasEnabled"];
+	[ctx->webview.configuration.preferences setValue:ndebug forKey:@"developerExtrasEnabled"];
 
 	// Message handler
-	WebViewMessageHandler *handler = [WebViewMessageHandler alloc];
-	handler.webview = ctx;
+	NSObject <WKScriptMessageHandler> *handler = OBJC_NEW(msg_handler_class(), ctx);
 
 	[ctx->webview.configuration.userContentController addScriptMessageHandler:handler name:@"native"];
 
@@ -158,10 +190,10 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 			@"if (window.MTY_NativeListener) {"
 				@"__MTY_WEBVIEW = b64 => {window.MTY_NativeListener(atob(b64));};"
 
-				@"for (let msg = __MTY_MSGS.shift(); msg; msg = MTY_MSGS.shift())"
+				@"for (let msg = __MTY_MSGS.shift(); msg; msg = __MTY_MSGS.shift())"
 					@"__MTY_WEBVIEW(msg);"
 
-				@"clearInverval(__MTY_INTERVAL);"
+				@"clearInterval(__MTY_INTERVAL);"
 			@"}"
 		@"}, 100);"
 
@@ -191,19 +223,6 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 
 	[ctx->webview.configuration.userContentController addUserScript:script];
 
-	// Load source
-	NSString *osource = [NSString stringWithUTF8String:source];
-
-	if (flags & MTY_WEBVIEW_FLAG_URL) {
-		NSURL *url = [[NSURL alloc] initWithString:osource];
-
-		NSURLRequest *req = [[NSURLRequest alloc] initWithURL:url];
-		[ctx->webview loadRequest:req];
-
-	} else {
-		[ctx->webview loadHTMLString:osource baseURL:nil];
-	}
-
 	return ctx;
 }
 
@@ -227,6 +246,21 @@ void mty_webview_destroy(struct webview **webview)
 
 	MTY_Free(ctx);
 	*webview = NULL;
+}
+
+void mty_webview_navigate(struct webview *ctx, const char *source, bool url)
+{
+	NSString *osource = [NSString stringWithUTF8String:source];
+
+	if (url) {
+		NSURL *ourl = [[NSURL alloc] initWithString:osource];
+
+		NSURLRequest *req = [[NSURLRequest alloc] initWithURL:ourl];
+		[ctx->webview loadRequest:req];
+
+	} else {
+		[ctx->webview loadHTMLString:osource baseURL:nil];
+	}
 }
 
 void mty_webview_show(struct webview *ctx, bool show)
