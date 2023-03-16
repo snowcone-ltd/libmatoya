@@ -162,6 +162,7 @@ struct hid *mty_hid_create(HID_CONNECT connect, HID_DISCONNECT disconnect, HID_R
 	IOHIDManagerSetDeviceMatchingMultiple(ctx->mgr, matches);
 
 	CFRelease(matches);
+	CFRelease(d3);
 	CFRelease(d2);
 	CFRelease(d1);
 	CFRelease(d0);

@@ -1200,7 +1200,7 @@ static bool app_update_mod_flags(MTY_App *ctx, MTY_Key keycode, bool key_down)
 		ctx->mod_state |= mod_flags;
 
 	} else {
-		ctx->mod_state =  ctx->mod_state & ~mod_flags;
+		ctx->mod_state = ctx->mod_state & ~mod_flags;
 	}
 
 	return true;
