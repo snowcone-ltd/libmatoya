@@ -489,6 +489,7 @@ static void json_delete_item(MTY_JSON *j)
 				break;
 			case MTY_JSON_ARRAY: {
 				struct json_array *a = &j->array;
+				MTY_JSON *top = j;
 
 				for (j = NULL; !j && a->index < a->len; a->index++)
 					j = a->values[a->index];
@@ -496,6 +497,7 @@ static void json_delete_item(MTY_JSON *j)
 				if (j)
 					continue;
 
+				j = top;
 				MTY_Free(a->values);
 				break;
 			}

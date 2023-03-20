@@ -138,7 +138,11 @@ struct hid *mty_hid_create(HID_CONNECT connect, HID_DISCONNECT disconnect, HID_R
 
 	CFArrayRef matches = CFArrayCreate(kCFAllocatorDefault, (const void **) dict_list, 3, NULL);
 	IOHIDManagerSetDeviceMatchingMultiple(ctx->mgr, matches);
+
 	CFRelease(matches);
+	CFRelease(d2);
+	CFRelease(d1);
+	CFRelease(d0);
 
 	IOHIDManagerScheduleWithRunLoop(ctx->mgr, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
 
