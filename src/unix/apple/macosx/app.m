@@ -40,7 +40,7 @@ struct MTY_App {
 	MTY_Hash *hotkey;
 	MTY_Hash *deduper;
 	MTY_DetachState detach;
-	MTY_Mod mod_state;
+	MTY_Mod hid_kb_mod;
 	MTY_Cursor scursor;
 	void *opaque;
 	void *kb_mode;
@@ -1178,68 +1178,35 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 	}
 }
 
-static bool app_update_mod_flags(MTY_App *ctx, MTY_Key keycode, bool key_down)
-{
-	MTY_Mod mod_flags = 0;
-	switch (keycode) {
-		case MTY_KEY_CAPS:      mod_flags = MTY_MOD_CAPS;   break;
-		case MTY_KEY_NUM_LOCK:  mod_flags = MTY_MOD_NUM;    break;
-		case MTY_KEY_LSHIFT:    mod_flags = MTY_MOD_LSHIFT; break;
-		case MTY_KEY_LCTRL:     mod_flags = MTY_MOD_LCTRL;  break;
-		case MTY_KEY_LALT:      mod_flags = MTY_MOD_LALT;   break;
-		case MTY_KEY_LWIN:      mod_flags = MTY_MOD_LWIN;   break;
-		case MTY_KEY_RSHIFT:    mod_flags = MTY_MOD_RSHIFT; break;
-		case MTY_KEY_RCTRL:     mod_flags = MTY_MOD_RCTRL;  break;
-		case MTY_KEY_RALT:      mod_flags = MTY_MOD_RALT;   break;
-		case MTY_KEY_RWIN:      mod_flags = MTY_MOD_RWIN;   break;
-		default:
-			return false;
-	}
-
-	if (key_down) {
-		ctx->mod_state |= mod_flags;
-
-	} else {
-		ctx->mod_state = ctx->mod_state & ~mod_flags;
-	}
-
-	return true;
-
-}
-
 static void app_hid_key_value(uint32_t usage, bool down, void *opaque)
 {
 	MTY_App *ctx = opaque;
 
-	MTY_Event evt = {0};
-	evt.type = MTY_EVENT_KEY;
-	evt.window = 0;
-	evt.key.key = keymap_usage_to_key(usage);
-	bool is_mod = app_update_mod_flags(ctx, evt.key.key, down);
+	MTY_Key key = keymap_usage_to_key(usage);
+	if (key == MTY_KEY_NONE)
+		return;
 
-	evt.key.mod = ctx->mod_state;
-	evt.key.pressed = down;
+	if (!MTY_AppIsActive(ctx))
+		return;
 
-	MTY_Mod mod = evt.key.mod & 0xFF;
+	MTY_Mod mod = keymap_usage_to_mod(usage);
 
-	uint32_t hotkey = (uintptr_t) MTY_HashGetInt(ctx->hotkey, (mod << 16) | evt.key.key);
+	if (down) {
+		ctx->hid_kb_mod |= mod;
 
-	// MacOS misses a lot of key-ups on hotkeys and other special keys, but does pretty well with
-	// key-downs, so we use low level HID events for ups, and normal window events for downs so as
-	// to get OS behavior like key repeating.
-	if ((is_mod || !evt.key.pressed) && MTY_AppIsActive(ctx) && evt.key.key != MTY_KEY_NONE) {
-		if (hotkey != 0) {
-			if (evt.key.pressed) {
-				evt.type = MTY_EVENT_HOTKEY;
-				evt.hotkey = hotkey;
-
-				ctx->event_func(&evt, ctx->opaque);
-			}
-
-		} else {
-			ctx->event_func(&evt, ctx->opaque);
-		}
+	} else {
+		ctx->hid_kb_mod &= ~mod;
 	}
+
+	MTY_Event evt = {
+		.type = MTY_EVENT_KEY,
+		.key.key = key,
+		.key.mod = ctx->hid_kb_mod,
+		.key.pressed = down,
+	};
+
+	mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
+	ctx->event_func(&evt, ctx->opaque);
 }
 
 static void app_pump_events(MTY_App *ctx, NSDate *until)

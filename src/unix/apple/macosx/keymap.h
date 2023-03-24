@@ -251,6 +251,27 @@ static const char *keymap_keycode_to_text(uint16_t kc)
 	return NULL;
 }
 
+
+// HID
+
+static MTY_Mod keymap_usage_to_mod(uint32_t usage)
+{
+	switch (usage) {
+		case kHIDUsage_KeyboardCapsLock:     return MTY_MOD_CAPS;
+		case kHIDUsage_KeypadNumLock:        return MTY_MOD_NUM;
+		case kHIDUsage_KeyboardLeftShift:    return MTY_MOD_LSHIFT;
+		case kHIDUsage_KeyboardLeftControl:  return MTY_MOD_LCTRL;
+		case kHIDUsage_KeyboardLeftAlt:      return MTY_MOD_LALT;
+		case kHIDUsage_KeyboardLeftGUI:      return MTY_MOD_LWIN;
+		case kHIDUsage_KeyboardRightShift:   return MTY_MOD_RSHIFT;
+		case kHIDUsage_KeyboardRightControl: return MTY_MOD_RCTRL;
+		case kHIDUsage_KeyboardRightAlt:     return MTY_MOD_RALT;
+		case kHIDUsage_KeyboardRightGUI:     return MTY_MOD_RWIN;
+	}
+
+	return MTY_MOD_NONE;
+}
+
 static MTY_Key keymap_usage_to_key(uint32_t usage)
 {
 	switch (usage) {
