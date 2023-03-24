@@ -1178,7 +1178,7 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 	}
 }
 
-static void app_hid_key_value(uint32_t usage, bool down, void *opaque)
+static void app_hid_key(uint32_t usage, bool down, void *opaque)
 {
 	MTY_App *ctx = opaque;
 
@@ -1234,7 +1234,8 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	ctx->cursor_showing = true;
 	ctx->cont = true;
 
-	ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report, app_hid_key_value, ctx);
+	ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report,
+		mty_app_using_hid_for_key_events() ? app_hid_key : NULL, ctx);
 
 	ctx->hotkey = MTY_HashCreate(0);
 	ctx->deduper = MTY_HashCreate(0);

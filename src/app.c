@@ -508,3 +508,18 @@ void MTY_PrintEvent(const MTY_Event *evt)
 		}
 	}
 }
+
+
+// Misc
+
+static bool APP_HID_KEY_EVENTS;
+
+void MTY_AppUseHIDForKeyEvents(void)
+{
+	APP_HID_KEY_EVENTS = true;
+}
+
+bool mty_app_using_hid_for_key_events(void)
+{
+	return APP_HID_KEY_EVENTS;
+}
