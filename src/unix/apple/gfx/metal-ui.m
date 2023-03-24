@@ -206,7 +206,7 @@ void *mty_metal_ui_create_texture(struct gfx_ui *gfx_ui, MTY_Device *device, con
 
 	[texture replaceRegion:MTLRegionMake2D(0, 0, width, height) mipmapLevel:0 withBytes:rgba bytesPerRow:width * 4];
 
-	return (void *) CFBridgingRetain(texture);
+	return (__bridge_retained void *) texture;
 }
 
 void mty_metal_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, MTY_Device *device)
@@ -214,8 +214,8 @@ void mty_metal_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, MTY_Dev
 	if (!texture || !*texture)
 		return;
 
-	id<MTLTexture> mtexture = (id<MTLTexture>) CFBridgingRelease(*texture);
-	mtexture = nil;
+	id<MTLTexture> mtexture = (__bridge_transfer id<MTLTexture>) *texture;
+	memset(&mtexture, 0, sizeof(id<MTLTexture>));
 
 	*texture = NULL;
 }
