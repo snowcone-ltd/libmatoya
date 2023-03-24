@@ -7,6 +7,9 @@
 #include <IOKit/hid/IOHIDManager.h>
 #include <IOKit/hid/IOHIDKeys.h>
 
+#define HID_DEV_GET_USAGE(dev) \
+	hid_device_get_prop_int(dev, CFSTR(kIOHIDDeviceUsageKey))
+
 struct hid {
 	uint32_t id;
 	MTY_Hash *devices;
@@ -15,7 +18,7 @@ struct hid {
 	HID_CONNECT connect;
 	HID_DISCONNECT disconnect;
 	HID_REPORT report;
-	HID_KEY_VALUE key_value;
+	HID_KEY key;
 	void *opaque;
 };
 
@@ -24,7 +27,6 @@ struct hid_dev {
 	void *state;
 	uint32_t id;
 	uint32_t input_size;
-	uint32_t usage;
 	uint16_t vid;
 	uint16_t pid;
 };
@@ -65,25 +67,12 @@ static void hid_device_destroy(void *hdevice)
 	MTY_Free(ctx);
 }
 
-static void hid_value(void *context, IOReturn result, void *sender, IOHIDValueRef value)
-{
-	struct hid *ctx = context;
-
-	IOHIDElementRef element = IOHIDValueGetElement(value);
-	// XXX: Note that media keys (play, pause, etc) have a usage of 0x0C aka kHIDPage_Consumer
-	// And the FN button is usage page 0xFF usage 0x03.
-	if (IOHIDElementGetUsagePage(element) == kHIDPage_KeyboardOrKeypad) {
-		uint32_t usage = IOHIDElementGetUsage(element);
-
-		uint32_t key_down = IOHIDValueGetIntegerValue(value);
-		if (usage > 3) // Less than 3 are error codes
-			ctx->key_value(usage, key_down, ctx->opaque);
-	}
-}
-
 static void hid_report(void *context, IOReturn result, void *sender, IOHIDReportType type,
 	uint32_t reportID, uint8_t *report, CFIndex reportLength)
 {
+	if (HID_DEV_GET_USAGE(sender) == kHIDUsage_GD_Keyboard)
+		return;
+
 	struct hid *ctx = context;
 
 	struct hid_dev *dev = MTY_HashGetInt(ctx->devices, (intptr_t) sender);
@@ -92,17 +81,18 @@ static void hid_report(void *context, IOReturn result, void *sender, IOHIDReport
 		dev->id = ++ctx->id;
 		MTY_HashSetInt(ctx->devices, (intptr_t) sender, dev);
 		MTY_HashSetInt(ctx->devices_rev, dev->id, dev);
-		IOHIDDeviceRegisterInputValueCallback(dev->device, hid_value, ctx);
-		if (dev->usage != kHIDUsage_GD_Keyboard)
-			ctx->connect(dev, ctx->opaque);
+
+		ctx->connect(dev, ctx->opaque);
 	}
 
-	if (dev->usage != kHIDUsage_GD_Keyboard)
-		ctx->report(dev, report, reportLength, ctx->opaque);
+	ctx->report(dev, report, reportLength, ctx->opaque);
 }
 
 static void hid_disconnect(void *context, IOReturn result, void *sender, IOHIDDeviceRef device)
 {
+	if (HID_DEV_GET_USAGE(device) == kHIDUsage_GD_Keyboard)
+		return;
+
 	struct hid *ctx = context;
 
 	struct hid_dev *dev = MTY_HashPopInt(ctx->devices, (intptr_t) device);
@@ -112,6 +102,29 @@ static void hid_disconnect(void *context, IOReturn result, void *sender, IOHIDDe
 		MTY_HashPopInt(ctx->devices_rev, dev->id);
 		hid_device_destroy(dev);
 	}
+}
+
+static void hid_key(void *context, IOReturn result, void *sender, IOHIDValueRef value)
+{
+	if (HID_DEV_GET_USAGE(sender) != kHIDUsage_GD_Keyboard)
+		return;
+
+	struct hid *ctx = context;
+
+	IOHIDElementRef element = IOHIDValueGetElement(value);
+
+	// Note that media keys (play, pause, etc) have a usage of 0x0C aka kHIDPage_Consumer
+	// And the FN button is usage page 0xFF usage 0x03.
+	if (IOHIDElementGetUsagePage(element) != kHIDPage_KeyboardOrKeypad)
+		return;
+
+	// Less than 0x04 are error codes
+	uint32_t key = IOHIDElementGetUsage(element);
+	if (key < kHIDUsage_KeyboardA)
+		return;
+
+	bool down = IOHIDValueGetIntegerValue(value);
+	ctx->key(key, down, ctx->opaque);
 }
 
 static void hid_dict_set_int(CFMutableDictionaryRef dict, CFStringRef key, int32_t val)
@@ -132,7 +145,7 @@ static CFMutableDictionaryRef hid_match_dict(int32_t usage_page, int32_t usage)
 	return dict;
 }
 
-struct hid *mty_hid_create(HID_CONNECT connect, HID_DISCONNECT disconnect, HID_REPORT report, HID_KEY_VALUE key_value, void *opaque)
+struct hid *mty_hid_create(HID_CONNECT connect, HID_DISCONNECT disconnect, HID_REPORT report, HID_KEY key, void *opaque)
 {
 	bool r = true;
 
@@ -140,7 +153,7 @@ struct hid *mty_hid_create(HID_CONNECT connect, HID_DISCONNECT disconnect, HID_R
 	ctx->connect = connect;
 	ctx->disconnect = disconnect;
 	ctx->report = report;
-	ctx->key_value = key_value;
+	ctx->key = key;
 	ctx->opaque = opaque;
 	ctx->devices = MTY_HashCreate(0);
 	ctx->devices_rev = MTY_HashCreate(0);
@@ -158,7 +171,7 @@ struct hid *mty_hid_create(HID_CONNECT connect, HID_DISCONNECT disconnect, HID_R
 	CFMutableDictionaryRef d3 = hid_match_dict(kHIDPage_GenericDesktop, kHIDUsage_GD_Keyboard);
 	CFMutableDictionaryRef dict_list[] = {d0, d1, d2, d3};
 
-	CFArrayRef matches = CFArrayCreate(kCFAllocatorDefault, (const void **) dict_list, 4, NULL);
+	CFArrayRef matches = CFArrayCreate(kCFAllocatorDefault, (const void **) dict_list, key ? 4 : 3, NULL);
 	IOHIDManagerSetDeviceMatchingMultiple(ctx->mgr, matches);
 
 	CFRelease(matches);
@@ -178,6 +191,9 @@ struct hid *mty_hid_create(HID_CONNECT connect, HID_DISCONNECT disconnect, HID_R
 
 	IOHIDManagerRegisterInputReportCallback(ctx->mgr, hid_report, ctx);
 	IOHIDManagerRegisterDeviceRemovalCallback(ctx->mgr, hid_disconnect, ctx);
+
+	if (key)
+		IOHIDManagerRegisterInputValueCallback(ctx->mgr, hid_key, ctx);
 
 	except:
 

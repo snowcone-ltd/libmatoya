@@ -1207,14 +1207,14 @@ static bool app_update_mod_flags(MTY_App *ctx, MTY_Key keycode, bool key_down)
 
 }
 
-static void app_hid_key_value(uint32_t usage, bool down, void *opaque)
+static void app_hid_key_value(uint32_t key, bool down, void *opaque)
 {
 	MTY_App *ctx = opaque;
 
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_KEY;
 	evt.window = 0;
-	evt.key.key = keymap_usage_to_key(usage);
+	evt.key.key = keymap_usage_to_key(key);
 	bool is_mod = app_update_mod_flags(ctx, evt.key.key, down);
 
 	evt.key.mod = ctx->mod_state;
@@ -1222,7 +1222,7 @@ static void app_hid_key_value(uint32_t usage, bool down, void *opaque)
 
 	MTY_Mod mod = evt.key.mod & 0xFF;
 
-	uint32_t hotkey = (uint32_t) MTY_HashGetInt(ctx->hotkey, (mod << 16) | evt.key.key);
+	uint32_t hotkey = (uintptr_t) MTY_HashGetInt(ctx->hotkey, (mod << 16) | evt.key.key);
 
 	// MacOS misses a lot of key-ups on hotkeys and other special keys, but does pretty well with
 	// key-downs, so we use low level HID events for ups, and normal window events for downs so as
