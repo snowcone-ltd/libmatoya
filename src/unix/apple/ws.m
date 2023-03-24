@@ -303,13 +303,16 @@ bool MTY_WebSocketWrite(MTY_WebSocket *ctx, const char *msg)
 	[ctx->task sendMessage:ws_msg completionHandler:^(NSError *e) {
 		if (e) {
 			r = false;
-			MTY_Log("NSURLSessionWebSocketTask:sendMessage failed with error %d", (int32_t) [e code]);
+			MTY_Log("NSURLSessionWebSocketTask:sendMessage failed with error %ld", [e code]);
 		}
 
 		MTY_WaitableSignal(ctx->write);
 	}];
 
-	return MTY_WaitableWait(ctx->write, 1000);
+	if (!MTY_WaitableWait(ctx->write, 1000))
+		return false;
+
+	return r;
 }
 
 uint16_t MTY_WebSocketGetCloseCode(MTY_WebSocket *ctx)

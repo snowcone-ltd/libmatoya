@@ -79,14 +79,12 @@ static bool ps5_state(struct hid_dev *device, const void *data, size_t dsize, MT
 				b += 4;
 				a += 1;
 				t -= 2;
-				dsize -= 2;
 			}
 
 		// Wired (Full)
 		} else {
 			b += 3;
 			t -= 3;
-			dsize -= 3;
 		}
 
 		c->type = MTY_CTYPE_PS5;
