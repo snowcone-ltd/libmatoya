@@ -1207,14 +1207,14 @@ static bool app_update_mod_flags(MTY_App *ctx, MTY_Key keycode, bool key_down)
 
 }
 
-static void app_hid_key_value(uint32_t key, bool down, void *opaque)
+static void app_hid_key_value(uint32_t usage, bool down, void *opaque)
 {
 	MTY_App *ctx = opaque;
 
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_KEY;
 	evt.window = 0;
-	evt.key.key = keymap_usage_to_key(key);
+	evt.key.key = keymap_usage_to_key(usage);
 	bool is_mod = app_update_mod_flags(ctx, evt.key.key, down);
 
 	evt.key.mod = ctx->mod_state;

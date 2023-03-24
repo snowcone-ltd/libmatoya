@@ -1,14 +1,11 @@
-// Copyright (c) Christopher D. Dickson <cdd@matoya.group>
-//
 // This Source Code Form is subject to the terms of the MIT License.
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
 #include "matoya.h"
+
 #include <IOKit/hid/IOHIDUsageTables.h>
-#include <AppKit/AppKit.h>
-#include <Carbon/Carbon.h>
-#include <IOKit/pwr_mgt/IOPMLib.h>
+
 
 // Carbon private interface
 
@@ -369,55 +366,55 @@ static MTY_Key keymap_usage_to_key(uint32_t usage)
 		case kHIDUsage_KeyboardF22:                  return MTY_KEY_F22;
 		case kHIDUsage_KeyboardF23:                  return MTY_KEY_F23;
 		case kHIDUsage_KeyboardF24:                  return MTY_KEY_F24;
-		// case kHIDUsage_KeyboardExecute:              return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardHelp:                 return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardMenu:                 return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardSelect:               return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardStop:                 return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardAgain:                return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardUndo:                 return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardCut:                  return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardCopy:                 return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardPaste:                return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardFind:                 return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardExecute:              return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardHelp:                 return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardMenu:                 return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardSelect:               return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardStop:                 return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardAgain:                return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardUndo:                 return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardCut:                  return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardCopy:                 return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardPaste:                return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardFind:                 return MTY_KEY_NONE;
 		case kHIDUsage_KeyboardMute:                 return MTY_KEY_MUTE;
 		case kHIDUsage_KeyboardVolumeUp:             return MTY_KEY_VOLUME_UP;
 		case kHIDUsage_KeyboardVolumeDown:           return MTY_KEY_VOLUME_DOWN;
-		// case kHIDUsage_KeyboardLockingCapsLock:      return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardLockingNumLock:       return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardLockingScrollLock:    return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardLockingCapsLock:      return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardLockingNumLock:       return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardLockingScrollLock:    return MTY_KEY_NONE;
 		case kHIDUsage_KeypadComma:                  return MTY_KEY_INTL_COMMA;
-		// case kHIDUsage_KeypadEqualSignAS400:         return MTY_KEY_NONE;
+		case kHIDUsage_KeypadEqualSignAS400:         return MTY_KEY_NONE;
 		case kHIDUsage_KeyboardInternational1:       return MTY_KEY_RO;
 		case kHIDUsage_KeyboardInternational2:       return MTY_KEY_JP;
 		case kHIDUsage_KeyboardInternational3:       return MTY_KEY_YEN;
 		case kHIDUsage_KeyboardInternational4:       return MTY_KEY_HENKAN;
 		case kHIDUsage_KeyboardInternational5:       return MTY_KEY_MUHENKAN;
-		// case kHIDUsage_KeyboardInternational6:       return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardInternational7:       return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardInternational8:       return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardInternational9:       return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardInternational6:       return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardInternational7:       return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardInternational8:       return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardInternational9:       return MTY_KEY_NONE;
 		case kHIDUsage_KeyboardLANG1:                return MTY_KEY_LANG_1;
 		case kHIDUsage_KeyboardLANG2:                return MTY_KEY_LANG_2;
 		case kHIDUsage_KeyboardLANG3:                return MTY_KEY_LANG_3;
 		case kHIDUsage_KeyboardLANG4:                return MTY_KEY_LANG_4;
 		case kHIDUsage_KeyboardLANG5:                return MTY_KEY_LANG_5;
-		// case kHIDUsage_KeyboardLANG6:                return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardLANG7:                return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardLANG8:                return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardLANG9:                return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardAlternateErase:       return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardSysReqOrAttention:    return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardCancel:               return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardClear:                return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardPrior:                return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardReturn:               return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardSeparator:            return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardOut:                  return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardOper:                 return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardClearOrAgain:         return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardCrSelOrProps:         return MTY_KEY_NONE;
-		// case kHIDUsage_KeyboardExSel:                return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardLANG6:                return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardLANG7:                return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardLANG8:                return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardLANG9:                return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardAlternateErase:       return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardSysReqOrAttention:    return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardCancel:               return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardClear:                return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardPrior:                return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardReturn:               return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardSeparator:            return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardOut:                  return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardOper:                 return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardClearOrAgain:         return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardCrSelOrProps:         return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardExSel:                return MTY_KEY_NONE;
 		case kHIDUsage_KeyboardLeftControl:          return MTY_KEY_LCTRL;
 		case kHIDUsage_KeyboardLeftShift:            return MTY_KEY_LSHIFT;
 		case kHIDUsage_KeyboardLeftAlt:              return MTY_KEY_LALT;

@@ -113,18 +113,8 @@ static void hid_key(void *context, IOReturn result, void *sender, IOHIDValueRef 
 
 	IOHIDElementRef element = IOHIDValueGetElement(value);
 
-	// Note that media keys (play, pause, etc) have a usage of 0x0C aka kHIDPage_Consumer
-	// And the FN button is usage page 0xFF usage 0x03.
-	if (IOHIDElementGetUsagePage(element) != kHIDPage_KeyboardOrKeypad)
-		return;
-
-	// Less than 0x04 are error codes
-	uint32_t key = IOHIDElementGetUsage(element);
-	if (key < kHIDUsage_KeyboardA)
-		return;
-
-	bool down = IOHIDValueGetIntegerValue(value);
-	ctx->key(key, down, ctx->opaque);
+	if (IOHIDElementGetUsagePage(element) == kHIDPage_KeyboardOrKeypad)
+		ctx->key(IOHIDElementGetUsage(element), IOHIDValueGetIntegerValue(value), ctx->opaque);
 }
 
 static void hid_dict_set_int(CFMutableDictionaryRef dict, CFStringRef key, int32_t val)
