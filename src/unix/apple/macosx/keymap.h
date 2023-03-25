@@ -121,7 +121,7 @@ static MTY_Key keymap_keycode_to_key(uint16_t kc)
 		case kVK_RightShift:          return MTY_KEY_RSHIFT;
 		case kVK_RightOption:         return MTY_KEY_RALT;
 		case kVK_RightControl:        return MTY_KEY_RCTRL;
-		// case kVK_Function:            return MTY_KEY_NONE;
+		case kVK_Function:            return MTY_KEY_NONE;
 		case kVK_F17:                 return MTY_KEY_F17;
 		case kVK_ANSI_KeypadDecimal:  return MTY_KEY_NP_PERIOD;
 		case kVK_Next:                return MTY_KEY_AUDIO_NEXT;
@@ -167,7 +167,7 @@ static MTY_Key keymap_keycode_to_key(uint16_t kc)
 		case kVK_F10:                 return MTY_KEY_F10;
 		case kVK_WinApp:              return MTY_KEY_APP;
 		case kVK_F12:                 return MTY_KEY_F12;
-		// case kVK_VidMirror:           return MTY_KEY_NONE;
+		case kVK_VidMirror:           return MTY_KEY_NONE;
 		case kVK_F15:                 return MTY_KEY_PAUSE;
 		case kVK_Help:                return MTY_KEY_INSERT;
 		case kVK_Home:                return MTY_KEY_HOME;
@@ -186,11 +186,11 @@ static MTY_Key keymap_keycode_to_key(uint16_t kc)
 		case kVK_Spotlight:           return MTY_KEY_F21;
 		case kVK_Dashboard:           return MTY_KEY_F22;
 		case kVK_Launchpad:           return MTY_KEY_F23;
-		// case kVK_BrightnessUp:        return MTY_KEY_NONE;
-		// case kVK_BrightnessDown:      return MTY_KEY_NONE;
-		// case kVK_Eject:               return MTY_KEY_NONE;
+		case kVK_BrightnessUp:        return MTY_KEY_NONE;
+		case kVK_BrightnessDown:      return MTY_KEY_NONE;
+		case kVK_Eject:               return MTY_KEY_NONE;
 		case kVK_ExposesAll:          return MTY_KEY_F24;
-		// case kVK_ExposesDesktop:      return MTY_KEY_NONE;
+		case kVK_ExposesDesktop:      return MTY_KEY_NONE;
 	}
 
 	return MTY_KEY_NONE;
@@ -447,4 +447,4 @@ static MTY_Key keymap_usage_to_key(uint32_t usage)
 	}
 
 	return MTY_KEY_NONE;
-};
+}
