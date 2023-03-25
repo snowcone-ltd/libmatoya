@@ -528,10 +528,10 @@ typedef enum {
 	MTY_KEY_F21            = 0x06C, ///< F21 (macOS)
 	MTY_KEY_F22            = 0x06D, ///< F22 (macOS)
 	MTY_KEY_F23            = 0x06E, ///< F23 (macOS)
-	MTY_KEY_F24            = 0x076, ///< F24 (macOS)
 	MTY_KEY_MEDIA_SELECT   = 0x16D, ///< Media Select
 	MTY_KEY_JP             = 0x070, ///< Katakana / Hiragana
 	MTY_KEY_RO             = 0x073, ///< Ro
+	MTY_KEY_F24            = 0x076, ///< F24 (macOS)
 	MTY_KEY_LANG_5         = 0x076, ///< Zenkaku/Hankaku (macOS)
 	MTY_KEY_LANG_4         = 0x077, ///< Hiragana (macOS)
 	MTY_KEY_LANG_3         = 0x078, ///< Katakana (macOS)
