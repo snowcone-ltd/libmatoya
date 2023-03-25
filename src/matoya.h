@@ -510,13 +510,13 @@ typedef enum {
 	MTY_KEY_NP_PERIOD      = 0x053, ///< Period (numpad)
 	MTY_KEY_DELETE         = 0x153, ///< Delete
 	MTY_KEY_INTL_BACKSLASH = 0x056, ///< International Backslash
-	MTY_KEY_POWER          = 0x15E, ///< Power
 	MTY_KEY_F11            = 0x057, ///< F11
 	MTY_KEY_F12            = 0x058, ///< F12
 	MTY_KEY_NP_EQUAL       = 0x059, ///< Equal (numpad) (macOS)
 	MTY_KEY_LWIN           = 0x15B, ///< Left Windows (Meta/Super)
 	MTY_KEY_RWIN           = 0x15C, ///< Right Windows (Meta/Super)
 	MTY_KEY_APP            = 0x15D, ///< Application Menu
+	MTY_KEY_POWER          = 0x15E, ///< Power (macOS)
 	MTY_KEY_F13            = 0x064, ///< F13
 	MTY_KEY_F14            = 0x065, ///< F14
 	MTY_KEY_F15            = 0x066, ///< F15

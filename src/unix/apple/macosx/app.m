@@ -726,6 +726,9 @@ static void window_text_event(struct window *window, const char *text)
 
 static void window_keyboard_event(struct window *window, uint16_t key_code, NSEventModifierFlags flags, bool pressed)
 {
+	if (window->app->hid_key_events)
+		return;
+
 	MTY_Event evt = window_event(window, MTY_EVENT_KEY);
 	evt.key.key = keymap_keycode_to_key(key_code);
 	evt.key.vkey = key_code;
@@ -740,6 +743,9 @@ static void window_keyboard_event(struct window *window, uint16_t key_code, NSEv
 
 static void window_mod_event(struct window *window, NSEvent *event)
 {
+	if (window->app->hid_key_events)
+		return;
+
 	MTY_Event evt = window_event(window, MTY_EVENT_KEY);
 	evt.key.key = keymap_keycode_to_key(event.keyCode);
 	evt.key.vkey = event.keyCode;
@@ -788,9 +794,6 @@ static BOOL window_performKeyEquivalent(NSWindow *self, SEL _cmd, NSEvent *event
 {
 	struct window *ctx = OBJC_CTX();
 
-	if (ctx->app->hid_key_events)
-		return YES;
-
 	bool cmd = event.modifierFlags & NSEventModifierFlagCommand;
 	bool ctrl = event.modifierFlags & NSEventModifierFlagControl;
 
@@ -808,7 +811,7 @@ static BOOL window_performKeyEquivalent(NSWindow *self, SEL _cmd, NSEvent *event
 		return YES;
 	}
 
-	return NO;
+	return ctx->app->hid_key_events;
 }
 
 static BOOL window_windowShouldClose(NSWindow *self, SEL _cmd, NSWindow *sender)
@@ -892,18 +895,12 @@ static void window_keyUp(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
 
-	if (ctx->app->hid_key_events)
-		return;
-
 	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false);
 }
 
 static void window_keyDown(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
-
-	if (ctx->app->hid_key_events)
-		return;
 
 	if (ctx->cmn.webview && mty_webview_was_hidden_during_keydown(ctx->cmn.webview))
 		return;
@@ -915,9 +912,6 @@ static void window_keyDown(NSWindow *self, SEL _cmd, NSEvent *event)
 static void window_flagsChanged(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
-
-	if (ctx->app->hid_key_events)
-		return;
 
 	// Simulate full button press for the Caps Lock key
 	if (event.keyCode == kVK_CapsLock) {
