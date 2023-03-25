@@ -511,9 +511,9 @@ typedef enum {
 	MTY_KEY_DELETE         = 0x153, ///< Delete
 	MTY_KEY_INTL_BACKSLASH = 0x056, ///< International Backslash
 	MTY_KEY_POWER          = 0x15E, ///< Power
-	MTY_KEY_NP_EQUAL       = 0x059, ///< Equal (numpad)
 	MTY_KEY_F11            = 0x057, ///< F11
 	MTY_KEY_F12            = 0x058, ///< F12
+	MTY_KEY_NP_EQUAL       = 0x059, ///< Equal (numpad) (macOS)
 	MTY_KEY_LWIN           = 0x15B, ///< Left Windows (Meta/Super)
 	MTY_KEY_RWIN           = 0x15C, ///< Right Windows (Meta/Super)
 	MTY_KEY_APP            = 0x15D, ///< Application Menu
@@ -524,24 +524,23 @@ typedef enum {
 	MTY_KEY_F17            = 0x068, ///< F17
 	MTY_KEY_F18            = 0x069, ///< F18
 	MTY_KEY_F19            = 0x06A, ///< F19
-	MTY_KEY_F20            = 0x06B, ///< F20
-	MTY_KEY_F21            = 0x06C, ///< F21
-	MTY_KEY_F22            = 0x06D, ///< F22
-	MTY_KEY_F23            = 0x06E, ///< F23
-	MTY_KEY_F24            = 0x076, ///< F24
+	MTY_KEY_F20            = 0x06B, ///< F20 (macOS)
+	MTY_KEY_F21            = 0x06C, ///< F21 (macOS)
+	MTY_KEY_F22            = 0x06D, ///< F22 (macOS)
+	MTY_KEY_F23            = 0x06E, ///< F23 (macOS)
+	MTY_KEY_F24            = 0x076, ///< F24 (macOS)
 	MTY_KEY_MEDIA_SELECT   = 0x16D, ///< Media Select
 	MTY_KEY_JP             = 0x070, ///< Katakana / Hiragana
 	MTY_KEY_RO             = 0x073, ///< Ro
+	MTY_KEY_LANG_5         = 0x076, ///< Zenkaku/Hankaku (macOS)
+	MTY_KEY_LANG_4         = 0x077, ///< Hiragana (macOS)
+	MTY_KEY_LANG_3         = 0x078, ///< Katakana (macOS)
 	MTY_KEY_HENKAN         = 0x079, ///< Henkan
 	MTY_KEY_MUHENKAN       = 0x07B, ///< Muhenkan
 	MTY_KEY_INTL_COMMA     = 0x07E, ///< JIS Comma
 	MTY_KEY_YEN            = 0x07D, ///< Yen
-	MTY_KEY_LANG_1         = 0x0F2, ///< Hanguel
-	MTY_KEY_LANG_2         = 0x0F1, ///< Hanja
-	MTY_KEY_LANG_3         = 0x078, ///< Katakana
-	MTY_KEY_LANG_4         = 0x077, ///< Hiragana
-	MTY_KEY_LANG_5         = 0x076, ///< Zenkaku/Hankaku
-	MTY_KEY_FUNCTION       = 0x0FF, ///< MacOS Function
+	MTY_KEY_LANG_2         = 0x0F1, ///< Hanja (macOS)
+	MTY_KEY_LANG_1         = 0x0F2, ///< Hanguel (macOS)
 	MTY_KEY_MAX            = 0x200, ///< The maximum possible MTY_Key value.
 	MTY_KEY_MAKE_32        = INT32_MAX,
 } MTY_Key;
@@ -563,7 +562,6 @@ typedef enum {
 	MTY_MOD_CTRL    = 0x00C, ///< Left or right Ctrl
 	MTY_MOD_ALT     = 0x030, ///< Left or right Alt
 	MTY_MOD_WIN     = 0x0C0, ///< Left or right Windows (Meta/Super)
-	MTY_MOD_FN      = 0x100, ///< MacOS Function
 	MTY_MOD_MAKE_32 = INT32_MAX,
 } MTY_Mod;
 
@@ -1488,6 +1486,12 @@ MTY_SetAppID(const char *id);
 /// @param evt The event to inspect.
 MTY_EXPORT void
 MTY_PrintEvent(const MTY_Event *evt);
+
+/// @brief On macOS, use the HID subsystem for key events rather than `AppKit`.
+/// @details This function must be called before MTY_AppCreate. Doing so will request highly
+///   privileged keyboard permissions for the calling application.
+MTY_EXPORT void
+MTY_UseHIDKeyEvents(void);
 
 /// @brief If using MTY_GFX_GL, retrieve a GL function by its name.
 /// @details A GL context (WGL, GLX, EGL) must be active on the current thread for

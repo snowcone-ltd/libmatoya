@@ -55,6 +55,7 @@ struct MTY_App {
 	bool eraser;
 	bool pen_left;
 	bool hid_reports;
+	bool hid_key_events;
 	NSUInteger buttons;
 	uint32_t cb_seq;
 	struct window *windows[MTY_WINDOW_MAX];
@@ -787,6 +788,9 @@ static BOOL window_performKeyEquivalent(NSWindow *self, SEL _cmd, NSEvent *event
 {
 	struct window *ctx = OBJC_CTX();
 
+	if (ctx->app->hid_key_events)
+		return YES;
+
 	bool cmd = event.modifierFlags & NSEventModifierFlagCommand;
 	bool ctrl = event.modifierFlags & NSEventModifierFlagControl;
 
@@ -888,12 +892,18 @@ static void window_keyUp(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
 
+	if (ctx->app->hid_key_events)
+		return;
+
 	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false);
 }
 
 static void window_keyDown(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
+
+	if (ctx->app->hid_key_events)
+		return;
 
 	if (ctx->cmn.webview && mty_webview_was_hidden_during_keydown(ctx->cmn.webview))
 		return;
@@ -905,6 +915,9 @@ static void window_keyDown(NSWindow *self, SEL _cmd, NSEvent *event)
 static void window_flagsChanged(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
+
+	if (ctx->app->hid_key_events)
+		return;
 
 	// Simulate full button press for the Caps Lock key
 	if (event.keyCode == kVK_CapsLock) {
@@ -1234,8 +1247,9 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	ctx->cursor_showing = true;
 	ctx->cont = true;
 
+	ctx->hid_key_events = mty_app_hid_key_events();
 	ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report,
-		mty_app_using_hid_for_key_events() ? app_hid_key : NULL, ctx);
+		ctx->hid_key_events ? app_hid_key : NULL, ctx);
 
 	ctx->hotkey = MTY_HashCreate(0);
 	ctx->deduper = MTY_HashCreate(0);

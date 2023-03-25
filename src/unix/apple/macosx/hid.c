@@ -8,7 +8,7 @@
 #include <IOKit/hid/IOHIDKeys.h>
 
 #define HID_DEV_GET_USAGE(dev) \
-	hid_device_get_prop_int(dev, CFSTR(kIOHIDDeviceUsageKey))
+	hid_device_get_prop_int(dev, CFSTR(kIOHIDPrimaryUsageKey))
 
 struct hid {
 	uint32_t id;
