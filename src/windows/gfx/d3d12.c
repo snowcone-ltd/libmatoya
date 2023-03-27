@@ -52,14 +52,14 @@ struct d3d12 {
 };
 
 static const float D3D12_VERTEX_DATA[] = {
-	-1, -1,  // position0 (bottom-left)
-	 0,  1,  // texcoord0
-	-1,  1,  // position1 (top-left)
-	 0,  0,  // texcoord1
-	 1,  1,  // position2 (top-right)
-	 1,  0,  // texcoord2
-	 1, -1,  // position3 (bottom-right)
-	 1,  1   // texcoord3
+	-1, -1,  // Position 0 (bottom left)
+	 0,  1,  // TexCoord 0
+	-1,  1,  // Position 1 (top left)
+	 0,  0,  // TexCoord 1
+	 1,  1,  // Position 2 (top right)
+	 1,  0,  // TexCoord 2
+	 1, -1,  // Position 3 (bottom right)
+	 1,  1   // TexCoord 3
 };
 
 static const DWORD D3D12_INDEX_DATA[] = {
@@ -256,7 +256,6 @@ struct gfx *mty_d3d12_create(MTY_Device *device, uint8_t layer)
 	ID3D12Device_CreateConstantBufferView(_device, &cbdesc, cpu_dh);
 
 	// Samplers
-	memset(&dhdesc, 0, sizeof(D3D12_DESCRIPTOR_HEAP_DESC));
 	dhdesc.NumDescriptors = 2;
 	dhdesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
 	dhdesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;

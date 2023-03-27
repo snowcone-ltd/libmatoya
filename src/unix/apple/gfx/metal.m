@@ -60,20 +60,20 @@ struct gfx *mty_metal_create(MTY_Device *device, uint8_t layer)
 	ctx->vs = [ctx->library newFunctionWithName:@"vs"];
 	ctx->fs = [ctx->library newFunctionWithName:@"fs"];
 
-	float vdata[] = {
-		-1.0f,  1.0f,	// Position 0
-		 0.0f,  0.0f,	// TexCoord 0
-		-1.0f, -1.0f,	// Position 1
-		 0.0f,  1.0f,	// TexCoord 1
-		 1.0f, -1.0f,	// Position 2
-		 1.0f,  1.0f,	// TexCoord 2
-		 1.0f,  1.0f,	// Position 3
-		 1.0f,  0.0f	// TexCoord 3
+	const float vdata[] = {
+		-1,  1,	// Position 0
+		 0,  0,	// TexCoord 0
+		-1, -1,	// Position 1
+		 0,  1,	// TexCoord 1
+		 1, -1,	// Position 2
+		 1,  1,	// TexCoord 2
+		 1,  1,	// Position 3
+		 1,  0	// TexCoord 3
 	};
 
 	ctx->vb = [_device newBufferWithBytes:vdata length:sizeof(vdata) options:MTLResourceCPUCacheModeWriteCombined];
 
-	uint16_t idata[] = {
+	const uint16_t idata[] = {
 		0, 1, 2,
 		2, 3, 0
 	};
@@ -216,11 +216,13 @@ bool mty_metal_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	float vpx, vpy, vpw, vph;
 	mty_viewport(desc, &vpx, &vpy, &vpw, &vph);
 
-	MTLViewport vp = {0};
-	vp.originX = vpx;
-	vp.originY = vpy;
-	vp.width = vpw;
-	vp.height = vph;
+	MTLViewport vp = {
+		.originX = vpx,
+		.originY = vpy,
+		.width = vpw,
+		.height = vph,
+	};
+
 	[re setViewport:vp];
 
 	// Vertex shader
