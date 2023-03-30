@@ -55,7 +55,6 @@ struct MTY_App {
 	bool eraser;
 	bool pen_left;
 	bool hid_reports;
-	bool hid_key_events;
 	NSUInteger buttons;
 	uint32_t cb_seq;
 	struct window *windows[MTY_WINDOW_MAX];
@@ -804,9 +803,6 @@ static BOOL window_performKeyEquivalent(NSWindow *self, SEL _cmd, NSEvent *event
 {
 	struct window *ctx = OBJC_CTX();
 
-	if (ctx->app->hid_key_events)
-		return YES;
-
 	bool cmd = event.modifierFlags & NSEventModifierFlagCommand;
 	bool ctrl = event.modifierFlags & NSEventModifierFlagControl;
 
@@ -818,8 +814,10 @@ static BOOL window_performKeyEquivalent(NSWindow *self, SEL _cmd, NSEvent *event
 
 	// While keyboard is grabbed, make sure we pass through special OS hotkeys
 	if (ctx->app->grab_kb && (cmd_tab || ctrl_tab || cmd_q || cmd_w || cmd_space)) {
-		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, true);
-		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, false);
+		if (!mty_app_hid_key_events()) {
+			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, true);
+			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, false);
+		}
 
 		return YES;
 	}
@@ -1257,9 +1255,8 @@ MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaqu
 	ctx->cursor_showing = true;
 	ctx->cont = true;
 
-	ctx->hid_key_events = mty_app_hid_key_events();
 	ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report,
-		ctx->hid_key_events ? app_hid_key : NULL, ctx);
+		mty_app_hid_key_events() ? app_hid_key : NULL, ctx);
 
 	ctx->hotkey = MTY_HashCreate(0);
 	ctx->deduper = MTY_HashCreate(0);
