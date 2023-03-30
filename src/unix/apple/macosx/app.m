@@ -59,6 +59,7 @@ struct MTY_App {
 	NSUInteger buttons;
 	uint32_t cb_seq;
 	struct window *windows[MTY_WINDOW_MAX];
+	bool keys[MTY_KEY_MAX];
 	float timeout;
 	struct hid *hid;
 };
@@ -713,6 +714,16 @@ static void window_scroll_event(struct window *window, NSEvent *event)
 
 // Keyboard
 
+static bool app_key_should_fire(MTY_App *app, MTY_Key key, bool pressed, bool repeat)
+{
+	bool was_down = app->keys[key];
+	bool should_fire = (pressed && (repeat || !was_down)) || (!pressed && was_down);
+
+	app->keys[key] = pressed;
+
+	return should_fire;
+}
+
 static void window_text_event(struct window *window, const char *text)
 {
 	// Make sure visible ASCII
@@ -724,16 +735,17 @@ static void window_text_event(struct window *window, const char *text)
 	}
 }
 
-static void window_keyboard_event(struct window *window, uint16_t key_code, NSEventModifierFlags flags, bool pressed)
+static void window_keyboard_event(struct window *window, uint16_t key_code, NSEventModifierFlags flags,
+	bool repeat, bool pressed)
 {
-	if (window->app->hid_key_events)
-		return;
-
 	MTY_Event evt = window_event(window, MTY_EVENT_KEY);
 	evt.key.key = keymap_keycode_to_key(key_code);
 	evt.key.vkey = key_code;
 	evt.key.mod = keymap_modifier_flags_to_keymod(flags);
 	evt.key.pressed = pressed;
+
+	if (!app_key_should_fire(window->app, evt.key.key, pressed, repeat))
+		return;
 
 	mty_app_kb_to_hotkey(window->app, &evt, MTY_EVENT_HOTKEY);
 
@@ -743,9 +755,6 @@ static void window_keyboard_event(struct window *window, uint16_t key_code, NSEv
 
 static void window_mod_event(struct window *window, NSEvent *event)
 {
-	if (window->app->hid_key_events)
-		return;
-
 	MTY_Event evt = window_event(window, MTY_EVENT_KEY);
 	evt.key.key = keymap_keycode_to_key(event.keyCode);
 	evt.key.vkey = event.keyCode;
@@ -764,7 +773,8 @@ static void window_mod_event(struct window *window, NSEvent *event)
 			return;
 	}
 
-	window->app->event_func(&evt, window->app->opaque);
+	if (app_key_should_fire(window->app, evt.key.key, evt.key.pressed, false))
+		window->app->event_func(&evt, window->app->opaque);
 }
 
 
@@ -794,6 +804,9 @@ static BOOL window_performKeyEquivalent(NSWindow *self, SEL _cmd, NSEvent *event
 {
 	struct window *ctx = OBJC_CTX();
 
+	if (ctx->app->hid_key_events)
+		return YES;
+
 	bool cmd = event.modifierFlags & NSEventModifierFlagCommand;
 	bool ctrl = event.modifierFlags & NSEventModifierFlagControl;
 
@@ -805,13 +818,13 @@ static BOOL window_performKeyEquivalent(NSWindow *self, SEL _cmd, NSEvent *event
 
 	// While keyboard is grabbed, make sure we pass through special OS hotkeys
 	if (ctx->app->grab_kb && (cmd_tab || ctrl_tab || cmd_q || cmd_w || cmd_space)) {
-		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true);
-		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false);
+		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, true);
+		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, false);
 
 		return YES;
 	}
 
-	return ctx->app->hid_key_events;
+	return NO;
 }
 
 static BOOL window_windowShouldClose(NSWindow *self, SEL _cmd, NSWindow *sender)
@@ -895,7 +908,7 @@ static void window_keyUp(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
 
-	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false);
+	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, false);
 }
 
 static void window_keyDown(NSWindow *self, SEL _cmd, NSEvent *event)
@@ -906,7 +919,7 @@ static void window_keyDown(NSWindow *self, SEL _cmd, NSEvent *event)
 		return;
 
 	window_text_event(ctx, [event.characters UTF8String]);
-	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true);
+	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, event.isARepeat, true);
 }
 
 static void window_flagsChanged(NSWindow *self, SEL _cmd, NSEvent *event)
@@ -915,8 +928,8 @@ static void window_flagsChanged(NSWindow *self, SEL _cmd, NSEvent *event)
 
 	// Simulate full button press for the Caps Lock key
 	if (event.keyCode == kVK_CapsLock) {
-		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true);
-		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false);
+		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, true);
+		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, false);
 
 	} else {
 		window_mod_event(ctx, event);
@@ -1211,6 +1224,9 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 		.key.mod = ctx->hid_kb_mod,
 		.key.pressed = down,
 	};
+
+	if (!app_key_should_fire(ctx, evt.key.key, down, false))
+		return;
 
 	mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
 	ctx->event_func(&evt, ctx->opaque);
