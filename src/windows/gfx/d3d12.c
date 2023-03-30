@@ -52,14 +52,14 @@ struct d3d12 {
 };
 
 static const float D3D12_VERTEX_DATA[] = {
-	-1.0f, -1.0f,  // position0 (bottom-left)
-	 0.0f,  1.0f,  // texcoord0
-	-1.0f,  1.0f,  // position1 (top-left)
-	 0.0f,  0.0f,  // texcoord1
-	 1.0f,  1.0f,  // position2 (top-right)
-	 1.0f,  0.0f,  // texcoord2
-	 1.0f, -1.0f,  // position3 (bottom-right)
-	 1.0f,  1.0f   // texcoord3
+	-1, -1,  // Position 0 (bottom left)
+	 0,  1,  // TexCoord 0
+	-1,  1,  // Position 1 (top left)
+	 0,  0,  // TexCoord 1
+	 1,  1,  // Position 2 (top right)
+	 1,  0,  // TexCoord 2
+	 1, -1,  // Position 3 (bottom right)
+	 1,  1   // TexCoord 3
 };
 
 static const DWORD D3D12_INDEX_DATA[] = {
@@ -69,18 +69,20 @@ static const DWORD D3D12_INDEX_DATA[] = {
 
 static HRESULT d3d12_buffer(ID3D12Device *device, const void *bdata, size_t size, ID3D12Resource **b)
 {
-	D3D12_HEAP_PROPERTIES hp = {0};
-	hp.Type = D3D12_HEAP_TYPE_UPLOAD;
+	D3D12_HEAP_PROPERTIES hp = {
+		.Type = D3D12_HEAP_TYPE_UPLOAD,
+	};
 
-	D3D12_RESOURCE_DESC rd = {0};
-	rd.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	rd.Width = size;
-	rd.Height = 1;
-	rd.DepthOrArraySize = 1;
-	rd.MipLevels = 1;
-	rd.Format = DXGI_FORMAT_UNKNOWN;
-	rd.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	rd.SampleDesc.Count = 1;
+	D3D12_RESOURCE_DESC rd = {
+		.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
+		.Width = size,
+		.Height = 1,
+		.DepthOrArraySize = 1,
+		.MipLevels = 1,
+		.Format = DXGI_FORMAT_UNKNOWN,
+		.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+		.SampleDesc.Count = 1,
+	};
 
 	HRESULT e = ID3D12Device_CreateCommittedResource(device, &hp, D3D12_HEAP_FLAG_NONE, &rd,
 		D3D12_RESOURCE_STATE_GENERIC_READ, NULL, &IID_ID3D12Resource, b);
@@ -113,34 +115,33 @@ static HRESULT d3d12_buffer(ID3D12Device *device, const void *bdata, size_t size
 
 static HRESULT d3d12_root_signature(ID3D12Device *device, ID3D12RootSignature **rs)
 {
-	D3D12_DESCRIPTOR_RANGE range[3] = {0};
-	range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	range[0].NumDescriptors = D3D12_NUM_STAGING;
-	range[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-	range[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	range[1].NumDescriptors = 1;
-	range[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-	range[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
-	range[2].NumDescriptors = 1;
-	range[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-	D3D12_ROOT_PARAMETER rp[2] = {0};
-	rp[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rp[0].DescriptorTable.NumDescriptorRanges = 2;
-	rp[0].DescriptorTable.pDescriptorRanges = range;
-	rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-
-	rp[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rp[1].DescriptorTable.NumDescriptorRanges = 1;
-	rp[1].DescriptorTable.pDescriptorRanges = &range[2];
-	rp[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-
-	D3D12_ROOT_SIGNATURE_DESC rsdesc = {0};
-	rsdesc.NumParameters = 2;
-	rsdesc.pParameters = rp;
-	rsdesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	D3D12_ROOT_SIGNATURE_DESC rsdesc = {
+		.NumParameters = 2,
+		.pParameters = (D3D12_ROOT_PARAMETER []) {{
+			.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
+			.DescriptorTable.NumDescriptorRanges = 2,
+			.DescriptorTable.pDescriptorRanges = (D3D12_DESCRIPTOR_RANGE []) {{
+				.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+				.NumDescriptors = D3D12_NUM_STAGING,
+				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
+			}, {
+				.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV,
+				.NumDescriptors = 1,
+				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
+			}},
+			.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL,
+		}, {
+			.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
+			.DescriptorTable.NumDescriptorRanges = 1,
+			.DescriptorTable.pDescriptorRanges = &(D3D12_DESCRIPTOR_RANGE) {
+				.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,
+				.NumDescriptors = 1,
+				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
+			},
+			.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL,
+		}},
+		.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
+	};
 
 	ID3DBlob *signature = NULL;
 	HRESULT e = D3D12SerializeRootSignature(&rsdesc, D3D_ROOT_SIGNATURE_VERSION_1_0, &signature, NULL);
@@ -161,36 +162,37 @@ static HRESULT d3d12_root_signature(ID3D12Device *device, ID3D12RootSignature **
 
 static HRESULT d3d12_pipeline(ID3D12Device *device, ID3D12RootSignature *rs, ID3D12PipelineState **pipeline, uint8_t layer)
 {
-	D3D12_INPUT_ELEMENT_DESC iedescs[2] = {
-		{"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 2 * sizeof(float), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC psdesc = {
+		.InputLayout.pInputElementDescs = (D3D12_INPUT_ELEMENT_DESC []) {
+			{"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+			{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 2 * sizeof(float), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
+		},
+		.InputLayout.NumElements = 2,
+		.pRootSignature = rs,
+		.VS.pShaderBytecode = vs,
+		.VS.BytecodeLength = sizeof(vs),
+		.PS.pShaderBytecode = ps,
+		.PS.BytecodeLength = sizeof(ps),
+		.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID,
+		.RasterizerState.CullMode = D3D12_CULL_MODE_BACK,
+		.RasterizerState.DepthClipEnable = TRUE,
+		.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,
+		.BlendState.RenderTarget[0] = {
+			.BlendEnable = layer == 0 ? FALSE : TRUE,
+			.SrcBlend = D3D12_BLEND_SRC_ALPHA,
+			.DestBlend = D3D12_BLEND_INV_SRC_ALPHA,
+			.BlendOp = D3D12_BLEND_OP_ADD,
+			.SrcBlendAlpha = D3D12_BLEND_ONE,
+			.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA,
+			.BlendOpAlpha = D3D12_BLEND_OP_ADD,
+			.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL,
+		},
+		.SampleMask = UINT_MAX,
+		.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+		.NumRenderTargets = 1,
+		.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM,
+		.SampleDesc.Count = 1,
 	};
-
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC psdesc = {0};
-	psdesc.InputLayout.pInputElementDescs = iedescs;
-	psdesc.InputLayout.NumElements = 2;
-	psdesc.pRootSignature = rs;
-	psdesc.VS.pShaderBytecode = vs;
-	psdesc.VS.BytecodeLength = sizeof(vs);
-	psdesc.PS.pShaderBytecode = ps;
-	psdesc.PS.BytecodeLength = sizeof(ps);
-	psdesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-	psdesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
-	psdesc.RasterizerState.DepthClipEnable = TRUE;
-	psdesc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-	psdesc.BlendState.RenderTarget[0].BlendEnable = layer == 0 ? FALSE : TRUE;
-	psdesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	psdesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-	psdesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-	psdesc.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-	psdesc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
-	psdesc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-	psdesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-	psdesc.SampleMask = UINT_MAX;
-	psdesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	psdesc.NumRenderTargets = 1;
-	psdesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
-	psdesc.SampleDesc.Count = 1;
 
 	HRESULT e = ID3D12Device_CreateGraphicsPipelineState(device, &psdesc, &IID_ID3D12PipelineState, pipeline);
 	if (e != S_OK)
@@ -215,10 +217,12 @@ struct gfx *mty_d3d12_create(MTY_Device *device, uint8_t layer)
 		goto except;
 
 	// Shader resource views
-	D3D12_DESCRIPTOR_HEAP_DESC dhdesc = {0};
-	dhdesc.NumDescriptors = D3D12_NUM_STAGING + 1; // +1 for the constant buffer
-	dhdesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	dhdesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	D3D12_DESCRIPTOR_HEAP_DESC dhdesc = {
+		.NumDescriptors = D3D12_NUM_STAGING + 1, // +1 for the constant buffer
+		.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+	};
+
 	e = ID3D12Device_CreateDescriptorHeap(_device, &dhdesc, &IID_ID3D12DescriptorHeap, &ctx->srv_heap);
 	if (e != S_OK) {
 		MTY_Log("'ID3D12Device_CreateDescriptorHeap' failed with HRESULT 0x%X", e);
@@ -244,14 +248,14 @@ struct gfx *mty_d3d12_create(MTY_Device *device, uint8_t layer)
 	if (e != S_OK)
 		goto except;
 
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbdesc = {0};
-	cbdesc.BufferLocation = ID3D12Resource_GetGPUVirtualAddress(ctx->cb);
-	cbdesc.SizeInBytes = cbsize;
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbdesc = {
+		.BufferLocation = ID3D12Resource_GetGPUVirtualAddress(ctx->cb),
+		.SizeInBytes = cbsize,
+	};
 
 	ID3D12Device_CreateConstantBufferView(_device, &cbdesc, cpu_dh);
 
 	// Samplers
-	memset(&dhdesc, 0, sizeof(D3D12_DESCRIPTOR_HEAP_DESC));
 	dhdesc.NumDescriptors = 2;
 	dhdesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
 	dhdesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -270,13 +274,15 @@ struct gfx *mty_d3d12_create(MTY_Device *device, uint8_t layer)
 	UINT sampler_dsize = ID3D12Device_GetDescriptorHandleIncrementSize(_device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
 	// Sampler - linear
-	D3D12_SAMPLER_DESC sd = {0};
-	sd.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-	sd.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	sd.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	sd.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	sd.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-	sd.MaxLOD = D3D12_FLOAT32_MAX;
+	D3D12_SAMPLER_DESC sd = {
+		.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+		.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+		.MaxLOD = D3D12_FLOAT32_MAX,
+	};
+
 	ID3D12Device_CreateSampler(_device, &sd, sampler_dh);
 
 	ctx->linear_dh = sampler_dh_gpu;
@@ -345,27 +351,30 @@ static bool d3d12_crop_copy(struct d3d12_res *res, MTY_Context *context, const u
 	ID3D12Resource_Unmap(res->buffer, 0, NULL);
 
 	// Copy upload buffer to texture
-	D3D12_RESOURCE_BARRIER rb = {0};
-	rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	rb.Transition.pResource = res->resource;
-	rb.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	rb.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+	D3D12_RESOURCE_BARRIER rb = {
+		.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+		.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+		.Transition.pResource = res->resource,
+		.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST,
+	};
 
 	ID3D12GraphicsCommandList_ResourceBarrier(cl, 1, &rb);
 
-	D3D12_TEXTURE_COPY_LOCATION tsrc = {0};
-	tsrc.pResource = res->buffer;
-	tsrc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-	tsrc.PlacedFootprint.Footprint.Format = res->format;
-	tsrc.PlacedFootprint.Footprint.Width = w;
-	tsrc.PlacedFootprint.Footprint.Height = h;
-	tsrc.PlacedFootprint.Footprint.Depth = 1;
-	tsrc.PlacedFootprint.Footprint.RowPitch = pitch;
+	D3D12_TEXTURE_COPY_LOCATION tsrc = {
+		.pResource = res->buffer,
+		.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
+		.PlacedFootprint.Footprint.Format = res->format,
+		.PlacedFootprint.Footprint.Width = w,
+		.PlacedFootprint.Footprint.Height = h,
+		.PlacedFootprint.Footprint.Depth = 1,
+		.PlacedFootprint.Footprint.RowPitch = pitch,
+	};
 
-	D3D12_TEXTURE_COPY_LOCATION tdest = {0};
-	tdest.pResource = res->resource;
-	tdest.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+	D3D12_TEXTURE_COPY_LOCATION tdest = {
+		.pResource = res->resource,
+		.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+	};
 
 	ID3D12GraphicsCommandList_CopyTextureRegion(cl, &tdest, 0, 0, 0, &tsrc, NULL);
 
@@ -394,18 +403,20 @@ static bool d3d12_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Con
 		d3d12_destroy_resource(res);
 
 		// Upload buffer
-		D3D12_HEAP_PROPERTIES hp = {0};
-		hp.Type = D3D12_HEAP_TYPE_UPLOAD;
+		D3D12_HEAP_PROPERTIES hp = {
+			.Type = D3D12_HEAP_TYPE_UPLOAD,
+		};
 
-		D3D12_RESOURCE_DESC desc = {0};
-		desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-		desc.Width = D3D12_PITCH(w, bpp) * h;
-		desc.Height = 1;
-		desc.DepthOrArraySize = 1;
-		desc.MipLevels = 1;
-		desc.Format = DXGI_FORMAT_UNKNOWN;
-		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-		desc.SampleDesc.Count = 1;
+		D3D12_RESOURCE_DESC desc = {
+			.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
+			.Width = D3D12_PITCH(w, bpp) * h,
+			.Height = 1,
+			.DepthOrArraySize = 1,
+			.MipLevels = 1,
+			.Format = DXGI_FORMAT_UNKNOWN,
+			.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+			.SampleDesc.Count = 1,
+		};
 
 		HRESULT e = ID3D12Device_CreateCommittedResource(device, &hp, D3D12_HEAP_FLAG_NONE, &desc,
 			 D3D12_RESOURCE_STATE_GENERIC_READ, NULL, &IID_ID3D12Resource, &res->buffer);
@@ -436,11 +447,12 @@ static bool d3d12_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Con
 		}
 
 		// Shader resourve view
-		D3D12_SHADER_RESOURCE_VIEW_DESC sdesc = {0};
-		sdesc.Format = format;
-		sdesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		sdesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		sdesc.Texture2D.MipLevels = 1;
+		D3D12_SHADER_RESOURCE_VIEW_DESC sdesc = {
+			.Format = format,
+			.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+			.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+			.Texture2D.MipLevels = 1,
+		};
 
 		ID3D12Device_CreateShaderResourceView(device, res->resource, &sdesc, res->dh);
 
@@ -489,9 +501,11 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	ID3D12GraphicsCommandList_RSSetViewports(cl, 1, &vp);
 
 	// Scissor
-	D3D12_RECT scissor = {0};
-	scissor.right = desc->viewWidth;
-	scissor.bottom = desc->viewHeight;
+	D3D12_RECT scissor = {
+		.right = desc->viewWidth,
+		.bottom = desc->viewHeight,
+	};
+
 	ID3D12GraphicsCommandList_RSSetScissorRects(cl, 1, &scissor);
 
 	// Render target
@@ -543,20 +557,22 @@ bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	}
 
 	// Draw
-	D3D12_VERTEX_BUFFER_VIEW vbview = {0};
-	vbview.BufferLocation = ID3D12Resource_GetGPUVirtualAddress(ctx->vb);
-	vbview.StrideInBytes = 4 * sizeof(float);
-	vbview.SizeInBytes = sizeof(D3D12_VERTEX_DATA);
+	D3D12_VERTEX_BUFFER_VIEW vbview = {
+		.BufferLocation = ID3D12Resource_GetGPUVirtualAddress(ctx->vb),
+		.StrideInBytes = 4 * sizeof(float),
+		.SizeInBytes = sizeof(D3D12_VERTEX_DATA),
+	};
+
 	ID3D12GraphicsCommandList_IASetVertexBuffers(cl, 0, 1, &vbview);
 
-	D3D12_INDEX_BUFFER_VIEW ibview = {0};
-	ibview.BufferLocation = ID3D12Resource_GetGPUVirtualAddress(ctx->ib);
-	ibview.SizeInBytes = sizeof(D3D12_INDEX_DATA);
-	ibview.Format = DXGI_FORMAT_R32_UINT;
+	D3D12_INDEX_BUFFER_VIEW ibview = {
+		.BufferLocation = ID3D12Resource_GetGPUVirtualAddress(ctx->ib),
+		.SizeInBytes = sizeof(D3D12_INDEX_DATA),
+		.Format = DXGI_FORMAT_R32_UINT,
+	};
+
 	ID3D12GraphicsCommandList_IASetIndexBuffer(cl, &ibview);
-
 	ID3D12GraphicsCommandList_IASetPrimitiveTopology(cl, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
 	ID3D12GraphicsCommandList_DrawIndexedInstanced(cl, 6, 1, 0, 0, 0);
 
 	return true;
