@@ -573,8 +573,9 @@ typedef enum {
 	MTY_CTYPE_SWITCH  = 2, ///< Nintendo Switch controller.
 	MTY_CTYPE_PS4     = 3, ///< Playstation 4 DualShock controller.
 	MTY_CTYPE_PS5     = 4, ///< Playstation 5 DualSense controller.
-	MTY_CTYPE_XBOX    = 5, ///< Xbox Bluetooth controller.
-	MTY_CTYPE_XBOXW   = 6, ///< Xbox wired controller.
+	MTY_CTYPE_STADIA  = 5, ///< Google Stadia controller.
+	MTY_CTYPE_XBOX    = 6, ///< Xbox Bluetooth controller.
+	MTY_CTYPE_XBOXW   = 7, ///< Xbox wired controller.
 	MTY_CTYPE_MAKE_32 = INT32_MAX,
 } MTY_CType;
 
@@ -596,6 +597,7 @@ typedef enum {
 	MTY_CBUTTON_RIGHT_THUMB    = 11, ///< Right Thumb Stick
 	MTY_CBUTTON_GUIDE          = 12, ///< Guide Button
 	MTY_CBUTTON_TOUCHPAD       = 13, ///< Touchpad Button
+	MTY_CBUTTON_CAPTURE        = 14, ///< Capture Button (Stadia)
 	MTY_CBUTTON_MAX            = 64, ///< Maximum number of possible buttons.
 	MTY_CBUTTON_MAKE_32        = INT32_MAX,
 } MTY_CButton;

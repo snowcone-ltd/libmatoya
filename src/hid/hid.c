@@ -11,9 +11,10 @@
 
 // Drivers
 
+#include "nx.h"
 #include "ps4.h"
 #include "ps5.h"
-#include "nx.h"
+#include "stadia.h"
 #include "xbox.h"
 #include "xboxw.h"
 
@@ -40,6 +41,10 @@ MTY_CType hid_driver(struct hid_dev *device)
 		// PS5
 		case 0x054C0CE6: // Sony DualSense
 			return MTY_CTYPE_PS5;
+
+		// Stadia
+		case 0x18D19400: // Google Stadia Controller Rev. A
+			return MTY_CTYPE_STADIA;
 
 		// Xbox
 		case 0x045E02E0: // Microsoft X-Box One S pad (Bluetooth)
@@ -95,6 +100,8 @@ bool mty_hid_driver_state(struct hid_dev *device, const void *buf, size_t size, 
 			return ps4_state(device, buf, size, c);
 		case MTY_CTYPE_PS5:
 			return ps5_state(device, buf, size, c);
+		case MTY_CTYPE_STADIA:
+			return stadia_state(device, buf, size, c);
 		case MTY_CTYPE_XBOX:
 			return xbox_state(device, buf, size, c);
 		case MTY_CTYPE_XBOXW:
