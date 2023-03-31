@@ -98,9 +98,9 @@ typedef enum {
 } MTY_Rotation;
 
 typedef enum {
-	MTY_CHROMA_444 = 0, ///< Full width, full height UV.
-	MTY_CHROMA_422 = 1, ///< Half width, full height UV.
-	MTY_CHROMA_420 = 2, ///< Half width, half height UV.
+	MTY_CHROMA_444     = 0, ///< Full width, full height UV.
+	MTY_CHROMA_422     = 1, ///< Half width, full height UV.
+	MTY_CHROMA_420     = 2, ///< Half width, half height UV.
 	MTY_CHROMA_MAKE_32 = INT32_MAX,
 } MTY_Chroma;
 
@@ -1771,7 +1771,7 @@ typedef enum {
 typedef enum {
 	MTY_FILE_MODE_SHARED    = 0, ///< Shared access, allowing many open readers but no writers.
 	MTY_FILE_MODE_EXCLUSIVE = 1, ///< Exclusive access, allowing only a single open writer.
-	MTY_FILE_MODE_MAKE_32 = INT32_MAX,
+	MTY_FILE_MODE_MAKE_32   = INT32_MAX,
 } MTY_FileMode;
 
 /// @brief File properties.
