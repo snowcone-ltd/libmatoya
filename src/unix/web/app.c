@@ -271,7 +271,7 @@ static void app_set_keys(void)
 	MTY_HashDestroy(&h, NULL);
 }
 
-MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
+MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
 {
 	MTY_App *ctx = MTY_Alloc(1, sizeof(MTY_App));
 	ctx->app_func = appFunc;
@@ -467,10 +467,6 @@ const char *MTY_AppGetControllerDeviceName(MTY_App *ctx, uint32_t id)
 MTY_CType MTY_AppGetControllerType(MTY_App *ctx, uint32_t id)
 {
 	return MTY_CTYPE_DEFAULT;
-}
-
-void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
-{
 }
 
 void MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_t size)

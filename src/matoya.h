@@ -363,6 +363,13 @@ typedef bool (*MTY_MenuItemCheckedFunc)(void *opaque);
 typedef intptr_t (*MTY_WMsgFunc)(MTY_App *app, MTY_Window window, void *hwnd, uint32_t msg,
 	intptr_t wparam, uintptr_t lparam, bool *shouldReturn, void *opaque);
 
+/// @brief Alternative MTY_App behaviors.
+typedef enum {
+	MTY_APP_FLAG_HID_EVENTS = 0x01, ///< If enabled, all controllers except XInput controllers will
+	                                ///<   generate input report events.
+	MTY_APP_FLAG_MAKE_32    = INT32_MAX,
+} MTY_AppFlag;
+
 /// @brief App events.
 /// @details See MTY_Event for details on how to respond to these values.
 typedef enum {
@@ -748,7 +755,7 @@ typedef struct {
 } MTY_ControllerEvent;
 
 /// @brief HID input report from certain controllers.
-/// @details If enabled via MTY_AppEnableHIDEvents, all controllers except XInput
+/// @details If enabled via MTY_APP_FLAG_HID_EVENTS, all controllers except XInput
 ///   controllers will generate input report events.
 typedef struct {
 	const void *report; ///< The HID input report.
@@ -835,7 +842,7 @@ typedef void (*MTY_EventFunc)(const MTY_Event *evt, void *opaque);
 /// @returns On failure, NULL is returned. Call MTY_GetLog for details.\n\n
 ///   The returned MTY_App must be destroyed with MTY_AppDestroy.
 MTY_EXPORT MTY_App *
-MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque);
+MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque);
 
 /// @brief Destroy an MTY_App.
 /// @details This function will also destroy all open windows and the system tray
@@ -1089,15 +1096,6 @@ MTY_AppGetControllerDeviceName(MTY_App *ctx, uint32_t id);
 //- #support Windows macOS
 MTY_EXPORT MTY_CType
 MTY_AppGetControllerType(MTY_App *ctx, uint32_t id);
-
-/// @brief Enable or disable HID input reports from certain controllers.
-/// @details If enabled, all controllers except XInput controllers will generate input
-///   report events.
-/// @param ctx The MTY_App.
-/// @param enable Set true to enable HID input reports, false to disable them.
-//- #support Windows macOS
-MTY_EXPORT void
-MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable);
 
 /// @brief Submit an HID output report to a controller.
 /// @details Be careful to make sure the report is compatible with the device!
