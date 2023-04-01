@@ -77,10 +77,10 @@ endif
 ### WASM ###
 ############
 
-# github.com/WebAssembly/wasi-sdk/releases -> ~/wasi-sdk-xx
+# github.com/WebAssembly/wasi-sdk/releases -> ~/wasi-sdk
 
 ifdef WASM
-WASI_SDK = $(HOME)/wasi-sdk-16.0
+WASI_SDK = $(HOME)/wasi-sdk
 
 CC = $(WASI_SDK)/bin/clang --sysroot=$(WASI_SDK)/share/wasi-sysroot
 AR = $(WASI_SDK)/bin/ar
@@ -239,10 +239,10 @@ objs: $(OBJS)
 ### ANDROID ###
 ###############
 
-# developer.android.com/ndk/downloads -> ~/android-ndk-xxx
+# developer.android.com/ndk/downloads -> ~/android-ndk
 
 ifndef ANDROID_NDK_ROOT
-ANDROID_NDK_ROOT = $(HOME)/android-ndk-r25
+ANDROID_NDK_ROOT = $(HOME)/android-ndk
 endif
 
 android: clean clear $(SHADERS)

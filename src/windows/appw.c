@@ -56,7 +56,6 @@ struct MTY_App {
 	bool hide_cursor;
 	bool ghk_disabled;
 	bool filter_move;
-	bool hid_reports;
 	uint64_t prev_state;
 	uint64_t state;
 	uint32_t timeout;
@@ -64,6 +63,7 @@ struct MTY_App {
 	int32_t last_y;
 	struct hid *hid;
 	struct xip *xip;
+	MTY_AppFlag flags;
 	MTY_Cursor scursor;
 	MTY_Button buttons;
 	MTY_DetachState detach;
@@ -995,7 +995,7 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 	evt.type = MTY_EVENT_CONTROLLER;
 
 	if (mty_hid_driver_state(device, buf, size, &evt.controller)) {
-		if (ctx->hid_reports)
+		if (ctx->flags & MTY_APP_FLAG_HID_EVENTS)
 			ctx->event_func(&(MTY_Event) {
 				.type = MTY_EVENT_HID,
 				.hid.size = size,
@@ -1012,11 +1012,12 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 	}
 }
 
-MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
+MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
 {
 	bool r = true;
 
 	MTY_App *ctx = MTY_Alloc(1, sizeof(MTY_App));
+	ctx->flags = flags;
 	ctx->app_func = appFunc;
 	ctx->event_func = eventFunc;
 	ctx->opaque = opaque;
@@ -1619,11 +1620,6 @@ MTY_CType MTY_AppGetControllerType(MTY_App *ctx, uint32_t id)
 		return MTY_CTYPE_DEFAULT;
 
 	return hid_driver(device);
-}
-
-void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
-{
-	ctx->hid_reports = enable;
 }
 
 void MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_t size)

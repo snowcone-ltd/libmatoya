@@ -42,6 +42,7 @@ struct MTY_App {
 	MTY_DetachState detach;
 	MTY_Mod hid_kb_mod;
 	MTY_Cursor scursor;
+	MTY_AppFlag flags;
 	void *opaque;
 	void *kb_mode;
 	bool relative;
@@ -54,7 +55,6 @@ struct MTY_App {
 	bool cursor_showing;
 	bool eraser;
 	bool pen_left;
-	bool hid_reports;
 	NSUInteger buttons;
 	uint32_t cb_seq;
 	struct window *windows[MTY_WINDOW_MAX];
@@ -1179,7 +1179,7 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 	evt.type = MTY_EVENT_CONTROLLER;
 
 	if (mty_hid_driver_state(device, buf, size, &evt.controller)) {
-		if (ctx->hid_reports)
+		if (ctx->flags & MTY_APP_FLAG_HID_EVENTS)
 			ctx->event_func(&(MTY_Event) {
 				.type = MTY_EVENT_HID,
 				.hid.size = size,
@@ -1191,7 +1191,7 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 			}, ctx->opaque);
 
 		// Prevent gamepad input while in the background, dedupe
-		if (MTY_AppIsActive((MTY_App *) opaque) && mty_hid_dedupe(ctx->deduper, &evt.controller))
+		if (MTY_AppIsActive(ctx) && mty_hid_dedupe(ctx->deduper, &evt.controller))
 			ctx->event_func(&evt, ctx->opaque);
 	}
 }
@@ -1245,10 +1245,11 @@ static void app_pump_events(MTY_App *ctx, NSDate *until)
 	}
 }
 
-MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
+MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
 {
 	MTY_App *ctx = MTY_Alloc(1, sizeof(MTY_App));
 
+	ctx->flags = flags;
 	ctx->app_func = appFunc;
 	ctx->event_func = eventFunc;
 	ctx->opaque = opaque;
@@ -1527,11 +1528,6 @@ MTY_CType MTY_AppGetControllerType(MTY_App *ctx, uint32_t id)
 	return hid_driver(device);
 }
 
-void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
-{
-	ctx->hid_reports = enable;
-}
-
 void MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_t size)
 {
 	struct hid_dev *dev = mty_hid_get_device_by_id(ctx->hid, id);
@@ -1580,6 +1576,13 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	MTY_Window window = -1;
 	bool r = true;
 
+	MTY_Frame dframe = {0};
+
+	if (!frame) {
+		dframe = APP_DEFAULT_FRAME();
+		frame = &dframe;
+	}
+
 	NSView *content = nil;
 	NSScreen *screen = screen_from_display_id(atoi(frame->screen));
 
@@ -1591,13 +1594,6 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	}
 
 	window_revert_levels();
-
-	MTY_Frame dframe = {0};
-
-	if (!frame) {
-		dframe = APP_DEFAULT_FRAME();
-		frame = &dframe;
-	}
 
 	NSRect rect = NSMakeRect(frame->x, frame->y, frame->size.w, frame->size.h);
 	NSWindowStyleMask style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
