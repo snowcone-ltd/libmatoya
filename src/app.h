@@ -31,6 +31,3 @@ MTY_Frame mty_window_adjust(uint32_t screen_w, uint32_t screen_h, float scale, f
 
 // Hotkeys
 void mty_app_kb_to_hotkey(MTY_App *app, MTY_Event *evt, MTY_EventType type);
-
-// Misc
-bool mty_app_hid_key_events(void);

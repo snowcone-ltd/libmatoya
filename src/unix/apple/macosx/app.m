@@ -814,7 +814,7 @@ static BOOL window_performKeyEquivalent(NSWindow *self, SEL _cmd, NSEvent *event
 
 	// While keyboard is grabbed, make sure we pass through special OS hotkeys
 	if (ctx->app->grab_kb && (cmd_tab || ctrl_tab || cmd_q || cmd_w || cmd_space)) {
-		if (!mty_app_hid_key_events()) {
+		if (!(ctx->app->flags & MTY_APP_FLAG_HID_KEYBOARD)) {
 			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, true);
 			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, false);
 		}
@@ -1257,7 +1257,7 @@ MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eve
 	ctx->cont = true;
 
 	ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report,
-		mty_app_hid_key_events() ? app_hid_key : NULL, ctx);
+		ctx->flags & MTY_APP_FLAG_HID_KEYBOARD ? app_hid_key : NULL, ctx);
 
 	ctx->hotkey = MTY_HashCreate(0);
 	ctx->deduper = MTY_HashCreate(0);
