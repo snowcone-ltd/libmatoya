@@ -894,9 +894,6 @@ static void window_keyDown(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
 
-	if (ctx->cmn.webview && mty_webview_was_hidden_during_keydown(ctx->cmn.webview))
-		return;
-
 	window_text_event(ctx, [event.characters UTF8String]);
 	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true);
 }

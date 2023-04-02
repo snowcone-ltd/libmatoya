@@ -21,7 +21,6 @@ bool mty_webview_is_visible(struct webview *ctx);
 void mty_webview_send_text(struct webview *ctx, const char *msg);
 void mty_webview_reload(struct webview *ctx);
 void mty_webview_set_input_passthrough(struct webview *ctx, bool passthrough);
-bool mty_webview_was_hidden_during_keydown(struct webview *ctx);
 bool mty_webview_event(struct webview *ctx, MTY_Event *evt);
 void mty_webview_run(struct webview *ctx);
 void mty_webview_render(struct webview *ctx);

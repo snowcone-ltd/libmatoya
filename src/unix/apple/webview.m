@@ -13,6 +13,7 @@ struct webview {
 	MTY_App *app;
 	MTY_Window window;
 	MTY_Hash *keys;
+	MTY_Time ts;
 	WEBVIEW_READY ready_func;
 	WEBVIEW_TEXT text_func;
 	WEBVIEW_KEY key_func;
@@ -20,7 +21,6 @@ struct webview {
 	WKWebView *webview;
 	bool ready;
 	bool passthrough;
-	bool hidden_during_keydown;
 };
 
 
@@ -100,11 +100,7 @@ static void msg_handler_userContentController_didReceiveScriptMessage(id self, S
 
 			MTY_Mod mods = web_keymap_mods(jmods);
 
-			bool visible = mty_webview_is_visible(ctx);
-
 			ctx->key_func(ctx->app, ctx->window, str[0] == 'D', key, mods);
-
-			ctx->hidden_during_keydown = visible && !mty_webview_is_visible(ctx);
 			break;
 	}
 
@@ -265,6 +261,16 @@ void mty_webview_navigate(struct webview *ctx, const char *source, bool url)
 
 void mty_webview_show(struct webview *ctx, bool show)
 {
+	// The way macOS bubbles key events can cause them to fire multiple times
+	// between the WebView and window, potentially firing mty_webview_show
+	// more than intended
+
+	MTY_Time ts = MTY_GetTime();
+
+	if (MTY_TimeDiff(ctx->ts, ts) < 10)
+		return;
+
+	ctx->ts = ts;
 	ctx->webview.hidden = !show;
 
 	#if TARGET_OS_OSX
@@ -306,14 +312,6 @@ void mty_webview_reload(struct webview *ctx)
 void mty_webview_set_input_passthrough(struct webview *ctx, bool passthrough)
 {
 	ctx->passthrough = passthrough;
-}
-
-bool mty_webview_was_hidden_during_keydown(struct webview *ctx)
-{
-	bool r = ctx->hidden_during_keydown;
-	ctx->hidden_during_keydown = false;
-
-	return r;
 }
 
 bool mty_webview_event(struct webview *ctx, MTY_Event *evt)
