@@ -576,11 +576,6 @@ void mty_webview_set_input_passthrough(struct webview *ctx, bool passthrough)
 	ctx->passthrough = passthrough;
 }
 
-bool mty_webview_was_hidden_during_keydown(struct webview *ctx)
-{
-	return false;
-}
-
 bool mty_webview_event(struct webview *ctx, MTY_Event *evt)
 {
 	if (evt->type == MTY_EVENT_SIZE)
