@@ -39,7 +39,7 @@ static void websocket_URLSession_task_didCompleteWithError(id self, SEL _cmd, NS
 	NSURLSessionTask *task, NSError *error)
 {
 	if (error)
-		MTY_Log("'WebSocket:didCompleteWithError' fired with code %ld\n", error.code);
+		MTY_Log("'URLSession:task:didCompleteWithError' fired with code %ld\n", error.code);
 }
 
 static void websocket_URLSession_webSocketTask_didOpenWithProtocol(id self, SEL _cmd, NSURLSession *session,
@@ -58,7 +58,7 @@ static void websocket_URLSession_webSocketTask_didCloseWithCode_reason(id self, 
 	ctx->closed = true;
 
 	if (closeCode != NSURLSessionWebSocketCloseCodeNormalClosure)
-		MTY_Log("'WebSocket:didCloseWithCode' fired with closeCode %ld\n", closeCode);
+		MTY_Log("'URLSession:webSocketTask:didCloseWithCode' fired with closeCode %ld\n", closeCode);
 }
 
 static void websocket_URLSession_didBecomeInvalidWithError(id self, SEL _cmd, NSURLSession *session, NSError *error)
@@ -76,18 +76,13 @@ static Class websocket_class(void)
 
 	cls = OBJC_ALLOCATE("NSObject", WEBSOCKET_CLASS_NAME);
 
-	// NSURLSessionTaskDelegate
-	Protocol *proto = OBJC_PROTOCOL(cls, @protocol(NSURLSessionTaskDelegate));
+	// NSURLSessionWebSocketDelegate
+	Protocol *proto = OBJC_PROTOCOL(cls, @protocol(NSURLSessionWebSocketDelegate));
 	if (proto) {
-		OBJC_POVERRIDE(cls, proto, NO, @selector(URLSession:task:didCompleteWithError:),
-			websocket_URLSession_task_didCompleteWithError);
 		OBJC_POVERRIDE(cls, proto, NO, @selector(URLSession:didBecomeInvalidWithError:),
 			websocket_URLSession_didBecomeInvalidWithError);
-	}
-
-	// NSURLSessionWebSocketDelegate
-	proto = OBJC_PROTOCOL(cls, @protocol(NSURLSessionWebSocketDelegate));
-	if (proto) {
+		OBJC_POVERRIDE(cls, proto, NO, @selector(URLSession:task:didCompleteWithError:),
+			websocket_URLSession_task_didCompleteWithError);
 		OBJC_POVERRIDE(cls, proto, NO, @selector(URLSession:webSocketTask:didOpenWithProtocol:),
 			websocket_URLSession_webSocketTask_didOpenWithProtocol);
 		OBJC_POVERRIDE(cls, proto, NO, @selector(URLSession:webSocketTask:didCloseWithCode:reason:),
@@ -183,7 +178,15 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure
 
 	[ctx->task resume];
 
-	if (!MTY_WaitableWait(ctx->conn, timeout))
+	bool opened = MTY_WaitableWait(ctx->conn, timeout);
+
+	// Upgrade status
+	NSHTTPURLResponse *response = (NSHTTPURLResponse *) ctx->task.response;
+
+	if (response)
+		*upgradeStatus = response.statusCode;
+
+	if (!opened)
 		MTY_WebSocketDestroy(&ctx);
 
 	return ctx;
