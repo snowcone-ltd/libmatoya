@@ -29,5 +29,6 @@ struct window_common *mty_window_get_common(MTY_App *app, MTY_Window window);
 MTY_Frame mty_window_adjust(uint32_t screen_w, uint32_t screen_h, float scale, float max_h,
 	int32_t x, int32_t y, uint32_t w, uint32_t h);
 
-// Hotkeys
+// Keys
+bool mty_app_dedupe_key(MTY_Key key, bool pressed, bool repeat);
 void mty_app_kb_to_hotkey(MTY_App *app, MTY_Event *evt, MTY_EventType type);
