@@ -526,7 +526,6 @@ typedef enum {
 	MTY_KEY_LWIN           = 0x15B, ///< Left Windows (Meta/Super)
 	MTY_KEY_RWIN           = 0x15C, ///< Right Windows (Meta/Super)
 	MTY_KEY_APP            = 0x15D, ///< Application Menu
-	MTY_KEY_POWER          = 0x15E, ///< Power
 	MTY_KEY_F13            = 0x064, ///< F13
 	MTY_KEY_F14            = 0x065, ///< F14
 	MTY_KEY_F15            = 0x066, ///< F15
@@ -539,18 +538,13 @@ typedef enum {
 	MTY_KEY_F22            = 0x06D, ///< F22
 	MTY_KEY_F23            = 0x06E, ///< F23
 	MTY_KEY_MEDIA_SELECT   = 0x16D, ///< Media Select
-	MTY_KEY_JP             = 0x070, ///< Katakana / Hiragana
+	MTY_KEY_JP             = 0x070, ///< Katakana/Hiragana
 	MTY_KEY_RO             = 0x073, ///< Ro
 	MTY_KEY_F24            = 0x076, ///< F24
-	MTY_KEY_LANG_5         = 0x076, ///< Zenkaku/Hankaku
-	MTY_KEY_LANG_4         = 0x077, ///< Hiragana
-	MTY_KEY_LANG_3         = 0x078, ///< Katakana
 	MTY_KEY_HENKAN         = 0x079, ///< Henkan
 	MTY_KEY_MUHENKAN       = 0x07B, ///< Muhenkan
 	MTY_KEY_INTL_COMMA     = 0x07E, ///< JIS Comma
 	MTY_KEY_YEN            = 0x07D, ///< Yen
-	MTY_KEY_LANG_2         = 0x0F1, ///< Hanja
-	MTY_KEY_LANG_1         = 0x0F2, ///< Hanguel
 	MTY_KEY_MAX            = 0x200, ///< The maximum possible MTY_Key value.
 	MTY_KEY_MAKE_32        = INT32_MAX,
 } MTY_Key;

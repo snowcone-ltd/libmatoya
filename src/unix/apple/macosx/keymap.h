@@ -182,7 +182,7 @@ static MTY_Key keymap_keycode_to_key(uint16_t kc)
 		case kVK_RightArrow:          return MTY_KEY_RIGHT;
 		case kVK_DownArrow:           return MTY_KEY_DOWN;
 		case kVK_UpArrow:             return MTY_KEY_UP;
-		case kVK_Power:               return MTY_KEY_POWER;
+		case kVK_Power:               return MTY_KEY_NONE;
 		case kVK_Spotlight:           return MTY_KEY_F21;
 		case kVK_Dashboard:           return MTY_KEY_F22;
 		case kVK_Launchpad:           return MTY_KEY_F23;
@@ -373,7 +373,7 @@ static MTY_Key keymap_usage_to_key(uint32_t usage)
 		case kHIDUsage_KeypadPeriod:                 return MTY_KEY_NP_PERIOD;
 		case kHIDUsage_KeyboardNonUSBackslash:       return MTY_KEY_INTL_BACKSLASH;
 		case kHIDUsage_KeyboardApplication:          return MTY_KEY_APP;
-		case kHIDUsage_KeyboardPower:                return MTY_KEY_POWER;
+		case kHIDUsage_KeyboardPower:                return MTY_KEY_NONE;
 		case kHIDUsage_KeypadEqualSign:              return MTY_KEY_NP_EQUAL;
 		case kHIDUsage_KeyboardF13:                  return MTY_KEY_F13;
 		case kHIDUsage_KeyboardF14:                  return MTY_KEY_F14;
@@ -415,11 +415,11 @@ static MTY_Key keymap_usage_to_key(uint32_t usage)
 		case kHIDUsage_KeyboardInternational7:       return MTY_KEY_NONE;
 		case kHIDUsage_KeyboardInternational8:       return MTY_KEY_NONE;
 		case kHIDUsage_KeyboardInternational9:       return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardLANG1:                return MTY_KEY_LANG_1;
-		case kHIDUsage_KeyboardLANG2:                return MTY_KEY_LANG_2;
-		case kHIDUsage_KeyboardLANG3:                return MTY_KEY_LANG_3;
-		case kHIDUsage_KeyboardLANG4:                return MTY_KEY_LANG_4;
-		case kHIDUsage_KeyboardLANG5:                return MTY_KEY_LANG_5;
+		case kHIDUsage_KeyboardLANG1:                return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardLANG2:                return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardLANG3:                return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardLANG4:                return MTY_KEY_NONE;
+		case kHIDUsage_KeyboardLANG5:                return MTY_KEY_NONE;
 		case kHIDUsage_KeyboardLANG6:                return MTY_KEY_NONE;
 		case kHIDUsage_KeyboardLANG7:                return MTY_KEY_NONE;
 		case kHIDUsage_KeyboardLANG8:                return MTY_KEY_NONE;
