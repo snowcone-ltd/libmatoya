@@ -1220,14 +1220,6 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 	if (key == MTY_KEY_NONE)
 		return;
 
-	if (!MTY_AppIsActive(ctx))
-		return;
-
-	struct window *window0 = ctx->windows[0];
-
-	if (window0 && window0->cmn.webview && mty_webview_is_visible(window0->cmn.webview))
-		return;
-
 	MTY_Mod mod = keymap_usage_to_mod(usage);
 
 	if (down) {
@@ -1236,6 +1228,14 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 	} else {
 		ctx->hid_kb_mod &= ~mod;
 	}
+
+	if (!MTY_AppIsActive(ctx))
+		return;
+
+	struct window *window0 = ctx->windows[0];
+
+	if (window0 && window0->cmn.webview && mty_webview_is_visible(window0->cmn.webview))
+		return;
 
 	MTY_Event evt = {
 		.type = MTY_EVENT_KEY,
