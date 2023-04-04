@@ -1059,7 +1059,7 @@ MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eve
 	ImmDisableIME(0);
 
 	ctx->xip = xip_create();
-	ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report, ctx);
+	ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report, NULL, ctx);
 
 	except:
 

@@ -365,9 +365,12 @@ typedef intptr_t (*MTY_WMsgFunc)(MTY_App *app, MTY_Window window, void *hwnd, ui
 
 /// @brief Alternative MTY_App behaviors.
 typedef enum {
-	MTY_APP_FLAG_HID_EVENTS = 0x01, ///< If enabled, all controllers except XInput controllers will
-	                                ///<   generate input report events.
-	MTY_APP_FLAG_MAKE_32    = INT32_MAX,
+	MTY_APP_FLAG_HID_EVENTS   = 0x01, ///< If enabled, all controllers except XInput controllers
+	                                  ///<   will generate input report events.
+	MTY_APP_FLAG_HID_KEYBOARD = 0x02, ///< On macOS, use the IOKit HID subsystem to make detecting
+	                                  ///<   key events more robust. Doing so will request highly
+                                      ///<   privileged permissions for the calling application.
+	MTY_APP_FLAG_MAKE_32      = INT32_MAX,
 } MTY_AppFlag;
 
 /// @brief App events.
@@ -519,6 +522,7 @@ typedef enum {
 	MTY_KEY_INTL_BACKSLASH = 0x056, ///< International Backslash
 	MTY_KEY_F11            = 0x057, ///< F11
 	MTY_KEY_F12            = 0x058, ///< F12
+	MTY_KEY_NP_EQUAL       = 0x059, ///< Equal (numpad)
 	MTY_KEY_LWIN           = 0x15B, ///< Left Windows (Meta/Super)
 	MTY_KEY_RWIN           = 0x15C, ///< Right Windows (Meta/Super)
 	MTY_KEY_APP            = 0x15D, ///< Application Menu
@@ -529,9 +533,14 @@ typedef enum {
 	MTY_KEY_F17            = 0x068, ///< F17
 	MTY_KEY_F18            = 0x069, ///< F18
 	MTY_KEY_F19            = 0x06A, ///< F19
+	MTY_KEY_F20            = 0x06B, ///< F20
+	MTY_KEY_F21            = 0x06C, ///< F21
+	MTY_KEY_F22            = 0x06D, ///< F22
+	MTY_KEY_F23            = 0x06E, ///< F23
 	MTY_KEY_MEDIA_SELECT   = 0x16D, ///< Media Select
-	MTY_KEY_JP             = 0x070, ///< Katakana / Hiragana
+	MTY_KEY_JP             = 0x070, ///< Katakana/Hiragana
 	MTY_KEY_RO             = 0x073, ///< Ro
+	MTY_KEY_F24            = 0x076, ///< F24
 	MTY_KEY_HENKAN         = 0x079, ///< Henkan
 	MTY_KEY_MUHENKAN       = 0x07B, ///< Muhenkan
 	MTY_KEY_INTL_COMMA     = 0x07E, ///< JIS Comma

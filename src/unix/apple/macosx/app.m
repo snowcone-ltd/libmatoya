@@ -3,6 +3,7 @@
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
 #include "app.h"
+#include "app-os.h"
 
 #include <AppKit/AppKit.h>
 #include <Carbon/Carbon.h>
@@ -40,6 +41,7 @@ struct MTY_App {
 	MTY_Hash *hotkey;
 	MTY_Hash *deduper;
 	MTY_DetachState detach;
+	MTY_Mod hid_kb_mod;
 	MTY_Cursor scursor;
 	MTY_AppFlag flags;
 	void *opaque;
@@ -57,6 +59,7 @@ struct MTY_App {
 	NSUInteger buttons;
 	uint32_t cb_seq;
 	struct window *windows[MTY_WINDOW_MAX];
+	bool keys[MTY_KEY_MAX];
 	float timeout;
 	struct hid *hid;
 };
@@ -402,15 +405,6 @@ static MTY_Window app_find_open_window(MTY_App *ctx, MTY_Window req)
 	return -1;
 }
 
-static MTY_Event window_event(struct window *window, MTY_EventType type)
-{
-	MTY_Event evt = {0};
-	evt.type = type;
-	evt.window = window->window;
-
-	return evt;
-}
-
 
 // Screen helpers
 
@@ -480,7 +474,7 @@ static bool window_event_in_nc(NSWindow *window)
 	return window_hit_test(&p, window.frame.size);
 }
 
-static struct window *window_find_mouse(struct window *me, NSPoint *p)
+static struct window *window_find_mouse(struct window *ctx, NSPoint *p)
 {
 	// Find the window where the cursor resides, accounting for overlapping windows
 	// and non-client areas
@@ -489,13 +483,13 @@ static struct window *window_find_mouse(struct window *me, NSPoint *p)
 	NSArray<NSWindow *> *windows = [NSApp windows];
 
 	for (uint32_t x = 0; x < windows.count; x++) {
-		struct window *window = app_get_window_by_number(me->app, windows[x].windowNumber);
+		struct window *window = app_get_window_by_number(ctx->app, windows[x].windowNumber);
 		if (!window)
 			continue;
 
 		NSPoint wp = {0};
 		if (window_event_in_view(window->nsw, &wp)) {
-			if (window->nsw.isKeyWindow && window->nsw.windowNumber == me->nsw.windowNumber) {
+			if (window->nsw.isKeyWindow && window->nsw.windowNumber == ctx->nsw.windowNumber) {
 				*p = wp;
 				return window;
 			}
@@ -520,27 +514,31 @@ static struct window *window_find_mouse(struct window *me, NSPoint *p)
 
 // Pen
 
-static void window_pen_event(struct window *window, NSEvent *event, bool pressed)
+static void window_pen_event(struct window *ctx, NSEvent *event, bool pressed)
 {
 	NSPoint p = {0};
-	struct window *cur = window_find_mouse(window, &p);
+	struct window *cur = window_find_mouse(ctx, &p);
 	if (!cur)
 		return;
 
 	CGFloat scale = mty_screen_scale(cur->nsw.screen);
-	MTY_Event evt = window_event(cur, MTY_EVENT_PEN);
-	evt.pen.pressure = (uint16_t) lrint(event.pressure * 1024.0f);
-	evt.pen.rotation = (uint16_t) lrint(event.rotation * 359.0f);
-	evt.pen.tiltX = (int8_t) lrint(event.tilt.x * 90.0f);
-	evt.pen.tiltY = (int8_t) lrint(event.tilt.y * -90.0f);
-	evt.pen.x = lrint(p.x * scale);
-	evt.pen.y = lrint(p.y * scale);
+
+	MTY_Event evt = {
+		.type = MTY_EVENT_PEN,
+		.window = ctx->window,
+		.pen.pressure = (uint16_t) lrint(event.pressure * 1024.0f),
+		.pen.rotation = (uint16_t) lrint(event.rotation * 359.0f),
+		.pen.tiltX = (int8_t) lrint(event.tilt.x * 90.0f),
+		.pen.tiltY = (int8_t) lrint(event.tilt.y * -90.0f),
+		.pen.x = lrint(p.x * scale),
+		.pen.y = lrint(p.y * scale),
+	};
 
 	bool touching = event.buttonMask & NSEventButtonMaskPenTip || pressed;
 
 	// INVERTED must be set while hovering, but ERASER should only be set by
 	// while TOUCHING is also true
-	if (window->app->eraser) {
+	if (ctx->app->eraser) {
 		evt.pen.flags |= MTY_PEN_FLAG_INVERTED;
 
 		if (touching) {
@@ -553,21 +551,21 @@ static void window_pen_event(struct window *window, NSEvent *event, bool pressed
 	}
 
 	// LEAVE is set when the pen moves out of the tracking area (only once)
-	if (window->app->pen_left) {
+	if (ctx->app->pen_left) {
 		evt.pen.flags |= MTY_PEN_FLAG_LEAVE;
-		window->app->pen_left = false;
+		ctx->app->pen_left = false;
 	}
 
-	window->app->event_func(&evt, window->app->opaque);
+	ctx->app->event_func(&evt, ctx->app->opaque);
 }
 
 
 // Mouse
 
-static void window_mouse_button_event(struct window *window, NSUInteger index, bool pressed)
+static void window_mouse_button_event(struct window *ctx, NSUInteger index, bool pressed)
 {
 	NSPoint p = {0};
-	struct window *cur = window_find_mouse(window, &p);
+	struct window *cur = window_find_mouse(ctx, &p);
 	if (!cur)
 		return;
 
@@ -576,32 +574,35 @@ static void window_mouse_button_event(struct window *window, NSUInteger index, b
 
 	CGFloat scale = mty_screen_scale(cur->nsw.screen);
 
-	MTY_Event evt = window_event(cur, MTY_EVENT_BUTTON);
-	evt.button.button = APP_MOUSE_MAP[index];
-	evt.button.pressed = pressed;
-	evt.button.x = lrint(scale * p.x);
-	evt.button.y = lrint(scale * p.y);
+	MTY_Event evt = {
+		.type = MTY_EVENT_BUTTON,
+		.window = ctx->window,
+		.button.button = APP_MOUSE_MAP[index],
+		.button.pressed = pressed,
+		.button.x = lrint(scale * p.x),
+		.button.y = lrint(scale * p.y),
+	};
 
-	window->app->event_func(&evt, window->app->opaque);
+	ctx->app->event_func(&evt, ctx->app->opaque);
 
 	if (pressed) {
-		window->app->buttons |= 1 << index;
+		ctx->app->buttons |= 1 << index;
 
 	} else {
-		window->app->buttons &= ~(1 << index);
+		ctx->app->buttons &= ~(1 << index);
 	}
 }
 
-static void window_button_event(struct window *window, NSEvent *event, NSUInteger index, bool pressed)
+static void window_button_event(struct window *ctx, NSEvent *event, NSUInteger index, bool pressed)
 {
 	// An index of zero indicates a pen event
 	bool is_pen_press = event.buttonMask & NSEventButtonMaskPenTip || index == 0;
 
-	if (window->app->pen_enabled && event.subtype == NSEventSubtypeTabletPoint && is_pen_press) {
-		window_pen_event(window, event, pressed);
+	if (ctx->app->pen_enabled && event.subtype == NSEventSubtypeTabletPoint && is_pen_press) {
+		window_pen_event(ctx, event, pressed);
 
 	} else {
-		window_mouse_button_event(window, index, pressed);
+		window_mouse_button_event(ctx, index, pressed);
 	}
 }
 
@@ -649,114 +650,128 @@ static void window_confine_cursor(void)
 	window_warp_cursor(window, lrint(wp.x * scale), lrint(wp.y * scale));
 }
 
-static void window_mouse_motion_event(struct window *window, NSEvent *event, bool pen_in_range)
+static void window_mouse_motion_event(struct window *ctx, NSEvent *event, bool pen_in_range)
 {
-	if (window->app->relative && window->app->detach == MTY_DETACH_STATE_NONE && !pen_in_range) {
-		MTY_Event evt = window_event(window, MTY_EVENT_MOTION);
+	if (ctx->app->relative && ctx->app->detach == MTY_DETACH_STATE_NONE && !pen_in_range) {
+		MTY_Event evt = {
+			.type = MTY_EVENT_MOTION,
+			.window = ctx->window,
+			.motion.relative = true,
+		};
 
-		evt.motion.relative = true;
 		CGGetLastMouseDelta(&evt.motion.x, &evt.motion.y);
 
-		window->app->event_func(&evt, window->app->opaque);
+		ctx->app->event_func(&evt, ctx->app->opaque);
 
 	} else {
 		NSPoint p = {0};
-		struct window *cur = window_find_mouse(window, &p);
+		struct window *cur = window_find_mouse(ctx, &p);
 
 		if (cur) {
-			if (window->app->grab_mouse && window->app->detach == MTY_DETACH_STATE_NONE && !cur->nsw.isKeyWindow) {
+			if (ctx->app->grab_mouse && ctx->app->detach == MTY_DETACH_STATE_NONE && !cur->nsw.isKeyWindow) {
 				window_confine_cursor();
 
 			} else if (cur->nsw.occlusionState & NSWindowOcclusionStateVisible) {
-				MTY_Event evt = window_event(cur, MTY_EVENT_MOTION);
-
 				CGFloat scale = mty_screen_scale(cur->nsw.screen);
-				evt.motion.relative = false;
-				evt.motion.x = lrint(scale * p.x);
-				evt.motion.y = lrint(scale * p.y);
 
-				window->app->event_func(&evt, window->app->opaque);
+				MTY_Event evt = {
+					.type = MTY_EVENT_MOTION,
+					.window = ctx->window,
+					.motion.relative = false,
+					.motion.x = lrint(scale * p.x),
+					.motion.y = lrint(scale * p.y),
+				};
+
+				ctx->app->event_func(&evt, ctx->app->opaque);
 			}
 
-		} else if (window->app->grab_mouse && window->app->detach == MTY_DETACH_STATE_NONE) {
+		} else if (ctx->app->grab_mouse && ctx->app->detach == MTY_DETACH_STATE_NONE) {
 			window_confine_cursor();
 		}
 	}
 }
 
-static void window_motion_event(struct window *window, NSEvent *event)
+static void window_motion_event(struct window *ctx, NSEvent *event)
 {
 	bool pen_in_range = event.subtype == NSEventSubtypeTabletPoint;
 
-	if (window->app->pen_enabled && pen_in_range) {
-		window_pen_event(window, event, false);
+	if (ctx->app->pen_enabled && pen_in_range) {
+		window_pen_event(ctx, event, false);
 
 	} else {
-		window_mouse_motion_event(window, event, pen_in_range);
+		window_mouse_motion_event(ctx, event, pen_in_range);
 	}
 }
 
-static void window_scroll_event(struct window *window, NSEvent *event)
+static void window_scroll_event(struct window *ctx, NSEvent *event)
 {
-	CGFloat scale = mty_screen_scale(window->nsw.screen);
+	CGFloat scale = mty_screen_scale(ctx->nsw.screen);
 	int32_t delta = event.hasPreciseScrollingDeltas ? scale : scale * 80.0f;
 
-	MTY_Event evt = window_event(window, MTY_EVENT_SCROLL);
-	evt.scroll.x = lrint(-event.scrollingDeltaX * delta);
-	evt.scroll.y = lrint(event.scrollingDeltaY * delta);
+	MTY_Event evt = {
+		.type = MTY_EVENT_SCROLL,
+		.window = ctx->window,
+		.scroll.x = lrint(-event.scrollingDeltaX * delta),
+		.scroll.y = lrint(event.scrollingDeltaY * delta),
+	};
 
-	window->app->event_func(&evt, window->app->opaque);
+	ctx->app->event_func(&evt, ctx->app->opaque);
 }
 
 
 // Keyboard
 
-static void window_text_event(struct window *window, const char *text)
+static void window_text_event(struct window *ctx, const char *text)
 {
 	// Make sure visible ASCII
 	if (text && text[0] && text[0] >= 0x20 && text[0] != 0x7F) {
-		MTY_Event evt = window_event(window, MTY_EVENT_TEXT);
+		MTY_Event evt = {
+			.type = MTY_EVENT_TEXT,
+			.window = ctx->window,
+		};
+
 		snprintf(evt.text, 8, "%s", text);
 
-		window->app->event_func(&evt, window->app->opaque);
+		ctx->app->event_func(&evt, ctx->app->opaque);
 	}
 }
 
-static void window_keyboard_event(struct window *window, uint16_t key_code, NSEventModifierFlags flags, bool pressed)
+static void window_keyboard_event(struct window *ctx, uint16_t key_code, NSEventModifierFlags flags,
+	bool pressed, bool repeat)
 {
-	MTY_Event evt = window_event(window, MTY_EVENT_KEY);
-	evt.key.key = keymap_keycode_to_key(key_code);
-	evt.key.vkey = key_code;
-	evt.key.mod = keymap_modifier_flags_to_keymod(flags);
-	evt.key.pressed = pressed;
+	MTY_Event evt = {
+		.type = MTY_EVENT_KEY,
+		.window = ctx->window,
+		.key.key = keymap_keycode_to_key(key_code),
+		.key.vkey = key_code,
+		.key.mod = keymap_modifier_flags_to_keymod(flags),
+		.key.pressed = pressed,
+	};
 
-	mty_app_kb_to_hotkey(window->app, &evt, MTY_EVENT_HOTKEY);
+	if (!mty_app_dedupe_key(ctx->app, evt.key.key, pressed, repeat))
+		return;
+
+	mty_app_kb_to_hotkey(ctx->app, &evt, MTY_EVENT_HOTKEY);
 
 	if ((evt.type == MTY_EVENT_HOTKEY && pressed) || (evt.type == MTY_EVENT_KEY && evt.key.key != MTY_KEY_NONE))
-		window->app->event_func(&evt, window->app->opaque);
+		ctx->app->event_func(&evt, ctx->app->opaque);
 }
 
-static void window_mod_event(struct window *window, NSEvent *event)
+static bool window_flags_changed(uint16_t key_code, NSEventModifierFlags flags)
 {
-	MTY_Event evt = window_event(window, MTY_EVENT_KEY);
-	evt.key.key = keymap_keycode_to_key(event.keyCode);
-	evt.key.vkey = event.keyCode;
-	evt.key.mod = keymap_modifier_flags_to_keymod(event.modifierFlags);
-
-	switch (evt.key.key) {
-		case MTY_KEY_LSHIFT: evt.key.pressed = evt.key.mod & MTY_MOD_LSHIFT; break;
-		case MTY_KEY_LCTRL:  evt.key.pressed = evt.key.mod & MTY_MOD_LCTRL;  break;
-		case MTY_KEY_LALT:   evt.key.pressed = evt.key.mod & MTY_MOD_LALT;   break;
-		case MTY_KEY_LWIN:   evt.key.pressed = evt.key.mod & MTY_MOD_LWIN;   break;
-		case MTY_KEY_RSHIFT: evt.key.pressed = evt.key.mod & MTY_MOD_RSHIFT; break;
-		case MTY_KEY_RCTRL:  evt.key.pressed = evt.key.mod & MTY_MOD_RCTRL;  break;
-		case MTY_KEY_RALT:   evt.key.pressed = evt.key.mod & MTY_MOD_RALT;   break;
-		case MTY_KEY_RWIN:   evt.key.pressed = evt.key.mod & MTY_MOD_RWIN;   break;
-		default:
-			return;
+	switch (key_code) {
+		case kVK_Shift: return flags & NS_MOD_LSHIFT;
+		case kVK_Control: return flags & NS_MOD_LCTRL;
+		case kVK_Option: return flags & NS_MOD_LALT;
+		case kVK_Command: return flags & NS_MOD_LCMD;
+		case kVK_RightShift: return flags & NS_MOD_RSHIFT;
+		case kVK_RightControl: return flags & NS_MOD_RCTRL;
+		case kVK_RightOption: return flags & NS_MOD_RALT;
+		case kVK_RightCommand: return flags & NS_MOD_RCMD;
+		case kVK_CapsLock: return flags & NSEventModifierFlagCapsLock;
 	}
 
-	window->app->event_func(&evt, window->app->opaque);
+	return false;
 }
 
 
@@ -797,8 +812,10 @@ static BOOL window_performKeyEquivalent(NSWindow *self, SEL _cmd, NSEvent *event
 
 	// While keyboard is grabbed, make sure we pass through special OS hotkeys
 	if (ctx->app->grab_kb && (cmd_tab || ctrl_tab || cmd_q || cmd_w || cmd_space)) {
-		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true);
-		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false);
+		if (!(ctx->app->flags & MTY_APP_FLAG_HID_KEYBOARD)) {
+			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true, true);
+			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, true);
+		}
 
 		return YES;
 	}
@@ -810,7 +827,11 @@ static BOOL window_windowShouldClose(NSWindow *self, SEL _cmd, NSWindow *sender)
 {
 	struct window *ctx = OBJC_CTX();
 
-	MTY_Event evt = window_event(ctx, MTY_EVENT_CLOSE);
+	MTY_Event evt = {
+		.type = MTY_EVENT_CLOSE,
+		.window = ctx->window,
+	};
+
 	ctx->app->event_func(&evt, ctx->app->opaque);
 
 	return NO;
@@ -820,8 +841,11 @@ static void window_windowDidResignKey(NSWindow *self, SEL _cmd, NSNotification *
 {
 	struct window *ctx = OBJC_CTX();
 
-	MTY_Event evt = window_event(ctx, MTY_EVENT_FOCUS);
-	evt.focus = false;
+	MTY_Event evt = {
+		.type = MTY_EVENT_FOCUS,
+		.window = ctx->window,
+		.focus = false,
+	};
 
 	// When in full screen and the window loses focus (changing spaces etc)
 	// we need to set the window level back to normal and change the content size.
@@ -847,8 +871,11 @@ static void window_windowDidBecomeKey(NSWindow *self, SEL _cmd, NSNotification *
 {
 	struct window *ctx = OBJC_CTX();
 
-	MTY_Event evt = window_event(ctx, MTY_EVENT_FOCUS);
-	evt.focus = true;
+	MTY_Event evt = {
+		.type = MTY_EVENT_FOCUS,
+		.window = ctx->window,
+		.focus = true,
+	};
 
 	ctx->app->event_func(&evt, ctx->app->opaque);
 }
@@ -868,7 +895,11 @@ static void window_windowDidResize(NSWindow *self, SEL _cmd, NSNotification *not
 {
 	struct window *ctx = OBJC_CTX();
 
-	MTY_Event evt = window_event(ctx, MTY_EVENT_SIZE);
+	MTY_Event evt = {
+		.type = MTY_EVENT_SIZE,
+		.window = ctx->window,
+	};
+
 	ctx->app->event_func(&evt, ctx->app->opaque);
 
 	if (ctx->cmn.webview)
@@ -879,7 +910,11 @@ static void window_windowDidMove(NSWindow *self, SEL _cmd, NSNotification *notif
 {
 	struct window *ctx = OBJC_CTX();
 
-	MTY_Event evt = window_event(ctx, MTY_EVENT_MOVE);
+	MTY_Event evt = {
+		.type = MTY_EVENT_MOVE,
+		.window = ctx->window,
+	};
+
 	ctx->app->event_func(&evt, ctx->app->opaque);
 }
 
@@ -887,7 +922,7 @@ static void window_keyUp(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
 
-	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false);
+	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, false);
 }
 
 static void window_keyDown(NSWindow *self, SEL _cmd, NSEvent *event)
@@ -895,7 +930,7 @@ static void window_keyDown(NSWindow *self, SEL _cmd, NSEvent *event)
 	struct window *ctx = OBJC_CTX();
 
 	window_text_event(ctx, [event.characters UTF8String]);
-	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true);
+	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true, event.isARepeat);
 }
 
 static void window_flagsChanged(NSWindow *self, SEL _cmd, NSEvent *event)
@@ -904,11 +939,14 @@ static void window_flagsChanged(NSWindow *self, SEL _cmd, NSEvent *event)
 
 	// Simulate full button press for the Caps Lock key
 	if (event.keyCode == kVK_CapsLock) {
-		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true);
-		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false);
+		if (!(ctx->app->flags & MTY_APP_FLAG_HID_KEYBOARD)) {
+			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true, true);
+			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, true);
+		}
 
 	} else {
-		window_mod_event(ctx, event);
+		bool pressed = window_flags_changed(event.keyCode, event.modifierFlags);
+		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, pressed, false);
 	}
 }
 
@@ -1174,6 +1212,45 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 	}
 }
 
+static void app_hid_key(uint32_t usage, bool down, void *opaque)
+{
+	MTY_App *ctx = opaque;
+
+	MTY_Key key = keymap_usage_to_key(usage);
+	if (key == MTY_KEY_NONE)
+		return;
+
+	MTY_Mod mod = keymap_usage_to_mod(usage);
+
+	if (down) {
+		ctx->hid_kb_mod |= mod;
+
+	} else {
+		ctx->hid_kb_mod &= ~mod;
+	}
+
+	if (!MTY_AppIsActive(ctx))
+		return;
+
+	struct window *window0 = ctx->windows[0];
+
+	if (window0 && window0->cmn.webview && mty_webview_is_visible(window0->cmn.webview))
+		return;
+
+	MTY_Event evt = {
+		.type = MTY_EVENT_KEY,
+		.key.key = key,
+		.key.mod = ctx->hid_kb_mod,
+		.key.pressed = down,
+	};
+
+	if (!mty_app_dedupe_key(ctx, evt.key.key, down, false))
+		return;
+
+	mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
+	ctx->event_func(&evt, ctx->opaque);
+}
+
 static void app_pump_events(MTY_App *ctx, NSDate *until)
 {
 	while (ctx->cont) {
@@ -1200,7 +1277,8 @@ MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eve
 	ctx->cursor_showing = true;
 	ctx->cont = true;
 
-	ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report, ctx);
+	ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report,
+		ctx->flags & MTY_APP_FLAG_HID_KEYBOARD ? app_hid_key : NULL, ctx);
 
 	ctx->hotkey = MTY_HashCreate(0);
 	ctx->deduper = MTY_HashCreate(0);
@@ -1828,6 +1906,16 @@ MTY_EventFunc mty_app_get_event_func(MTY_App *ctx, void **opaque)
 MTY_Hash *mty_app_get_hotkey_hash(MTY_App *ctx)
 {
 	return ctx->hotkey;
+}
+
+bool mty_app_dedupe_key(MTY_App *ctx, MTY_Key key, bool pressed, bool repeat)
+{
+	bool was_down = ctx->keys[key];
+	bool should_fire = (pressed && (repeat || !was_down)) || (!pressed && was_down);
+
+	ctx->keys[key] = pressed;
+
+	return should_fire;
 }
 
 struct window_common *mty_window_get_common(MTY_App *app, MTY_Window window)
