@@ -757,18 +757,18 @@ static void window_keyboard_event(struct window *ctx, uint16_t key_code, NSEvent
 		ctx->app->event_func(&evt, ctx->app->opaque);
 }
 
-static bool window_flags_changed_pressed(NSEvent *event)
+static bool window_flags_changed(uint16_t key_code, NSEventModifierFlags flags)
 {
-	switch (event.keyCode) {
-		case kVK_Shift: return event.modifierFlags & NS_MOD_LSHIFT;
-		case kVK_Control: return event.modifierFlags & NS_MOD_LCTRL;
-		case kVK_Option: return event.modifierFlags & NS_MOD_LALT;
-		case kVK_Command: return event.modifierFlags & NS_MOD_LCMD;
-		case kVK_RightShift: return event.modifierFlags & NS_MOD_RSHIFT;
-		case kVK_RightControl: return event.modifierFlags & NS_MOD_RCTRL;
-		case kVK_RightOption: return event.modifierFlags & NS_MOD_RALT;
-		case kVK_RightCommand: return event.modifierFlags & NS_MOD_RCMD;
-		case kVK_CapsLock: return event.modifierFlags & NSEventModifierFlagCapsLock;
+	switch (key_code) {
+		case kVK_Shift: return flags & NS_MOD_LSHIFT;
+		case kVK_Control: return flags & NS_MOD_LCTRL;
+		case kVK_Option: return flags & NS_MOD_LALT;
+		case kVK_Command: return flags & NS_MOD_LCMD;
+		case kVK_RightShift: return flags & NS_MOD_RSHIFT;
+		case kVK_RightControl: return flags & NS_MOD_RCTRL;
+		case kVK_RightOption: return flags & NS_MOD_RALT;
+		case kVK_RightCommand: return flags & NS_MOD_RCMD;
+		case kVK_CapsLock: return flags & NSEventModifierFlagCapsLock;
 	}
 
 	return false;
@@ -945,7 +945,7 @@ static void window_flagsChanged(NSWindow *self, SEL _cmd, NSEvent *event)
 		}
 
 	} else {
-		bool pressed = window_flags_changed_pressed(event);
+		bool pressed = window_flags_changed(event.keyCode, event.modifierFlags);
 		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, pressed, false);
 	}
 }
@@ -1221,6 +1221,11 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 		return;
 
 	if (!MTY_AppIsActive(ctx))
+		return;
+
+	struct window *window0 = ctx->windows[0];
+
+	if (window0 && window0->cmn.webview && mty_webview_is_visible(window0->cmn.webview))
 		return;
 
 	MTY_Mod mod = keymap_usage_to_mod(usage);
