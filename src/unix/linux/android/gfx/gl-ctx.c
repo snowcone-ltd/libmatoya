@@ -9,7 +9,7 @@ GFX_CTX_PROTOTYPES(_gl_)
 
 #include <EGL/egl.h>
 
-#include "aapp.h"
+#include "app-os.h"
 #include "gfx/gl/glproc.h"
 
 static struct gl_ctx {
