@@ -13,16 +13,10 @@
 #define kVK_Next           0x42
 #define kVK_Previous       0x4D
 #define kVK_WinApp         0x6E
-#define kVK_VidMirror      0x70
-#define kVK_Power          0x7F
 #define kVK_Spotlight      0x81
 #define kVK_Dashboard      0x82
 #define kVK_Launchpad      0x83
-#define kVK_BrightnessUp   0x90
-#define kVK_BrightnessDown 0x91
-#define kVK_Eject          0x92
 #define kVK_ExposesAll     0xA0
-#define kVK_ExposesDesktop 0xA1
 
 enum {
 	NS_MOD_LCTRL  = 0x000001,
@@ -121,7 +115,6 @@ static MTY_Key keymap_keycode_to_key(uint16_t kc)
 		case kVK_RightShift:          return MTY_KEY_RSHIFT;
 		case kVK_RightOption:         return MTY_KEY_RALT;
 		case kVK_RightControl:        return MTY_KEY_RCTRL;
-		case kVK_Function:            return MTY_KEY_NONE;
 		case kVK_F17:                 return MTY_KEY_F17;
 		case kVK_ANSI_KeypadDecimal:  return MTY_KEY_NP_PERIOD;
 		case kVK_Next:                return MTY_KEY_AUDIO_NEXT;
@@ -167,7 +160,6 @@ static MTY_Key keymap_keycode_to_key(uint16_t kc)
 		case kVK_F10:                 return MTY_KEY_F10;
 		case kVK_WinApp:              return MTY_KEY_APP;
 		case kVK_F12:                 return MTY_KEY_F12;
-		case kVK_VidMirror:           return MTY_KEY_NONE;
 		case kVK_F15:                 return MTY_KEY_PAUSE;
 		case kVK_Help:                return MTY_KEY_INSERT;
 		case kVK_Home:                return MTY_KEY_HOME;
@@ -182,15 +174,10 @@ static MTY_Key keymap_keycode_to_key(uint16_t kc)
 		case kVK_RightArrow:          return MTY_KEY_RIGHT;
 		case kVK_DownArrow:           return MTY_KEY_DOWN;
 		case kVK_UpArrow:             return MTY_KEY_UP;
-		case kVK_Power:               return MTY_KEY_NONE;
 		case kVK_Spotlight:           return MTY_KEY_F21;
 		case kVK_Dashboard:           return MTY_KEY_F22;
 		case kVK_Launchpad:           return MTY_KEY_F23;
-		case kVK_BrightnessUp:        return MTY_KEY_NONE;
-		case kVK_BrightnessDown:      return MTY_KEY_NONE;
-		case kVK_Eject:               return MTY_KEY_NONE;
 		case kVK_ExposesAll:          return MTY_KEY_F24;
-		case kVK_ExposesDesktop:      return MTY_KEY_NONE;
 	}
 
 	return MTY_KEY_NONE;
@@ -373,7 +360,6 @@ static MTY_Key keymap_usage_to_key(uint32_t usage)
 		case kHIDUsage_KeypadPeriod:                 return MTY_KEY_NP_PERIOD;
 		case kHIDUsage_KeyboardNonUSBackslash:       return MTY_KEY_INTL_BACKSLASH;
 		case kHIDUsage_KeyboardApplication:          return MTY_KEY_APP;
-		case kHIDUsage_KeyboardPower:                return MTY_KEY_NONE;
 		case kHIDUsage_KeypadEqualSign:              return MTY_KEY_NP_EQUAL;
 		case kHIDUsage_KeyboardF13:                  return MTY_KEY_F13;
 		case kHIDUsage_KeyboardF14:                  return MTY_KEY_F14;
@@ -387,55 +373,15 @@ static MTY_Key keymap_usage_to_key(uint32_t usage)
 		case kHIDUsage_KeyboardF22:                  return MTY_KEY_F22;
 		case kHIDUsage_KeyboardF23:                  return MTY_KEY_F23;
 		case kHIDUsage_KeyboardF24:                  return MTY_KEY_F24;
-		case kHIDUsage_KeyboardExecute:              return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardHelp:                 return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardMenu:                 return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardSelect:               return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardStop:                 return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardAgain:                return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardUndo:                 return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardCut:                  return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardCopy:                 return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardPaste:                return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardFind:                 return MTY_KEY_NONE;
 		case kHIDUsage_KeyboardMute:                 return MTY_KEY_MUTE;
 		case kHIDUsage_KeyboardVolumeUp:             return MTY_KEY_VOLUME_UP;
 		case kHIDUsage_KeyboardVolumeDown:           return MTY_KEY_VOLUME_DOWN;
-		case kHIDUsage_KeyboardLockingCapsLock:      return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardLockingNumLock:       return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardLockingScrollLock:    return MTY_KEY_NONE;
 		case kHIDUsage_KeypadComma:                  return MTY_KEY_INTL_COMMA;
-		case kHIDUsage_KeypadEqualSignAS400:         return MTY_KEY_NONE;
 		case kHIDUsage_KeyboardInternational1:       return MTY_KEY_RO;
 		case kHIDUsage_KeyboardInternational2:       return MTY_KEY_JP;
 		case kHIDUsage_KeyboardInternational3:       return MTY_KEY_YEN;
 		case kHIDUsage_KeyboardInternational4:       return MTY_KEY_HENKAN;
 		case kHIDUsage_KeyboardInternational5:       return MTY_KEY_MUHENKAN;
-		case kHIDUsage_KeyboardInternational6:       return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardInternational7:       return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardInternational8:       return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardInternational9:       return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardLANG1:                return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardLANG2:                return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardLANG3:                return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardLANG4:                return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardLANG5:                return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardLANG6:                return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardLANG7:                return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardLANG8:                return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardLANG9:                return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardAlternateErase:       return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardSysReqOrAttention:    return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardCancel:               return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardClear:                return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardPrior:                return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardReturn:               return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardSeparator:            return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardOut:                  return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardOper:                 return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardClearOrAgain:         return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardCrSelOrProps:         return MTY_KEY_NONE;
-		case kHIDUsage_KeyboardExSel:                return MTY_KEY_NONE;
 		case kHIDUsage_KeyboardLeftControl:          return MTY_KEY_LCTRL;
 		case kHIDUsage_KeyboardLeftShift:            return MTY_KEY_LSHIFT;
 		case kHIDUsage_KeyboardLeftAlt:              return MTY_KEY_LALT;
