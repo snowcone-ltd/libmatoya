@@ -378,19 +378,7 @@ MTY_Frame mty_window_adjust(uint32_t screen_w, uint32_t screen_h, float scale, f
 }
 
 
-// Keys
-
-static bool APP_KEYS[MTY_KEY_MAX];
-
-bool mty_app_dedupe_key(MTY_Key key, bool pressed, bool repeat)
-{
-	bool was_down = APP_KEYS[key];
-	bool should_fire = (pressed && (repeat || !was_down)) || (!pressed && was_down);
-
-	APP_KEYS[key] = pressed;
-
-	return should_fire;
-}
+// Hotkeys
 
 void mty_app_kb_to_hotkey(MTY_App *app, MTY_Event *evt, MTY_EventType type)
 {

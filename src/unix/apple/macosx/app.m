@@ -3,6 +3,7 @@
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
 #include "app.h"
+#include "app-os.h"
 
 #include <AppKit/AppKit.h>
 #include <Carbon/Carbon.h>
@@ -747,7 +748,7 @@ static void window_keyboard_event(struct window *ctx, uint16_t key_code, NSEvent
 		.key.pressed = pressed,
 	};
 
-	if (!mty_app_dedupe_key(evt.key.key, pressed, repeat))
+	if (!mty_app_dedupe_key(ctx->app, evt.key.key, pressed, repeat))
 		return;
 
 	mty_app_kb_to_hotkey(ctx->app, &evt, MTY_EVENT_HOTKEY);
@@ -1238,7 +1239,7 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 		.key.pressed = down,
 	};
 
-	if (!mty_app_dedupe_key(evt.key.key, down, false))
+	if (!mty_app_dedupe_key(ctx, evt.key.key, down, false))
 		return;
 
 	mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
@@ -1900,6 +1901,16 @@ MTY_EventFunc mty_app_get_event_func(MTY_App *ctx, void **opaque)
 MTY_Hash *mty_app_get_hotkey_hash(MTY_App *ctx)
 {
 	return ctx->hotkey;
+}
+
+bool mty_app_dedupe_key(MTY_App *ctx, MTY_Key key, bool pressed, bool repeat)
+{
+	bool was_down = ctx->keys[key];
+	bool should_fire = (pressed && (repeat || !was_down)) || (!pressed && was_down);
+
+	ctx->keys[key] = pressed;
+
+	return should_fire;
 }
 
 struct window_common *mty_window_get_common(MTY_App *app, MTY_Window window)
