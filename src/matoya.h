@@ -365,12 +365,14 @@ typedef intptr_t (*MTY_WMsgFunc)(MTY_App *app, MTY_Window window, void *hwnd, ui
 
 /// @brief Alternative MTY_App behaviors.
 typedef enum {
-	MTY_APP_FLAG_HID_EVENTS   = 0x01, ///< If enabled, all controllers except XInput controllers
-	                                  ///<   will generate input report events.
-	MTY_APP_FLAG_HID_KEYBOARD = 0x02, ///< On macOS, use the IOKit HID subsystem to make detecting
-	                                  ///<   key events more robust. Doing so will request highly
-                                      ///<   privileged permissions for the calling application.
-	MTY_APP_FLAG_MAKE_32      = INT32_MAX,
+	MTY_APP_FLAG_HID_EVENTS     = 0x01, ///< If enabled, all controllers except XInput controllers
+	                                    ///<   will generate input report events.
+	MTY_APP_FLAG_HID_KEYBOARD   = 0x02, ///< On macOS, use the IOKit HID library to make detecting
+	                                    ///<   key events more robust. Doing so will request highly
+                                        ///<   privileged permissions for the calling application.
+	MTY_APP_FLAG_ALT_FULLSCREEN = 0x04, ///< On macOS, make fullscreen mode feel more like
+	                                    ///<   borderless windowed mode on Windows.
+	MTY_APP_FLAG_MAKE_32        = INT32_MAX,
 } MTY_AppFlag;
 
 /// @brief App events.

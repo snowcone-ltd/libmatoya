@@ -250,6 +250,11 @@ static void app_appMinimize(id self, SEL _cmd)
 	[[NSApp keyWindow] miniaturize:self];
 }
 
+static void app_appFullScreen(id self, SEL _cmd)
+{
+	[[NSApp keyWindow] toggleFullScreen:self];
+}
+
 static void app_appFunc(id self, SEL _cmd, NSTimer *timer)
 {
 	MTY_App *ctx = OBJC_CTX();
@@ -289,6 +294,11 @@ static void app_applicationDidFinishLaunching(id self, SEL _cmd, NSNotification 
 	[menubar addItem:submenu];
 	menu = [[NSMenu alloc] initWithTitle:@"Window"];
 	[menu addItem:[[NSMenuItem alloc] initWithTitle:@"Minimize" action:@selector(appMinimize) keyEquivalent:@"m"]];
+
+	NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Toggle Full Screen" action:@selector(appFullScreen) keyEquivalent:@"f"];
+	[item setKeyEquivalentModifierMask:NSEventModifierFlagCommand | NSEventModifierFlagControl];
+	[menu addItem:item];
+
 	[menu addItem:[[NSMenuItem alloc] initWithTitle:@"Close" action:@selector(appClose) keyEquivalent:@"w"]];
 	[submenu setSubmenu:menu];
 
@@ -356,6 +366,7 @@ static Class app_class(void)
 	class_addMethod(cls, @selector(appClose), (IMP) app_appClose, "v@:");
 	class_addMethod(cls, @selector(appRestart), (IMP) app_appRestart, "v@:");
 	class_addMethod(cls, @selector(appMinimize), (IMP) app_appMinimize, "v@:");
+	class_addMethod(cls, @selector(appFullScreen), (IMP) app_appFullScreen, "v@:");
 	class_addMethod(cls, @selector(appFunc:), (IMP) app_appFunc, "v@:@");
 	class_addMethod(cls, @selector(appHandleGetURLEvent:withReplyEvent:),
 		(IMP) app_appHandleGetURLEvent_withReplyEvent, "v@:@@");
@@ -375,6 +386,7 @@ struct window {
 	struct window_common cmn;
 	MTY_Window window;
 	NSRect normal_frame;
+	NSRect restore_frame;
 	bool was_maximized;
 	bool top;
 };
@@ -403,6 +415,22 @@ static MTY_Window app_find_open_window(MTY_App *ctx, MTY_Window req)
 			return x;
 
 	return -1;
+}
+
+static void app_set_presentation(bool fullscreen)
+{
+	NSApplicationPresentationOptions opts = fullscreen ?
+		NSApplicationPresentationHideDock | NSApplicationPresentationHideMenuBar :
+		NSApplicationPresentationDefault;
+
+	[NSApp setPresentationOptions:opts];
+}
+
+static bool window_is_fullscreen(NSWindow *window, bool alt_fs)
+{
+	// NSWindowStyleMaskBorderless == 0
+	return alt_fs ? window.styleMask == NSWindowStyleMaskBorderless :
+		window.styleMask & NSWindowStyleMaskFullScreen;
 }
 
 
@@ -837,6 +865,11 @@ static BOOL window_windowShouldClose(NSWindow *self, SEL _cmd, NSWindow *sender)
 	return NO;
 }
 
+static void window_windowWillClose(NSWindow *self, SEL _cmd, NSNotification *notification)
+{
+	app_set_presentation(false);
+}
+
 static void window_windowDidResignKey(NSWindow *self, SEL _cmd, NSNotification *notification)
 {
 	struct window *ctx = OBJC_CTX();
@@ -847,21 +880,16 @@ static void window_windowDidResignKey(NSWindow *self, SEL _cmd, NSNotification *
 		.focus = false,
 	};
 
-	// When in full screen and the window loses focus (changing spaces etc)
-	// we need to set the window level back to normal and change the content size.
-	// Cmd+Tab behavior and rendering can have weird edge case behvavior when the OS
-	// is optimizing the graphics and the window is above the dock
-	if (self.styleMask & NSWindowStyleMaskFullScreen) {
-		[self setLevel:NSNormalWindowLevel];
+	if (ctx->app->flags & MTY_APP_FLAG_ALT_FULLSCREEN) {
+		app_set_presentation(false);
 
-		// 1px hack for older versions of macOS
-		if (@available(macOS 11.0, *)) {
-		} else {
-			NSSize cur = self.contentView.frame.size;
-			cur.height -= 1.0f;
-
-			[self setContentSize:cur];
-		}
+	} else {
+		// When in full screen and the window loses focus (changing spaces etc)
+		// we need to set the window level back to normal and change the content size.
+		// Cmd+Tab behavior and rendering can have weird edge case behvavior when the OS
+		// is optimizing the graphics and the window is above the dock
+		if (self.styleMask & NSWindowStyleMaskFullScreen)
+			[self setLevel:NSNormalWindowLevel];
 	}
 
 	ctx->app->event_func(&evt, ctx->app->opaque);
@@ -876,6 +904,9 @@ static void window_windowDidBecomeKey(NSWindow *self, SEL _cmd, NSNotification *
 		.window = ctx->window,
 		.focus = true,
 	};
+
+	if (ctx->app->flags & MTY_APP_FLAG_ALT_FULLSCREEN)
+		app_set_presentation(window_is_fullscreen(self, true));
 
 	ctx->app->event_func(&evt, ctx->app->opaque);
 }
@@ -1065,7 +1096,38 @@ static void window_windowWillExitFullScreen(NSWindow *self, SEL _cmd, NSNotifica
 	[self setLevel:NSNormalWindowLevel];
 }
 
-static Class window_class(void)
+static void window_toggleFullScreen(NSWindow *self, SEL _cmd, id sender)
+{
+	struct window *ctx = OBJC_CTX();
+
+	if (window_is_fullscreen(self, true)) {
+		if (self.isKeyWindow)
+			app_set_presentation(false);
+
+		[self setFrame:ctx->restore_frame display:YES];
+		[self setStyleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
+			NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable];
+
+	} else {
+		ctx->restore_frame = self.frame;
+
+		if (![self isZoomed]) {
+			ctx->was_maximized = false;
+			ctx->normal_frame = ctx->restore_frame;
+
+		} else {
+			ctx->was_maximized = true;
+		}
+
+		[self setStyleMask:NSWindowStyleMaskBorderless];
+		[self setFrame:self.screen.frame display:YES];
+
+		if (self.isKeyWindow)
+			app_set_presentation(true);
+	}
+}
+
+static Class window_class(bool alt_fs)
 {
 	Class cls = objc_getClass(WINDOW_CLASS_NAME);
 	if (cls)
@@ -1081,13 +1143,19 @@ static Class window_class(void)
 		OBJC_POVERRIDE(cls, proto, NO, @selector(windowShouldClose:), window_windowShouldClose);
 		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidResignKey:), window_windowDidResignKey);
 		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidBecomeKey:), window_windowDidBecomeKey);
-		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidChangeScreen:), window_windowDidChangeScreen);
 		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidResize:), window_windowDidResize);
 		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidMove:), window_windowDidMove);
-		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidEnterFullScreen:), window_windowDidEnterFullScreen);
-		OBJC_POVERRIDE(cls, proto, NO, @selector(windowWillExitFullScreen:), window_windowWillExitFullScreen);
-		OBJC_POVERRIDE(cls, proto, NO, @selector(window:willUseFullScreenPresentationOptions:),
-			window_window_willUseFullScreenPresentationOptions);
+
+		if (alt_fs) {
+			OBJC_POVERRIDE(cls, proto, NO, @selector(windowWillClose:), window_windowWillClose);
+
+		} else {
+			OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidChangeScreen:), window_windowDidChangeScreen);
+			OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidEnterFullScreen:), window_windowDidEnterFullScreen);
+			OBJC_POVERRIDE(cls, proto, NO, @selector(windowWillExitFullScreen:), window_windowWillExitFullScreen);
+			OBJC_POVERRIDE(cls, proto, NO, @selector(window:willUseFullScreenPresentationOptions:),
+				window_window_willUseFullScreenPresentationOptions);
+		}
 	}
 
 	// Overrides
@@ -1111,6 +1179,9 @@ static Class window_class(void)
 	OBJC_OVERRIDE(cls, @selector(mouseExited:), window_mouseExited);
 	OBJC_OVERRIDE(cls, @selector(scrollWheel:), window_scrollWheel);
 	OBJC_OVERRIDE(cls, @selector(tabletProximity:), window_tabletProximity);
+
+	if (alt_fs)
+		OBJC_OVERRIDE(cls, @selector(toggleFullScreen:), window_toggleFullScreen);
 
 	objc_registerClassPair(cls);
 
@@ -1614,7 +1685,10 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 		goto except;
 	}
 
-	window_revert_levels();
+	bool alt_fs = app->flags & MTY_APP_FLAG_ALT_FULLSCREEN;
+
+	if (!alt_fs)
+		window_revert_levels();
 
 	NSRect rect = NSMakeRect(frame->x, frame->y, frame->size.w, frame->size.h);
 	NSWindowStyleMask style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
@@ -1625,14 +1699,17 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	ctx->window = window;
 	ctx->app = app;
 
-	ctx->nsw = [OBJC_NEW(window_class(), ctx) initWithContentRect:rect styleMask:style
+	ctx->nsw = [OBJC_NEW(window_class(alt_fs), ctx) initWithContentRect:rect styleMask:style
 		backing:NSBackingStoreBuffered defer:NO screen:screen];
 	ctx->nsw.title = [NSString stringWithUTF8String:title ? title : "MTY_Window"];
 
 	[ctx->nsw setDelegate:ctx->nsw];
 	[ctx->nsw setAcceptsMouseMovedEvents:YES];
 	[ctx->nsw setReleasedWhenClosed:NO];
-	[ctx->nsw setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
+
+	NSUInteger cb = alt_fs ? NSWindowCollectionBehaviorFullScreenNone |
+		NSWindowCollectionBehaviorFullScreenDisallowsTiling : NSWindowCollectionBehaviorFullScreenPrimary;
+	[ctx->nsw setCollectionBehavior:cb];
 
 	// View
 	content = [OBJC_NEW(view_class(), ctx) initWithFrame:[ctx->nsw contentRectForFrameRect:ctx->nsw.frame]];
@@ -1706,17 +1783,32 @@ MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 
 	MTY_WindowType type = MTY_WINDOW_NORMAL;
 
-	if ([ctx->nsw isZoomed]) {
-		w = ctx->normal_frame;
-
-		if (ctx->nsw.styleMask & NSWindowStyleMaskFullScreen) {
+	if (app->flags & MTY_APP_FLAG_ALT_FULLSCREEN) {
+		if (window_is_fullscreen(ctx->nsw, true)) {
+			w = ctx->normal_frame;
 			type = MTY_WINDOW_FULLSCREEN;
 
 			if (ctx->was_maximized)
 				type |= MTY_WINDOW_MAXIMIZED;
 
-		} else {
+		} else if ([ctx->nsw isZoomed]) {
+			w = ctx->normal_frame;
 			type = MTY_WINDOW_MAXIMIZED;
+		}
+
+	} else {
+		if ([ctx->nsw isZoomed]) {
+			w = ctx->normal_frame;
+
+			if (window_is_fullscreen(ctx->nsw, false)) {
+				type = MTY_WINDOW_FULLSCREEN;
+
+				if (ctx->was_maximized)
+					type |= MTY_WINDOW_MAXIMIZED;
+
+			} else {
+				type = MTY_WINDOW_MAXIMIZED;
+			}
 		}
 	}
 
@@ -1852,7 +1944,7 @@ bool MTY_WindowIsFullscreen(MTY_App *app, MTY_Window window)
 	if (!ctx)
 		return false;
 
-	return ctx->nsw.styleMask & NSWindowStyleMaskFullScreen;
+	return window_is_fullscreen(ctx->nsw, app->flags & MTY_APP_FLAG_ALT_FULLSCREEN);
 }
 
 void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
