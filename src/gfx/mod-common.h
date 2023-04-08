@@ -4,8 +4,6 @@
 
 #pragma once
 
-// Leaving typedef in place for potential future export
-
 typedef struct MTY_Device MTY_Device;
 typedef struct MTY_Context MTY_Context;
 typedef struct MTY_Surface MTY_Surface;

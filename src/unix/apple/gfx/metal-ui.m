@@ -20,7 +20,7 @@ struct metal_ui {
 	uint32_t ib_len;
 };
 
-struct gfx_ui *mty_metal_ui_create(struct gfx_device *device)
+struct gfx_ui *mty_metal_ui_create(MTY_Device *device)
 {
 	struct metal_ui *ctx = MTY_Alloc(1, sizeof(struct metal_ui));
 	id<MTLDevice> _device = (__bridge id<MTLDevice>) device;
@@ -86,8 +86,8 @@ struct gfx_ui *mty_metal_ui_create(struct gfx_device *device)
 	return (struct gfx_ui *) ctx;
 }
 
-bool mty_metal_ui_render(struct gfx_ui *gfx_ui, struct gfx_device *device, struct gfx_context *context,
-	const MTY_DrawData *dd, MTY_Hash *cache, struct gfx_surface *dest)
+bool mty_metal_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context *context,
+	const MTY_DrawData *dd, MTY_Hash *cache, MTY_Surface *dest)
 {
 	struct metal_ui *ctx = (struct metal_ui *) gfx_ui;
 	id<MTLDevice> _device = (__bridge id<MTLDevice>) device;
@@ -193,7 +193,7 @@ bool mty_metal_ui_render(struct gfx_ui *gfx_ui, struct gfx_device *device, struc
 	return true;
 }
 
-void *mty_metal_ui_create_texture(struct gfx_ui *gfx_ui, struct gfx_device *device, const void *rgba,
+void *mty_metal_ui_create_texture(struct gfx_ui *gfx_ui, MTY_Device *device, const void *rgba,
 	uint32_t width, uint32_t height)
 {
 	id<MTLDevice> _device = (__bridge id<MTLDevice>) device;
@@ -210,7 +210,7 @@ void *mty_metal_ui_create_texture(struct gfx_ui *gfx_ui, struct gfx_device *devi
 	return (__bridge_retained void *) texture;
 }
 
-void mty_metal_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, struct gfx_device *device)
+void mty_metal_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, MTY_Device *device)
 {
 	if (!texture || !*texture)
 		return;
@@ -221,7 +221,7 @@ void mty_metal_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, struct 
 	*texture = NULL;
 }
 
-void mty_metal_ui_destroy(struct gfx_ui **gfx_ui, struct gfx_device *device)
+void mty_metal_ui_destroy(struct gfx_ui **gfx_ui, MTY_Device *device)
 {
 	if (!gfx_ui || !*gfx_ui)
 		return;

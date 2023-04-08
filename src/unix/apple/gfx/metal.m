@@ -37,7 +37,7 @@ struct metal {
 	id<MTLTexture> niltex;
 };
 
-struct gfx *mty_metal_create(struct gfx_device *device, uint8_t layer)
+struct gfx *mty_metal_create(MTY_Device *device, uint8_t layer)
 {
 	struct metal *ctx = MTY_Alloc(1, sizeof(struct metal));
 	id<MTLDevice> _device = (__bridge id<MTLDevice>) device;
@@ -130,7 +130,7 @@ struct gfx *mty_metal_create(struct gfx_device *device, uint8_t layer)
 	return (struct gfx *) ctx;
 }
 
-static bool metal_refresh_resource(struct gfx *gfx, struct gfx_device *_device, struct gfx_context *context, MTY_ColorFormat fmt,
+static bool metal_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Context *context, MTY_ColorFormat fmt,
 	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, uint8_t bpp)
 {
 	struct metal *ctx = (struct metal *) gfx;
@@ -182,8 +182,8 @@ static bool metal_refresh_resource(struct gfx *gfx, struct gfx_device *_device, 
 	return true;
 }
 
-bool mty_metal_render(struct gfx *gfx, struct gfx_device *device, struct gfx_context *context,
-	const void *image, const MTY_RenderDesc *desc, struct gfx_surface *dest)
+bool mty_metal_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
+	const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest)
 {
 	struct metal *ctx = (struct metal *) gfx;
 	id<MTLCommandQueue> cq = (__bridge id<MTLCommandQueue>) context;
@@ -260,8 +260,8 @@ bool mty_metal_render(struct gfx *gfx, struct gfx_device *device, struct gfx_con
 	return true;
 }
 
-void mty_metal_clear(struct gfx *gfx, struct gfx_device *device, struct gfx_context *context,
-	uint32_t width, uint32_t height, float r, float g, float b, float a, struct gfx_surface *dest)
+void mty_metal_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dest)
 {
 	id<MTLCommandQueue> cq = (__bridge id<MTLCommandQueue>) context;
 	id<MTLTexture> _dest = (__bridge id<MTLTexture>) dest;
@@ -279,7 +279,7 @@ void mty_metal_clear(struct gfx *gfx, struct gfx_device *device, struct gfx_cont
 	[cb commit];
 }
 
-void mty_metal_destroy(struct gfx **gfx, struct gfx_device *device)
+void mty_metal_destroy(struct gfx **gfx, MTY_Device *device)
 {
 	if (!gfx || !*gfx)
 		return;
