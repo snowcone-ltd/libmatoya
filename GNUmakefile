@@ -117,6 +117,8 @@ endif
 OBJS := $(OBJS) \
 	src/async.o \
 	src/http.o \
+	src/gfx/gl/gl.o \
+	src/gfx/gl/gl-ui.o \
 	src/gfx/vk/vk.o \
 	src/gfx/vk/vk-ctx.o \
 	src/gfx/vk/vk-ui.o \
@@ -161,7 +163,7 @@ ifeq ($(UNAME_S), Darwin)
 .SUFFIXES: .metal
 
 .metal.h:
-	hexdump -ve '1/1 "0x%.2x,"' $< | (echo 'static const char MTL_LIBRARY[]={' && cat && echo '0x00};') > $@
+	@hexdump -ve '1/1 "0x%.2x,"' $< | (echo 'static const char MTL_LIBRARY[]={' && cat && echo '0x00};') > $@
 
 ifndef TARGET
 TARGET = macosx
