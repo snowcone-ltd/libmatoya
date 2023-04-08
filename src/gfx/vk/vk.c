@@ -67,11 +67,11 @@ static bool vk_one_shot_buffer(const VkPhysicalDeviceMemoryProperties *pdprops, 
 	return r;
 }
 
-struct gfx *mty_vk_create(struct gfx_device *device, uint8_t layer)
+struct gfx *mty_vk_create(MTY_Device *device, uint8_t layer)
 {
 	struct vk *ctx = MTY_Alloc(1, sizeof(struct vk));
 
-	struct vk_device_objects *dobjs = (struct vk_device_objects *) device;
+	MTY_VkDeviceObjects *dobjs = (MTY_VkDeviceObjects *) device;
 	const VkPhysicalDeviceMemoryProperties *pdprops = dobjs->physicalDeviceMemoryProperties;
 	VkDevice _device = dobjs->device;
 
@@ -355,7 +355,7 @@ struct gfx *mty_vk_create(struct gfx_device *device, uint8_t layer)
 	return (struct gfx *) ctx;
 }
 
-static bool vk_refresh_image(struct gfx *gfx, struct gfx_device *device, struct gfx_context *context, MTY_ColorFormat fmt,
+static bool vk_refresh_image(struct gfx *gfx, MTY_Device *device, MTY_Context *context, MTY_ColorFormat fmt,
 	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, uint8_t bpp)
 {
 	struct vk *ctx = (struct vk *) gfx;
@@ -365,7 +365,7 @@ static bool vk_refresh_image(struct gfx *gfx, struct gfx_device *device, struct 
 	struct vk_image *img = &ctx->staging[plane];
 	VkFormat format = FMT_PLANES[fmt][plane];
 
-	struct vk_device_objects *dobjs = (struct vk_device_objects *) device;
+	MTY_VkDeviceObjects *dobjs = (MTY_VkDeviceObjects *) device;
 	const VkPhysicalDeviceMemoryProperties *pdprops = dobjs->physicalDeviceMemoryProperties;
 	VkDevice _device = dobjs->device;
 
@@ -397,12 +397,12 @@ static bool vk_refresh_image(struct gfx *gfx, struct gfx_device *device, struct 
 	return r;
 }
 
-bool mty_vk_render(struct gfx *gfx, struct gfx_device *device, struct gfx_context *context,
-	const void *image, const MTY_RenderDesc *desc, struct gfx_surface *dest)
+bool mty_vk_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
+	const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest)
 {
 	struct vk *ctx = (struct vk *) gfx;
 
-	struct vk_device_objects *dobjs = (struct vk_device_objects *) device;
+	MTY_VkDeviceObjects *dobjs = (MTY_VkDeviceObjects *) device;
 	VkDevice _device = dobjs->device;
 
 	VkCommandBuffer cmd = (VkCommandBuffer) context;
@@ -526,8 +526,8 @@ bool mty_vk_render(struct gfx *gfx, struct gfx_device *device, struct gfx_contex
 	return true;
 }
 
-void mty_vk_clear(struct gfx *gfx, struct gfx_device *device, struct gfx_context *context,
-	uint32_t width, uint32_t height, float r, float g, float b, float a, struct gfx_surface *dest)
+void mty_vk_clear(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
+	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dest)
 {
 	struct vk *ctx = (struct vk *) gfx;
 
@@ -552,14 +552,14 @@ void mty_vk_clear(struct gfx *gfx, struct gfx_device *device, struct gfx_context
 	vkCmdEndRenderPass(cmd);
 }
 
-void mty_vk_destroy(struct gfx **gfx, struct gfx_device *device)
+void mty_vk_destroy(struct gfx **gfx, MTY_Device *device)
 {
 	if (!gfx || !*gfx)
 		return;
 
 	struct vk *ctx = (struct vk *) *gfx;
 
-	struct vk_device_objects *dobjs = (struct vk_device_objects *) device;
+	MTY_VkDeviceObjects *dobjs = (MTY_VkDeviceObjects *) device;
 
 	if (dobjs) {
 		VkDevice _device = dobjs->device;

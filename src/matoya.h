@@ -27,25 +27,6 @@ extern "C" {
 #endif
 
 
-// FIXME Renderer shims
-typedef void * MTY_Device;
-typedef void * MTY_Context;
-typedef void * MTY_Renderer;
-typedef void * MTY_RenderState;
-
-#define MTY_GFX_D3D9 MTY_GFX_MAX
-
-#define MTY_RendererCreate() NULL
-#define MTY_RendererDestroy(renderer)
-#define MTY_RendererDrawQuad(ctx, api, device, context, image, desc, dest) false
-#define MTY_RendererDrawUI(ctx, api, device, context, dd, dest) false
-#define MTY_RendererSetUITexture(ctx, api, device, context, id, rgba, width, height) false
-#define MTY_RendererHasUITexture(ctx, id) false
-#define MTY_GetRenderState(api, device, context) NULL
-#define MTY_SetRenderState(api, device, context, state)
-#define MTY_FreeRenderState(state)
-
-
 //- #module App
 //- #mbrief Application, window, and input management.
 //- #mdetails Use these function to create a "libmatoya app", which handles window

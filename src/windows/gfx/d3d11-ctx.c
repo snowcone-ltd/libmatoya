@@ -223,18 +223,18 @@ void mty_d3d11_ctx_get_size(struct gfx_ctx *gfx_ctx, uint32_t *w, uint32_t *h)
 	*h = ctx->height;
 }
 
-struct gfx_device *mty_d3d11_ctx_get_device(struct gfx_ctx *gfx_ctx)
+MTY_Device *mty_d3d11_ctx_get_device(struct gfx_ctx *gfx_ctx)
 {
 	struct d3d11_ctx *ctx = (struct d3d11_ctx *) gfx_ctx;
 
-	return (struct gfx_device *) ctx->device;
+	return (MTY_Device *) ctx->device;
 }
 
-struct gfx_context *mty_d3d11_ctx_get_context(struct gfx_ctx *gfx_ctx)
+MTY_Context *mty_d3d11_ctx_get_context(struct gfx_ctx *gfx_ctx)
 {
 	struct d3d11_ctx *ctx = (struct d3d11_ctx *) gfx_ctx;
 
-	return (struct gfx_context *) ctx->context;
+	return (MTY_Context *) ctx->context;
 }
 
 static void d3d11_ctx_refresh(struct d3d11_ctx *ctx)
@@ -261,7 +261,7 @@ static void d3d11_ctx_refresh(struct d3d11_ctx *ctx)
 	}
 }
 
-struct gfx_surface *mty_d3d11_ctx_get_surface(struct gfx_ctx *gfx_ctx)
+MTY_Surface *mty_d3d11_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 {
 	struct d3d11_ctx *ctx = (struct d3d11_ctx *) gfx_ctx;
 
@@ -289,7 +289,7 @@ struct gfx_surface *mty_d3d11_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	if (resource)
 		ID3D11Resource_Release(resource);
 
-	return (struct gfx_surface *) ctx->back_buffer;
+	return (MTY_Surface *) ctx->back_buffer;
 }
 
 void mty_d3d11_ctx_present(struct gfx_ctx *gfx_ctx)

@@ -18,7 +18,7 @@ struct window_common {
 
 	MTY_GFX api;
 	MTY_Hash *ui_textures;
-	struct gfx_device *device;
+	MTY_Device *device;
 	struct gfx *gfx[APP_GFX_LAYERS];
 	struct gfx_ui *gfx_ui;
 	struct gfx_ctx *gfx_ctx;

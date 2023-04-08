@@ -318,20 +318,20 @@ void mty_d3d12_ctx_get_size(struct gfx_ctx *gfx_ctx, uint32_t *w, uint32_t *h)
 	*h = ctx->height;
 }
 
-struct gfx_device *mty_d3d12_ctx_get_device(struct gfx_ctx *gfx_ctx)
+MTY_Device *mty_d3d12_ctx_get_device(struct gfx_ctx *gfx_ctx)
 {
 	struct d3d12_ctx *ctx = (struct d3d12_ctx *) gfx_ctx;
 	struct d3d12_core *core = &ctx->core;
 
-	return (struct gfx_device *) core->device;
+	return (MTY_Device *) core->device;
 }
 
-struct gfx_context *mty_d3d12_ctx_get_context(struct gfx_ctx *gfx_ctx)
+MTY_Context *mty_d3d12_ctx_get_context(struct gfx_ctx *gfx_ctx)
 {
 	struct d3d12_ctx *ctx = (struct d3d12_ctx *) gfx_ctx;
 	struct d3d12_core *core = &ctx->core;
 
-	return (struct gfx_context *) core->cl;
+	return (MTY_Context *) core->cl;
 }
 
 static HRESULT d3d12_ctx_refresh(struct d3d12_ctx *ctx)
@@ -368,7 +368,7 @@ static HRESULT d3d12_ctx_refresh(struct d3d12_ctx *ctx)
 	return S_OK;
 }
 
-struct gfx_surface *mty_d3d12_ctx_get_surface(struct gfx_ctx *gfx_ctx)
+MTY_Surface *mty_d3d12_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 {
 	struct d3d12_ctx *ctx = (struct d3d12_ctx *) gfx_ctx;
 	struct d3d12_core *core = &ctx->core;
@@ -394,7 +394,7 @@ struct gfx_surface *mty_d3d12_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 		ID3D12GraphicsCommandList_ResourceBarrier(core->cl, 1, &rb);
 	}
 
-	return (struct gfx_surface *) &core->back_buffer->dh;
+	return (MTY_Surface *) &core->back_buffer->dh;
 }
 
 void mty_d3d12_ctx_present(struct gfx_ctx *gfx_ctx)

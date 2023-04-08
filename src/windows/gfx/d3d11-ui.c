@@ -41,7 +41,7 @@ struct d3d11_ui_cb {
 	float proj[4][4];
 };
 
-struct gfx_ui *mty_d3d11_ui_create(struct gfx_device *device)
+struct gfx_ui *mty_d3d11_ui_create(MTY_Device *device)
 {
 	struct d3d11_ui *ctx = MTY_Alloc(1, sizeof(struct d3d11_ui));
 	ID3D11Device *_device = (ID3D11Device *) device;
@@ -192,8 +192,8 @@ static HRESULT d3d11_ui_resize_buffer(ID3D11Device *device, struct d3d11_ui_buff
 	return S_OK;
 }
 
-bool mty_d3d11_ui_render(struct gfx_ui *gfx_ui, struct gfx_device *device, struct gfx_context *context,
-	const MTY_DrawData *dd, MTY_Hash *cache, struct gfx_surface *dest)
+bool mty_d3d11_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context *context,
+	const MTY_DrawData *dd, MTY_Hash *cache, MTY_Surface *dest)
 {
 	struct d3d11_ui *ctx = (struct d3d11_ui *) gfx_ui;
 	ID3D11Device *_device = (ID3D11Device *) device;
@@ -341,7 +341,7 @@ bool mty_d3d11_ui_render(struct gfx_ui *gfx_ui, struct gfx_device *device, struc
 	return true;
 }
 
-void *mty_d3d11_ui_create_texture(struct gfx_ui *gfx_ui, struct gfx_device *device, const void *rgba,
+void *mty_d3d11_ui_create_texture(struct gfx_ui *gfx_ui, MTY_Device *device, const void *rgba,
 	uint32_t width, uint32_t height)
 {
 	ID3D11Device *_device = (ID3D11Device *) device;
@@ -401,7 +401,7 @@ void *mty_d3d11_ui_create_texture(struct gfx_ui *gfx_ui, struct gfx_device *devi
 	return srv;
 }
 
-void mty_d3d11_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, struct gfx_device *device)
+void mty_d3d11_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, MTY_Device *device)
 {
 	if (!texture || !*texture)
 		return;
@@ -412,7 +412,7 @@ void mty_d3d11_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, struct 
 	*texture = NULL;
 }
 
-void mty_d3d11_ui_destroy(struct gfx_ui **gfx_ui, struct gfx_device *device)
+void mty_d3d11_ui_destroy(struct gfx_ui **gfx_ui, MTY_Device *device)
 {
 	if (!gfx_ui || !*gfx_ui)
 		return;

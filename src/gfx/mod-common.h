@@ -4,11 +4,13 @@
 
 #pragma once
 
-struct gfx_device;
-struct gfx_context;
-struct gfx_surface;
+// Leaving typedef in place for potential future export
 
-struct vk_device_objects {
+typedef struct MTY_Device MTY_Device;
+typedef struct MTY_Context MTY_Context;
+typedef struct MTY_Surface MTY_Surface;
+
+typedef struct {
 	void *device;
 	const void *physicalDeviceMemoryProperties;
-};
+} MTY_VkDeviceObjects;

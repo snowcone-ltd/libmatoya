@@ -32,12 +32,12 @@ struct gfx;
 #define GFX_FP(api, name)    (*name)
 
 #define GFX_DECLARE_API(api, wrap) \
-	struct gfx *wrap(api, create)(struct gfx_device *device, uint8_t layer); \
-	void wrap(api, destroy)(struct gfx **gfx, struct gfx_device *device); \
-	bool wrap(api, render)(struct gfx *gfx, struct gfx_device *device, struct gfx_context *context, \
-		const void *image, const MTY_RenderDesc *desc, struct gfx_surface *dest); \
-	void wrap(api, clear)(struct gfx *gfx, struct gfx_device *device, struct gfx_context *context, \
-		uint32_t width, uint32_t height, float r, float g, float b, float a, struct gfx_surface *dest);
+	struct gfx *wrap(api, create)(MTY_Device *device, uint8_t layer); \
+	void wrap(api, destroy)(struct gfx **gfx, MTY_Device *device); \
+	bool wrap(api, render)(struct gfx *gfx, MTY_Device *device, MTY_Context *context, \
+		const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest); \
+	void wrap(api, clear)(struct gfx *gfx, MTY_Device *device, MTY_Context *context, \
+		uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dest);
 
 #define GFX_PROTOTYPES(api) \
 	GFX_DECLARE_API(api, GFX_PROTO)
