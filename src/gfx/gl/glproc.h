@@ -10,17 +10,8 @@
 	#define GL_SHADER_VERSION "#version 110\n"
 #endif
 
-#if defined MTY_GL_EXTERNAL
-
-#if defined(MTY_GL_INCLUDE)
-	#include MTY_GL_INCLUDE
-#else
+#if defined(MTY_GL_EXTERNAL)
 	#define GL_GLEXT_PROTOTYPES
-	#include "glcorearb.h"
 #endif
-
-#else
 
 #include "glcorearb.h"
-
-#endif

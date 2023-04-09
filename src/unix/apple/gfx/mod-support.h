@@ -7,13 +7,12 @@
 #define GFX_API_DEFAULT MTY_GFX_METAL
 
 #define GFX_API_SUPPORTED(api) \
-	((api) == MTY_GFX_GL || (api) == MTY_GFX_METAL)
+	((api) == MTY_GFX_METAL)
 
 #define GFX_DECLARE_TABLE()             \
 	static const struct {               \
 		GFX_DECLARE_API(_, GFX_FP)      \
 	} GFX_API[] = {                     \
-		GFX_DECLARE_ROW(GL, _gl_)       \
 		GFX_DECLARE_ROW(METAL, _metal_) \
 	};
 
@@ -21,7 +20,6 @@
 	static const struct {                  \
 		GFX_UI_DECLARE_API(_, GFX_UI_FP)   \
 	} GFX_UI_API[] = {                     \
-		GFX_UI_DECLARE_ROW(GL, _gl_)       \
 		GFX_UI_DECLARE_ROW(METAL, _metal_) \
 	};
 
@@ -29,6 +27,5 @@
 	static const struct {                   \
 		GFX_CTX_DECLARE_API(_, GFX_CTX_FP)  \
 	} GFX_CTX_API[] = {                     \
-		GFX_CTX_DECLARE_ROW(GL, _gl_)       \
 		GFX_CTX_DECLARE_ROW(METAL, _metal_) \
 	};

@@ -13,10 +13,10 @@ GFX_PROTOTYPES(_d3d12_)
 #include "gfx/fmt.h"
 
 static
-#include "shaders/d3d11/ps.h"
+#include "shaders/ps.h"
 
 static
-#include "shaders/d3d11/vs.h"
+#include "shaders/vs.h"
 
 #define D3D12_NUM_STAGING 3
 
@@ -621,20 +621,4 @@ void mty_d3d12_destroy(struct gfx **gfx, MTY_Device *device)
 
 	MTY_Free(ctx);
 	*gfx = NULL;
-}
-
-
-// State
-
-void *mty_d3d12_get_state(MTY_Device *device, MTY_Context *context)
-{
-	return NULL;
-}
-
-void mty_d3d12_set_state(MTY_Device *device, MTY_Context *context, void *state)
-{
-}
-
-void mty_d3d12_free_state(void **state)
-{
 }
