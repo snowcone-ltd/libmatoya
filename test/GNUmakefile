@@ -17,12 +17,9 @@ LIBS = \
 	../bin/macosx/$(ARCH)/libmatoya.a \
 	-framework AppKit \
 	-framework Carbon \
-	-framework Foundation \
 	-framework IOKit \
 	-framework Metal \
-	-framework OpenGL \
 	-framework QuartzCore \
-	-framework Security \
 	-framework WebKit
 
 else

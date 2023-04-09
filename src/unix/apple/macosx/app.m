@@ -1713,7 +1713,6 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 
 	// View
 	content = [OBJC_NEW(view_class(), ctx) initWithFrame:[ctx->nsw contentRectForFrameRect:ctx->nsw.frame]];
-	[content setWantsBestResolutionOpenGLSurface:YES];
 	[ctx->nsw setContentView:content];
 
 	ctx->app->windows[window] = ctx;
