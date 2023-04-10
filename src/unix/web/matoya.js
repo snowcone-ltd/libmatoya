@@ -111,6 +111,10 @@ function MTY_GetUint32(ptr) {
 	return mty_mem_view().getUint32(ptr, true);
 }
 
+function MTY_GetInt32(ptr) {
+	return mty_mem_view().getInt32(ptr, true);
+}
+
 function MTY_Memcpy(cptr, abuffer) {
 	const heap = new Uint8Array(mty_mem(), cptr, abuffer.length);
 	heap.set(abuffer);
@@ -135,6 +139,16 @@ function MTY_StrToC(js_str, ptr, size) {
 	mty_copy_str(ptr, new Uint8Array(buf, 0, copy_size));
 
 	return ptr;
+}
+
+function MTY_Wait(sync) {
+	Atomics.wait(sync, 0, 0);
+	Atomics.store(sync, 0, 0);
+}
+
+function MTY_Signal(sync) {
+	Atomics.store(sync, 0, 1);
+	Atomics.notify(sync, 0);
 }
 
 
@@ -221,7 +235,7 @@ async function mty_decode_image(msg) {
 		MTY_Memcpy(msg.buf, imgData.data);
 	}
 
-	Atomics.notify(msg.sync, 0, 1);
+	MTY_Signal(msg.sync);
 }
 
 function MTY_Start(bin, userEnv, endFunc, glver) {
@@ -271,6 +285,7 @@ function MTY_Start(bin, userEnv, endFunc, glver) {
 	MTY.worker.postMessage({
 		type: 'init',
 		bin: bin,
+		userEnv: Object.keys(userEnv),
 		canvas: offscreen,
 		memory: MTY.memory,
 	}, [offscreen]);
@@ -279,6 +294,10 @@ function MTY_Start(bin, userEnv, endFunc, glver) {
 		const msg = ev.data;
 
 		switch (msg.type) {
+			case 'user-env':
+				MTY_SetInt32(msg.rbuf, userEnv[msg.name](...msg.args));
+				MTY_Signal(msg.sync);
+				break;
 			case 'image':
 			case 'image-size':
 				mty_decode_image(msg);

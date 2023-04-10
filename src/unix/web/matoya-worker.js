@@ -573,7 +573,7 @@ const MTY_IMAGE_API = {
 			sync: MTY.sync,
 		});
 
-		Atomics.wait(MTY.sync, 0, 0, Infinity);
+		MTY_Wait(MTY.sync);
 
 		const width = MTY_GetUint32(MTY.cbuf);
 		const height = MTY_GetUint32(MTY.cbuf + 4);
@@ -587,7 +587,7 @@ const MTY_IMAGE_API = {
 			sync: MTY.sync,
 		});
 
-		Atomics.wait(MTY.sync, 0, 0, Infinity);
+		MTY_Wait(MTY.sync);
 
 		MTY_CFunc(func)(cimage, width, height, opaque);
 	},
@@ -1266,7 +1266,7 @@ async function mty_start(bin, userEnv, endFunc, glver, canvas) {
 	MTY.arg0 = bin;
 
 	if (!userEnv)
-		userEnv = {};
+		userEnv = [];
 
 	if (endFunc)
 		MTY.endFunc = endFunc;
@@ -1288,8 +1288,8 @@ async function mty_start(bin, userEnv, endFunc, glver, canvas) {
 	const res = await fetch(bin);
 	const buf = await res.arrayBuffer();
 
-	// Create wasm instance (module) from the ArrayBuffer
-	MTY.module = await WebAssembly.instantiate(buf, {
+	// Imports
+	const imports = {
 		// Custom imports
 		env: {
 			memory: MTY.memory,
@@ -1301,7 +1301,6 @@ async function mty_start(bin, userEnv, endFunc, glver, canvas) {
 			...MTY_CRYPTO_API,
 			...MTY_SYSTEM_API,
 			...MTY_WEB_API,
-			...userEnv,
 		},
 
 		// Current version of WASI we're compiling against, 'wasi_snapshot_preview1'
@@ -1312,7 +1311,33 @@ async function mty_start(bin, userEnv, endFunc, glver, canvas) {
 		wasi: {
 			...MTY_WASI_API,
 		},
-	});
+	}
+
+	// Add userEnv to imports
+	for (let x = 0; x < userEnv.length; x++) {
+		const key = userEnv[x];
+
+		imports.env[key] = () => {
+			const args = [];
+			for (let y = 0; y < arguments.length; y++)
+				args.push(arguments[x]);
+
+			postMessage({
+				type: 'user-env',
+				name: key,
+				args: args,
+				rbuf: MTY.cbuf,
+				sync: MTY.sync,
+			});
+
+			MTY_Wait(MTY.sync);
+
+			return MTY_GetInt32(MTY.cbuf);
+		};
+	}
+
+	// Create wasm instance (module) from the ArrayBuffer
+	MTY.module = await WebAssembly.instantiate(buf, imports);
 
 	// Execute the '_start' entry point, this will fetch args and execute the 'main' function
 	try {
@@ -1369,7 +1394,7 @@ onmessage = (ev) => {
 
 			MTY.memory = msg.memory;
 
-			mty_start(msg.bin, null, null, null, msg.canvas);
+			mty_start(msg.bin, msg.userEnv, null, null, msg.canvas);
 			break;
 
 		case 'raf':
