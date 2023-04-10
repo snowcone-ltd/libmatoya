@@ -73,7 +73,7 @@ endif
 ifdef WASM
 WASI_SDK = $(HOME)/wasi-sdk
 
-CC = $(WASI_SDK)/bin/clang --sysroot=$(WASI_SDK)/share/wasi-sysroot
+CC = $(WASI_SDK)/bin/clang
 AR = $(WASI_SDK)/bin/ar
 
 ARCH := wasm32
@@ -92,6 +92,11 @@ SHADERS = \
 	src/gfx/gl/shaders/vs.h \
 	src/gfx/gl/shaders/fsui.h \
 	src/gfx/gl/shaders/vsui.h
+
+FLAGS := $(FLAGS) \
+	--sysroot=$(WASI_SDK)/share/wasi-sysroot \
+	--target=wasm32-wasi-threads \
+	-pthread
 
 DEFS := $(DEFS) \
 	-DCLOCK_MONOTONIC_RAW=CLOCK_MONOTONIC \
