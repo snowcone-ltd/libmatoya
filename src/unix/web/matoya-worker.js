@@ -26,6 +26,32 @@ function MTY_StrToCD(js_str) {
 }
 
 
+// window.localStorage
+
+function mty_get_ls(key) {
+	postMessage({
+		type: 'get-ls',
+		key: key,
+		sync: MTY.sync,
+	});
+
+	MTY_Wait(MTY.sync);
+
+	return MTY.localStorage[key];
+}
+
+function mty_set_ls(key, val) {
+	postMessage({
+		type: 'set-ls',
+		key: key,
+		val: val,
+		sync: MTY.sync,
+	});
+
+	MTY_Wait(MTY.sync);
+}
+
+
 // <unistd.h> stubs
 
 const MTY_UNISTD_API = {
@@ -600,11 +626,11 @@ const MTY_CRYPTO_API = {
 	MTY_CryptoHash: function (algo, input, inputSize, key, keySize, output, outputSize) {
 	},
 	MTY_GetRandomBytes: function (buf, size) {
-		const safe = new Uint8Array(size);
-		crypto.getRandomValues(safe);
+		const cpy = new Uint8Array(size);
+		crypto.getRandomValues(cpy);
 
 		const jbuf = new Uint8Array(mty_mem(), buf, size);
-		jbuf.set(safe);
+		jbuf.set(cpy);
 	},
 };
 
@@ -621,95 +647,6 @@ const MTY_SYSTEM_API = {
 
 
 // Web API (mostly used in app.c)
-
-function mty_get_mods(ev) {
-	let mods = 0;
-
-	if (ev.shiftKey) mods |= 0x01;
-	if (ev.ctrlKey)  mods |= 0x02;
-	if (ev.altKey)   mods |= 0x04;
-	if (ev.metaKey)  mods |= 0x08;
-
-	if (ev.getModifierState("CapsLock")) mods |= 0x10;
-	if (ev.getModifierState("NumLock") ) mods |= 0x20;
-
-	return mods;
-}
-
-function mty_run_action() {
-	setTimeout(() => {
-		if (MTY.action) {
-			MTY.action();
-			MTY.action = null;
-		}
-	}, 100);
-}
-
-function MTY_SetAction(action) {
-	MTY.action = action;
-
-	// In case click handler doesn't happen
-	mty_run_action();
-}
-
-function mty_scaled(num) {
-	return Math.round(num * window.devicePixelRatio);
-}
-
-function mty_correct_relative() {
-	if (!document.pointerLockElement && MTY.relative)
-		MTY.gl.canvas.requestPointerLock();
-}
-
-function mty_poll_gamepads(app, controller) {
-	const gps = navigator.getGamepads();
-
-	for (let x = 0; x < 4; x++) {
-		const gp = gps[x];
-
-		if (gp) {
-			let state = 0;
-
-			// Connected
-			if (!MTY.gps[x]) {
-				MTY.gps[x] = true;
-				state = 1;
-			}
-
-			let lx = 0;
-			let ly = 0;
-			let rx = 0;
-			let ry = 0;
-			let lt = 0;
-			let rt = 0;
-			let buttons = 0;
-
-			if (gp.buttons) {
-				if (gp.buttons[6]) lt = gp.buttons[6].value;
-				if (gp.buttons[7]) rt = gp.buttons[7].value;
-
-				for (let i = 0; i < gp.buttons.length && i < 32; i++)
-					if (gp.buttons[i].pressed)
-						buttons |= 1 << i;
-			}
-
-			if (gp.axes) {
-				if (gp.axes[0]) lx = gp.axes[0];
-				if (gp.axes[1]) ly = gp.axes[1];
-				if (gp.axes[2]) rx = gp.axes[2];
-				if (gp.axes[3]) ry = gp.axes[3];
-			}
-
-			MTY_CFunc(controller)(app, x, state, buttons, lx, ly, rx, ry, lt, rt);
-
-		// Disconnected
-		} else if (MTY.gps[x]) {
-			MTY_CFunc(controller)(app, x, 2, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-
-			MTY.gps[x] = false;
-		}
-	}
-}
 
 const MTY_WEB_API = {
 	web_alert: function (title, msg) {
@@ -733,17 +670,18 @@ const MTY_WEB_API = {
 		}
 	},
 	web_get_fullscreen: function () {
-		return document.fullscreenElement != null;
+		return MTY.fullscreen;
 	},
 	web_set_mem_funcs: function (alloc, free) {
 		MTY.alloc = alloc;
 		MTY.free = free;
 
-		const csync = MTY_Alloc(4);
-		MTY.sync = new Int32Array(mty_mem(), csync, 1);
+		const csync = MTY_Alloc(8);
+		MTY.sync = new Int32Array(mty_mem(), csync, 2);
 
 		// Global buffers for scratch heap space
 		MTY.cbuf = MTY_Alloc(1024);
+		MTY.ibuf = MTY_Alloc(1024);
 	},
 	web_set_key: function (reverse, code, key) {
 		const str = MTY_StrToJS(code);
@@ -799,7 +737,7 @@ const MTY_WEB_API = {
 		MTY.gl.canvas.style.cursor = show ? '': 'none';
 	},
 	web_get_hostname: function () {
-		return MTY_StrToCD(window.location.hostname);
+		return MTY_StrToCD(MTY.hostname);
 	},
 	web_get_clipboard: function () {
 		MTY.clip.focus();
@@ -829,17 +767,10 @@ const MTY_WEB_API = {
 		return MTY.relative;
 	},
 	web_has_focus: function () {
-		return document.hasFocus();
+		return MTY.hasFocus;
 	},
 	web_is_visible: function () {
-		if (document.hidden != undefined) {
-			return !document.hidden;
-
-		} else if (document.webkitHidden != undefined) {
-			return !document.webkitHidden;
-		}
-
-		return true;
+		return MTY.visible;
 	},
 	web_get_size: function (c_width, c_height) {
 		MTY_SetUint32(c_width, MTY.gl.drawingBufferWidth);
@@ -850,11 +781,14 @@ const MTY_WEB_API = {
 		MTY_SetInt32(c_y, MTY.lastY);
 	},
 	web_get_screen_size: function (c_width, c_height) {
-		MTY_SetUint32(c_width, screen.width);
-		MTY_SetUint32(c_height, screen.height);
+		MTY_SetUint32(c_width, MTY.screenWidth);
+		MTY_SetUint32(c_height, MTY.screenHeight);
 	},
 	web_set_title: function (title) {
-		document.title = MTY_StrToJS(title);
+		postMessage({
+			type: 'title',
+			title: MTY_StrToJS(title),
+		});
 	},
 	web_use_default_cursor: function (use_default) {
 		if (MTY.cursorClass.length > 0) {
@@ -899,119 +833,14 @@ const MTY_WEB_API = {
 		}
 	},
 	web_get_pixel_ratio: function () {
-		return window.devicePixelRatio;
+		return MTY.devicePixelRatio;
 	},
 	web_attach_events: function (app, mouse_motion, mouse_button, mouse_wheel, keyboard, focus, drop, resize) {
-		MTY.gl.canvas.addEventListener('mousemove', (ev) => {
-			let x = mty_scaled(ev.clientX);
-			let y = mty_scaled(ev.clientY);
-
-			if (MTY.relative) {
-				x = ev.movementX;
-				y = ev.movementY;
-			}
-
-			MTY_CFunc(mouse_motion)(app, MTY.relative, x, y);
-		});
-
-		document.addEventListener('pointerlockchange', (ev) => {
-			// Left relative via the ESC key, which swallows a natural ESC keypress
-			if (!document.pointerLockElement && MTY.synthesizeEsc) {
-				MTY_CFunc(keyboard)(app, true, MTY.keys['Escape'], 0, 0);
-				MTY_CFunc(keyboard)(app, false, MTY.keys['Escape'], 0, 0);
-			}
-
-			MTY.synthesizeEsc = true;
-		});
-
-		window.addEventListener('click', (ev) => {
-			// Popup blockers can interfere with window.open if not called from within the 'click' listener
-			mty_run_action();
-			ev.preventDefault();
-		});
-
-		window.addEventListener('mousedown', (ev) => {
-			mty_correct_relative();
-			ev.preventDefault();
-			MTY_CFunc(mouse_button)(app, true, ev.button, mty_scaled(ev.clientX), mty_scaled(ev.clientY));
-		});
-
-		window.addEventListener('mouseup', (ev) => {
-			ev.preventDefault();
-			MTY_CFunc(mouse_button)(app, false, ev.button, mty_scaled(ev.clientX), mty_scaled(ev.clientY));
-		});
-
-		MTY.gl.canvas.addEventListener('contextmenu', (ev) => {
-			ev.preventDefault();
-		});
-
-		MTY.gl.canvas.addEventListener('wheel', (ev) => {
-			let x = ev.deltaX > 0 ? 120 : ev.deltaX < 0 ? -120 : 0;
-			let y = ev.deltaY > 0 ? 120 : ev.deltaY < 0 ? -120 : 0;
-			MTY_CFunc(mouse_wheel)(app, x, y);
-		}, {passive: true});
-
-		window.addEventListener('keydown', (ev) => {
-			mty_correct_relative();
-			const key = MTY.keys[ev.code];
-
-			if (key != undefined) {
-				const text = ev.key.length == 1 ? MTY_StrToC(ev.key, MTY.cbuf, 1024) : 0;
-
-				if (MTY_CFunc(keyboard)(app, true, key, text, mty_get_mods(ev)))
-					ev.preventDefault();
-			}
-		});
-
-		window.addEventListener('keyup', (ev) => {
-			const key = MTY.keys[ev.code];
-
-			if (key != undefined)
-				if (MTY_CFunc(keyboard)(app, false, key, 0, mty_get_mods(ev)))
-					ev.preventDefault();
-		});
-
-		MTY.gl.canvas.addEventListener('dragover', (ev) => {
-			ev.preventDefault();
-		});
-
-		window.addEventListener('blur', (ev) => {
-			MTY_CFunc(focus)(app, false);
-		});
-
-		window.addEventListener('focus', (ev) => {
-			MTY_CFunc(focus)(app, true);
-		});
-
-		window.addEventListener('resize', (ev) => {
-			MTY_CFunc(resize)(app);
-		});
-
-		MTY.gl.canvas.addEventListener('drop', (ev) => {
-			ev.preventDefault();
-
-			if (!ev.dataTransfer.items)
-				return;
-
-			for (let x = 0; x < ev.dataTransfer.items.length; x++) {
-				if (ev.dataTransfer.items[x].kind == 'file') {
-					let file = ev.dataTransfer.items[x].getAsFile();
-
-					const reader = new FileReader();
-					reader.addEventListener('loadend', (fev) => {
-						if (reader.readyState == 2) {
-							let buf = new Uint8Array(reader.result);
-							let cmem = MTY_Alloc(buf.length);
-							MTY_Memcpy(cmem, buf);
-							MTY_CFunc(drop)(app, MTY_StrToC(file.name, MTY.cbuf, 1024), cmem, buf.length);
-							MTY_Free(cmem);
-						}
-					});
-					reader.readAsArrayBuffer(file);
-					break;
-				}
-			}
-		});
+		MTY.app = app;
+		MTY.mouse_motion = mouse_motion;
+		MTY.mouse_button = mouse_button;
+		MTY.mouse_wheel = mouse_wheel;
+		MTY.keyboard = keyboard;
 	},
 	web_raf: function (app, func, controller, move, opaque) {
 		const step = () => {
@@ -1050,8 +879,8 @@ function mty_append_buf_to_b64(b64, buf) {
 	return mty_buf_to_b64(new_buf);
 }
 
-function mty_arg_list() {
-	const params = new URLSearchParams(window.location.search);
+function mty_arg_list(args) {
+	const params = new URLSearchParams(args);
 	const qs = params.toString();
 
 	let plist = [MTY.arg0];
@@ -1061,7 +890,6 @@ function mty_arg_list() {
 	// 	plist.push(p[0] + '=' + p[1]);
 
 	//return plist;
-
 
 	// For now treat the entire query string as argv[1]
 	if (qs)
@@ -1073,7 +901,7 @@ function mty_arg_list() {
 const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 	// Command line arguments
 	args_get: function (argv, argv_buf) {
-		const args = mty_arg_list();
+		const args = mty_arg_list(MTY.args);
 		for (let x = 0; x < args.length; x++) {
 			MTY_StrToC(args[x], argv_buf, 32 * 1024); // FIXME what is the real size of this buffer
 			MTY_SetUint32(argv + x * 4, argv_buf);
@@ -1083,7 +911,7 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 		return 0;
 	},
 	args_sizes_get: function (argc, argv_buf_size) {
-		const args = mty_arg_list();
+		const args = mty_arg_list(MTY.args);
 
 		MTY_SetUint32(argc, args.length);
 		MTY_SetUint32(argv_buf_size, args.join(' ').length + 1);
@@ -1108,9 +936,12 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 	// Paths
 	path_filestat_get: function (fd, flags, cpath, _0, filestat_out) {
 		const path = MTY_StrToJS(cpath);
-		if (window.localStorage[path]) {
+		const ls_path = mty_get_ls(path);
+		console.log(ls_path);
+
+		if (ls_path) {
 			// We only need to return the size
-			const buf = mty_b64_to_buf(window.localStorage[path]);
+			const buf = mty_b64_to_buf(ls_path);
 			MTY_SetUint64(filestat_out + 32, buf.byteLength);
 		}
 
@@ -1161,9 +992,10 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 	},
 	fd_read: function (fd, iovs, iovs_len, nread) {
 		const finfo = MTY.fds[fd];
+		const ls_path = mty_get_ls(finfo.path);
 
-		if (finfo && window.localStorage[finfo.path]) {
-			const full_buf = mty_b64_to_buf(window.localStorage[finfo.path]);
+		if (finfo && ls_path) {
+			const full_buf = mty_b64_to_buf(ls_path);
 			let total = 0;
 
 			for (let x = 0; x < iovs_len; x++) {
@@ -1219,13 +1051,13 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 		// Filesystem
 		} else if (MTY.fds[fd]) {
 			const finfo = MTY.fds[fd];
-			const cur_b64 = window.localStorage[finfo.path];
+			const cur_b64 = mty_get_ls(finfo.path);
 
 			if (cur_b64 && finfo.append) {
-				window.localStorage[finfo.path] = mty_append_buf_to_b64(cur_b64, full_buf);
+				mty_set_ls(finfo.path, mty_append_buf_to_b64(cur_b64, full_buf));
 
 			} else {
-				window.localStorage[finfo.path] = mty_buf_to_b64(full_buf, len);
+				mty_set_ls(finfo.path, mty_buf_to_b64(full_buf, len));
 			}
 
 			finfo.offet += len;
@@ -1263,8 +1095,6 @@ const MTY_WASI_API = {
 // Entry
 
 async function mty_start(bin, userEnv, endFunc, glver, canvas) {
-	MTY.arg0 = bin;
-
 	if (!userEnv)
 		userEnv = [];
 
@@ -1317,10 +1147,10 @@ async function mty_start(bin, userEnv, endFunc, glver, canvas) {
 	for (let x = 0; x < userEnv.length; x++) {
 		const key = userEnv[x];
 
-		imports.env[key] = () => {
+		imports.env[key] = function () {
 			const args = [];
 			for (let y = 0; y < arguments.length; y++)
-				args.push(arguments[x]);
+				args.push(arguments[y]);
 
 			postMessage({
 				type: 'user-env',
@@ -1358,33 +1188,6 @@ async function mty_start(bin, userEnv, endFunc, glver, canvas) {
 	return true;
 }
 
-let window = {
-	devicePixelRatio: 1,
-	addEventListener: function () {return {}},
-	location: {search: ''},
-	screenX: 0,
-	screenY: 0,
-	localStorage: {},
-};
-
-let screen = {
-	width: 1920,
-	height: 1080,
-};
-
-let DOM = {
-	appendChild: function () {return {}},
-	style: {},
-};
-
-let document = {
-	createElement: function () {return DOM},
-	appendChild: function () {return {}},
-	addEventListener: function () {return {}},
-	hasFocus: function () {return true},
-	body: DOM,
-};
-
 onmessage = (ev) => {
 	const msg = ev.data;
 
@@ -1392,15 +1195,65 @@ onmessage = (ev) => {
 		case 'init':
 			importScripts('/lib/matoya.js');
 
+			MTY.arg0 = msg.bin;
+			MTY.args = msg.args;
+			MTY.hostname = msg.hostname;
+			MTY.devicePixelRatio = msg.devicePixelRatio;
 			MTY.memory = msg.memory;
 
 			mty_start(msg.bin, msg.userEnv, null, null, msg.canvas);
 			break;
-
 		case 'raf':
 			MTY.lastX = msg.lastX;
 			MTY.lastY = msg.lastY;
+			MTY.hasFocus = msg.hasFocus;
+			MTY.screenWidth = msg.screenWidth;
+			MTY.screenHeight = msg.screenHeight;
+			MTY.fullscreen = msg.fullscreen;
+			MTY.visible = msg.visible;
 			MTY.rect = msg.rect;
+			break;
+		case 'set-ls':
+			console.log('VAL', msg.key, msg.val);
+			MTY.localStorage[msg.key] = msg.val;
+			MTY_Signal(msg.sync);
+			break;
+		case 'key':
+			if (!MTY.keyboard)
+				break;
+
+			const key = MTY.keys[msg.code];
+
+			if (key != undefined) {
+				const text = msg.key.length == 1 ? MTY_StrToC(msg.key, MTY.ibuf, 1024) : 0;
+				MTY_CFunc(MTY.keyboard)(MTY.app, msg.pressed, key, text, msg.mods);
+			}
+			break;
+		case 'motion':
+			if (!MTY.mouse_motion)
+				break;
+
+			MTY_CFunc(MTY.mouse_motion)(MTY.app, msg.relative, msg.x, msg.y);
+			break;
+		case 'button':
+			if (!MTY.mouse_button)
+				break;
+
+			MTY_CFunc(MTY.mouse_button)(MTY.app, msg.pressed, msg.button, msg.x, msg.y);
+			break;
+		case 'wheel':
+			if (!MTY.mouse_wheel)
+				break;
+
+			MTY_CFunc(MTY.mouse_wheel)(MTY.app, msg.x, msg.y);
+			break;
+		case 'gamepad':
+		case 'disconnect':
+		case 'focus':
+		case 'resize':
+		case 'drop':
+		case 'move':
+			console.log(msg);
 			break;
 	}
 };

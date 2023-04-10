@@ -22,6 +22,7 @@ const MTY = {
 	cursorClass: '',
 	defaultCursor: false,
 	synthesizeEsc: true,
+	localStorage: {},
 	relative: false,
 	gps: [false, false, false, false],
 	action: null,
@@ -142,19 +143,304 @@ function MTY_StrToC(js_str, ptr, size) {
 }
 
 function MTY_Wait(sync) {
-	Atomics.wait(sync, 0, 0);
-	Atomics.store(sync, 0, 0);
+	if (Atomics.compareExchange(sync, 0, 0, 1) == 0) {
+		Atomics.wait(sync, 0, 1);
+
+	} else {
+		Atomics.store(sync, 0);
+	}
 }
 
 function MTY_Signal(sync) {
-	Atomics.store(sync, 0, 1);
-	Atomics.notify(sync, 0);
+	if (Atomics.compareExchange(sync, 0, 0, 1) == 0) {
+
+	} else {
+		Atomics.store(sync, 0);
+		Atomics.notify(sync, 0);
+	}
 }
 
 
-// Image
+// Input
+function mty_is_visible() {
+	if (document.hidden != undefined) {
+		return !document.hidden;
 
-function mty_decompress_image(input, func) {
+	} else if (document.webkitHidden != undefined) {
+		return !document.webkitHidden;
+	}
+
+	return true;
+}
+
+function mty_scaled(num) {
+	return Math.round(num * MTY.devicePixelRatio);
+}
+
+function mty_run_action() {
+	setTimeout(() => {
+		if (MTY.action) {
+			MTY.action();
+			MTY.action = null;
+		}
+	}, 100);
+}
+
+function MTY_SetAction(action) {
+	MTY.action = action;
+
+	// In case click handler doesn't happen
+	mty_run_action();
+}
+
+function mty_correct_relative() {
+	if (!document.pointerLockElement && MTY.relative)
+		MTY.gl.canvas.requestPointerLock();
+}
+
+function mty_get_mods(ev) {
+	let mods = 0;
+
+	if (ev.shiftKey) mods |= 0x01;
+	if (ev.ctrlKey)  mods |= 0x02;
+	if (ev.altKey)   mods |= 0x04;
+	if (ev.metaKey)  mods |= 0x08;
+
+	if (ev.getModifierState("CapsLock")) mods |= 0x10;
+	if (ev.getModifierState("NumLock") ) mods |= 0x20;
+
+	return mods;
+}
+
+function mty_add_input_events() {
+	MTY.canvas.addEventListener('mousemove', (ev) => {
+		let x = mty_scaled(ev.clientX);
+		let y = mty_scaled(ev.clientY);
+
+		if (MTY.relative) {
+			x = ev.movementX;
+			y = ev.movementY;
+		}
+
+		MTY.worker.postMessage({
+			type: 'motion',
+			relative: MTY.relative,
+			x: x,
+			y: y,
+		});
+	});
+
+	document.addEventListener('pointerlockchange', (ev) => {
+		// Left relative via the ESC key, which swallows a natural ESC keypress
+		if (!document.pointerLockElement && MTY.synthesizeEsc) {
+			const msg = {
+				type: 'key',
+				pressed: true,
+				code: 'Escape',
+				key: 'Escape',
+				mods: 0,
+			};
+
+			MTY.worker.postMessage(msg);
+
+			msg.pressed = false;
+			MTY.worker.postMessage(msg);
+		}
+
+		MTY.synthesizeEsc = true;
+	});
+
+	window.addEventListener('click', (ev) => {
+		// Popup blockers can interfere with window.open if not called from within the 'click' listener
+		mty_run_action();
+		ev.preventDefault();
+	});
+
+	window.addEventListener('mousedown', (ev) => {
+		mty_correct_relative();
+		ev.preventDefault();
+
+		MTY.worker.postMessage({
+			type: 'button',
+			pressed: true,
+			button: ev.button,
+			x: mty_scaled(ev.clientX),
+			y: mty_scaled(ev.clientY),
+		});
+	});
+
+	window.addEventListener('mouseup', (ev) => {
+		ev.preventDefault();
+
+		MTY.worker.postMessage({
+			type: 'button',
+			pressed: false,
+			button: ev.button,
+			x: mty_scaled(ev.clientX),
+			y: mty_scaled(ev.clientY),
+		});
+	});
+
+	MTY.canvas.addEventListener('contextmenu', (ev) => {
+		ev.preventDefault();
+	});
+
+	MTY.canvas.addEventListener('dragover', (ev) => {
+		ev.preventDefault();
+	});
+
+	MTY.canvas.addEventListener('wheel', (ev) => {
+		let x = ev.deltaX > 0 ? 120 : ev.deltaX < 0 ? -120 : 0;
+		let y = ev.deltaY > 0 ? 120 : ev.deltaY < 0 ? -120 : 0;
+
+		MTY.worker.postMessage({
+			type: 'wheel',
+			x: x,
+			y: y,
+		});
+	}, {passive: true});
+
+	window.addEventListener('keydown', (ev) => {
+		mty_correct_relative();
+
+		MTY.worker.postMessage({
+			type: 'key',
+			pressed: true,
+			code: ev.code,
+			key: ev.key,
+			mods: mty_get_mods(ev),
+		});
+
+		if (MTY.kbGrab)
+			ev.preventDefault();
+	});
+
+	window.addEventListener('keyup', (ev) => {
+		MTY.worker.postMessage({
+			type: 'key',
+			pressed: false,
+			code: ev.code,
+			key: '',
+			mods: mty_get_mods(ev),
+		});
+
+		if (MTY.kbGrab)
+			ev.preventDefault();
+	});
+
+	window.addEventListener('blur', (ev) => {
+		MTY.worker.postMessage({
+			type: 'focus',
+			focus: false,
+		});
+	});
+
+	window.addEventListener('focus', (ev) => {
+		MTY.worker.postMessage({
+			type: 'focus',
+			focus: true,
+		});
+	});
+
+	window.addEventListener('resize', (ev) => {
+		MTY.worker.postMessage({
+			type: 'resize',
+		});
+	});
+
+	MTY.canvas.addEventListener('drop', (ev) => {
+		ev.preventDefault();
+
+		if (!ev.dataTransfer.items)
+			return;
+
+		for (let x = 0; x < ev.dataTransfer.items.length; x++) {
+			if (ev.dataTransfer.items[x].kind == 'file') {
+				let file = ev.dataTransfer.items[x].getAsFile();
+
+				const reader = new FileReader();
+				reader.addEventListener('loadend', (fev) => {
+					if (reader.readyState == 2) {
+						MTY.worker.postMessage({
+							type: 'drop',
+							data: reader.result,
+						}, [reader.result]);
+					}
+				});
+
+				reader.readAsArrayBuffer(file);
+				break;
+			}
+		}
+	});
+}
+
+
+// Gamepads
+
+function mty_poll_gamepads() {
+	const gps = navigator.getGamepads();
+
+	for (let x = 0; x < 4; x++) {
+		const gp = gps[x];
+
+		if (gp) {
+			let state = 0;
+
+			// Connected
+			if (!MTY.gps[x]) {
+				MTY.gps[x] = true;
+				state = 1;
+			}
+
+			let lx = 0;
+			let ly = 0;
+			let rx = 0;
+			let ry = 0;
+			let lt = 0;
+			let rt = 0;
+			let buttons = 0;
+
+			if (gp.buttons) {
+				if (gp.buttons[6]) lt = gp.buttons[6].value;
+				if (gp.buttons[7]) rt = gp.buttons[7].value;
+
+				for (let i = 0; i < gp.buttons.length && i < 32; i++)
+					if (gp.buttons[i].pressed)
+						buttons |= 1 << i;
+			}
+
+			if (gp.axes) {
+				if (gp.axes[0]) lx = gp.axes[0];
+				if (gp.axes[1]) ly = gp.axes[1];
+				if (gp.axes[2]) rx = gp.axes[2];
+				if (gp.axes[3]) ry = gp.axes[3];
+			}
+
+			MTY.worker.postMessage({
+				type: 'gamepad',
+				id: x,
+				state: state,
+				buttons: buttons,
+				lx: lx,
+				ly: ly,
+				rx: rx,
+				ry: ry,
+				lt: lt,
+				rt: rt,
+			});
+
+		// Disconnected
+		} else if (MTY.gps[x]) {
+			MTY.worker.postMessage({
+				type: 'disconnect',
+				id: x,
+				state: 2,
+			});
+
+			MTY.gps[x] = false;
+		}
+	}
 }
 
 
@@ -183,15 +469,17 @@ function mty_supports_web_gl() {
 
 function mty_raf() {
 	// Poll gamepads
-	//if (document.hasFocus())
-	//	mty_poll_gamepads(app, controller);
+	if (document.hasFocus())
+		mty_poll_gamepads();
 
 	// Poll position changes
 	if (MTY.lastX != window.screenX || MTY.lastY != window.screenY) {
 		MTY.lastX = window.screenX;
 		MTY.lastY = window.screenY;
 
-		// Send move event
+		MTY.worker.postMessage({
+			type: 'move',
+		});
 	}
 
 	// Poll size changes and resize the canvas
@@ -202,6 +490,11 @@ function mty_raf() {
 		type: 'raf',
 		lastX: window.screenX,
 		lastY: window.screenY,
+		hasFocus: document.hasFocus(),
+		screenWidth: screen.width,
+		screenHeight: screen.height,
+		fullscreen: document.fullscreenElement != null,
+		visible: mty_is_visible(),
 		rect: rect,
 	});
 
@@ -270,7 +563,11 @@ function MTY_Start(bin, userEnv, endFunc, glver) {
 	// Init position, update loop
 	MTY.lastX = window.screenX;
 	MTY.lastY = window.screenY;
+	MTY.devicePixelRatio = window.devicePixelRatio;
 	requestAnimationFrame(mty_raf);
+
+	// Add input events
+	mty_add_input_events();
 
 	MTY.worker = new Worker('/lib/matoya-worker.js');
 
@@ -285,6 +582,9 @@ function MTY_Start(bin, userEnv, endFunc, glver) {
 	MTY.worker.postMessage({
 		type: 'init',
 		bin: bin,
+		devicePixelRatio: window.devicePixelRatio,
+		args: window.location.search,
+		hostname: window.location.hostname,
 		userEnv: Object.keys(userEnv),
 		canvas: offscreen,
 		memory: MTY.memory,
@@ -301,6 +601,26 @@ function MTY_Start(bin, userEnv, endFunc, glver) {
 			case 'image':
 			case 'image-size':
 				mty_decode_image(msg);
+				break;
+			case 'title':
+				document.title = msg.title;
+				break;
+			case 'get-ls':
+				const sync2 = new Int32Array(msg.sync, 1);
+
+				MTY.worker.postMessage({
+					type: 'set-ls',
+					key: msg.key,
+					val: window.localStorage[msg.key],
+					sync: sync2,
+				});
+
+				MTY_Wait(sync2);
+				MTY_Signal(msg.sync);
+				break;
+			case 'set-ls':
+				window.localStorage[msg.key] = msg.val;
+				MTY_Signal(msg.sync);
 				break;
 		}
 	};
