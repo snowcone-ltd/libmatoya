@@ -174,7 +174,7 @@ function mty_is_visible() {
 }
 
 function mty_scaled(num) {
-	return Math.round(num * MTY.devicePixelRatio);
+	return Math.round(num * window.devicePixelRatio);
 }
 
 function mty_run_action() {
@@ -495,7 +495,8 @@ function mty_raf() {
 		screenHeight: screen.height,
 		fullscreen: document.fullscreenElement != null,
 		visible: mty_is_visible(),
-		rect: rect,
+		canvasWidth: mty_scaled(rect.width),
+		canvasHeight: mty_scaled(rect.height),
 	});
 
 	requestAnimationFrame(mty_raf);

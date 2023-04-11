@@ -679,7 +679,7 @@ const MTY_SYSTEM_API = {
 
 const MTY_WEB_API = {
 	web_alert: function (title, msg) {
-		alert(MTY_StrToJS(title) + '\n\n' + MTY_StrToJS(msg));
+		window.alert(MTY_StrToJS(title) + '\n\n' + MTY_StrToJS(msg));
 	},
 	web_platform: function (platform, size) {
 		MTY_StrToC(navigator.platform, platform, size);
@@ -795,30 +795,6 @@ const MTY_WEB_API = {
 	web_get_relative: function () {
 		return MTY.relative;
 	},
-	web_has_focus: function () {
-		return MTY.hasFocus;
-	},
-	web_is_visible: function () {
-		return MTY.visible;
-	},
-	web_get_size: function (c_width, c_height) {
-		MTY_SetUint32(c_width, MTY.gl.drawingBufferWidth);
-		MTY_SetUint32(c_height, MTY.gl.drawingBufferHeight);
-	},
-	web_get_position: function (c_x, c_y) {
-		MTY_SetInt32(c_x, MTY.lastX);
-		MTY_SetInt32(c_y, MTY.lastY);
-	},
-	web_get_screen_size: function (c_width, c_height) {
-		MTY_SetUint32(c_width, MTY.screenWidth);
-		MTY_SetUint32(c_height, MTY.screenHeight);
-	},
-	web_set_title: function (title) {
-		postMessage({
-			type: 'title',
-			title: MTY_StrToJS(title),
-		});
-	},
 	web_use_default_cursor: function (use_default) {
 		if (MTY.cursorClass.length > 0) {
 			if (use_default) {
@@ -861,6 +837,30 @@ const MTY_WEB_API = {
 			MTY.cursorClass = '';
 		}
 	},
+	web_set_title: function (title) {
+		postMessage({
+			type: 'title',
+			title: MTY_StrToJS(title),
+		});
+	},
+	web_has_focus: function () {
+		return MTY.hasFocus;
+	},
+	web_is_visible: function () {
+		return MTY.visible;
+	},
+	web_get_size: function (c_width, c_height) {
+		MTY_SetUint32(c_width, MTY.gl.drawingBufferWidth);
+		MTY_SetUint32(c_height, MTY.gl.drawingBufferHeight);
+	},
+	web_get_position: function (c_x, c_y) {
+		MTY_SetInt32(c_x, MTY.lastX);
+		MTY_SetInt32(c_y, MTY.lastY);
+	},
+	web_get_screen_size: function (c_width, c_height) {
+		MTY_SetUint32(c_width, MTY.screenWidth);
+		MTY_SetUint32(c_height, MTY.screenHeight);
+	},
 	web_get_pixel_ratio: function () {
 		return MTY.devicePixelRatio;
 	},
@@ -870,12 +870,16 @@ const MTY_WEB_API = {
 		MTY.mouse_button = mouse_button;
 		MTY.mouse_wheel = mouse_wheel;
 		MTY.keyboard = keyboard;
+		MTY.focus = focus;
+		MTY.drop = drop;
+		MTY.resize = resize;
 	},
 	web_raf: function (app, func, controller, move, opaque) {
-		const step = () => {
-			MTY.gl.canvas.width = mty_scaled(MTY.rect.width);
-			MTY.gl.canvas.height = mty_scaled(MTY.rect.height);
+		MTY.app = app;
+		MTY.controller = controller;
+		MTY.move = move;
 
+		const step = () => {
 			// Keep looping recursively or end based on AppFunc return value
 			if (MTY_CFunc(func)(opaque)) {
 				requestAnimationFrame(step);
@@ -1236,7 +1240,9 @@ onmessage = (ev) => {
 			MTY.screenHeight = msg.screenHeight;
 			MTY.fullscreen = msg.fullscreen;
 			MTY.visible = msg.visible;
-			MTY.rect = msg.rect;
+
+			MTY.gl.canvas.width = msg.canvasWidth;
+			MTY.gl.canvas.height = msg.canvasHeight;
 			break;
 		case 'key':
 			if (!MTY.keyboard)
@@ -1267,12 +1273,27 @@ onmessage = (ev) => {
 
 			MTY_CFunc(MTY.mouse_wheel)(MTY.app, msg.x, msg.y);
 			break;
+		case 'move':
+			if (!MTY.move)
+				break;
+
+			MTY_CFunc(MTY.move)(MTY.app);
+			break;
+		case 'resize':
+			if (!MTY.resize)
+				break;
+
+			MTY_CFunc(MTY.resize)(MTY.app);
+			break;
+		case 'focus':
+			if (!MTY.focus)
+				break;
+
+			MTY_CFunc(MTY.focus)(MTY.app, msg.focus);
+			break;
 		case 'gamepad':
 		case 'disconnect':
-		case 'focus':
-		case 'resize':
 		case 'drop':
-		case 'move':
 			console.log(msg);
 			break;
 	}
