@@ -555,14 +555,18 @@ const MTY_NET_API = {
 				data.async = MTY_ASYNC_CONTINUE;
 				data.image = false;
 
-				/*
-				mty_decompress_image(data.response, (image, width, height) => {
-					data.width = width;
-					data.height = height;
-					data.response = image
-					data.async = MTY_ASYNC_OK;
-				});
-				*/
+				const size = data.response.length;
+				const buf = MTY_Alloc(size);
+				MTY_Memcpy(buf, data.response);
+
+				const cwidth = MTY.cbuf;
+				const cheight = MTY.cbuf + 4;
+				const cimage = MTY_DecompressImage(buf, size, cwidth, cheight);
+
+				data.width = MTY_GetUint32(cwidth);
+				data.height = MTY_GetUint32(cheight);
+				data.response = new Uint8Array(mty_mem(), cimage, data.width * data.height * 4);
+				data.async = MTY_ASYNC_OK;
 
 				return MTY_ASYNC_CONTINUE;
 			}
@@ -609,34 +613,39 @@ const MTY_NET_API = {
 
 // Image
 
+function MTY_DecompressImage(input, size, cwidth, cheight) {
+	postMessage({
+		type: 'image-size',
+		input: input,
+		size: size,
+		buf: MTY.cbuf,
+		sync: MTY.sync,
+	});
+
+	MTY_Wait(MTY.sync);
+
+	const width = MTY_GetUint32(MTY.cbuf);
+	const height = MTY_GetUint32(MTY.cbuf + 4);
+	const cimage = MTY_Alloc(width * height * 4);
+
+	postMessage({
+		type: 'image',
+		input: input,
+		size: size,
+		buf: cimage,
+		sync: MTY.sync,
+	});
+
+	MTY_Wait(MTY.sync);
+
+	MTY_SetUint32(cwidth, width);
+	MTY_SetUint32(cheight, height);
+
+	return cimage;
+}
+
 const MTY_IMAGE_API = {
-	MTY_DecompressImageAsync: function (input, size, func, opaque) {
-		postMessage({
-			type: 'image-size',
-			input: input,
-			size: size,
-			buf: MTY.cbuf,
-			sync: MTY.sync,
-		});
-
-		MTY_Wait(MTY.sync);
-
-		const width = MTY_GetUint32(MTY.cbuf);
-		const height = MTY_GetUint32(MTY.cbuf + 4);
-		const cimage = MTY_Alloc(width * height * 4);
-
-		postMessage({
-			type: 'image',
-			input: input,
-			size: size,
-			buf: cimage,
-			sync: MTY.sync,
-		});
-
-		MTY_Wait(MTY.sync);
-
-		MTY_CFunc(func)(cimage, width, height, opaque);
-	},
+	MTY_DecompressImage: MTY_DecompressImage,
 };
 
 

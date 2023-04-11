@@ -1825,13 +1825,6 @@ typedef enum {
 	MTY_IMAGE_COMPRESSION_MAKE_32 = INT32_MAX,
 } MTY_ImageCompression;
 
-/// @brief Function called after decompression is finished.
-/// @param image The decompressed image on success, or NULL if there was an error.
-/// @param width The width of `image`.
-/// @param height The height of `image`.
-/// @param opaque Pointer supplied to MTY_DecompressImageAsync.
-typedef void (*MTY_ImageFunc)(void *image, uint32_t width, uint32_t height, void *opaque);
-
 /// @brief Compress an RGBA image.
 /// @param method The compression method to be used on `input`.
 /// @param input RGBA 8-bits per channel image data.
@@ -1855,16 +1848,6 @@ MTY_CompressImage(MTY_ImageCompression method, const void *input, uint32_t width
 ///   The returned buffer must be destroyed with MTY_Free.
 MTY_EXPORT void *
 MTY_DecompressImage(const void *input, size_t size, uint32_t *width, uint32_t *height);
-
-/// @brief Decompress an image asynchronously into RGBA.
-/// @details This function is synchronous and functionally equivalent to MTY_DecompressImage on
-///   all platforms except the Web.
-/// @param input The compressed image data.
-/// @param size The size in bytes of `input`.
-/// @param func Function called after decompression is finished.
-/// @param opaque Passed to `func` when it is called.
-MTY_EXPORT void
-MTY_DecompressImageAsync(const void *input, size_t size, MTY_ImageFunc func, void *opaque);
 
 /// @brief Center crop an RGBA image.
 /// @param image RGBA 8-bits per channel image to be cropped.
