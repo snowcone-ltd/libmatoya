@@ -6,17 +6,6 @@
 // Global State
 
 const MTY = {
-	module: null,
-	alloc: 0,
-	free: 0,
-	audio: null,
-	cbuf: null,
-	kbMap: null,
-	keysRev: {},
-	wakeLock: null,
-	reqs: {},
-	reqIndex: 0,
-	endFunc: () => {},
 	cursorId: 0,
 	cursorCache: {},
 	cursorClass: '',
@@ -24,23 +13,8 @@ const MTY = {
 	synthesizeEsc: true,
 	relative: false,
 	gps: [false, false, false, false],
-	action: null,
 	lastX: 0,
 	lastY: 0,
-	keys: {},
-	clip: null,
-
-	// GL
-	gl: null,
-	glver: 'webgl',
-	glIndex: 0,
-	glObj: {},
-
-	// WASI
-	arg0: '',
-	fds: {},
-	fdIndex: 64,
-	preopen: false,
 };
 
 
@@ -532,7 +506,7 @@ async function mty_decode_image(msg) {
 	MTY_Signal(msg.sync);
 }
 
-function MTY_Start(bin, userEnv, endFunc, glver) {
+async function MTY_Start(bin, userEnv, endFunc, glver) {
 	if (!mty_supports_wasm() || !mty_supports_web_gl())
 		return false;
 
@@ -564,7 +538,6 @@ function MTY_Start(bin, userEnv, endFunc, glver) {
 	// Init position, update loop
 	MTY.lastX = window.screenX;
 	MTY.lastY = window.screenY;
-	MTY.devicePixelRatio = window.devicePixelRatio;
 	requestAnimationFrame(mty_raf);
 
 	// Add input events
@@ -578,6 +551,16 @@ function MTY_Start(bin, userEnv, endFunc, glver) {
 		shared: true,
 	});
 
+	// Load keyboard map
+	const kbMap = {};
+	if (navigator.keyboard) {
+		const layout = await navigator.keyboard.getLayoutMap();
+
+		layout.forEach((currentValue, index) => {
+			kbMap[index] = currentValue;
+		});
+	}
+
 	const offscreen = MTY.canvas.transferControlToOffscreen();
 
 	MTY.worker.postMessage({
@@ -587,6 +570,8 @@ function MTY_Start(bin, userEnv, endFunc, glver) {
 		args: window.location.search,
 		hostname: window.location.hostname,
 		userEnv: Object.keys(userEnv),
+		glver: glver,
+		kbMap: kbMap,
 		canvas: offscreen,
 		memory: MTY.memory,
 	}, [offscreen]);
