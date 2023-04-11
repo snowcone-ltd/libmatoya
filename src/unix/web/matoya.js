@@ -22,7 +22,6 @@ const MTY = {
 	cursorClass: '',
 	defaultCursor: false,
 	synthesizeEsc: true,
-	localStorage: {},
 	relative: false,
 	gps: [false, false, false, false],
 	action: null,
@@ -162,6 +161,7 @@ function MTY_Signal(sync) {
 
 
 // Input
+
 function mty_is_visible() {
 	if (document.hidden != undefined) {
 		return !document.hidden;
@@ -605,19 +605,27 @@ function MTY_Start(bin, userEnv, endFunc, glver) {
 			case 'title':
 				document.title = msg.title;
 				break;
-			case 'get-ls':
-				const sync2 = new Int32Array(msg.sync, 1);
+			case 'get-ls-size':
+				const val = window.localStorage[msg.key];
 
-				MTY.worker.postMessage({
-					type: 'set-ls',
-					key: msg.key,
-					val: window.localStorage[msg.key],
-					sync: sync2,
-				});
+				if (val) {
+					const bval = mty_b64_to_buf(val);
+					MTY_SetUint32(msg.buf, bval.byteLength);
 
-				MTY_Wait(sync2);
+				} else {
+					MTY_SetUint32(msg.buf, 0);
+				}
+
 				MTY_Signal(msg.sync);
 				break;
+			case 'get-ls': {
+				const val = window.localStorage[msg.key];
+				const bval = mty_b64_to_buf(val);
+
+				MTY_Memcpy(msg.buf, bval);
+				MTY_Signal(msg.sync);
+				break;
+			}
 			case 'set-ls':
 				window.localStorage[msg.key] = msg.val;
 				MTY_Signal(msg.sync);

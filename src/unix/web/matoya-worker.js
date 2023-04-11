@@ -30,14 +30,34 @@ function MTY_StrToCD(js_str) {
 
 function mty_get_ls(key) {
 	postMessage({
-		type: 'get-ls',
+		type: 'get-ls-size',
 		key: key,
+		buf: MTY.cbuf,
 		sync: MTY.sync,
 	});
 
 	MTY_Wait(MTY.sync);
 
-	return MTY.localStorage[key];
+	const size = MTY_GetUint32(MTY.cbuf);
+	if (size == 0)
+		return 0;
+
+	const cbuf = MTY_Alloc(size);
+
+	postMessage({
+		type: 'get-ls',
+		key: key,
+		buf: cbuf,
+		sync: MTY.sync,
+	});
+
+	MTY_Wait(MTY.sync);
+
+	const buf = new Uint8Array(size);
+	buf.set(new Uint8Array(mty_mem(), cbuf, size));
+	MTY_Free(cbuf);
+
+	return buf;
 }
 
 function mty_set_ls(key, val) {
@@ -676,8 +696,8 @@ const MTY_WEB_API = {
 		MTY.alloc = alloc;
 		MTY.free = free;
 
-		const csync = MTY_Alloc(8);
-		MTY.sync = new Int32Array(mty_mem(), csync, 2);
+		const csync = MTY_Alloc(4);
+		MTY.sync = new Int32Array(mty_mem(), csync, 1);
 
 		// Global buffers for scratch heap space
 		MTY.cbuf = MTY_Alloc(1024);
@@ -866,11 +886,10 @@ const MTY_WEB_API = {
 
 // https://github.com/WebAssembly/WASI/blob/master/phases/snapshot/docs.md
 
-function mty_append_buf_to_b64(b64, buf) {
+function mty_append_buf_to_b64(cur_buf, buf) {
 	// FIXME This is a crude way to handle appending to an open file,
 	// complex seek operations will break this
 
-	const cur_buf = mty_b64_to_buf(b64);
 	const new_buf = new Uint8Array(cur_buf.length + buf.length);
 
 	new_buf.set(cur_buf);
@@ -936,12 +955,10 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 	// Paths
 	path_filestat_get: function (fd, flags, cpath, _0, filestat_out) {
 		const path = MTY_StrToJS(cpath);
-		const ls_path = mty_get_ls(path);
-		console.log(ls_path);
+		const buf = mty_get_ls(path);
 
-		if (ls_path) {
+		if (buf) {
 			// We only need to return the size
-			const buf = mty_b64_to_buf(ls_path);
 			MTY_SetUint64(filestat_out + 32, buf.byteLength);
 		}
 
@@ -992,10 +1009,9 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 	},
 	fd_read: function (fd, iovs, iovs_len, nread) {
 		const finfo = MTY.fds[fd];
-		const ls_path = mty_get_ls(finfo.path);
+		const full_buf = mty_get_ls(finfo.path);
 
-		if (finfo && ls_path) {
-			const full_buf = mty_b64_to_buf(ls_path);
+		if (finfo && full_buf) {
 			let total = 0;
 
 			for (let x = 0; x < iovs_len; x++) {
@@ -1051,10 +1067,10 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 		// Filesystem
 		} else if (MTY.fds[fd]) {
 			const finfo = MTY.fds[fd];
-			const cur_b64 = mty_get_ls(finfo.path);
+			const cur_buf = mty_get_ls(finfo.path);
 
-			if (cur_b64 && finfo.append) {
-				mty_set_ls(finfo.path, mty_append_buf_to_b64(cur_b64, full_buf));
+			if (cur_buf && finfo.append) {
+				mty_set_ls(finfo.path, mty_append_buf_to_b64(cur_buf, full_buf));
 
 			} else {
 				mty_set_ls(finfo.path, mty_buf_to_b64(full_buf, len));
@@ -1212,11 +1228,6 @@ onmessage = (ev) => {
 			MTY.fullscreen = msg.fullscreen;
 			MTY.visible = msg.visible;
 			MTY.rect = msg.rect;
-			break;
-		case 'set-ls':
-			console.log('VAL', msg.key, msg.val);
-			MTY.localStorage[msg.key] = msg.val;
-			MTY_Signal(msg.sync);
 			break;
 		case 'key':
 			if (!MTY.keyboard)
