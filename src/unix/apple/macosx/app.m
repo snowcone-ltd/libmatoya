@@ -1320,7 +1320,7 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 		return;
 
 	MTY_Window active_window = MTY_WINDOW_MAX;
-	for (MTY_Window i = 0; i == active_window && i < MTY_WINDOW_MAX; i++) {
+	for (MTY_Window i = 0; active_window == MTY_WINDOW_MAX && i < MTY_WINDOW_MAX; i++) {
 		if (MTY_WindowIsActive(ctx, i)) {
 			active_window = i;
 		}
