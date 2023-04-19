@@ -280,7 +280,7 @@ MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eve
 
 	web_attach_events(ctx, window_motion, window_button,
 		window_scroll, window_keyboard, window_focus, window_drop,
-		window_resize);
+		window_resize, window_controller, window_move);
 
 	ctx->hotkey = MTY_HashCreate(0);
 	ctx->deduper = MTY_HashCreate(0);
@@ -306,7 +306,7 @@ void MTY_AppDestroy(MTY_App **app)
 
 void MTY_AppRun(MTY_App *ctx)
 {
-	web_raf(ctx, ctx->app_func, window_controller, window_move, ctx->opaque);
+	web_raf(ctx->app_func, ctx->opaque);
 }
 
 void MTY_AppSetTimeout(MTY_App *ctx, uint32_t timeout)

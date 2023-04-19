@@ -44,9 +44,9 @@ void web_get_size(uint32_t *width, uint32_t *height);
 void web_get_position(int32_t *x, int32_t *y);
 void web_get_screen_size(uint32_t *width, uint32_t *height);
 void web_set_title(const char *title);
-void web_raf(MTY_App *app, MTY_AppFunc func, WEB_CONTROLLER controller, WEB_MOVE move, void *opaque);
+void web_raf(MTY_AppFunc func, void *opaque);
 void web_register_drag(void);
 void web_gl_flush(void);
 float web_get_pixel_ratio(void);
-void web_attach_events(MTY_App *app, WEB_MOTION motion, WEB_BUTTON button,
-	WEB_SCROLL scroll, WEB_KEY key, WEB_FOCUS focus, WEB_DROP drop, WEB_RESIZE resize);
+void web_attach_events(MTY_App *app, WEB_MOTION motion, WEB_BUTTON button, WEB_SCROLL scroll,
+	WEB_KEY key, WEB_FOCUS focus, WEB_DROP drop, WEB_RESIZE resize, WEB_CONTROLLER controller, WEB_MOVE move);

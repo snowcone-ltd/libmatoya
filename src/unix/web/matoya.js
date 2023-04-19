@@ -337,6 +337,7 @@ function mty_add_input_events() {
 					if (reader.readyState == 2) {
 						MTY.worker.postMessage({
 							type: 'drop',
+							name: file.name,
 							data: reader.result,
 						}, [reader.result]);
 					}
@@ -470,21 +471,6 @@ function web_show_cursor(show) {
 	MTY.canvas.style.cursor = show ? '': 'none';
 }
 
-function web_get_clipboard() {
-	MTY.clip.focus();
-	MTY.clip.select();
-	document.execCommand('paste');
-
-	return MTY_StrToCD(MTY.clip.value);
-}
-
-function web_set_clipboard(text_c) {
-	MTY.clip.value = MTY_StrToJS(text_c);
-	MTY.clip.focus();
-	MTY.clip.select();
-	document.execCommand('copy');
-}
-
 function web_set_pointer_lock(enable) {
 	if (enable && !document.pointerLockElement) {
 		MTY.canvas.requestPointerLock();
@@ -602,36 +588,6 @@ function mty_raf() {
 	requestAnimationFrame(mty_raf);
 }
 
-async function mty_decode_image(msg) {
-	const jinput = new Uint8Array(mty_mem(), msg.input, msg.size);
-
-	const cpy = new Uint8Array(msg.size);
-	cpy.set(jinput);
-
-	const img = new Image();
-	img.src = URL.createObjectURL(new Blob([cpy]));
-
-	await img.decode();
-
-	const width = img.naturalWidth;
-	const height = img.naturalHeight;
-
-	if (msg.type == 'image-size') {
-		MTY_SetInt32(msg.buf, width);
-		MTY_SetInt32(msg.buf + 4, height);
-
-	} else {
-		const canvas = new OffscreenCanvas(width, height);
-		const ctx = canvas.getContext('2d');
-		ctx.drawImage(img, 0, 0, width, height);
-
-		const imgData = ctx.getImageData(0, 0, width, height);
-		MTY_Memcpy(msg.buf, imgData.data);
-	}
-
-	MTY_Signal(msg.sync);
-}
-
 async function MTY_Start(bin, userEnv, endFunc, glver) {
 	if (!mty_supports_wasm() || !mty_supports_web_gl())
 		return false;
@@ -654,13 +610,6 @@ async function MTY_Start(bin, userEnv, endFunc, glver) {
 	MTY.canvas.style.height = '100%';
 	document.body.appendChild(MTY.canvas);
 
-	// Set up the clipboard
-	MTY.clip = document.createElement('textarea');
-	MTY.clip.style.position = 'absolute';
-	MTY.clip.style.left = '-9999px';
-	MTY.clip.autofocus = true;
-	document.body.appendChild(MTY.clip);
-
 	// Init position, update loop
 	MTY.lastX = window.screenX;
 	MTY.lastY = window.screenY;
@@ -669,6 +618,7 @@ async function MTY_Start(bin, userEnv, endFunc, glver) {
 	// Add input events
 	mty_add_input_events();
 
+	// TODO
 	MTY.worker = new Worker('/lib/matoya-worker.js');
 
 	MTY.memory = new WebAssembly.Memory({
@@ -701,7 +651,7 @@ async function MTY_Start(bin, userEnv, endFunc, glver) {
 		memory: MTY.memory,
 	}, [offscreen]);
 
-	MTY.worker.onmessage = (ev) => {
+	MTY.worker.onmessage = async (ev) => {
 		const msg = ev.data;
 
 		switch (msg.type) {
@@ -709,19 +659,47 @@ async function MTY_Start(bin, userEnv, endFunc, glver) {
 				MTY_SetInt32(msg.rbuf, userEnv[msg.name](...msg.args));
 				MTY_Signal(msg.sync);
 				break;
-			case 'image':
-			case 'image-size':
-				mty_decode_image(msg);
+			case 'image0': {
+				const jinput = new Uint8Array(mty_mem(), msg.input, msg.size);
+
+				const cpy = new Uint8Array(msg.size);
+				cpy.set(jinput);
+
+				const img = new Image();
+				img.src = URL.createObjectURL(new Blob([cpy]));
+
+				await img.decode();
+
+				const width = img.naturalWidth;
+				const height = img.naturalHeight;
+
+				MTY_SetInt32(msg.buf, width);
+				MTY_SetInt32(msg.buf + 4, height);
+
+				const canvas = new OffscreenCanvas(width, height);
+				const ctx = canvas.getContext('2d');
+				ctx.drawImage(img, 0, 0, width, height);
+
+				MTY.image = ctx.getImageData(0, 0, width, height);
+
+				MTY_Signal(msg.sync);
+				break;
+			}
+			case 'image1':
+				MTY_Memcpy(msg.buf, MTY.image.data);
+				MTY.image = undefined;
+
+				MTY_Signal(msg.sync);
 				break;
 			case 'title':
 				document.title = msg.title;
 				break;
-			case 'get-ls-size':
+			case 'get-ls0':
 				const val = window.localStorage[msg.key];
 
 				if (val) {
-					const bval = mty_b64_to_buf(val);
-					MTY_SetUint32(msg.buf, bval.byteLength);
+					MTY.ls = mty_b64_to_buf(val);
+					MTY_SetUint32(msg.buf, MTY.ls.byteLength);
 
 				} else {
 					MTY_SetUint32(msg.buf, 0);
@@ -729,11 +707,10 @@ async function MTY_Start(bin, userEnv, endFunc, glver) {
 
 				MTY_Signal(msg.sync);
 				break;
-			case 'get-ls': {
-				const val = window.localStorage[msg.key];
-				const bval = mty_b64_to_buf(val);
+			case 'get-ls1': {
+				MTY_Memcpy(msg.buf, MTY.ls);
+				MTY.ls = undefined;
 
-				MTY_Memcpy(msg.buf, bval);
 				MTY_Signal(msg.sync);
 				break;
 			}
@@ -756,11 +733,23 @@ async function MTY_Start(bin, userEnv, endFunc, glver) {
 			case 'show-cursor':
 				web_show_cursor(msg.show);
 				break;
-			case 'get-clip':
-				// TODO
+			case 'get-clip0': {
+				const enc = new TextEncoder();
+				const text = await navigator.clipboard.readText();
+
+				MTY.clip = enc.encode(text);
+				MTY_SetUint32(msg.buf, MTY.clip.byteLength);
+				MTY_Signal(msg.sync);
+				break;
+			}
+			case 'get-clip1':
+				MTY_Memcpy(msg.buf, MTY.clip);
+				MTY.clip = undefined;
+
+				MTY_Signal(msg.sync);
 				break;
 			case 'set-clip':
-				web_set_clipboard(msg.text);
+				navigator.clipboard.writeText(MTY_StrToJS(msg.text));
 				break;
 			case 'pointer-lock':
 				web_set_pointer_lock(msg.enable);

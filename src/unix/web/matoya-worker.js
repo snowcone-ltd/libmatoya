@@ -85,7 +85,7 @@ function MTY_StrToCD(js_str) {
 
 function mty_get_ls(key) {
 	postMessage({
-		type: 'get-ls-size',
+		type: 'get-ls0',
 		key: key,
 		buf: MTY_W.cbuf,
 		sync: MTY_W.sync,
@@ -100,8 +100,7 @@ function mty_get_ls(key) {
 	const cbuf = MTY_Alloc(size);
 
 	postMessage({
-		type: 'get-ls',
-		key: key,
+		type: 'get-ls1',
 		buf: cbuf,
 		sync: MTY_W.sync,
 	});
@@ -419,6 +418,9 @@ const MTY_AUDIO_API = {
 		return 0xCDD;
 	},
 	MTY_AudioDestroy: function (audio) {
+		if (!MTY.audio)
+			return;
+
 		MTY_Free(MTY.audio.buf);
 		MTY_SetUint32(audio, 0);
 		MTY.audio = null;
@@ -670,7 +672,7 @@ const MTY_NET_API = {
 
 function MTY_DecompressImage(input, size, cwidth, cheight) {
 	postMessage({
-		type: 'image-size',
+		type: 'image0',
 		input: input,
 		size: size,
 		buf: MTY_W.cbuf,
@@ -684,9 +686,7 @@ function MTY_DecompressImage(input, size, cwidth, cheight) {
 	const cimage = MTY_Alloc(width * height * 4);
 
 	postMessage({
-		type: 'image',
-		input: input,
-		size: size,
+		type: 'image1',
 		buf: cimage,
 		sync: MTY_W.sync,
 	});
@@ -749,7 +749,16 @@ const MTY_WEB_API = {
 		postMessage({type: 'show-cursor', show});
 	},
 	web_get_clipboard: function () {
-		// TODO
+		postMessage({type: 'get-clip0', sync: MTY_W.sync, buf: MTY_W.cbuf});
+		MTY_Wait(MTY_W.sync);
+
+		const size = MTY_GetUint32(MTY_W.cbuf);
+		const buf = MTY_Alloc(size + 1);
+
+		postMessage({type: 'get-clip1', sync: MTY_W.sync, buf: buf});
+		MTY_Wait(MTY_W.sync);
+
+		return buf;
 	},
 	web_set_clipboard: function (text) {
 		postMessage({type: 'set-clip', text});
@@ -783,7 +792,7 @@ const MTY_WEB_API = {
 		MTY_W.sync = new Int32Array(mty_mem(), csync, 1);
 
 		// Global buffer for scratch heap space
-		MTY_W.cbuf = MTY_Alloc(1024);
+		MTY_W.cbuf = MTY_Alloc(2048);
 	},
 	web_set_key: function (reverse, code, key) {
 		const str = MTY_StrToJS(code);
@@ -835,7 +844,9 @@ const MTY_WEB_API = {
 	web_get_pixel_ratio: function () {
 		return MTY_W.devicePixelRatio;
 	},
-	web_attach_events: function (app, mouse_motion, mouse_button, mouse_wheel, keyboard, focus, drop, resize) {
+	web_attach_events: function (app, mouse_motion, mouse_button, mouse_wheel, keyboard,
+		focus, drop, resize, controller, move)
+	{
 		MTY_W.app = app;
 		MTY_W.mouse_motion = mouse_motion;
 		MTY_W.mouse_button = mouse_button;
@@ -844,12 +855,10 @@ const MTY_WEB_API = {
 		MTY_W.focus = focus;
 		MTY_W.drop = drop;
 		MTY_W.resize = resize;
-	},
-	web_raf: function (app, func, controller, move, opaque) {
-		MTY_W.app = app;
 		MTY_W.controller = controller;
 		MTY_W.move = move;
-
+	},
+	web_raf: function (func, opaque) {
 		const step = () => {
 			// Keep looping recursively or end based on AppFunc return value
 			if (MTY_CFunc(func)(opaque))
@@ -1215,50 +1224,56 @@ onmessage = (ev) => {
 			const key = MTY_W.keys[msg.code];
 
 			if (key != undefined) {
-				const text = msg.key.length == 1 ? MTY_StrToC(msg.key, MTY_W.cbuf, 1024) : 0;
+				const text = msg.key.length == 1 ? MTY_StrToC(msg.key, MTY_W.cbuf, 2048) : 0;
 				MTY_CFunc(MTY_W.keyboard)(MTY_W.app, msg.pressed, key, text, msg.mods);
 			}
 			break;
 		case 'motion':
-			if (!MTY_W.mouse_motion)
-				break;
-
-			MTY_CFunc(MTY_W.mouse_motion)(MTY_W.app, msg.relative, msg.x, msg.y);
+			if (MTY_W.mouse_motion)
+				MTY_CFunc(MTY_W.mouse_motion)(MTY_W.app, msg.relative, msg.x, msg.y);
 			break;
 		case 'button':
-			if (!MTY_W.mouse_button)
-				break;
-
-			MTY_CFunc(MTY_W.mouse_button)(MTY_W.app, msg.pressed, msg.button, msg.x, msg.y);
+			if (MTY_W.mouse_button)
+				MTY_CFunc(MTY_W.mouse_button)(MTY_W.app, msg.pressed, msg.button, msg.x, msg.y);
 			break;
 		case 'wheel':
-			if (!MTY_W.mouse_wheel)
-				break;
-
-			MTY_CFunc(MTY_W.mouse_wheel)(MTY_W.app, msg.x, msg.y);
+			if (MTY_W.mouse_wheel)
+				MTY_CFunc(MTY_W.mouse_wheel)(MTY_W.app, msg.x, msg.y);
 			break;
 		case 'move':
-			if (!MTY_W.move)
-				break;
-
-			MTY_CFunc(MTY_W.move)(MTY_W.app);
+			if (MTY_W.move)
+				MTY_CFunc(MTY_W.move)(MTY_W.app);
 			break;
 		case 'resize':
-			if (!MTY_W.resize)
-				break;
-
-			MTY_CFunc(MTY_W.resize)(MTY_W.app);
+			if (MTY_W.resize)
+				MTY_CFunc(MTY_W.resize)(MTY_W.app);
 			break;
 		case 'focus':
-			if (!MTY_W.focus)
-				break;
-
-			MTY_CFunc(MTY_W.focus)(MTY_W.app, msg.focus);
+			if (MTY_W.focus)
+				MTY_CFunc(MTY_W.focus)(MTY_W.app, msg.focus);
 			break;
 		case 'gamepad':
+			if (MTY_W.controller)
+				MTY_CFunc(MTY_W.controller)(MTY_W.app, msg.id, msg.state, msg.buttons, msg.lx,
+					msg.ly, msg.rx, msg.ry, msg.lt, msg.rt);
+			break;
 		case 'disconnect':
+			if (MTY_W.controller)
+				MTY_CFunc(MTY_W.controller)(MTY_W.app, msg.id, msg.state, 0, 0, 0, 0, 0, 0, 0);
+			break;
 		case 'drop':
-			console.log(msg);
+			if (!MTY_W.drop)
+				break;
+
+			const buf = new Uint8Array(msg.data);
+			const cmem = MTY_Alloc(buf.length);
+			MTY_Memcpy(cmem, buf);
+
+			const name_c = MTY_StrToC(msg.name, MTY_W.cbuf, 2048);
+
+			MTY_CFunc(MTY_W.drop)(MTY_W.app, name_c, cmem, buf.length);
+
+			MTY_Free(cmem);
 			break;
 	}
 };
