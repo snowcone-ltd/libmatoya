@@ -57,6 +57,31 @@ function mty_strlen(buf) {
 	return len;
 }
 
+function mty_wait(sync) {
+	if (Atomics.compareExchange(sync, 0, 0, 1) == 0) {
+		Atomics.wait(sync, 0, 1);
+
+	} else {
+		Atomics.store(sync, 0);
+	}
+}
+
+function mty_signal(sync) {
+	if (Atomics.compareExchange(sync, 0, 0, 1) == 0) {
+
+	} else {
+		Atomics.store(sync, 0);
+		Atomics.notify(sync, 0);
+	}
+}
+
+
+// Public helpers
+
+function MTY_GetUint32(ptr) {
+	return mty_mem_view().getUint32(ptr, true);
+}
+
 function MTY_SetUint32(ptr, value) {
 	mty_mem_view().setUint32(ptr, value, true);
 }
@@ -79,10 +104,6 @@ function MTY_SetFloat(ptr, value) {
 
 function MTY_SetUint64(ptr, value) {
 	mty_mem_view().setBigUint64(ptr, BigInt(value), true);
-}
-
-function MTY_GetUint32(ptr) {
-	return mty_mem_view().getUint32(ptr, true);
 }
 
 function MTY_GetInt32(ptr) {
@@ -115,24 +136,6 @@ function MTY_StrToC(js_str, ptr, size) {
 	return ptr;
 }
 
-function MTY_Wait(sync) {
-	if (Atomics.compareExchange(sync, 0, 0, 1) == 0) {
-		Atomics.wait(sync, 0, 1);
-
-	} else {
-		Atomics.store(sync, 0);
-	}
-}
-
-function MTY_Signal(sync) {
-	if (Atomics.compareExchange(sync, 0, 0, 1) == 0) {
-
-	} else {
-		Atomics.store(sync, 0);
-		Atomics.notify(sync, 0);
-	}
-}
-
 
 // Input
 
@@ -160,7 +163,7 @@ function mty_run_action() {
 	}, 100);
 }
 
-function MTY_SetAction(action) {
+function mty_set_action(action) {
 	MTY.action = action;
 
 	// In case click handler doesn't happen
@@ -421,11 +424,11 @@ function mty_poll_gamepads() {
 
 // Web
 
-function web_alert(title, msg) {
+function mty_alert(title, msg) {
 	window.alert(MTY_StrToJS(title) + '\n\n' + MTY_StrToJS(msg));
 }
 
-function web_set_fullscreen(fullscreen) {
+function mty_set_fullscreen(fullscreen) {
 	if (fullscreen && !document.fullscreenElement) {
 		if (navigator.keyboard)
 			navigator.keyboard.lock(["Escape"]);
@@ -440,7 +443,7 @@ function web_set_fullscreen(fullscreen) {
 	}
 }
 
-async function web_wake_lock(enable) {
+async function mty_wake_lock(enable) {
 	try {
 		if (enable && !MTY.wakeLock) {
 			MTY.wakeLock = await navigator.wakeLock.request('screen');
@@ -454,7 +457,7 @@ async function web_wake_lock(enable) {
 	}
 }
 
-function web_rumble_gamepad(id, low, high) {
+function mty_rumble_gamepad(id, low, high) {
 	const gps = navigator.getGamepads();
 	const gp = gps[id];
 
@@ -467,11 +470,11 @@ function web_rumble_gamepad(id, low, high) {
 		});
 }
 
-function web_show_cursor(show) {
+function mty_show_cursor(show) {
 	MTY.canvas.style.cursor = show ? '': 'none';
 }
 
-function web_set_pointer_lock(enable) {
+function mty_set_pointer_lock(enable) {
 	if (enable && !document.pointerLockElement) {
 		MTY.canvas.requestPointerLock();
 
@@ -483,7 +486,7 @@ function web_set_pointer_lock(enable) {
 	MTY.relative = enable;
 }
 
-function web_use_default_cursor(use_default) {
+function mty_use_default_cursor(use_default) {
 	if (MTY.cursorClass.length > 0) {
 		if (use_default) {
 			MTY.canvas.classList.remove(MTY.cursorClass);
@@ -496,7 +499,7 @@ function web_use_default_cursor(use_default) {
 	MTY.defaultCursor = use_default;
 }
 
-function web_set_png_cursor(buffer, size, hot_x, hot_y) {
+function mty_set_png_cursor(buffer, size, hot_x, hot_y) {
 	if (buffer) {
 		const buf = new Uint8Array(mty_mem(), buffer, size);
 		const b64_png = mty_buf_to_b64(buf);
@@ -657,7 +660,7 @@ async function MTY_Start(bin, userEnv, endFunc, glver) {
 		switch (msg.type) {
 			case 'user-env':
 				MTY_SetInt32(msg.rbuf, userEnv[msg.name](...msg.args));
-				MTY_Signal(msg.sync);
+				mty_signal(msg.sync);
 				break;
 			case 'image0': {
 				const jinput = new Uint8Array(mty_mem(), msg.input, msg.size);
@@ -682,14 +685,14 @@ async function MTY_Start(bin, userEnv, endFunc, glver) {
 
 				MTY.image = ctx.getImageData(0, 0, width, height);
 
-				MTY_Signal(msg.sync);
+				mty_signal(msg.sync);
 				break;
 			}
 			case 'image1':
 				MTY_Memcpy(msg.buf, MTY.image.data);
 				MTY.image = undefined;
 
-				MTY_Signal(msg.sync);
+				mty_signal(msg.sync);
 				break;
 			case 'title':
 				document.title = msg.title;
@@ -705,33 +708,33 @@ async function MTY_Start(bin, userEnv, endFunc, glver) {
 					MTY_SetUint32(msg.buf, 0);
 				}
 
-				MTY_Signal(msg.sync);
+				mty_signal(msg.sync);
 				break;
 			case 'get-ls1': {
 				MTY_Memcpy(msg.buf, MTY.ls);
 				MTY.ls = undefined;
 
-				MTY_Signal(msg.sync);
+				mty_signal(msg.sync);
 				break;
 			}
 			case 'set-ls':
 				window.localStorage[msg.key] = msg.val;
-				MTY_Signal(msg.sync);
+				mty_signal(msg.sync);
 				break;
 			case 'alert':
-				web_alert(msg.title, msg.msg);
+				mty_alert(msg.title, msg.msg);
 				break;
 			case 'fullscreen':
-				web_set_fullscreen(msg.fullscreen);
+				mty_set_fullscreen(msg.fullscreen);
 				break;
 			case 'wake-lock':
-				web_wake_lock(msg.enable);
+				mty_wake_lock(msg.enable);
 				break;
 			case 'rumble':
-				web_rumble_gamepad(msg.id, msg.low, msg.high);
+				mty_rumble_gamepad(msg.id, msg.low, msg.high);
 				break;
 			case 'show-cursor':
-				web_show_cursor(msg.show);
+				mty_show_cursor(msg.show);
 				break;
 			case 'get-clip0': {
 				const enc = new TextEncoder();
@@ -739,26 +742,31 @@ async function MTY_Start(bin, userEnv, endFunc, glver) {
 
 				MTY.clip = enc.encode(text);
 				MTY_SetUint32(msg.buf, MTY.clip.byteLength);
-				MTY_Signal(msg.sync);
+				mty_signal(msg.sync);
 				break;
 			}
 			case 'get-clip1':
 				MTY_Memcpy(msg.buf, MTY.clip);
 				MTY.clip = undefined;
 
-				MTY_Signal(msg.sync);
+				mty_signal(msg.sync);
 				break;
 			case 'set-clip':
 				navigator.clipboard.writeText(MTY_StrToJS(msg.text));
 				break;
 			case 'pointer-lock':
-				web_set_pointer_lock(msg.enable);
+				mty_set_pointer_lock(msg.enable);
 				break;
 			case 'cursor-default':
-				web_use_default_cursor(msg.use_default);
+				mty_use_default_cursor(msg.use_default);
 				break;
 			case 'cursor':
-				web_set_png_cursor(msg.buffer, msg.size, msg.hot_x, msg.hot_y);
+				mty_set_png_cursor(msg.buffer, msg.size, msg.hot_x, msg.hot_y);
+				break;
+			case 'uri':
+				mty_set_action(() => {
+					window.open(MTY_StrToJS(msg.uri), '_blank');
+				});
 				break;
 		}
 	};

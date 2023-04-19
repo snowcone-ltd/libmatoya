@@ -60,21 +60,21 @@ const MTY_W = {
 
 // Allocation
 
-function MTY_CFunc(ptr) {
+function mty_cfunc(ptr) {
 	return MTY_W.module.instance.exports.__indirect_function_table.get(ptr);
 }
 
-function MTY_Alloc(size, el) {
-	return MTY_CFunc(MTY_W.alloc)(size, el ? el : 1);
+function mty_alloc(size, el) {
+	return mty_cfunc(MTY_W.alloc)(size, el ? el : 1);
 }
 
-function MTY_Free(ptr) {
-	MTY_CFunc(MTY_W.free)(ptr);
+function mty_free(ptr) {
+	mty_cfunc(MTY_W.free)(ptr);
 }
 
-function MTY_StrToCD(js_str) {
+function mty_strtocd(js_str) {
 	const buf = (new TextEncoder()).encode(js_str);
-	const ptr = MTY_Alloc(buf.length);
+	const ptr = mty_alloc(buf.length);
 	mty_copy_str(ptr, buf);
 
 	return ptr;
@@ -91,13 +91,13 @@ function mty_get_ls(key) {
 		sync: MTY_W.sync,
 	});
 
-	MTY_Wait(MTY_W.sync);
+	mty_wait(MTY_W.sync);
 
 	const size = MTY_GetUint32(MTY_W.cbuf);
 	if (size == 0)
 		return 0;
 
-	const cbuf = MTY_Alloc(size);
+	const cbuf = mty_alloc(size);
 
 	postMessage({
 		type: 'get-ls1',
@@ -105,11 +105,11 @@ function mty_get_ls(key) {
 		sync: MTY_W.sync,
 	});
 
-	MTY_Wait(MTY_W.sync);
+	mty_wait(MTY_W.sync);
 
 	const buf = new Uint8Array(size);
 	buf.set(new Uint8Array(mty_mem(), cbuf, size));
-	MTY_Free(cbuf);
+	mty_free(cbuf);
 
 	return buf;
 }
@@ -122,7 +122,7 @@ function mty_set_ls(key, val) {
 		sync: MTY_W.sync,
 	});
 
-	MTY_Wait(MTY_W.sync);
+	mty_wait(MTY_W.sync);
 }
 
 
@@ -413,7 +413,7 @@ const MTY_AUDIO_API = {
 		MTY.audio.max_buffer = maxBuffer * MTY.audio.frames_per_ms;
 
 		MTY.audio.offset = 0;
-		MTY.audio.buf = MTY_Alloc(sampleRate * 2 * MTY.audio.channels);
+		MTY.audio.buf = mty_alloc(sampleRate * 2 * MTY.audio.channels);
 
 		return 0xCDD;
 	},
@@ -421,7 +421,7 @@ const MTY_AUDIO_API = {
 		if (!MTY.audio)
 			return;
 
-		MTY_Free(MTY.audio.buf);
+		mty_free(MTY.audio.buf);
 		MTY_SetUint32(audio, 0);
 		MTY.audio = null;
 	},
@@ -613,12 +613,12 @@ const MTY_NET_API = {
 				data.image = false;
 
 				const size = data.response.length;
-				const buf = MTY_Alloc(size);
+				const buf = mty_alloc(size);
 				MTY_Memcpy(buf, data.response);
 
 				const cwidth = MTY_W.cbuf;
 				const cheight = MTY_W.cbuf + 4;
-				const cimage = MTY_DecompressImage(buf, size, cwidth, cheight);
+				const cimage = mty_decompress_image(buf, size, cwidth, cheight);
 
 				data.width = MTY_GetUint32(cwidth);
 				data.height = MTY_GetUint32(cheight);
@@ -641,7 +641,7 @@ const MTY_NET_API = {
 
 			// Allocate C buffer and set return pointer
 			if (data.buf == undefined) {
-				data.buf = MTY_Alloc(data.response.length + 1);
+				data.buf = mty_alloc(data.response.length + 1);
 				MTY_Memcpy(data.buf, data.response);
 			}
 
@@ -660,7 +660,7 @@ const MTY_NET_API = {
 		if (data == undefined)
 			return;
 
-		MTY_Free(data.buf);
+		mty_free(data.buf);
 		delete MTY_W.reqs[req];
 
 		MTY_SetUint32(index, 0);
@@ -670,7 +670,7 @@ const MTY_NET_API = {
 
 // Image
 
-function MTY_DecompressImage(input, size, cwidth, cheight) {
+function mty_decompress_image(input, size, cwidth, cheight) {
 	postMessage({
 		type: 'image0',
 		input: input,
@@ -679,11 +679,11 @@ function MTY_DecompressImage(input, size, cwidth, cheight) {
 		sync: MTY_W.sync,
 	});
 
-	MTY_Wait(MTY_W.sync);
+	mty_wait(MTY_W.sync);
 
 	const width = MTY_GetUint32(MTY_W.cbuf);
 	const height = MTY_GetUint32(MTY_W.cbuf + 4);
-	const cimage = MTY_Alloc(width * height * 4);
+	const cimage = mty_alloc(width * height * 4);
 
 	postMessage({
 		type: 'image1',
@@ -691,7 +691,7 @@ function MTY_DecompressImage(input, size, cwidth, cheight) {
 		sync: MTY_W.sync,
 	});
 
-	MTY_Wait(MTY_W.sync);
+	mty_wait(MTY_W.sync);
 
 	MTY_SetUint32(cwidth, width);
 	MTY_SetUint32(cheight, height);
@@ -700,7 +700,7 @@ function MTY_DecompressImage(input, size, cwidth, cheight) {
 }
 
 const MTY_IMAGE_API = {
-	MTY_DecompressImage: MTY_DecompressImage,
+	MTY_DecompressImage: mty_decompress_image,
 };
 
 
@@ -723,9 +723,7 @@ const MTY_CRYPTO_API = {
 
 const MTY_SYSTEM_API = {
 	MTY_HandleProtocol: function (uri, token) {
-		MTY_SetAction(() => {
-			window.open(MTY_StrToJS(uri), '_blank');
-		});
+		postMessage({type: 'uri', uri});
 	},
 };
 
@@ -750,13 +748,13 @@ const MTY_WEB_API = {
 	},
 	web_get_clipboard: function () {
 		postMessage({type: 'get-clip0', sync: MTY_W.sync, buf: MTY_W.cbuf});
-		MTY_Wait(MTY_W.sync);
+		mty_wait(MTY_W.sync);
 
 		const size = MTY_GetUint32(MTY_W.cbuf);
-		const buf = MTY_Alloc(size + 1);
+		const buf = mty_alloc(size + 1);
 
 		postMessage({type: 'get-clip1', sync: MTY_W.sync, buf: buf});
-		MTY_Wait(MTY_W.sync);
+		mty_wait(MTY_W.sync);
 
 		return buf;
 	},
@@ -776,7 +774,7 @@ const MTY_WEB_API = {
 		return MTY_W.relative;
 	},
 	web_get_hostname: function () {
-		return MTY_StrToCD(MTY_W.hostname);
+		return mty_strtocd(MTY_W.hostname);
 	},
 	web_get_fullscreen: function () {
 		return MTY_W.fullscreen;
@@ -788,11 +786,11 @@ const MTY_WEB_API = {
 		MTY_W.alloc = alloc;
 		MTY_W.free = free;
 
-		const csync = MTY_Alloc(4);
+		const csync = mty_alloc(4);
 		MTY_W.sync = new Int32Array(mty_mem(), csync, 1);
 
 		// Global buffer for scratch heap space
-		MTY_W.cbuf = MTY_Alloc(2048);
+		MTY_W.cbuf = mty_alloc(2048);
 	},
 	web_set_key: function (reverse, code, key) {
 		const str = MTY_StrToJS(code);
@@ -861,7 +859,7 @@ const MTY_WEB_API = {
 	web_raf: function (func, opaque) {
 		const step = () => {
 			// Keep looping recursively or end based on AppFunc return value
-			if (MTY_CFunc(func)(opaque))
+			if (mty_cfunc(func)(opaque))
 				requestAnimationFrame(step);
 		};
 
@@ -1149,7 +1147,7 @@ async function mty_start(bin, userEnv) {
 				sync: MTY_W.sync,
 			});
 
-			MTY_Wait(MTY_W.sync);
+			mty_wait(MTY_W.sync);
 
 			return MTY_GetInt32(MTY_W.cbuf);
 		};
@@ -1225,55 +1223,55 @@ onmessage = (ev) => {
 
 			if (key != undefined) {
 				const text = msg.key.length == 1 ? MTY_StrToC(msg.key, MTY_W.cbuf, 2048) : 0;
-				MTY_CFunc(MTY_W.keyboard)(MTY_W.app, msg.pressed, key, text, msg.mods);
+				mty_cfunc(MTY_W.keyboard)(MTY_W.app, msg.pressed, key, text, msg.mods);
 			}
 			break;
 		case 'motion':
 			if (MTY_W.mouse_motion)
-				MTY_CFunc(MTY_W.mouse_motion)(MTY_W.app, msg.relative, msg.x, msg.y);
+				mty_cfunc(MTY_W.mouse_motion)(MTY_W.app, msg.relative, msg.x, msg.y);
 			break;
 		case 'button':
 			if (MTY_W.mouse_button)
-				MTY_CFunc(MTY_W.mouse_button)(MTY_W.app, msg.pressed, msg.button, msg.x, msg.y);
+				mty_cfunc(MTY_W.mouse_button)(MTY_W.app, msg.pressed, msg.button, msg.x, msg.y);
 			break;
 		case 'wheel':
 			if (MTY_W.mouse_wheel)
-				MTY_CFunc(MTY_W.mouse_wheel)(MTY_W.app, msg.x, msg.y);
+				mty_cfunc(MTY_W.mouse_wheel)(MTY_W.app, msg.x, msg.y);
 			break;
 		case 'move':
 			if (MTY_W.move)
-				MTY_CFunc(MTY_W.move)(MTY_W.app);
+				mty_cfunc(MTY_W.move)(MTY_W.app);
 			break;
 		case 'resize':
 			if (MTY_W.resize)
-				MTY_CFunc(MTY_W.resize)(MTY_W.app);
+				mty_cfunc(MTY_W.resize)(MTY_W.app);
 			break;
 		case 'focus':
 			if (MTY_W.focus)
-				MTY_CFunc(MTY_W.focus)(MTY_W.app, msg.focus);
+				mty_cfunc(MTY_W.focus)(MTY_W.app, msg.focus);
 			break;
 		case 'gamepad':
 			if (MTY_W.controller)
-				MTY_CFunc(MTY_W.controller)(MTY_W.app, msg.id, msg.state, msg.buttons, msg.lx,
+				mty_cfunc(MTY_W.controller)(MTY_W.app, msg.id, msg.state, msg.buttons, msg.lx,
 					msg.ly, msg.rx, msg.ry, msg.lt, msg.rt);
 			break;
 		case 'disconnect':
 			if (MTY_W.controller)
-				MTY_CFunc(MTY_W.controller)(MTY_W.app, msg.id, msg.state, 0, 0, 0, 0, 0, 0, 0);
+				mty_cfunc(MTY_W.controller)(MTY_W.app, msg.id, msg.state, 0, 0, 0, 0, 0, 0, 0);
 			break;
 		case 'drop':
 			if (!MTY_W.drop)
 				break;
 
 			const buf = new Uint8Array(msg.data);
-			const cmem = MTY_Alloc(buf.length);
+			const cmem = mty_alloc(buf.length);
 			MTY_Memcpy(cmem, buf);
 
 			const name_c = MTY_StrToC(msg.name, MTY_W.cbuf, 2048);
 
-			MTY_CFunc(MTY_W.drop)(MTY_W.app, name_c, cmem, buf.length);
+			mty_cfunc(MTY_W.drop)(MTY_W.app, name_c, cmem, buf.length);
 
-			MTY_Free(cmem);
+			mty_free(cmem);
 			break;
 	}
 };
