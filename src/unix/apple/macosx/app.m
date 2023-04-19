@@ -1319,8 +1319,19 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 	if (window0 && window0->cmn.webview && mty_webview_is_visible(window0->cmn.webview))
 		return;
 
+	MTY_Window active_window = MTY_WINDOW_MAX;
+	for (MTY_Window i = 0; i == active_window && i < MTY_WINDOW_MAX; i++) {
+		if (MTY_WindowIsActive(ctx, i)) {
+			active_window = i;
+		}
+	}
+
+	if (active_window == MTY_WINDOW_MAX)
+		return;
+
 	MTY_Event evt = {
 		.type = MTY_EVENT_KEY,
+		.window = active_window,
 		.key.key = key,
 		.key.mod = ctx->hid_kb_mod,
 		.key.pressed = down,
