@@ -418,6 +418,130 @@ function mty_poll_gamepads() {
 }
 
 
+// Web
+
+function web_alert(title, msg) {
+	window.alert(MTY_StrToJS(title) + '\n\n' + MTY_StrToJS(msg));
+}
+
+function web_set_fullscreen(fullscreen) {
+	if (fullscreen && !document.fullscreenElement) {
+		if (navigator.keyboard)
+			navigator.keyboard.lock(["Escape"]);
+
+		document.documentElement.requestFullscreen();
+
+	} else if (!fullscreen && document.fullscreenElement) {
+		document.exitFullscreen();
+
+		if (navigator.keyboard)
+			navigator.keyboard.unlock();
+	}
+}
+
+async function web_wake_lock(enable) {
+	try {
+		if (enable && !MTY.wakeLock) {
+			MTY.wakeLock = await navigator.wakeLock.request('screen');
+
+		} else if (!enable && MTY.wakeLock) {
+			MTY.wakeLock.release();
+			MTY.wakeLock = undefined;
+		}
+	} catch (e) {
+		MTY.wakeLock = undefined;
+	}
+}
+
+function web_rumble_gamepad(id, low, high) {
+	const gps = navigator.getGamepads();
+	const gp = gps[id];
+
+	if (gp && gp.vibrationActuator)
+		gp.vibrationActuator.playEffect('dual-rumble', {
+			startDelay: 0,
+			duration: 2000,
+			weakMagnitude: low,
+			strongMagnitude: high,
+		});
+}
+
+function web_show_cursor(show) {
+	MTY.canvas.style.cursor = show ? '': 'none';
+}
+
+function web_get_clipboard() {
+	MTY.clip.focus();
+	MTY.clip.select();
+	document.execCommand('paste');
+
+	return MTY_StrToCD(MTY.clip.value);
+}
+
+function web_set_clipboard(text_c) {
+	MTY.clip.value = MTY_StrToJS(text_c);
+	MTY.clip.focus();
+	MTY.clip.select();
+	document.execCommand('copy');
+}
+
+function web_set_pointer_lock(enable) {
+	if (enable && !document.pointerLockElement) {
+		MTY.canvas.requestPointerLock();
+
+	} else if (!enable && document.pointerLockElement) {
+		MTY.synthesizeEsc = false;
+		document.exitPointerLock();
+	}
+
+	MTY.relative = enable;
+}
+
+function web_use_default_cursor(use_default) {
+	if (MTY.cursorClass.length > 0) {
+		if (use_default) {
+			MTY.canvas.classList.remove(MTY.cursorClass);
+
+		} else {
+			MTY.canvas.classList.add(MTY.cursorClass);
+		}
+	}
+
+	MTY.defaultCursor = use_default;
+}
+
+function web_set_png_cursor(buffer, size, hot_x, hot_y) {
+	if (buffer) {
+		const buf = new Uint8Array(mty_mem(), buffer, size);
+		const b64_png = mty_buf_to_b64(buf);
+
+		if (!MTY.cursorCache[b64_png]) {
+			MTY.cursorCache[b64_png] = `cursor-x-${MTY.cursorId}`;
+
+			const style = document.createElement('style');
+			style.type = 'text/css';
+			style.innerHTML = `.cursor-x-${MTY.cursorId++} ` +
+				`{cursor: url(data:image/png;base64,${b64_png}) ${hot_x} ${hot_y}, auto;}`;
+			document.querySelector('head').appendChild(style);
+		}
+
+		if (MTY.cursorClass.length > 0)
+			MTY.canvas.classList.remove(MTY.cursorClass);
+
+		MTY.cursorClass = MTY.cursorCache[b64_png];
+
+		if (!MTY.defaultCursor)
+			MTY.canvas.classList.add(MTY.cursorClass);
+
+	} else {
+		if (!MTY.defaultCursor && MTY.cursorClass.length > 0)
+			MTY.canvas.classList.remove(MTY.cursorClass);
+
+		MTY.cursorClass = '';
+	}
+}
+
+
 // Entry
 
 function mty_supports_wasm() {
@@ -464,6 +588,8 @@ function mty_raf() {
 		type: 'raf',
 		lastX: window.screenX,
 		lastY: window.screenY,
+		relative: MTY.relative,
+		devicePixelRatio: window.devicePixelRatio,
 		hasFocus: document.hasFocus(),
 		screenWidth: screen.width,
 		screenHeight: screen.height,
@@ -566,7 +692,6 @@ async function MTY_Start(bin, userEnv, endFunc, glver) {
 	MTY.worker.postMessage({
 		type: 'init',
 		bin: bin,
-		devicePixelRatio: window.devicePixelRatio,
 		args: window.location.search,
 		hostname: window.location.hostname,
 		userEnv: Object.keys(userEnv),
@@ -615,6 +740,36 @@ async function MTY_Start(bin, userEnv, endFunc, glver) {
 			case 'set-ls':
 				window.localStorage[msg.key] = msg.val;
 				MTY_Signal(msg.sync);
+				break;
+			case 'alert':
+				web_alert(msg.title, msg.msg);
+				break;
+			case 'fullscreen':
+				web_set_fullscreen(msg.fullscreen);
+				break;
+			case 'wake-lock':
+				web_wake_lock(msg.enable);
+				break;
+			case 'rumble':
+				web_rumble_gamepad(msg.id, msg.low, msg.high);
+				break;
+			case 'show-cursor':
+				web_show_cursor(msg.show);
+				break;
+			case 'get-clip':
+				// TODO
+				break;
+			case 'set-clip':
+				web_set_clipboard(msg.text);
+				break;
+			case 'pointer-lock':
+				web_set_pointer_lock(msg.enable);
+				break;
+			case 'cursor-default':
+				web_use_default_cursor(msg.use_default);
+				break;
+			case 'cursor':
+				web_set_png_cursor(msg.buffer, msg.size, msg.hot_x, msg.hot_y);
 				break;
 		}
 	};
