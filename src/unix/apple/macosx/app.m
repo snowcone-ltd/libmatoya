@@ -1326,9 +1326,6 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 		}
 	}
 
-	if (active_window == MTY_WINDOW_MAX)
-		return;
-
 	MTY_Event evt = {
 		.type = MTY_EVENT_KEY,
 		.window = active_window,
@@ -1338,6 +1335,9 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 	};
 
 	if (!mty_app_dedupe_key(ctx, evt.key.key, down, false))
+		return;
+
+	if (active_window == MTY_WINDOW_MAX)
 		return;
 
 	mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
