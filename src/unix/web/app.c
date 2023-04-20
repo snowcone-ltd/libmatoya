@@ -25,10 +25,18 @@ struct MTY_App {
 	bool kb_grab;
 };
 
-static void __attribute__((constructor)) app_global_init(void)
+ __attribute__((export_name("mty_alloc"))) void *app_alloc(size_t len, size_t size)
 {
-	web_set_mem_funcs(MTY_Alloc, MTY_Free);
+	return MTY_Alloc(len, size);
+}
 
+__attribute__((export_name("mty_free"))) void app_free(void *mem)
+{
+	MTY_Free(mem);
+}
+
+__attribute__((export_name("setbuf"))) void app_setbuf(void)
+{
 	// WASI will buffer stdout and stderr by default, disable it
 	setbuf(stdout, NULL);
 	setbuf(stderr, NULL);

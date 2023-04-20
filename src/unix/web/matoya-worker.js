@@ -30,8 +30,6 @@ const MTY_W = {
 
 	// Exports
 	app: 0,
-	alloc: 0,
-	free: 0,
 	mouse_motion: 0,
 	mouse_button: 0,
 	mouse_wheel: 0,
@@ -65,11 +63,11 @@ function mty_cfunc(ptr) {
 }
 
 function mty_alloc(size, el) {
-	return mty_cfunc(MTY_W.alloc)(size, el ? el : 1);
+	return MTY_W.module.instance.exports.mty_alloc(size, el ? el : 1);
 }
 
 function mty_free(ptr) {
-	mty_cfunc(MTY_W.free)(ptr);
+	MTY_W.module.instance.exports.mty_free(ptr);
 }
 
 function mty_strtocd(js_str) {
@@ -85,7 +83,7 @@ function mty_strtocd(js_str) {
 
 function mty_get_ls(key) {
 	postMessage({
-		type: 'get-ls0',
+		type: 'get-ls',
 		key: key,
 		buf: MTY_W.cbuf,
 		sync: MTY_W.sync,
@@ -100,7 +98,7 @@ function mty_get_ls(key) {
 	const cbuf = mty_alloc(size);
 
 	postMessage({
-		type: 'get-ls1',
+		type: 'async-copy',
 		buf: cbuf,
 		sync: MTY_W.sync,
 	});
@@ -503,50 +501,11 @@ const MTY_AUDIO_API = {
 
 // Net
 
-const MTY_ASYNC_OK = 0;
-const MTY_ASYNC_DONE = 1;
-const MTY_ASYNC_CONTINUE = 2;
-const MTY_ASYNC_ERROR = 3;
-
 const MTY_NET_API = {
-	MTY_HttpAsyncCreate: function (num_threads) {
-	},
-	MTY_HttpAsyncDestroy: function () {
-	},
-	MTY_HttpSetProxy: function (proxy) {
-	},
-	MTY_HttpParseUrl: function (url_c, host_c_out, host_size, path_c_out, path_size) {
-		const url = MTY_StrToJS(url_c);
-
-		try {
-			const url_obj = new URL(url);
-			const path = url_obj.pathname + url_obj.search;
-
-			MTY_StrToC(url_obj.host, host_c_out, host_size);
-			MTY_StrToC(path, path_c_out, path_size);
-
-			return true;
-
-		} catch (err) {
-			console.error(err);
-		}
-
-		return false;
-	},
-	MTY_HttpEncodeUrl: function(src, dst, dst_len) {
-		// No-op, automatically converted in fetch
-		MTY_StrToC(MTY_StrToJS(src), dst, dst_len);
-	},
-	MTY_HttpAsyncRequest: function(index, chost, port, secure, cmethod,
-		cpath, cheaders, cbody, bodySize, timeout, image)
+	MTY_HttpRequest: function (chost, port, secure, cmethod, cpath, cheaders, cbody, bodySize,
+		timeout, response, responseSize, cstatus)
 	{
-		const req = ++MTY_W.reqIndex;
-		MTY_SetUint32(index, req);
-
-		MTY_W.reqs[req] = {
-			async: MTY_ASYNC_CONTINUE,
-			image: image,
-		};
+		// FIXME timeout is currently ignored
 
 		const jport = port != 0 ? ':' + port.toString() : '';
 		const scheme = secure ? 'https' : 'http';
@@ -567,140 +526,77 @@ const MTY_NET_API = {
 				headers[pair_split[0]] = pair_split[1];
 		}
 
-		fetch(url, {
+		postMessage({
+			type: 'http',
+			url: url,
 			method: method,
 			headers: headers,
-			body: body
-
-		}).then((response) => {
-			const data = MTY_W.reqs[req];
-			data.status = response.status;
-
-			return response.arrayBuffer();
-
-		}).then((body) => {
-			const data = MTY_W.reqs[req];
-			data.response = new Uint8Array(body);
-			data.async = MTY_ASYNC_OK;
-
-		}).catch((err) => {
-			const data = MTY_W.reqs[req];
-			console.error(err);
-			data.status = 0;
-			data.async = MTY_ASYNC_ERROR;
+			body: body,
+			sync: MTY_W.sync,
+			buf: MTY_W.cbuf,
 		});
-	},
-	MTY_HttpAsyncPoll: function(index, response, responseSize, code) {
-		const data = MTY_W.reqs[index];
 
-		// Unknown index or request has already been polled
-		if (data == undefined || data.async == MTY_ASYNC_DONE)
-			return MTY_ASYNC_DONE;
+		mty_wait(MTY_W.sync);
 
-		// Request is in progress
-		if (data.async == MTY_ASYNC_CONTINUE)
-			return MTY_ASYNC_CONTINUE;
+		const error = MTY_GetUint32(MTY_W.cbuf);
+		if (error)
+			return false;
 
-		// Request is has completed asynchronously, check if there is a response
-		if (data.response != undefined) {
+		const size = MTY_GetUint32(MTY_W.cbuf + 4);
+		MTY_SetUint32(responseSize, size);
 
-			// Optionally decompress an image on a successful response
-			const res_ok = data.status >= 200 && data.status < 300;
-			const req_ok = data.async == MTY_ASYNC_OK;
+		const status = MTY_GetUint32(MTY_W.cbuf + 8);
+		MTY_SetUint16(cstatus, status);
 
-			if (data.image && req_ok && res_ok) {
-				data.async = MTY_ASYNC_CONTINUE;
-				data.image = false;
+		if (size > 0) {
+			const cbuf = mty_alloc(size + 1);
+			MTY_SetUint32(response, cbuf);
 
-				const size = data.response.length;
-				const buf = mty_alloc(size);
-				MTY_Memcpy(buf, data.response);
+			postMessage({
+				type: 'async-copy',
+				sync: MTY_W.sync,
+				buf: cbuf,
+			});
 
-				const cwidth = MTY_W.cbuf;
-				const cheight = MTY_W.cbuf + 4;
-				const cimage = mty_decompress_image(buf, size, cwidth, cheight);
-
-				data.width = MTY_GetUint32(cwidth);
-				data.height = MTY_GetUint32(cheight);
-				data.response = new Uint8Array(mty_mem(), cimage, data.width * data.height * 4);
-				data.async = MTY_ASYNC_OK;
-
-				return MTY_ASYNC_CONTINUE;
-			}
-
-			// Set C status code
-			MTY_SetUint32(code, data.status);
-
-			// Set C response size
-			if (data.width && data.height) {
-				MTY_SetUint32(responseSize, data.width | data.height << 16);
-
-			} else {
-				MTY_SetUint32(responseSize, data.response.length);
-			}
-
-			// Allocate C buffer and set return pointer
-			if (data.buf == undefined) {
-				data.buf = mty_alloc(data.response.length + 1);
-				MTY_Memcpy(data.buf, data.response);
-			}
-
-			MTY_SetUint32(response, data.buf);
+			mty_wait(MTY_W.sync);
 		}
 
-		const r = data.async;
-		data.async = MTY_ASYNC_DONE;
-
-		return r;
-	},
-	MTY_HttpAsyncClear: function (index) {
-		const req = MTY_GetUint32(index);
-		const data = MTY_W.reqs[req];
-
-		if (data == undefined)
-			return;
-
-		mty_free(data.buf);
-		delete MTY_W.reqs[req];
-
-		MTY_SetUint32(index, 0);
+		return true;
 	},
 };
 
 
 // Image
 
-function mty_decompress_image(input, size, cwidth, cheight) {
-	postMessage({
-		type: 'image0',
-		input: input,
-		size: size,
-		buf: MTY_W.cbuf,
-		sync: MTY_W.sync,
-	});
-
-	mty_wait(MTY_W.sync);
-
-	const width = MTY_GetUint32(MTY_W.cbuf);
-	const height = MTY_GetUint32(MTY_W.cbuf + 4);
-	const cimage = mty_alloc(width * height * 4);
-
-	postMessage({
-		type: 'image1',
-		buf: cimage,
-		sync: MTY_W.sync,
-	});
-
-	mty_wait(MTY_W.sync);
-
-	MTY_SetUint32(cwidth, width);
-	MTY_SetUint32(cheight, height);
-
-	return cimage;
-}
-
 const MTY_IMAGE_API = {
-	MTY_DecompressImage: mty_decompress_image,
+	MTY_DecompressImage: function (input, size, cwidth, cheight) {
+		postMessage({
+			type: 'image',
+			input: input,
+			size: size,
+			sync: MTY_W.sync,
+			buf: MTY_W.cbuf,
+		});
+
+		mty_wait(MTY_W.sync);
+
+		const width = MTY_GetUint32(MTY_W.cbuf);
+		const height = MTY_GetUint32(MTY_W.cbuf + 4);
+		const cimage = mty_alloc(width * height * 4);
+
+		postMessage({
+			type: 'async-copy',
+			sync: MTY_W.sync,
+			buf: cimage,
+		});
+
+		mty_wait(MTY_W.sync);
+
+		MTY_SetUint32(cwidth, width);
+		MTY_SetUint32(cheight, height);
+
+		return cimage;
+	},
 };
 
 
@@ -747,13 +643,13 @@ const MTY_WEB_API = {
 		postMessage({type: 'show-cursor', show});
 	},
 	web_get_clipboard: function () {
-		postMessage({type: 'get-clip0', sync: MTY_W.sync, buf: MTY_W.cbuf});
+		postMessage({type: 'get-clip', sync: MTY_W.sync, buf: MTY_W.cbuf});
 		mty_wait(MTY_W.sync);
 
 		const size = MTY_GetUint32(MTY_W.cbuf);
 		const buf = mty_alloc(size + 1);
 
-		postMessage({type: 'get-clip1', sync: MTY_W.sync, buf: buf});
+		postMessage({type: 'async-copy', sync: MTY_W.sync, buf: buf});
 		mty_wait(MTY_W.sync);
 
 		return buf;
@@ -781,16 +677,6 @@ const MTY_WEB_API = {
 	},
 	web_platform: function (platform, size) {
 		MTY_StrToC(navigator.platform, platform, size);
-	},
-	web_set_mem_funcs: function (alloc, free) {
-		MTY_W.alloc = alloc;
-		MTY_W.free = free;
-
-		const csync = mty_alloc(4);
-		MTY_W.sync = new Int32Array(mty_mem(), csync, 1);
-
-		// Global buffer for scratch heap space
-		MTY_W.cbuf = mty_alloc(2048);
 	},
 	web_set_key: function (reverse, code, key) {
 		const str = MTY_StrToJS(code);
@@ -892,7 +778,7 @@ function mty_arg_list(args) {
 
 	let plist = [MTY_W.arg0];
 
-	// TODO This would put each key/val pair as a separate arg
+	// FIXME This would put each key/val pair as a separate arg
 	// for (let p of params)
 	// 	plist.push(p[0] + '=' + p[1]);
 
@@ -1194,6 +1080,14 @@ onmessage = async (ev) => {
 			MTY_W.glver = msg.glver ? msg.glver : 'webgl';
 
 			MTY_W.module = await mty_instantiate_wasm(msg.wasmBuf, msg.userEnv);
+
+			MTY_W.cbuf = mty_alloc(2048);
+
+			const csync = mty_alloc(4);
+			MTY_W.sync = new Int32Array(mty_mem(), csync, 1);
+
+			// Unbuffers stderr / stdout
+			MTY_W.module.instance.exports.setbuf();
 
 			if (msg.main) {
 				MTY_W.gl = msg.canvas.getContext(MTY_W.glver, {

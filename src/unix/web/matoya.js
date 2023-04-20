@@ -596,11 +596,34 @@ function mty_raf() {
 	requestAnimationFrame(mty_raf);
 }
 
+function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, userEnv, glver, kbMap, canvas, name) {
+	const worker = new Worker(baseFile.replace('.js', '-worker.js'), {name: name});
+
+	worker.postMessage({
+		type: 'init',
+		file: baseFile,
+		bin: bin,
+		wasmBuf: wasmBuf,
+		args: window.location.search,
+		hostname: window.location.hostname,
+		userEnv: userEnv ? Object.keys(userEnv) : [],
+		glver: glver,
+		kbMap: kbMap,
+		canvas: canvas,
+		startArg: startArg,
+		threadId: threadId,
+		memory: memory,
+		main: name == 'main',
+	}, canvas ? [canvas] : null);
+
+	return worker;
+}
+
 async function MTY_Start(bin, userEnv, glver) {
 	if (!mty_supports_wasm() || !mty_supports_web_gl())
 		return false;
 
-	// Set up full window canvas
+	// Canvas container
 	const html = document.querySelector('html');
 	html.style.width = '100%';
 	html.style.height = '100%';
@@ -613,21 +636,18 @@ async function MTY_Start(bin, userEnv, glver) {
 	body.style.overflow = 'hidden';
 	body.style.margin = 0;
 
+	// Drawing surface
 	MTY.canvas = document.createElement('canvas');
 	MTY.canvas.style.width = '100%';
 	MTY.canvas.style.height = '100%';
 	document.body.appendChild(MTY.canvas);
+	const offscreen = MTY.canvas.transferControlToOffscreen();
 
-	// Init position, update loop
-	MTY.lastX = window.screenX;
-	MTY.lastY = window.screenY;
-	requestAnimationFrame(mty_raf);
+	// WASM binary
+	const wasmRes = await fetch(bin);
+	const wasmBuf = await wasmRes.arrayBuffer();
 
-	// Add input events
-	mty_add_input_events();
-
-	MTY.worker = new Worker(MTY.file.replace('.js', '-worker.js'));
-
+	// Shared global memory
 	MTY.memory = new WebAssembly.Memory({
 		initial: 512,   // 32 MB
 		maximum: 16384, // 1 GB
@@ -644,30 +664,19 @@ async function MTY_Start(bin, userEnv, glver) {
 		});
 	}
 
-	const offscreen = MTY.canvas.transferControlToOffscreen();
+	// Init position, update loop
+	MTY.lastX = window.screenX;
+	MTY.lastY = window.screenY;
+	requestAnimationFrame(mty_raf);
 
-	// Fetch the wasm file as an ArrayBuffer
-	const res = await fetch(bin);
-	MTY.wasmBuf = await res.arrayBuffer();
+	// Add input events
+	mty_add_input_events();
 
-	MTY.worker.postMessage({
-		type: 'init',
-		file: MTY.file,
-		bin: bin,
-		wasmBuf: MTY.wasmBuf,
-		args: window.location.search,
-		hostname: window.location.hostname,
-		userEnv: Object.keys(userEnv),
-		glver: glver,
-		kbMap: kbMap,
-		canvas: offscreen,
-		startArg: 0,
-		threadId: MTY.threadId,
-		memory: MTY.memory,
-		main: true,
-	}, [offscreen]);
+	// Main thread
+	MTY.worker = mty_thread_start(MTY.threadId, bin, MTY.file, wasmBuf, MTY.memory,
+		0, userEnv, glver, kbMap, offscreen, 'main');
 
-	MTY.worker.onmessage = async (ev) => {
+	MTY.worker.onmessage = async function (ev) {
 		const msg = ev.data;
 
 		switch (msg.type) {
@@ -676,26 +685,10 @@ async function MTY_Start(bin, userEnv, glver) {
 				mty_signal(msg.sync);
 				break;
 			case 'thread': {
-				const worker = new Worker(MTY.file.replace('.js', '-worker.js'));
-
 				MTY.threadId++;
 
-				worker.postMessage({
-					type: 'init',
-					file: MTY.file,
-					bin: bin,
-					wasmBuf: MTY.wasmBuf,
-					args: window.location.search,
-					hostname: window.location.hostname,
-					userEnv: Object.keys(userEnv),
-					glver: glver,
-					kbMap: kbMap,
-					canvas: null,
-					startArg: msg.startArg,
-					threadId: MTY.threadId,
-					memory: MTY.memory,
-					main: false,
-				});
+				const worker = mty_thread_start(MTY.threadId, bin, MTY.file, wasmBuf, MTY.memory,
+					msg.startArg, userEnv, glver, kbMap, null, 'thread-' + MTY.threadId);
 
 				worker.onmessage = MTY.worker.onmessage;
 
@@ -703,7 +696,7 @@ async function MTY_Start(bin, userEnv, glver) {
 				mty_signal(msg.sync);
 				break;
 			}
-			case 'image0': {
+			case 'image': {
 				const jinput = new Uint8Array(mty_mem(), msg.input, msg.size);
 
 				const cpy = new Uint8Array(msg.size);
@@ -724,26 +717,20 @@ async function MTY_Start(bin, userEnv, glver) {
 				const ctx = canvas.getContext('2d');
 				ctx.drawImage(img, 0, 0, width, height);
 
-				MTY.image = ctx.getImageData(0, 0, width, height);
+				this.tmp = ctx.getImageData(0, 0, width, height).data;
 
 				mty_signal(msg.sync);
 				break;
 			}
-			case 'image1':
-				MTY_Memcpy(msg.buf, MTY.image.data);
-				MTY.image = undefined;
-
-				mty_signal(msg.sync);
-				break;
 			case 'title':
 				document.title = msg.title;
 				break;
-			case 'get-ls0':
+			case 'get-ls':
 				const val = window.localStorage[msg.key];
 
 				if (val) {
-					MTY.ls = mty_b64_to_buf(val);
-					MTY_SetUint32(msg.buf, MTY.ls.byteLength);
+					this.tmp = mty_b64_to_buf(val);
+					MTY_SetUint32(msg.buf, this.tmp.byteLength);
 
 				} else {
 					MTY_SetUint32(msg.buf, 0);
@@ -751,13 +738,6 @@ async function MTY_Start(bin, userEnv, glver) {
 
 				mty_signal(msg.sync);
 				break;
-			case 'get-ls1': {
-				MTY_Memcpy(msg.buf, MTY.ls);
-				MTY.ls = undefined;
-
-				mty_signal(msg.sync);
-				break;
-			}
 			case 'set-ls':
 				window.localStorage[msg.key] = msg.val;
 				mty_signal(msg.sync);
@@ -777,21 +757,15 @@ async function MTY_Start(bin, userEnv, glver) {
 			case 'show-cursor':
 				mty_show_cursor(msg.show);
 				break;
-			case 'get-clip0': {
+			case 'get-clip': {
 				const enc = new TextEncoder();
 				const text = await navigator.clipboard.readText();
 
-				MTY.clip = enc.encode(text);
-				MTY_SetUint32(msg.buf, MTY.clip.byteLength);
+				this.tmp = enc.encode(text);
+				MTY_SetUint32(msg.buf, this.tmp.byteLength);
 				mty_signal(msg.sync);
 				break;
 			}
-			case 'get-clip1':
-				MTY_Memcpy(msg.buf, MTY.clip);
-				MTY.clip = undefined;
-
-				mty_signal(msg.sync);
-				break;
 			case 'set-clip':
 				navigator.clipboard.writeText(MTY_StrToJS(msg.text));
 				break;
@@ -808,6 +782,41 @@ async function MTY_Start(bin, userEnv, glver) {
 				mty_set_action(() => {
 					window.open(MTY_StrToJS(msg.uri), '_blank');
 				});
+				break;
+			case 'http':
+				let error = 0
+				let size = 0;
+				let status = 0;
+
+				try {
+					const response = await fetch(msg.url, {
+						method: msg.method,
+						headers: msg.headers,
+						body: msg.body
+					});
+
+					const body = await response.arrayBuffer();
+					this.tmp = new Uint8Array(body);
+
+					size = this.tmp.byteLength;
+					status = response.status;
+
+				} catch (e) {
+					console.error(err);
+					error = 1;
+				}
+
+				MTY_SetUint32(msg.buf + 0, error);
+				MTY_SetUint32(msg.buf + 4, size);
+				MTY_SetUint32(msg.buf + 8, status);
+
+				mty_signal(msg.sync);
+				break;
+			case 'async-copy':
+				MTY_Memcpy(msg.buf, this.tmp);
+				this.tmp = undefined;
+
+				mty_signal(msg.sync);
 				break;
 		}
 	};

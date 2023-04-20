@@ -21,10 +21,12 @@ NAME = libmatoya
 
 OBJS = \
 	src/app.o \
+	src/async.o \
 	src/crypto.o \
 	src/dtls.o \
 	src/file.o \
 	src/hash.o \
+	src/http.o \
 	src/image.o \
 	src/json.o \
 	src/list.o \
@@ -120,8 +122,6 @@ WEBVIEW_OBJ = src/unix/linux/x11/webview.o
 endif
 
 OBJS := $(OBJS) \
-	src/async.o \
-	src/http.o \
 	src/gfx/gl/gl.o \
 	src/gfx/gl/gl-ui.o \
 	src/gfx/vk/vk.o \
@@ -198,8 +198,6 @@ endif
 endif
 
 OBJS := $(OBJS) \
-	src/async.o \
-	src/http.o \
 	src/unix/system.o \
 	src/unix/apple/request.o \
 	src/unix/apple/audio.o \
