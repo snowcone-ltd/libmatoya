@@ -39,8 +39,8 @@ const MTY_W = {
 	resize: 0,
 
 	// HTTP
-	reqs: {},
-	reqIndex: 0,
+	wsIndex: 1,
+	wsObj: {},
 
 	// GL
 	gl: null,
@@ -501,36 +501,64 @@ const MTY_AUDIO_API = {
 
 // Net
 
+function mty_ws_new(obj) {
+	MTY_W.wsObj[MTY_W.wsIndex] = obj;
+
+	return MTY_W.wsIndex++;
+}
+
+function mty_ws_del(index) {
+	let obj = MTY_W.wsObj[index];
+
+	MTY_W.wsObj[index] = undefined;
+	delete MTY_W.wsObj[index];
+
+	return obj;
+}
+
+function mty_ws_obj(index) {
+	return MTY_W.wsObj[index];
+}
+
+function mty_net_args(base_scheme, chost, port, secure, cpath, cheaders) {
+	const jport = port != 0 ? ':' + port.toString() : '';
+	const scheme = secure ? base_scheme + 's' : base_scheme;
+	const host = MTY_StrToJS(chost);
+	const path = MTY_StrToJS(cpath);
+	const headers_str = MTY_StrToJS(cheaders);
+	const url = scheme + '://' + host + jport + path;
+
+	const headers = {};
+	const headers_nl = headers_str.split('\n');
+	for (let x = 0; x < headers_nl.length; x++) {
+		const pair = headers_nl[x];
+		const pair_split = pair.split(':');
+
+		if (pair_split[0] && pair_split[1])
+			headers[pair_split[0]] = pair_split[1];
+	}
+
+	return {
+		url,
+		headers,
+	};
+}
+
 const MTY_NET_API = {
 	MTY_HttpRequest: function (chost, port, secure, cmethod, cpath, cheaders, cbody, bodySize,
 		timeout, response, responseSize, cstatus)
 	{
 		// FIXME timeout is currently ignored
 
-		const jport = port != 0 ? ':' + port.toString() : '';
-		const scheme = secure ? 'https' : 'http';
-		const method = MTY_StrToJS(cmethod);
-		const host = MTY_StrToJS(chost);
-		const path = MTY_StrToJS(cpath);
-		const headers_str = MTY_StrToJS(cheaders);
 		const body = cbody ? MTY_StrToJS(cbody) : undefined;
-		const url = scheme + '://' + host + jport + path;
-
-		const headers = {};
-		const headers_nl = headers_str.split('\n');
-		for (let x = 0; x < headers_nl.length; x++) {
-			const pair = headers_nl[x];
-			const pair_split = pair.split(':');
-
-			if (pair_split[0] && pair_split[1])
-				headers[pair_split[0]] = pair_split[1];
-		}
+		const method = MTY_StrToJS(cmethod);
+		const args = mty_net_args('http', chost, port, secure, cpath, cheaders);
 
 		postMessage({
 			type: 'http',
-			url: url,
+			url: args.url,
 			method: method,
-			headers: headers,
+			headers: args.headers,
 			body: body,
 			sync: MTY_W.sync,
 			buf: MTY_W.cbuf,
@@ -562,6 +590,46 @@ const MTY_NET_API = {
 		}
 
 		return true;
+	},
+	MTY_WebSocketConnect: function (chost, port, secure, cpath, cheaders, timeout, upgrade_status_out) {
+		// FIXME timeout is currently ignored
+		// FIXME headers are currently ignored
+
+		const args = mty_net_args('ws', chost, port, secure, cpath, cheaders);
+		console.log(args.headers);
+		console.log(args.url);
+
+		const ws = new WebSocket(args.url);
+
+		ws.onclose = (event) => {
+			console.log("CLOSE");
+		};
+
+		ws.onerror = (err) => {
+			console.log(err);
+			console.log("ERROR");
+		};
+
+		ws.onopen = () => {
+			console.log("OPEN!");
+		};
+
+		ws.onmessage = (event) => {
+			console.log(event);
+		};
+
+		return mty_ws_new(ws);
+	},
+	MTY_WebSocketDestroy: function (ctx_out) {
+	},
+	MTY_WebSocketRead: function (ctx, timeout, msg_out, size) {
+		return 2; // MTY_Async
+	},
+	MTY_WebSocketWrite: function (ctx, msg_c) {
+		return true;
+	},
+	MTY_WebSocketGetCloseCode: function (ctx) {
+		return 0;
 	},
 };
 
