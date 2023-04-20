@@ -5,8 +5,13 @@
 
 // Global State
 
+const MTY_IS_WORKER = typeof importScripts == 'function';
+
 const MTY = {
+	file: !MTY_IS_WORKER ? new URL(document.currentScript.src).pathname : '',
+
 	cursorId: 0,
+	threadId: 1,
 	cursorCache: {},
 	cursorClass: '',
 	defaultCursor: false,
@@ -591,7 +596,7 @@ function mty_raf() {
 	requestAnimationFrame(mty_raf);
 }
 
-async function MTY_Start(bin, userEnv, endFunc, glver) {
+async function MTY_Start(bin, userEnv, glver) {
 	if (!mty_supports_wasm() || !mty_supports_web_gl())
 		return false;
 
@@ -621,8 +626,7 @@ async function MTY_Start(bin, userEnv, endFunc, glver) {
 	// Add input events
 	mty_add_input_events();
 
-	// TODO
-	MTY.worker = new Worker('/lib/matoya-worker.js');
+	MTY.worker = new Worker(MTY.file.replace('.js', '-worker.js'));
 
 	MTY.memory = new WebAssembly.Memory({
 		initial: 512,   // 32 MB
@@ -642,16 +646,25 @@ async function MTY_Start(bin, userEnv, endFunc, glver) {
 
 	const offscreen = MTY.canvas.transferControlToOffscreen();
 
+	// Fetch the wasm file as an ArrayBuffer
+	const res = await fetch(bin);
+	MTY.wasmBuf = await res.arrayBuffer();
+
 	MTY.worker.postMessage({
 		type: 'init',
+		file: MTY.file,
 		bin: bin,
+		wasmBuf: MTY.wasmBuf,
 		args: window.location.search,
 		hostname: window.location.hostname,
 		userEnv: Object.keys(userEnv),
 		glver: glver,
 		kbMap: kbMap,
 		canvas: offscreen,
+		startArg: 0,
+		threadId: MTY.threadId,
 		memory: MTY.memory,
+		main: true,
 	}, [offscreen]);
 
 	MTY.worker.onmessage = async (ev) => {
@@ -662,6 +675,34 @@ async function MTY_Start(bin, userEnv, endFunc, glver) {
 				MTY_SetInt32(msg.rbuf, userEnv[msg.name](...msg.args));
 				mty_signal(msg.sync);
 				break;
+			case 'thread': {
+				const worker = new Worker(MTY.file.replace('.js', '-worker.js'));
+
+				MTY.threadId++;
+
+				worker.postMessage({
+					type: 'init',
+					file: MTY.file,
+					bin: bin,
+					wasmBuf: MTY.wasmBuf,
+					args: window.location.search,
+					hostname: window.location.hostname,
+					userEnv: Object.keys(userEnv),
+					glver: glver,
+					kbMap: kbMap,
+					canvas: null,
+					startArg: msg.startArg,
+					threadId: MTY.threadId,
+					memory: MTY.memory,
+					main: false,
+				});
+
+				worker.onmessage = MTY.worker.onmessage;
+
+				MTY_SetUint32(msg.buf, MTY.threadId);
+				mty_signal(msg.sync);
+				break;
+			}
 			case 'image0': {
 				const jinput = new Uint8Array(mty_mem(), msg.input, msg.size);
 

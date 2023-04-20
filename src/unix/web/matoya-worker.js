@@ -806,10 +806,11 @@ const MTY_WEB_API = {
 			const text = MTY_W.kbMap[code];
 			if (text) {
 				MTY_StrToC(text.toUpperCase(), cbuf, len);
-				return true;
+
+			} else {
+				MTY_StrToC(code, cbuf, len);
 			}
 
-			MTY_StrToC(code, cbuf, len);
 			return true;
 		}
 
@@ -1089,21 +1090,26 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 };
 
 const MTY_WASI_API = {
-	'thread-spawn': function () {
-		console.log(arguments);
+	'thread-spawn': function (start_arg) {
+		postMessage({
+			type: 'thread',
+			startArg: start_arg,
+			buf: MTY_W.cbuf,
+			sync: MTY_W.sync,
+		});
+
+		mty_wait(MTY_W.sync);
+
+		return MTY_GetUint32(MTY_W.cbuf);
 	},
 };
 
 
 // Entry
 
-async function mty_start(bin, userEnv) {
+async function mty_instantiate_wasm(wasmBuf, userEnv) {
 	if (!userEnv)
 		userEnv = [];
-
-	// Fetch the wasm file as an ArrayBuffer
-	const res = await fetch(bin);
-	const buf = await res.arrayBuffer();
 
 	// Imports
 	const imports = {
@@ -1154,33 +1160,29 @@ async function mty_start(bin, userEnv) {
 	}
 
 	// Create wasm instance (module) from the ArrayBuffer
-	MTY_W.module = await WebAssembly.instantiate(buf, imports);
+	return await WebAssembly.instantiate(wasmBuf, imports);
+}
 
+function mty_start(module) {
 	// Execute the '_start' entry point, this will fetch args and execute the 'main' function
 	try {
 		MTY_W.module.instance.exports._start();
 
 	// We expect to catch the 'MTY_AppRun halted execution' exception
-	// Otherwise look for an indication of unsupported WASM features
 	} catch (e) {
 		estr = e.toString();
 
 		if (estr.search('MTY_AppRun') == -1)
 			console.error(e);
-
-		// This probably means the browser does not support WASM 64
-		return estr.search('i64 not allowed') == -1;
 	}
-
-	return true;
 }
 
-onmessage = (ev) => {
+onmessage = async (ev) => {
 	const msg = ev.data;
 
 	switch (msg.type) {
 		case 'init':
-			importScripts('/lib/matoya.js');
+			importScripts(msg.file);
 
 			MTY.memory = msg.memory;
 
@@ -1191,13 +1193,21 @@ onmessage = (ev) => {
 			MTY_W.kbMap = msg.kbMap;
 			MTY_W.glver = msg.glver ? msg.glver : 'webgl';
 
-			MTY_W.gl = msg.canvas.getContext(MTY_W.glver, {
-				depth: false,
-				antialias: false,
-				premultipliedAlpha: true,
-			});
+			MTY_W.module = await mty_instantiate_wasm(msg.wasmBuf, msg.userEnv);
 
-			mty_start(msg.bin, msg.userEnv);
+			if (msg.main) {
+				MTY_W.gl = msg.canvas.getContext(MTY_W.glver, {
+					depth: false,
+					antialias: false,
+					premultipliedAlpha: true,
+				});
+
+				mty_start(MTY_W.module);
+
+			} else {
+				MTY_W.module.instance.exports.wasi_thread_start(msg.threadId, msg.startArg);
+				close();
+			}
 			break;
 		case 'raf':
 			MTY_W.lastX = msg.lastX;
