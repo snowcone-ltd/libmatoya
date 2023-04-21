@@ -1224,6 +1224,8 @@ static Class view_class(void)
 	OBJC_OVERRIDE(cls, @selector(acceptsFirstMouse:), view_acceptsFirstMouse);
 	OBJC_OVERRIDE(cls, @selector(updateTrackingAreas), view_updateTrackingAreas);
 
+	objc_registerClassPair(cls);
+
 	return cls;
 }
 
