@@ -15,6 +15,8 @@ struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
 {
 	struct gl_ctx *ctx = MTY_Alloc(1, sizeof(struct gl_ctx));
 
+	web_set_gfx();
+
 	return (struct gfx_ctx *) ctx;
 }
 

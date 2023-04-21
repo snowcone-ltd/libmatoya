@@ -629,7 +629,7 @@ function mty_raf() {
 	requestAnimationFrame(mty_raf);
 }
 
-function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, userEnv, glver, kbMap, canvas, name) {
+function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, userEnv, kbMap, name) {
 	const worker = new Worker(baseFile.replace('.js', '-worker.js'), {name: name});
 
 	worker.postMessage({
@@ -640,14 +640,11 @@ function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, us
 		args: window.location.search,
 		hostname: window.location.hostname,
 		userEnv: userEnv ? Object.keys(userEnv) : [],
-		glver: glver,
 		kbMap: kbMap,
-		canvas: canvas,
 		startArg: startArg,
 		threadId: threadId,
 		memory: memory,
-		main: name == 'main',
-	}, canvas ? [canvas] : null);
+	});
 
 	return worker;
 }
@@ -674,7 +671,6 @@ async function MTY_Start(bin, userEnv, glver) {
 	MTY.canvas.style.width = '100%';
 	MTY.canvas.style.height = '100%';
 	document.body.appendChild(MTY.canvas);
-	const offscreen = MTY.canvas.transferControlToOffscreen();
 
 	// WASM binary
 	const wasmRes = await fetch(bin);
@@ -707,7 +703,7 @@ async function MTY_Start(bin, userEnv, glver) {
 
 	// Main thread
 	MTY.worker = mty_thread_start(MTY.threadId, bin, MTY.file, wasmBuf, MTY.memory,
-		0, userEnv, glver, kbMap, offscreen, 'main');
+		0, userEnv, kbMap, 'main');
 
 	MTY.worker.onmessage = async function (ev) {
 		const msg = ev.data;
@@ -721,7 +717,7 @@ async function MTY_Start(bin, userEnv, glver) {
 				MTY.threadId++;
 
 				const worker = mty_thread_start(MTY.threadId, bin, MTY.file, wasmBuf, MTY.memory,
-					msg.startArg, userEnv, glver, kbMap, null, 'thread-' + MTY.threadId);
+					msg.startArg, userEnv, kbMap, 'thread-' + MTY.threadId);
 
 				worker.onmessage = MTY.worker.onmessage;
 
@@ -930,6 +926,16 @@ async function MTY_Start(bin, userEnv, glver) {
 					ws.close();
 					mty_ws_del(msg.ctx);
 				}
+				break;
+			}
+			case 'gfx': {
+				const offscreen = MTY.canvas.transferControlToOffscreen();
+
+				this.postMessage({
+					type: 'gfx',
+					glver: glver,
+					canvas: offscreen,
+				}, [offscreen]);
 				break;
 			}
 			case 'async-copy':

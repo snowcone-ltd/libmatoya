@@ -45,5 +45,6 @@ void web_raf(MTY_AppFunc func, void *opaque);
 void web_register_drag(void);
 void web_gl_flush(void);
 float web_get_pixel_ratio(void);
+void web_set_gfx(void);
 void web_attach_events(MTY_App *app, WEB_MOTION motion, WEB_BUTTON button, WEB_SCROLL scroll,
 	WEB_KEY key, WEB_FOCUS focus, WEB_DROP drop, WEB_RESIZE resize, WEB_CONTROLLER controller, WEB_MOVE move);
