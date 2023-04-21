@@ -789,6 +789,13 @@ const MTY_WEB_API = {
 	web_get_pixel_ratio: function () {
 		return MTY_W.devicePixelRatio;
 	},
+	web_set_gfx: function () {
+		postMessage({
+			type: 'gfx',
+		});
+	},
+
+	// Should be called on main thread only
 	web_attach_events: function (app, mouse_motion, mouse_button, mouse_wheel, keyboard,
 		focus, drop, resize, controller, move)
 	{
@@ -802,11 +809,6 @@ const MTY_WEB_API = {
 		MTY_W.resize = resize;
 		MTY_W.controller = controller;
 		MTY_W.move = move;
-	},
-	web_set_gfx: function () {
-		postMessage({
-			type: 'gfx',
-		});
 	},
 	web_raf: function (func, opaque) {
 		const step = () => {
@@ -1180,6 +1182,8 @@ onmessage = async (ev) => {
 				MTY_W.gl.canvas.height = msg.canvasHeight;
 			}
 			break;
+
+		// Main thread only
 		case 'key':
 			if (!MTY_W.keyboard)
 				break;

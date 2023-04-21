@@ -205,7 +205,7 @@ function mty_get_mods(ev) {
 	return mods;
 }
 
-function mty_add_input_events() {
+function mty_add_input_events(thread) {
 	MTY.canvas.addEventListener('mousemove', (ev) => {
 		let x = mty_scaled(ev.clientX);
 		let y = mty_scaled(ev.clientY);
@@ -215,7 +215,7 @@ function mty_add_input_events() {
 			y = ev.movementY;
 		}
 
-		MTY.worker.postMessage({
+		thread.postMessage({
 			type: 'motion',
 			relative: MTY.relative,
 			x: x,
@@ -234,10 +234,10 @@ function mty_add_input_events() {
 				mods: 0,
 			};
 
-			MTY.worker.postMessage(msg);
+			thread.postMessage(msg);
 
 			msg.pressed = false;
-			MTY.worker.postMessage(msg);
+			thread.postMessage(msg);
 		}
 
 		MTY.synthesizeEsc = true;
@@ -253,7 +253,7 @@ function mty_add_input_events() {
 		mty_correct_relative();
 		ev.preventDefault();
 
-		MTY.worker.postMessage({
+		thread.postMessage({
 			type: 'button',
 			pressed: true,
 			button: ev.button,
@@ -265,7 +265,7 @@ function mty_add_input_events() {
 	window.addEventListener('mouseup', (ev) => {
 		ev.preventDefault();
 
-		MTY.worker.postMessage({
+		thread.postMessage({
 			type: 'button',
 			pressed: false,
 			button: ev.button,
@@ -286,7 +286,7 @@ function mty_add_input_events() {
 		let x = ev.deltaX > 0 ? 120 : ev.deltaX < 0 ? -120 : 0;
 		let y = ev.deltaY > 0 ? 120 : ev.deltaY < 0 ? -120 : 0;
 
-		MTY.worker.postMessage({
+		thread.postMessage({
 			type: 'wheel',
 			x: x,
 			y: y,
@@ -296,7 +296,7 @@ function mty_add_input_events() {
 	window.addEventListener('keydown', (ev) => {
 		mty_correct_relative();
 
-		MTY.worker.postMessage({
+		thread.postMessage({
 			type: 'key',
 			pressed: true,
 			code: ev.code,
@@ -309,7 +309,7 @@ function mty_add_input_events() {
 	});
 
 	window.addEventListener('keyup', (ev) => {
-		MTY.worker.postMessage({
+		thread.postMessage({
 			type: 'key',
 			pressed: false,
 			code: ev.code,
@@ -322,21 +322,21 @@ function mty_add_input_events() {
 	});
 
 	window.addEventListener('blur', (ev) => {
-		MTY.worker.postMessage({
+		thread.postMessage({
 			type: 'focus',
 			focus: false,
 		});
 	});
 
 	window.addEventListener('focus', (ev) => {
-		MTY.worker.postMessage({
+		thread.postMessage({
 			type: 'focus',
 			focus: true,
 		});
 	});
 
 	window.addEventListener('resize', (ev) => {
-		MTY.worker.postMessage({
+		thread.postMessage({
 			type: 'resize',
 		});
 	});
@@ -354,7 +354,7 @@ function mty_add_input_events() {
 				const reader = new FileReader();
 				reader.addEventListener('loadend', (fev) => {
 					if (reader.readyState == 2) {
-						MTY.worker.postMessage({
+						thread.postMessage({
 							type: 'drop',
 							name: file.name,
 							data: reader.result,
@@ -411,7 +411,7 @@ function mty_poll_gamepads() {
 				if (gp.axes[3]) ry = gp.axes[3];
 			}
 
-			MTY.worker.postMessage({
+			thread.postMessage({
 				type: 'gamepad',
 				id: x,
 				state: state,
@@ -426,7 +426,7 @@ function mty_poll_gamepads() {
 
 		// Disconnected
 		} else if (MTY.gps[x]) {
-			MTY.worker.postMessage({
+			thread.postMessage({
 				type: 'disconnect',
 				id: x,
 				state: 2,
@@ -592,7 +592,7 @@ function mty_supports_web_gl() {
 	return false;
 }
 
-function mty_raf() {
+function mty_raf(thread) {
 	// Poll gamepads
 	if (document.hasFocus())
 		mty_poll_gamepads();
@@ -602,7 +602,7 @@ function mty_raf() {
 		MTY.lastX = window.screenX;
 		MTY.lastY = window.screenY;
 
-		MTY.worker.postMessage({
+		thread.postMessage({
 			type: 'move',
 		});
 	}
@@ -611,7 +611,7 @@ function mty_raf() {
 	const rect = MTY.canvas.getBoundingClientRect();
 
 	// send rect event
-	MTY.worker.postMessage({
+	thread.postMessage({
 		type: 'raf',
 		lastX: window.screenX,
 		lastY: window.screenY,
@@ -626,7 +626,9 @@ function mty_raf() {
 		canvasHeight: mty_scaled(rect.height),
 	});
 
-	requestAnimationFrame(mty_raf);
+	requestAnimationFrame(() => {
+		mty_raf(thread);
+	});
 }
 
 function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, userEnv, kbMap, name) {
@@ -653,6 +655,10 @@ async function MTY_Start(bin, userEnv, glver) {
 	if (!mty_supports_wasm() || !mty_supports_web_gl())
 		return false;
 
+	MTY.bin = bin;
+	MTY.userEnv = userEnv;
+	MTY.glver = glver;
+
 	// Canvas container
 	const html = document.querySelector('html');
 	html.style.width = '100%';
@@ -674,7 +680,7 @@ async function MTY_Start(bin, userEnv, glver) {
 
 	// WASM binary
 	const wasmRes = await fetch(bin);
-	const wasmBuf = await wasmRes.arrayBuffer();
+	MTY.wasmBuf = await wasmRes.arrayBuffer();
 
 	// Shared global memory
 	MTY.memory = new WebAssembly.Memory({
@@ -684,268 +690,270 @@ async function MTY_Start(bin, userEnv, glver) {
 	});
 
 	// Load keyboard map
-	const kbMap = {};
+	MTY.kbMap = {};
 	if (navigator.keyboard) {
 		const layout = await navigator.keyboard.getLayoutMap();
 
 		layout.forEach((currentValue, index) => {
-			kbMap[index] = currentValue;
+			MTY.kbMap[index] = currentValue;
 		});
 	}
+
+	// Main thread
+	MTY.mainThread = mty_thread_start(MTY.threadId, bin, MTY.file, MTY.wasmBuf, MTY.memory,
+		0, userEnv, MTY.kbMap, 'main');
 
 	// Init position, update loop
 	MTY.lastX = window.screenX;
 	MTY.lastY = window.screenY;
-	requestAnimationFrame(mty_raf);
+	mty_raf(MTY.mainThread);
 
 	// Add input events
-	mty_add_input_events();
+	mty_add_input_events(MTY.mainThread);
 
-	// Main thread
-	MTY.worker = mty_thread_start(MTY.threadId, bin, MTY.file, wasmBuf, MTY.memory,
-		0, userEnv, kbMap, 'main');
-
-	MTY.worker.onmessage = async function (ev) {
-		const msg = ev.data;
-
-		switch (msg.type) {
-			case 'user-env':
-				MTY_SetInt32(msg.rbuf, userEnv[msg.name](...msg.args));
-				mty_signal(msg.sync);
-				break;
-			case 'thread': {
-				MTY.threadId++;
-
-				const worker = mty_thread_start(MTY.threadId, bin, MTY.file, wasmBuf, MTY.memory,
-					msg.startArg, userEnv, kbMap, 'thread-' + MTY.threadId);
-
-				worker.onmessage = MTY.worker.onmessage;
-
-				MTY_SetUint32(msg.buf, MTY.threadId);
-				mty_signal(msg.sync);
-				break;
-			}
-			case 'image': {
-				const jinput = new Uint8Array(mty_mem(), msg.input, msg.size);
-
-				const cpy = new Uint8Array(msg.size);
-				cpy.set(jinput);
-
-				const img = new Image();
-				img.src = URL.createObjectURL(new Blob([cpy]));
-
-				await img.decode();
-
-				const width = img.naturalWidth;
-				const height = img.naturalHeight;
-
-				MTY_SetInt32(msg.buf, width);
-				MTY_SetInt32(msg.buf + 4, height);
-
-				const canvas = new OffscreenCanvas(width, height);
-				const ctx = canvas.getContext('2d');
-				ctx.drawImage(img, 0, 0, width, height);
-
-				this.tmp = ctx.getImageData(0, 0, width, height).data;
-
-				mty_signal(msg.sync);
-				break;
-			}
-			case 'title':
-				document.title = msg.title;
-				break;
-			case 'get-ls':
-				const val = window.localStorage[msg.key];
-
-				if (val) {
-					this.tmp = mty_b64_to_buf(val);
-					MTY_SetUint32(msg.buf, this.tmp.byteLength);
-
-				} else {
-					MTY_SetUint32(msg.buf, 0);
-				}
-
-				mty_signal(msg.sync);
-				break;
-			case 'set-ls':
-				window.localStorage[msg.key] = msg.val;
-				mty_signal(msg.sync);
-				break;
-			case 'alert':
-				mty_alert(msg.title, msg.msg);
-				break;
-			case 'fullscreen':
-				mty_set_fullscreen(msg.fullscreen);
-				break;
-			case 'wake-lock':
-				mty_wake_lock(msg.enable);
-				break;
-			case 'rumble':
-				mty_rumble_gamepad(msg.id, msg.low, msg.high);
-				break;
-			case 'show-cursor':
-				mty_show_cursor(msg.show);
-				break;
-			case 'get-clip': {
-				const enc = new TextEncoder();
-				const text = await navigator.clipboard.readText();
-
-				this.tmp = enc.encode(text);
-				MTY_SetUint32(msg.buf, this.tmp.byteLength);
-				mty_signal(msg.sync);
-				break;
-			}
-			case 'set-clip':
-				navigator.clipboard.writeText(MTY_StrToJS(msg.text));
-				break;
-			case 'pointer-lock':
-				mty_set_pointer_lock(msg.enable);
-				break;
-			case 'cursor-default':
-				mty_use_default_cursor(msg.use_default);
-				break;
-			case 'cursor':
-				mty_set_png_cursor(msg.buffer, msg.size, msg.hot_x, msg.hot_y);
-				break;
-			case 'uri':
-				mty_set_action(() => {
-					window.open(MTY_StrToJS(msg.uri), '_blank');
-				});
-				break;
-			case 'http':
-				let error = 0
-				let size = 0;
-				let status = 0;
-
-				try {
-					const response = await fetch(msg.url, {
-						method: msg.method,
-						headers: msg.headers,
-						body: msg.body
-					});
-
-					const body = await response.arrayBuffer();
-					this.tmp = new Uint8Array(body);
-
-					size = this.tmp.byteLength;
-					status = response.status;
-
-				} catch (e) {
-					console.error(err);
-					error = 1;
-				}
-
-				MTY_SetUint32(msg.buf + 0, error);
-				MTY_SetUint32(msg.buf + 4, size);
-				MTY_SetUint32(msg.buf + 8, status);
-
-				mty_signal(msg.sync);
-				break;
-			case 'ws': {
-				const ws = new WebSocket(msg.url);
-				const sab = new SharedArrayBuffer(4);
-				ws.async = new Int32Array(sab, 0, 1);
-				ws.msgs = [];
-
-				let signal = false;
-
-				ws.onclose = (event) => {
-					if (!signal) {
-						MTY_SetUint32(msg.buf, 0);
-						mty_signal(msg.sync);
-						signal = true;
-					}
-				};
-
-				ws.onerror = (err) => {
-					MTY_SetUint32(msg.buf + 0, 1);
-
-					if (!signal) {
-						console.error(err);
-						MTY_SetUint32(msg.buf, 0);
-						mty_signal(msg.sync);
-						signal = true;
-					}
-				};
-
-				ws.onopen = () => {
-					if (!signal) {
-						MTY_SetUint32(msg.buf, mty_ws_new(ws));
-						mty_signal(msg.sync);
-						signal = true;
-					}
-				};
-
-				ws.onmessage = (evt) => {
-					ws.msgs.push(evt.data);
-					Atomics.notify(ws.async, 0, 1);
-				};
-				break;
-			}
-			case 'ws-read': {
-				MTY_SetUint32(msg.cbuf, 2);
-
-				const ws = mty_ws_obj(msg.ctx);
-
-				if (ws) {
-					let ws_msg = ws.msgs.shift()
-
-					if (!ws_msg) {
-						const r0 = Atomics.waitAsync(ws.async, 0, 0, msg.timeout);
-						const r1 = await r0.value;
-
-						if (r1 != 'timed-out')
-							ws_msg = ws.msgs.shift()
-					}
-
-					if (ws_msg) {
-						MTY_SetUint32(msg.cbuf, 0);
-
-						const enc = new TextEncoder();
-						const ws_buf = enc.encode(ws_msg);
-
-						if (ws_buf.length <= msg.size) {
-							MTY_Memcpy(msg.buf, ws_buf);
-							MTY_SetInt8(msg.buf + ws_buf.length, 0);
-						}
-					}
-				}
-
-				mty_signal(msg.sync);
-				break;
-			}
-			case 'ws-write': {
-				const ws = mty_ws_obj(msg.ctx);
-				if (ws)
-					ws.send(msg.text)
-				break;
-			}
-			case 'ws-close': {
-				const ws = mty_ws_obj(msg.ctx);
-				if (ws) {
-					ws.close();
-					mty_ws_del(msg.ctx);
-				}
-				break;
-			}
-			case 'gfx': {
-				const offscreen = MTY.canvas.transferControlToOffscreen();
-
-				this.postMessage({
-					type: 'gfx',
-					glver: glver,
-					canvas: offscreen,
-				}, [offscreen]);
-				break;
-			}
-			case 'async-copy':
-				MTY_Memcpy(msg.buf, this.tmp);
-				this.tmp = undefined;
-
-				mty_signal(msg.sync);
-				break;
-		}
-	};
+	MTY.mainThread.onmessage = mty_thread_message;
 
 	return true;
+}
+
+async function mty_thread_message(ev) {
+	const msg = ev.data;
+
+	switch (msg.type) {
+		case 'user-env':
+			MTY_SetInt32(msg.rbuf, MTY.userEnv[msg.name](...msg.args));
+			mty_signal(msg.sync);
+			break;
+		case 'thread': {
+			MTY.threadId++;
+
+			const worker = mty_thread_start(MTY.threadId, MTY.bin, MTY.file, MTY.wasmBuf, MTY.memory,
+				msg.startArg, MTY.userEnv, MTY.kbMap, 'thread-' + MTY.threadId);
+
+			worker.onmessage = mty_thread_message;
+
+			MTY_SetUint32(msg.buf, MTY.threadId);
+			mty_signal(msg.sync);
+			break;
+		}
+		case 'image': {
+			const jinput = new Uint8Array(mty_mem(), msg.input, msg.size);
+
+			const cpy = new Uint8Array(msg.size);
+			cpy.set(jinput);
+
+			const img = new Image();
+			img.src = URL.createObjectURL(new Blob([cpy]));
+
+			await img.decode();
+
+			const width = img.naturalWidth;
+			const height = img.naturalHeight;
+
+			MTY_SetInt32(msg.buf, width);
+			MTY_SetInt32(msg.buf + 4, height);
+
+			const canvas = new OffscreenCanvas(width, height);
+			const ctx = canvas.getContext('2d');
+			ctx.drawImage(img, 0, 0, width, height);
+
+			this.tmp = ctx.getImageData(0, 0, width, height).data;
+
+			mty_signal(msg.sync);
+			break;
+		}
+		case 'title':
+			document.title = msg.title;
+			break;
+		case 'get-ls':
+			const val = window.localStorage[msg.key];
+
+			if (val) {
+				this.tmp = mty_b64_to_buf(val);
+				MTY_SetUint32(msg.buf, this.tmp.byteLength);
+
+			} else {
+				MTY_SetUint32(msg.buf, 0);
+			}
+
+			mty_signal(msg.sync);
+			break;
+		case 'set-ls':
+			window.localStorage[msg.key] = msg.val;
+			mty_signal(msg.sync);
+			break;
+		case 'alert':
+			mty_alert(msg.title, msg.msg);
+			break;
+		case 'fullscreen':
+			mty_set_fullscreen(msg.fullscreen);
+			break;
+		case 'wake-lock':
+			mty_wake_lock(msg.enable);
+			break;
+		case 'rumble':
+			mty_rumble_gamepad(msg.id, msg.low, msg.high);
+			break;
+		case 'show-cursor':
+			mty_show_cursor(msg.show);
+			break;
+		case 'get-clip': {
+			const enc = new TextEncoder();
+			const text = await navigator.clipboard.readText();
+
+			this.tmp = enc.encode(text);
+			MTY_SetUint32(msg.buf, this.tmp.byteLength);
+			mty_signal(msg.sync);
+			break;
+		}
+		case 'set-clip':
+			navigator.clipboard.writeText(MTY_StrToJS(msg.text));
+			break;
+		case 'pointer-lock':
+			mty_set_pointer_lock(msg.enable);
+			break;
+		case 'cursor-default':
+			mty_use_default_cursor(msg.use_default);
+			break;
+		case 'cursor':
+			mty_set_png_cursor(msg.buffer, msg.size, msg.hot_x, msg.hot_y);
+			break;
+		case 'uri':
+			mty_set_action(() => {
+				window.open(MTY_StrToJS(msg.uri), '_blank');
+			});
+			break;
+		case 'http':
+			let error = 0
+			let size = 0;
+			let status = 0;
+
+			try {
+				const response = await fetch(msg.url, {
+					method: msg.method,
+					headers: msg.headers,
+					body: msg.body
+				});
+
+				const body = await response.arrayBuffer();
+				this.tmp = new Uint8Array(body);
+
+				size = this.tmp.byteLength;
+				status = response.status;
+
+			} catch (e) {
+				console.error(err);
+				error = 1;
+			}
+
+			MTY_SetUint32(msg.buf + 0, error);
+			MTY_SetUint32(msg.buf + 4, size);
+			MTY_SetUint32(msg.buf + 8, status);
+
+			mty_signal(msg.sync);
+			break;
+		case 'ws': {
+			const ws = new WebSocket(msg.url);
+			const sab = new SharedArrayBuffer(4);
+			ws.async = new Int32Array(sab, 0, 1);
+			ws.msgs = [];
+
+			let signal = false;
+
+			ws.onclose = (event) => {
+				if (!signal) {
+					MTY_SetUint32(msg.buf, 0);
+					mty_signal(msg.sync);
+					signal = true;
+				}
+			};
+
+			ws.onerror = (err) => {
+				MTY_SetUint32(msg.buf + 0, 1);
+
+				if (!signal) {
+					console.error(err);
+					MTY_SetUint32(msg.buf, 0);
+					mty_signal(msg.sync);
+					signal = true;
+				}
+			};
+
+			ws.onopen = () => {
+				if (!signal) {
+					MTY_SetUint32(msg.buf, mty_ws_new(ws));
+					mty_signal(msg.sync);
+					signal = true;
+				}
+			};
+
+			ws.onmessage = (evt) => {
+				ws.msgs.push(evt.data);
+				Atomics.notify(ws.async, 0, 1);
+			};
+			break;
+		}
+		case 'ws-read': {
+			MTY_SetUint32(msg.cbuf, 2);
+
+			const ws = mty_ws_obj(msg.ctx);
+
+			if (ws) {
+				let ws_msg = ws.msgs.shift()
+
+				if (!ws_msg) {
+					const r0 = Atomics.waitAsync(ws.async, 0, 0, msg.timeout);
+					const r1 = await r0.value;
+
+					if (r1 != 'timed-out')
+						ws_msg = ws.msgs.shift()
+				}
+
+				if (ws_msg) {
+					MTY_SetUint32(msg.cbuf, 0);
+
+					const enc = new TextEncoder();
+					const ws_buf = enc.encode(ws_msg);
+
+					if (ws_buf.length <= msg.size) {
+						MTY_Memcpy(msg.buf, ws_buf);
+						MTY_SetInt8(msg.buf + ws_buf.length, 0);
+					}
+				}
+			}
+
+			mty_signal(msg.sync);
+			break;
+		}
+		case 'ws-write': {
+			const ws = mty_ws_obj(msg.ctx);
+			if (ws)
+				ws.send(msg.text)
+			break;
+		}
+		case 'ws-close': {
+			const ws = mty_ws_obj(msg.ctx);
+			if (ws) {
+				ws.close();
+				mty_ws_del(msg.ctx);
+			}
+			break;
+		}
+		case 'gfx': {
+			const offscreen = MTY.canvas.transferControlToOffscreen();
+
+			this.postMessage({
+				type: 'gfx',
+				glver: MTY.glver,
+				canvas: offscreen,
+			}, [offscreen]);
+			break;
+		}
+		case 'async-copy':
+			MTY_Memcpy(msg.buf, this.tmp);
+			this.tmp = undefined;
+
+			mty_signal(msg.sync);
+			break;
+	}
 }
