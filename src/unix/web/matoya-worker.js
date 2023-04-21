@@ -1164,6 +1164,7 @@ onmessage = async (ev) => {
 				depth: false,
 				antialias: false,
 				premultipliedAlpha: true,
+				desynchronized: true,
 			});
 			break;
 		case 'raf':
