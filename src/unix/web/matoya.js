@@ -102,6 +102,10 @@ function MTY_SetInt32(ptr, value) {
 	mty_mem_view().setInt32(ptr, value, true);
 }
 
+function MTY_GetUint8(ptr) {
+	return mty_mem_view().getUint8(ptr);
+}
+
 function MTY_SetInt8(ptr, value) {
 	mty_mem_view().setInt8(ptr, value);
 }
@@ -112,6 +116,10 @@ function MTY_SetFloat(ptr, value) {
 
 function MTY_SetUint64(ptr, value) {
 	mty_mem_view().setBigUint64(ptr, BigInt(value), true);
+}
+
+function MTY_GetUint64(ptr, value) {
+	return mty_mem_view().getBigUint64(ptr, true);
 }
 
 function MTY_GetInt32(ptr) {

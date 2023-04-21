@@ -1021,6 +1021,10 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 		return 0;
 	},
 	poll_oneoff: function (sin, sout, nsubscriptions, nevents) {
+		// __WASI_EVENTTYPE_CLOCK
+		if (MTY_GetUint8(sin + 8) == 0)
+			Atomics.wait(MTY_W.sleeper, 0, 0, Number(MTY_GetUint64(sin + 24)) / 1000000);
+
 		MTY_SetUint32(sout + 8, 0);
 		return 0;
 	},
@@ -1137,6 +1141,7 @@ onmessage = async (ev) => {
 			MTY_W.fdIndex = 64;
 			MTY_W.kbMap = msg.kbMap;
 			MTY_W.glver = msg.glver ? msg.glver : 'webgl';
+			MTY_W.sleeper = new Int32Array(new SharedArrayBuffer(4), 0, 1);
 
 			MTY_W.module = await mty_instantiate_wasm(msg.wasmBuf, msg.userEnv);
 
