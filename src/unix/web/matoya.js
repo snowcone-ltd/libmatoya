@@ -10,6 +10,9 @@ const MTY_IS_WORKER = typeof importScripts == 'function';
 const MTY = {
 	file: !MTY_IS_WORKER ? new URL(document.currentScript.src).pathname : '',
 
+	wsObj: {},
+	wsIndex: 1,
+
 	cursorId: 0,
 	threadId: 1,
 	cursorCache: {},
@@ -536,6 +539,28 @@ function mty_set_png_cursor(buffer, size, hot_x, hot_y) {
 }
 
 
+// WebSocket
+
+function mty_ws_new(obj) {
+	MTY.wsObj[MTY.wsIndex] = obj;
+
+	return MTY.wsIndex++;
+}
+
+function mty_ws_del(index) {
+	let obj = MTY.wsObj[index];
+
+	MTY.wsObj[index] = undefined;
+	delete MTY.wsObj[index];
+
+	return obj;
+}
+
+function mty_ws_obj(index) {
+	return MTY.wsObj[index];
+}
+
+
 // Entry
 
 function mty_supports_wasm() {
@@ -812,6 +837,93 @@ async function MTY_Start(bin, userEnv, glver) {
 
 				mty_signal(msg.sync);
 				break;
+			case 'ws': {
+				const ws = new WebSocket(msg.url);
+				const sab = new SharedArrayBuffer(4);
+				ws.async = new Int32Array(sab, 0, 1);
+				ws.msgs = [];
+
+				let signal = false;
+
+				ws.onclose = (event) => {
+					if (!signal) {
+						MTY_SetUint32(msg.buf, 0);
+						mty_signal(msg.sync);
+						signal = true;
+					}
+				};
+
+				ws.onerror = (err) => {
+					MTY_SetUint32(msg.buf + 0, 1);
+
+					if (!signal) {
+						console.error(err);
+						MTY_SetUint32(msg.buf, 0);
+						mty_signal(msg.sync);
+						signal = true;
+					}
+				};
+
+				ws.onopen = () => {
+					if (!signal) {
+						MTY_SetUint32(msg.buf, mty_ws_new(ws));
+						mty_signal(msg.sync);
+						signal = true;
+					}
+				};
+
+				ws.onmessage = (evt) => {
+					ws.msgs.push(evt.data);
+					Atomics.notify(ws.async, 0, 1);
+				};
+				break;
+			}
+			case 'ws-read': {
+				MTY_SetUint32(msg.cbuf, 2);
+
+				const ws = mty_ws_obj(msg.ctx);
+
+				if (ws) {
+					let ws_msg = ws.msgs.shift()
+
+					if (!ws_msg) {
+						const r0 = Atomics.waitAsync(ws.async, 0, 0, msg.timeout);
+						const r1 = await r0.value;
+
+						if (r1 != 'timed-out')
+							ws_msg = ws.msgs.shift()
+					}
+
+					if (ws_msg) {
+						MTY_SetUint32(msg.cbuf, 0);
+
+						const enc = new TextEncoder();
+						const ws_buf = enc.encode(ws_msg);
+
+						if (ws_buf.length <= msg.size) {
+							MTY_Memcpy(msg.buf, ws_buf);
+							MTY_SetInt8(msg.buf + ws_buf.length, 0);
+						}
+					}
+				}
+
+				mty_signal(msg.sync);
+				break;
+			}
+			case 'ws-write': {
+				const ws = mty_ws_obj(msg.ctx);
+				if (ws)
+					ws.send(msg.text)
+				break;
+			}
+			case 'ws-close': {
+				const ws = mty_ws_obj(msg.ctx);
+				if (ws) {
+					ws.close();
+					mty_ws_del(msg.ctx);
+				}
+				break;
+			}
 			case 'async-copy':
 				MTY_Memcpy(msg.buf, this.tmp);
 				this.tmp = undefined;

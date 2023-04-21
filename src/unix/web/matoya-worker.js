@@ -38,10 +38,6 @@ const MTY_W = {
 	drop: 0,
 	resize: 0,
 
-	// HTTP
-	wsIndex: 1,
-	wsObj: {},
-
 	// GL
 	gl: null,
 	glver: '',
@@ -501,25 +497,6 @@ const MTY_AUDIO_API = {
 
 // Net
 
-function mty_ws_new(obj) {
-	MTY_W.wsObj[MTY_W.wsIndex] = obj;
-
-	return MTY_W.wsIndex++;
-}
-
-function mty_ws_del(index) {
-	let obj = MTY_W.wsObj[index];
-
-	MTY_W.wsObj[index] = undefined;
-	delete MTY_W.wsObj[index];
-
-	return obj;
-}
-
-function mty_ws_obj(index) {
-	return MTY_W.wsObj[index];
-}
-
 function mty_net_args(base_scheme, chost, port, secure, cpath, cheaders) {
 	const jport = port != 0 ? ':' + port.toString() : '';
 	const scheme = secure ? base_scheme + 's' : base_scheme;
@@ -594,38 +571,52 @@ const MTY_NET_API = {
 	MTY_WebSocketConnect: function (chost, port, secure, cpath, cheaders, timeout, upgrade_status_out) {
 		// FIXME timeout is currently ignored
 		// FIXME headers are currently ignored
+		// FIXME upgrade_status_out currently unsupported
 
 		const args = mty_net_args('ws', chost, port, secure, cpath, cheaders);
-		console.log(args.headers);
-		console.log(args.url);
 
-		const ws = new WebSocket(args.url);
+		postMessage({
+			type: 'ws',
+			url: args.url,
+			sync: MTY_W.sync,
+			buf: MTY_W.cbuf,
+		});
 
-		ws.onclose = (event) => {
-			console.log("CLOSE");
-		};
+		mty_wait(MTY_W.sync);
 
-		ws.onerror = (err) => {
-			console.log(err);
-			console.log("ERROR");
-		};
-
-		ws.onopen = () => {
-			console.log("OPEN!");
-		};
-
-		ws.onmessage = (event) => {
-			console.log(event);
-		};
-
-		return mty_ws_new(ws);
+		return MTY_GetUint32(MTY_W.cbuf);
 	},
 	MTY_WebSocketDestroy: function (ctx_out) {
+		if (!ctx_out)
+			return;
+
+		postMessage({
+			type: 'ws-close',
+			ctx: MTY_GetUint32(ctx_out),
+		});
 	},
 	MTY_WebSocketRead: function (ctx, timeout, msg_out, size) {
-		return 2; // MTY_Async
+		postMessage({
+			type: 'ws-read',
+			ctx: ctx,
+			timeout: timeout,
+			buf: msg_out,
+			size: size,
+			cbuf: MTY_W.cbuf,
+			sync: MTY_W.sync,
+		});
+
+		mty_wait(MTY_W.sync);
+
+		return MTY_GetUint32(MTY_W.cbuf); // MTY_Async
 	},
 	MTY_WebSocketWrite: function (ctx, msg_c) {
+		postMessage({
+			type: 'ws-write',
+			ctx: ctx,
+			text: MTY_StrToJS(msg_c),
+		});
+
 		return true;
 	},
 	MTY_WebSocketGetCloseCode: function (ctx) {
