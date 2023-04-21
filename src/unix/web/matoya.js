@@ -188,7 +188,7 @@ function mty_set_action(action) {
 
 function mty_correct_relative() {
 	if (!document.pointerLockElement && MTY.relative)
-		MTY.gl.canvas.requestPointerLock();
+		MTY.canvas.requestPointerLock();
 }
 
 function mty_get_mods(ev) {
