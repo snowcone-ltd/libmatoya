@@ -592,6 +592,25 @@ function mty_supports_web_gl() {
 	return false;
 }
 
+function mty_window_info() {
+	// Poll size changes and resize the canvas
+	const rect = MTY.canvas.getBoundingClientRect();
+
+	return {
+		lastX: window.screenX,
+		lastY: window.screenY,
+		relative: MTY.relative,
+		devicePixelRatio: window.devicePixelRatio,
+		hasFocus: document.hasFocus(),
+		screenWidth: screen.width,
+		screenHeight: screen.height,
+		fullscreen: document.fullscreenElement != null,
+		visible: mty_is_visible(),
+		canvasWidth: mty_scaled(rect.width),
+		canvasHeight: mty_scaled(rect.height),
+	};
+}
+
 function mty_raf(thread) {
 	// Poll gamepads
 	if (document.hasFocus())
@@ -607,38 +626,28 @@ function mty_raf(thread) {
 		});
 	}
 
-	// Poll size changes and resize the canvas
-	const rect = MTY.canvas.getBoundingClientRect();
-
 	// send rect event
 	thread.postMessage({
 		type: 'raf',
-		lastX: window.screenX,
-		lastY: window.screenY,
-		relative: MTY.relative,
-		devicePixelRatio: window.devicePixelRatio,
-		hasFocus: document.hasFocus(),
-		screenWidth: screen.width,
-		screenHeight: screen.height,
-		fullscreen: document.fullscreenElement != null,
-		visible: mty_is_visible(),
-		canvasWidth: mty_scaled(rect.width),
-		canvasHeight: mty_scaled(rect.height),
+		windowInfo: mty_window_info(),
 	});
 
-	requestAnimationFrame(() => {
+	setTimeout(() => {
 		mty_raf(thread);
-	});
+	}, 10);
 }
 
 function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, userEnv, kbMap, name) {
 	const worker = new Worker(baseFile.replace('.js', '-worker.js'), {name: name});
+
+	worker.onmessage = mty_thread_message;
 
 	worker.postMessage({
 		type: 'init',
 		file: baseFile,
 		bin: bin,
 		wasmBuf: wasmBuf,
+		windowInfo: mty_window_info(),
 		args: window.location.search,
 		hostname: window.location.hostname,
 		userEnv: userEnv ? Object.keys(userEnv) : [],
@@ -711,8 +720,6 @@ async function MTY_Start(bin, userEnv, glver) {
 	// Add input events
 	mty_add_input_events(MTY.mainThread);
 
-	MTY.mainThread.onmessage = mty_thread_message;
-
 	return true;
 }
 
@@ -729,8 +736,6 @@ async function mty_thread_message(ev) {
 
 			const worker = mty_thread_start(MTY.threadId, MTY.bin, MTY.file, MTY.wasmBuf, MTY.memory,
 				msg.startArg, MTY.userEnv, MTY.kbMap, 'thread-' + MTY.threadId);
-
-			worker.onmessage = mty_thread_message;
 
 			MTY_SetUint32(msg.buf, MTY.threadId);
 			mty_signal(msg.sync);

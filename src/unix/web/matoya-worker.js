@@ -612,6 +612,17 @@ const MTY_SYSTEM_API = {
 
 // Web API (mostly used in app.c)
 
+function mty_update_window(app, info) {
+	MTY_W.exports.window_update_position(app, info.lastX, info.lastY);
+	MTY_W.exports.window_update_screen(app, info.screenWidth, info.screenHeight);
+	MTY_W.exports.window_update_size(app, info.canvasWidth, info.canvasHeight);
+	MTY_W.exports.window_update_focus(app, info.hasFocus);
+	MTY_W.exports.window_update_fullscreen(app, info.fullscreen);
+	MTY_W.exports.window_update_visibility(app, info.visible);
+	MTY_W.exports.window_update_pixel_ratio(app, info.devicePixelRatio);
+	MTY_W.exports.window_update_relative_mouse(app, info.relative);
+}
+
 const MTY_WEB_API = {
 	web_alert: function (title, msg) {
 		postMessage({type: 'alert', title, msg});
@@ -701,6 +712,7 @@ const MTY_WEB_API = {
 	// Should be called on main thread only
 	web_set_app: function (app) {
 		MTY_W.app = app;
+		mty_update_window(app, MTY_W.initWindowInfo);
 	},
 	web_raf: function (func, opaque) {
 		const step = () => {
@@ -1031,6 +1043,7 @@ onmessage = async (ev) => {
 			MTY_W.module = await mty_instantiate_wasm(msg.wasmBuf, msg.userEnv);
 			MTY_W.exports = MTY_W.module.instance.exports;
 			MTY_W.cbuf = mty_alloc(2048);
+			MTY_W.initWindowInfo = msg.windowInfo;
 
 			// Unbuffers stderr / stdout
 			MTY_W.exports.mty_setbuf();
@@ -1062,17 +1075,8 @@ onmessage = async (ev) => {
 
 		// Main thread only
 		case 'raf':
-			if (!MTY_W.app)
-				return;
-
-			MTY_W.exports.window_update_position(MTY_W.app, msg.lastX, msg.lastY);
-			MTY_W.exports.window_update_screen(MTY_W.app, msg.screenWidth, msg.screenHeight);
-			MTY_W.exports.window_update_size(MTY_W.app, msg.canvasWidth, msg.canvasHeight);
-			MTY_W.exports.window_update_focus(MTY_W.app, msg.hasFocus);
-			MTY_W.exports.window_update_fullscreen(MTY_W.app, msg.fullscreen);
-			MTY_W.exports.window_update_visibility(MTY_W.app, msg.visible);
-			MTY_W.exports.window_update_pixel_ratio(MTY_W.app, msg.devicePixelRatio);
-			MTY_W.exports.window_update_relative_mouse(MTY_W.app, msg.relative);
+			if (MTY_W.app)
+				mty_update_window(MTY_W.app, msg.windowInfo);
 			break;
 		case 'key': {
 			if (!MTY_W.app)
