@@ -336,8 +336,12 @@ function mty_add_input_events(thread) {
 	});
 
 	window.addEventListener('resize', (ev) => {
+		const rect = MTY.canvas.getBoundingClientRect();
+
 		thread.postMessage({
 			type: 'resize',
+			width: mty_scaled(rect.width),
+			height: mty_scaled(rect.height),
 		});
 	});
 
@@ -593,7 +597,6 @@ function mty_supports_web_gl() {
 }
 
 function mty_window_info() {
-	// Poll size changes and resize the canvas
 	const rect = MTY.canvas.getBoundingClientRect();
 
 	return {

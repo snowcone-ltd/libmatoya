@@ -1107,12 +1107,16 @@ onmessage = async (ev) => {
 				MTY_W.exports.window_move(MTY_W.app);
 			break;
 		case 'resize':
-			if (MTY_W.app)
+			if (MTY_W.app) {
+				MTY_W.exports.window_update_size(MTY_W.app, msg.width, msg.height);
 				MTY_W.exports.window_resize(MTY_W.app);
+			}
 			break;
 		case 'focus':
-			if (MTY_W.app)
+			if (MTY_W.app) {
+				MTY_W.exports.window_update_focus(MTY_W.app, msg.focus);
 				MTY_W.exports.window_focus(MTY_W.app, msg.focus);
+			}
 			break;
 		case 'gamepad':
 			if (MTY_W.app)
