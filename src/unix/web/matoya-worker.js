@@ -145,67 +145,17 @@ const MTY_GL_API = {
 	glBindFramebuffer: function (target, fb) {
 		MTY_W.gl.bindFramebuffer(target, fb ? mty_gl_obj(fb) : null);
 	},
-	glBlitFramebuffer: function (srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter) {
-		MTY_W.gl.blitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
-	},
 	glFramebufferTexture2D: function (target, attachment, textarget, texture, level) {
 		MTY_W.gl.framebufferTexture2D(target, attachment, textarget, mty_gl_obj(texture), level);
 	},
 	glEnable: function (cap) {
 		MTY_W.gl.enable(cap);
 	},
-	glIsEnabled: function (cap) {
-		return MTY_W.gl.isEnabled(cap);
-	},
 	glDisable: function (cap) {
 		MTY_W.gl.disable(cap);
 	},
 	glViewport: function (x, y, width, height) {
 		MTY_W.gl.viewport(x, y, width, height);
-	},
-	glGetIntegerv: function (name, data) {
-		const p = MTY_W.gl.getParameter(name);
-
-		switch (name) {
-			// object
-			case MTY_W.gl.READ_FRAMEBUFFER_BINDING:
-			case MTY_W.gl.DRAW_FRAMEBUFFER_BINDING:
-			case MTY_W.gl.ARRAY_BUFFER_BINDING:
-			case MTY_W.gl.TEXTURE_BINDING_2D:
-			case MTY_W.gl.CURRENT_PROGRAM:
-				MTY_SetUint32(data, mty_gl_new(p));
-				break;
-
-			// int32[4]
-			case MTY_W.gl.VIEWPORT:
-			case MTY_W.gl.SCISSOR_BOX:
-				for (let x = 0; x < 4; x++)
-					MTY_SetUint32(data + x * 4, p[x]);
-				break;
-
-			// int
-			case MTY_W.gl.ACTIVE_TEXTURE:
-			case MTY_W.gl.BLEND_SRC_RGB:
-			case MTY_W.gl.BLEND_DST_RGB:
-			case MTY_W.gl.BLEND_SRC_ALPHA:
-			case MTY_W.gl.BLEND_DST_ALPHA:
-			case MTY_W.gl.BLEND_EQUATION_RGB:
-			case MTY_W.gl.BLEND_EQUATION_ALPHA:
-				MTY_SetUint32(data, p);
-				break;
-		}
-
-		MTY_SetUint32(data, p);
-	},
-	glGetFloatv: function (name, data) {
-		switch (name) {
-			case MTY_W.gl.COLOR_CLEAR_VALUE:
-				const p = MTY_W.gl.getParameter(name);
-
-				for (let x = 0; x < 4; x++)
-					MTY_SetFloat(data + x * 4, p[x]);
-				break;
-		}
 	},
 	glBindTexture: function (target, texture) {
 		MTY_W.gl.bindTexture(target, texture ? mty_gl_obj(texture) : null);
@@ -345,12 +295,6 @@ const MTY_GL_API = {
 	},
 	glUniformMatrix4fv: function (loc, count, transpose, value) {
 		MTY_W.gl.uniformMatrix4fv(mty_gl_obj(loc), transpose, new Float32Array(mty_mem(), value, 4 * 4 * count));
-	},
-	glBlendEquationSeparate: function (modeRGB, modeAlpha) {
-		MTY_W.gl.blendEquationSeparate(modeRGB, modeAlpha);
-	},
-	glBlendFuncSeparate: function (srcRGB, dstRGB, srcAlpha, dstAlpha) {
-		MTY_W.gl.blendFuncSeparate(srcRGB, dstRGB, srcAlpha, dstAlpha);
 	},
 	glGetProgramiv: function (program, pname, params) {
 		MTY_SetUint32(params, MTY_W.gl.getProgramParameter(mty_gl_obj(program), pname));

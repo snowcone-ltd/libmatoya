@@ -22,14 +22,10 @@
 static PFNGLGENFRAMEBUFFERSPROC         glGenFramebuffers;
 static PFNGLDELETEFRAMEBUFFERSPROC      glDeleteFramebuffers;
 static PFNGLBINDFRAMEBUFFERPROC         glBindFramebuffer;
-static PFNGLBLITFRAMEBUFFERPROC         glBlitFramebuffer;
 static PFNGLFRAMEBUFFERTEXTURE2DPROC    glFramebufferTexture2D;
 static PFNGLENABLEPROC                  glEnable;
-static PFNGLISENABLEDPROC               glIsEnabled;
 static PFNGLDISABLEPROC                 glDisable;
 static PFNGLVIEWPORTPROC                glViewport;
-static PFNGLGETINTEGERVPROC             glGetIntegerv;
-static PFNGLGETFLOATVPROC               glGetFloatv;
 static PFNGLBINDTEXTUREPROC             glBindTexture;
 static PFNGLDELETETEXTURESPROC          glDeleteTextures;
 static PFNGLTEXPARAMETERIPROC           glTexParameteri;
@@ -70,8 +66,6 @@ static PFNGLSCISSORPROC                 glScissor;
 static PFNGLBLENDFUNCPROC               glBlendFunc;
 static PFNGLBLENDEQUATIONPROC           glBlendEquation;
 static PFNGLUNIFORMMATRIX4FVPROC        glUniformMatrix4fv;
-static PFNGLBLENDEQUATIONSEPARATEPROC   glBlendEquationSeparate;
-static PFNGLBLENDFUNCSEPARATEPROC       glBlendFuncSeparate;
 static PFNGLGETPROGRAMIVPROC            glGetProgramiv;
 static PFNGLPIXELSTOREIPROC             glPixelStorei;
 
@@ -88,14 +82,10 @@ static bool glproc_global_init(void)
 		GLPROC_LOAD_SYM(glGenFramebuffers);
 		GLPROC_LOAD_SYM(glDeleteFramebuffers);
 		GLPROC_LOAD_SYM(glBindFramebuffer);
-		GLPROC_LOAD_SYM(glBlitFramebuffer);
 		GLPROC_LOAD_SYM(glFramebufferTexture2D);
 		GLPROC_LOAD_SYM(glEnable);
-		GLPROC_LOAD_SYM(glIsEnabled);
 		GLPROC_LOAD_SYM(glDisable);
 		GLPROC_LOAD_SYM(glViewport);
-		GLPROC_LOAD_SYM(glGetIntegerv);
-		GLPROC_LOAD_SYM(glGetFloatv);
 		GLPROC_LOAD_SYM(glBindTexture);
 		GLPROC_LOAD_SYM(glDeleteTextures);
 		GLPROC_LOAD_SYM(glTexParameteri);
@@ -136,8 +126,6 @@ static bool glproc_global_init(void)
 		GLPROC_LOAD_SYM(glBlendFunc);
 		GLPROC_LOAD_SYM(glBlendEquation);
 		GLPROC_LOAD_SYM(glUniformMatrix4fv);
-		GLPROC_LOAD_SYM(glBlendEquationSeparate);
-		GLPROC_LOAD_SYM(glBlendFuncSeparate);
 		GLPROC_LOAD_SYM(glGetProgramiv);
 		GLPROC_LOAD_SYM(glPixelStorei);
 
