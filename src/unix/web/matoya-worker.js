@@ -28,7 +28,7 @@ const MTY_W = {
 	glObj: {},
 
 	// WASI
-	arg0: '',
+	bin: '',
 	fds: {},
 	fdIndex: 0,
 	preopen: false,
@@ -547,7 +547,14 @@ const MTY_NET_API = {
 		return true;
 	},
 	MTY_WebSocketGetCloseCode: function (ctx) {
-		return 0;
+		postMessage({
+			type: 'ws-code',
+			ctx: ctx,
+			cbuf: MTY_W.cbuf,
+			sync: MTY_W.sync,
+		});
+
+		return MTY_GetUint16(MTY_W.cbuf);
 	},
 };
 
@@ -556,13 +563,15 @@ const MTY_NET_API = {
 
 const MTY_IMAGE_API = {
 	MTY_DecompressImage: function (input, size, cwidth, cheight) {
+		const jinput = new ArrayBuffer(size);
+		new Uint8Array(jinput).set(new Uint8Array(mty_mem(), input, size));
+
 		postMessage({
 			type: 'image',
-			input: input,
-			size: size,
+			input: jinput,
 			sync: MTY_W.sync,
 			buf: MTY_W.cbuf,
-		});
+		}, [jinput]);
 
 		mty_wait(MTY_W.sync);
 
@@ -747,7 +756,7 @@ function mty_arg_list(args) {
 	const params = new URLSearchParams(args);
 	const qs = params.toString();
 
-	let plist = [MTY_W.arg0];
+	let plist = [MTY_W.bin];
 
 	// FIXME This would put each key/val pair as a separate arg
 	// for (let p of params)
@@ -1035,15 +1044,15 @@ onmessage = async (ev) => {
 
 			MTY_W.queryString = msg.args;
 			MTY_W.hostname = msg.hostname;
-			MTY_W.arg0 = msg.bin;
+			MTY_W.bin = msg.bin;
 			MTY_W.fdIndex = 64;
 			MTY_W.kbMap = msg.kbMap;
+			MTY_W.initWindowInfo = msg.windowInfo;
 			MTY_W.sync = new Int32Array(new SharedArrayBuffer(4), 0, 1);
 			MTY_W.sleeper = new Int32Array(new SharedArrayBuffer(4), 0, 1);
 			MTY_W.module = await mty_instantiate_wasm(msg.wasmBuf, msg.userEnv);
 			MTY_W.exports = MTY_W.module.instance.exports;
 			MTY_W.cbuf = mty_alloc(2048);
-			MTY_W.initWindowInfo = msg.windowInfo;
 
 			// Unbuffers stderr / stdout
 			MTY_W.exports.mty_setbuf();

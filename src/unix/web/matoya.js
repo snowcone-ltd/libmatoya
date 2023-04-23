@@ -551,7 +551,7 @@ function mty_set_png_cursor(buffer, size, hot_x, hot_y) {
 }
 
 
-// WebSocket
+// Net
 
 function mty_ws_new(obj) {
 	MTY.wsObj[MTY.wsIndex] = obj;
@@ -570,6 +570,81 @@ function mty_ws_del(index) {
 
 function mty_ws_obj(index) {
 	return MTY.wsObj[index];
+}
+
+async function mty_http_request(url, method, headers, body, buf) {
+	let error = false
+	let size = 0;
+	let status = 0;
+	let data = null;
+
+	try {
+		const response = await fetch(url, {
+			method: method,
+			headers: headers,
+			body: body
+		});
+
+		const res_ab = await response.arrayBuffer();
+		data = new Uint8Array(res_ab);
+
+		status = response.status;
+		size = data.byteLength;
+
+	} catch (err) {
+		console.error(err);
+		error = true;
+	}
+
+	return {
+		data,
+		error,
+		size,
+		status,
+	};
+}
+
+async function mty_ws_connect(url) {
+	return new Promise((resolve, reject) => {
+		const ws = new WebSocket(url);
+		const sab = new SharedArrayBuffer(4);
+		ws.sync = new Int32Array(sab, 0, 1);
+		ws.closeCode = 0;
+		ws.msgs = [];
+
+		ws.onclose = (evt) => {
+			ws.closeCode = evt.code == 1005 ? 1000 : evt.code;
+			resolve(null);
+		};
+
+		ws.onerror = (err) => {
+			console.error(err);
+			resolve(null);
+		};
+
+		ws.onopen = () => {
+			resolve(ws);
+		};
+
+		ws.onmessage = (evt) => {
+			ws.msgs.push(evt.data);
+			Atomics.notify(ws.sync, 0, 1);
+		};
+	});
+}
+
+async function mty_ws_read(ws, timeout) {
+	let msg = ws.msgs.shift()
+
+	if (!msg) {
+		const r0 = Atomics.waitAsync(ws.sync, 0, 0, timeout);
+		const r1 = await r0.value;
+
+		if (r1 != 'timed-out')
+			msg = ws.msgs.shift()
+	}
+
+	return msg ? new TextEncoder().encode(msg) : null;
 }
 
 
@@ -726,6 +801,22 @@ async function MTY_Start(bin, userEnv, glver) {
 	return true;
 }
 
+async function mty_decode_image(input) {
+	const img = new Image();
+	img.src = URL.createObjectURL(new Blob([input]));
+
+	await img.decode();
+
+	const width = img.naturalWidth;
+	const height = img.naturalHeight;
+
+	const canvas = new OffscreenCanvas(width, height);
+	const ctx = canvas.getContext('2d');
+	ctx.drawImage(img, 0, 0, width, height);
+
+	return ctx.getImageData(0, 0, width, height);
+}
+
 async function mty_thread_message(ev) {
 	const msg = ev.data;
 
@@ -744,32 +835,15 @@ async function mty_thread_message(ev) {
 			mty_signal(msg.sync);
 			break;
 		}
-		case 'image': {
-			const jinput = new Uint8Array(mty_mem(), msg.input, msg.size);
+		case 'image':
+			const image = await mty_decode_image(msg.input);
 
-			const cpy = new Uint8Array(msg.size);
-			cpy.set(jinput);
-
-			const img = new Image();
-			img.src = URL.createObjectURL(new Blob([cpy]));
-
-			await img.decode();
-
-			const width = img.naturalWidth;
-			const height = img.naturalHeight;
-
-			MTY_SetInt32(msg.buf, width);
-			MTY_SetInt32(msg.buf + 4, height);
-
-			const canvas = new OffscreenCanvas(width, height);
-			const ctx = canvas.getContext('2d');
-			ctx.drawImage(img, 0, 0, width, height);
-
-			this.tmp = ctx.getImageData(0, 0, width, height).data;
+			this.tmp = image.data;
+			MTY_SetInt32(msg.buf + 0, image.width);
+			MTY_SetInt32(msg.buf + 4, image.height);
 
 			mty_signal(msg.sync);
 			break;
-		}
 		case 'title':
 			document.title = msg.title;
 			break;
@@ -832,100 +906,42 @@ async function mty_thread_message(ev) {
 			});
 			break;
 		case 'http':
-			let error = 0
-			let size = 0;
-			let status = 0;
+			const res = await mty_http_request(msg.url, msg.method, msg.headers,
+				msg.body);
 
-			try {
-				const response = await fetch(msg.url, {
-					method: msg.method,
-					headers: msg.headers,
-					body: msg.body
-				});
-
-				const body = await response.arrayBuffer();
-				this.tmp = new Uint8Array(body);
-
-				size = this.tmp.byteLength;
-				status = response.status;
-
-			} catch (e) {
-				console.error(err);
-				error = 1;
-			}
-
-			MTY_SetUint32(msg.buf + 0, error);
-			MTY_SetUint32(msg.buf + 4, size);
-			MTY_SetUint32(msg.buf + 8, status);
+			this.tmp = res.data;
+			MTY_SetUint32(msg.buf + 0, res.error ? 1 : 0);
+			MTY_SetUint32(msg.buf + 4, res.size);
+			MTY_SetUint32(msg.buf + 8, res.status);
 
 			mty_signal(msg.sync);
 			break;
-		case 'ws': {
-			const ws = new WebSocket(msg.url);
-			const sab = new SharedArrayBuffer(4);
-			ws.async = new Int32Array(sab, 0, 1);
-			ws.msgs = [];
-
-			let signal = false;
-
-			ws.onclose = (event) => {
-				if (!signal) {
-					MTY_SetUint32(msg.buf, 0);
-					mty_signal(msg.sync);
-					signal = true;
-				}
-			};
-
-			ws.onerror = (err) => {
-				MTY_SetUint32(msg.buf + 0, 1);
-
-				if (!signal) {
-					console.error(err);
-					MTY_SetUint32(msg.buf, 0);
-					mty_signal(msg.sync);
-					signal = true;
-				}
-			};
-
-			ws.onopen = () => {
-				if (!signal) {
-					MTY_SetUint32(msg.buf, mty_ws_new(ws));
-					mty_signal(msg.sync);
-					signal = true;
-				}
-			};
-
-			ws.onmessage = (evt) => {
-				ws.msgs.push(evt.data);
-				Atomics.notify(ws.async, 0, 1);
-			};
+		case 'ws':
+			const ws = await mty_ws_connect(msg.url);
+			MTY_SetUint32(msg.buf, ws ? mty_ws_new(ws) : 0);
+			mty_signal(msg.sync);
 			break;
-		}
 		case 'ws-read': {
-			MTY_SetUint32(msg.cbuf, 2);
+			MTY_SetUint32(msg.cbuf, 3); // MTY_ASYNC_ERROR
 
 			const ws = mty_ws_obj(msg.ctx);
 
 			if (ws) {
-				let ws_msg = ws.msgs.shift()
+				if (ws.closeCode != 0) {
+					MTY_SetUint32(msg.cbuf, 1); // MTY_ASYNC_DONE
 
-				if (!ws_msg) {
-					const r0 = Atomics.waitAsync(ws.async, 0, 0, msg.timeout);
-					const r1 = await r0.value;
+				} else {
+					const buf = await mty_ws_read(ws, msg.timeout);
 
-					if (r1 != 'timed-out')
-						ws_msg = ws.msgs.shift()
-				}
+					if (buf) {
+						if (buf.length < msg.size) {
+							MTY_Memcpy(msg.buf, buf);
+							MTY_SetInt8(msg.buf + buf.length, 0);
+							MTY_SetUint32(msg.cbuf, 0); // MTY_ASYNC_OK
+						}
 
-				if (ws_msg) {
-					MTY_SetUint32(msg.cbuf, 0);
-
-					const enc = new TextEncoder();
-					const ws_buf = enc.encode(ws_msg);
-
-					if (ws_buf.length <= msg.size) {
-						MTY_Memcpy(msg.buf, ws_buf);
-						MTY_SetInt8(msg.buf + ws_buf.length, 0);
+					} else {
+						MTY_SetUint32(msg.cbuf, 2); // MTY_ASYNC_CONTINUE
 					}
 				}
 			}
@@ -945,6 +961,16 @@ async function mty_thread_message(ev) {
 				ws.close();
 				mty_ws_del(msg.ctx);
 			}
+			break;
+		}
+		case 'ws_code': {
+			MTY_SetUint16(msg.cbuf, 0);
+
+			const ws = mty_ws_obj(msg.ctx);
+			if (ws)
+				MTY_SetUint16(msg.cbuf, ws.closeCode);
+
+			mty_signal(msg.sync);
 			break;
 		}
 		case 'gfx': {
