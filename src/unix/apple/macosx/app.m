@@ -2022,7 +2022,7 @@ MTY_Hash *mty_app_get_hotkey_hash(MTY_App *ctx)
 	return ctx->hotkey;
 }
 
-bool mty_app_dedupe_key(MTY_App *ctx, MTY_EventType event, MTY_Event MTY_Key key, bool pressed, bool repeat)
+bool mty_app_dedupe_key(MTY_App *ctx, MTY_EventType event, MTY_Key key, bool pressed, bool repeat)
 {
 	bool was_down = ctx->keys[key];
 	bool should_fire = !(ctx->flags & MTY_APP_FLAG_HID_KEYBOARD) || !ctx->grab_kb
