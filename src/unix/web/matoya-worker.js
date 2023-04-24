@@ -31,7 +31,7 @@ const MTY_W = {
 	bin: '',
 	fds: {},
 	fdIndex: 0,
-	preopen: false,
+	preopen: 0,
 };
 
 
@@ -586,6 +586,10 @@ const MTY_IMAGE_API = {
 
 		return cimage;
 	},
+	MTY_CompressImage: function (method, input, width, height, outputSize) {
+	},
+	MTY_GetProgramIcon: function (path, width, height) {
+	},
 };
 
 
@@ -749,6 +753,8 @@ const MTY_WEB_API = {
 
 // WASI API
 
+// github.com/WebAssembly/wasi-libc/blob/main/libc-bottom-half/headers/public/wasi/api.h
+
 function mty_append_buf_to_b64(cur_buf, buf) {
 	// FIXME This is a crude way to handle appending to an open file,
 	// complex seek operations will break this
@@ -761,21 +767,14 @@ function mty_append_buf_to_b64(cur_buf, buf) {
 	return mty_buf_to_b64(new_buf);
 }
 
-function mty_arg_list(args) {
+function mty_arg_list(bin, args) {
+	let plist = [new TextEncoder().encode(bin)];
+
 	const params = new URLSearchParams(args);
 	const qs = params.toString();
 
-	let plist = [MTY_W.bin];
-
-	// FIXME This would put each key/val pair as a separate arg
-	// for (let p of params)
-	// 	plist.push(p[0] + '=' + p[1]);
-
-	//return plist;
-
-	// For now treat the entire query string as argv[1]
 	if (qs)
-		plist.push(qs);
+		plist.push(new TextEncoder().encode(qs));
 
 	return plist;
 }
@@ -783,29 +782,40 @@ function mty_arg_list(args) {
 const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 	// Command line arguments
 	args_get: function (argv, argv_buf) {
-		const args = mty_arg_list(MTY_W.queryString);
+		const args = mty_arg_list(MTY_W.bin, MTY_W.queryString);
+
 		for (let x = 0; x < args.length; x++) {
-			MTY_StrToC(args[x], argv_buf, 32 * 1024); // FIXME what is the real size of this buffer
+			MTY_Memcpy(argv_buf, args[x]);
+			MTY_SetInt8(argv_buf + args[x].length, 0);
 			MTY_SetUint32(argv + x * 4, argv_buf);
 			argv_buf += args[x].length + 1;
 		}
 
 		return 0;
 	},
-	args_sizes_get: function (argc, argv_buf_size) {
-		const args = mty_arg_list(MTY_W.queryString);
+	args_sizes_get: function (retptr0, retptr1) {
+		const args = mty_arg_list(MTY_W.bin, MTY_W.queryString);
 
-		MTY_SetUint32(argc, args.length);
-		MTY_SetUint32(argv_buf_size, args.join(' ').length + 1);
+		let total_len = 0;
+		for (let x = 0; x < args.length; x++)
+			total_len += args[x].length + 1;
+
+		MTY_SetUint32(retptr0, args.length);
+		MTY_SetUint32(retptr1, total_len);
 		return 0;
 	},
 
 	// WASI preopened directory (/)
-	fd_prestat_get: function (fd, path) {
-		return !MTY_W.preopen ? 0 : 8;
+	fd_prestat_get: function (fd, retptr0) {
+		if (MTY_W.preopen == 0) {
+			MTY_W.preopen = fd;
+			return 0;
+		}
+
+		return 8;
 	},
 	fd_prestat_dir_name: function (fd, path, path_len) {
-		if (!MTY_W.preopen) {
+		if (MTY_W.preopen == fd) {
 			MTY_StrToC('/', path, path_len);
 			MTY_W.preopen = true;
 
@@ -816,41 +826,41 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 	},
 
 	// Paths
-	path_filestat_get: function (fd, flags, cpath, _0, filestat_out) {
-		const path = MTY_StrToJS(cpath);
-		const buf = mty_get_ls(path);
+	path_filestat_get: function (fd, flags, path, path_size, retptr0) {
+		const jpath = MTY_StrToJS(path);
+		const buf = mty_get_ls(jpath);
 
 		if (buf) {
 			// We only need to return the size
-			MTY_SetUint64(filestat_out + 32, buf.byteLength);
+			MTY_SetUint64(retptr0 + 32, buf.byteLength);
 		}
 
 		return 0;
 	},
-	path_open: function (fd, dir_flags, path, o_flags, _0, _1, _2, mode, fd_out) {
+	path_open: function (fd, dirflags, path, path_size, oflags, fs_rights_base, fs_rights_inheriting, fdflags, retptr0) {
 		const new_fd = MTY_W.fdIndex++;
-		MTY_SetUint32(fd_out, new_fd);
+		MTY_SetUint32(retptr0, new_fd);
 
 		MTY_W.fds[new_fd] = {
 			path: MTY_StrToJS(path),
-			append: mode == 1,
+			append: fdflags == 1,
 			offset: 0,
 		};
 
 		return 0;
 	},
-	path_create_directory: function () {
+	path_create_directory: function (fd, path) {
 		return 0;
 	},
-	path_remove_directory: function () {
+	path_remove_directory: function (fd, path) {
 		return 0;
 	},
-	path_unlink_file: function () {
+	path_unlink_file: function (fd, path) {
 		return 0;
 	},
-	path_readlink: function () {
+	path_readlink: function (fd, path, buf, buf_len, retptr0) {
 	},
-	path_rename: function () {
+	path_rename: function (fd, old_path, new_fd, new_path) {
 		return 0;
 	},
 
@@ -858,18 +868,18 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 	fd_close: function (fd) {
 		delete MTY_W.fds[fd];
 	},
-	fd_fdstat_get: function () {
+	fd_fdstat_get: function (fd, retptr0) {
 		return 0;
 	},
-	fd_fdstat_set_flags: function () {
+	fd_fdstat_set_flags: function (fd, flags) {
 	},
-	fd_readdir: function () {
+	fd_readdir: function (fd, buf, buf_len, cookie, retptr0) {
 		return 8;
 	},
-	fd_seek: function (fd, offset, whence, offset_out) {
+	fd_seek: function (fd, offset, whence, retptr0) {
 		return 0;
 	},
-	fd_read: function (fd, iovs, iovs_len, nread) {
+	fd_read: function (fd, iovs, iovs_len, retptr0) {
 		const finfo = MTY_W.fds[fd];
 		const full_buf = mty_get_ls(finfo.path);
 
@@ -889,18 +899,18 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 				total += len;
 			}
 
-			MTY_SetUint32(nread, total);
+			MTY_SetUint32(retptr0, total);
 		}
 
 		return 0;
 	},
-	fd_write: function (fd, iovs, iovs_len, nwritten) {
+	fd_write: function (fd, iovs, iovs_len, retptr0) {
 		// Calculate full write size
 		let len = 0;
 		for (let x = 0; x < iovs_len; x++)
 			len += MTY_GetUint32(iovs + x * 8 + 4);
 
-		MTY_SetUint32(nwritten, len);
+		MTY_SetUint32(retptr0, len);
 
 		// Create a contiguous buffer
 		let offset = 0;
@@ -945,23 +955,23 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 	},
 
 	// Misc
-	clock_time_get: function (id, precision, time_out) {
-		MTY_SetUint64(time_out, Math.round(performance.now() * 1000.0 * 1000.0));
+	clock_time_get: function (id, precision, retptr0) {
+		MTY_SetUint64(retptr0, Math.round(performance.now() * 1000.0 * 1000.0));
 		return 0;
 	},
-	poll_oneoff: function (sin, sout, nsubscriptions, nevents) {
+	poll_oneoff: function (_in, out, nsubscriptions, retptr0) {
 		// __WASI_EVENTTYPE_CLOCK
-		if (MTY_GetUint8(sin + 8) == 0)
-			Atomics.wait(MTY_W.sleeper, 0, 0, Number(MTY_GetUint64(sin + 24)) / 1000000);
+		if (MTY_GetUint8(_in + 8) == 0)
+			Atomics.wait(MTY_W.sleeper, 0, 0, Number(MTY_GetUint64(_in + 24)) / 1000000);
 
-		MTY_SetUint32(sout + 8, 0);
+		MTY_SetUint32(out + 8, 0);
 		return 0;
 	},
-	proc_exit: function () {
+	proc_exit: function (rval) {
 	},
-	environ_get: function () {
+	environ_get: function (environ, environ_buf) {
 	},
-	environ_sizes_get: function () {
+	environ_sizes_get: function (retptr0, retptr1) {
 	},
 	sched_yield: function () {
 	},
