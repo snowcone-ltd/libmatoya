@@ -66,6 +66,7 @@ void mty_gl_ctx_present(struct gfx_ctx *gfx_ctx)
 {
 	// This helps jitter
 	web_gl_flush();
+	web_present();
 }
 
 bool mty_gl_ctx_lock(struct gfx_ctx *gfx_ctx)

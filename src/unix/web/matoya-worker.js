@@ -709,13 +709,26 @@ const MTY_WEB_API = {
 		});
 	},
 	web_set_gfx: function () {
-		postMessage({
-			type: 'gfx',
+		const info = MTY_W.initWindowInfo;
+		const canvas = new OffscreenCanvas(info.canvasWidth, info.canvasHeight);
+
+		MTY_W.gl = canvas.getContext(MTY_W.glver, {
+			depth: false,
+			antialias: false,
+			premultipliedAlpha: true,
 		});
 	},
 	web_set_canvas_size: function (w, h) {
 		MTY_W.gl.canvas.width = w;
 		MTY_W.gl.canvas.height = h;
+	},
+	web_present: function () {
+		const image = MTY_W.gl.canvas.transferToImageBitmap();
+
+		postMessage({
+			type: 'present',
+			image: image,
+		}, [image]);
 	},
 
 	// Should be called on main thread only
@@ -1048,6 +1061,7 @@ onmessage = async (ev) => {
 			MTY_W.fdIndex = 64;
 			MTY_W.kbMap = msg.kbMap;
 			MTY_W.initWindowInfo = msg.windowInfo;
+			MTY_W.glver = msg.glver ? msg.glver : 'webgl';
 			MTY_W.sync = new Int32Array(new SharedArrayBuffer(4), 0, 1);
 			MTY_W.sleeper = new Int32Array(new SharedArrayBuffer(4), 0, 1);
 			MTY_W.module = await mty_instantiate_wasm(msg.wasmBuf, msg.userEnv);
@@ -1071,15 +1085,6 @@ onmessage = async (ev) => {
 				if (e.toString().search('MTY_AppRun') == -1)
 					console.error(e);
 			}
-			break;
-		case 'gfx':
-			MTY_W.glver = msg.glver ? msg.glver : 'webgl';
-
-			MTY_W.gl = msg.canvas.getContext(MTY_W.glver, {
-				depth: false,
-				antialias: false,
-				premultipliedAlpha: true,
-			});
 			break;
 
 		// Main thread only

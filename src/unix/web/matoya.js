@@ -551,6 +551,25 @@ function mty_set_png_cursor(buffer, size, hot_x, hot_y) {
 }
 
 
+// Image
+
+async function mty_decode_image(input) {
+	const img = new Image();
+	img.src = URL.createObjectURL(new Blob([input]));
+
+	await img.decode();
+
+	const width = img.naturalWidth;
+	const height = img.naturalHeight;
+
+	const canvas = new OffscreenCanvas(width, height);
+	const ctx = canvas.getContext('2d');
+	ctx.drawImage(img, 0, 0, width, height);
+
+	return ctx.getImageData(0, 0, width, height);
+}
+
+
 // Net
 
 function mty_ws_new(obj) {
@@ -715,7 +734,7 @@ function mty_raf(thread) {
 	}, 10);
 }
 
-function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, userEnv, kbMap, name) {
+function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, userEnv, kbMap, glver, name) {
 	const worker = new Worker(baseFile.replace('.js', '-worker.js'), {name: name});
 
 	worker.onmessage = mty_thread_message;
@@ -725,6 +744,7 @@ function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, us
 		file: baseFile,
 		bin: bin,
 		wasmBuf: wasmBuf,
+		glver: glver,
 		windowInfo: mty_window_info(),
 		args: window.location.search,
 		hostname: window.location.hostname,
@@ -761,6 +781,7 @@ async function MTY_Start(bin, userEnv, glver) {
 
 	// Drawing surface
 	MTY.canvas = document.createElement('canvas');
+	MTY.renderer = MTY.canvas.getContext('bitmaprenderer');
 	MTY.canvas.style.width = '100%';
 	MTY.canvas.style.height = '100%';
 	document.body.appendChild(MTY.canvas);
@@ -788,7 +809,7 @@ async function MTY_Start(bin, userEnv, glver) {
 
 	// Main thread
 	MTY.mainThread = mty_thread_start(MTY.threadId, bin, MTY.file, MTY.wasmBuf, MTY.memory,
-		0, userEnv, MTY.kbMap, 'main');
+		0, userEnv, MTY.kbMap, MTY.glver, 'main');
 
 	// Init position, update loop
 	MTY.lastX = window.screenX;
@@ -799,22 +820,6 @@ async function MTY_Start(bin, userEnv, glver) {
 	mty_add_input_events(MTY.mainThread);
 
 	return true;
-}
-
-async function mty_decode_image(input) {
-	const img = new Image();
-	img.src = URL.createObjectURL(new Blob([input]));
-
-	await img.decode();
-
-	const width = img.naturalWidth;
-	const height = img.naturalHeight;
-
-	const canvas = new OffscreenCanvas(width, height);
-	const ctx = canvas.getContext('2d');
-	ctx.drawImage(img, 0, 0, width, height);
-
-	return ctx.getImageData(0, 0, width, height);
 }
 
 async function mty_thread_message(ev) {
@@ -829,12 +834,15 @@ async function mty_thread_message(ev) {
 			MTY.threadId++;
 
 			const worker = mty_thread_start(MTY.threadId, MTY.bin, MTY.file, MTY.wasmBuf, MTY.memory,
-				msg.startArg, MTY.userEnv, MTY.kbMap, 'thread-' + MTY.threadId);
+				msg.startArg, MTY.userEnv, MTY.kbMap, MTY.glver, 'thread-' + MTY.threadId);
 
 			MTY_SetUint32(msg.buf, MTY.threadId);
 			mty_signal(msg.sync);
 			break;
 		}
+		case 'present':
+			MTY.renderer.transferFromImageBitmap(msg.image);
+			break;
 		case 'image':
 			const image = await mty_decode_image(msg.input);
 
@@ -963,7 +971,7 @@ async function mty_thread_message(ev) {
 			}
 			break;
 		}
-		case 'ws_code': {
+		case 'ws-code': {
 			MTY_SetUint16(msg.cbuf, 0);
 
 			const ws = mty_ws_obj(msg.ctx);
@@ -971,16 +979,6 @@ async function mty_thread_message(ev) {
 				MTY_SetUint16(msg.cbuf, ws.closeCode);
 
 			mty_signal(msg.sync);
-			break;
-		}
-		case 'gfx': {
-			const offscreen = MTY.canvas.transferControlToOffscreen();
-
-			this.postMessage({
-				type: 'gfx',
-				glver: MTY.glver,
-				canvas: offscreen,
-			}, [offscreen]);
 			break;
 		}
 		case 'async-copy':

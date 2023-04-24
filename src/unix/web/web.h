@@ -28,4 +28,5 @@ void web_register_drag(void);
 void web_gl_flush(void);
 void web_set_gfx(void);
 void web_set_canvas_size(uint32_t w, uint32_t h);
+void web_present(void);
 void web_set_app(MTY_App *ctx);
