@@ -787,7 +787,7 @@ static void window_keyboard_event(struct window *ctx, uint16_t key_code, NSEvent
 
 	mty_app_kb_to_hotkey(ctx->app, &evt, MTY_EVENT_HOTKEY);
 
-	if (evt.type != MTY_EVENT_HOTKEY && !mty_app_dedupe_key(ctx->app, evt.key.key, pressed, repeat))
+	if (!mty_app_dedupe_key(ctx->app, evt.type, evt.key.key, pressed, repeat))
 		return;
 
 	if ((evt.type == MTY_EVENT_HOTKEY && pressed) || (evt.type == MTY_EVENT_KEY && evt.key.key != MTY_KEY_NONE))
@@ -1334,13 +1334,14 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 		.key.pressed = down,
 	};
 
-	if (!mty_app_dedupe_key(ctx, evt.key.key, down, false))
+	mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
+
+	if (!mty_app_dedupe_key(ctx, evt.type, evt.key.key, down, false))
 		return;
 
 	if (active_window == MTY_WINDOW_MAX)
 		return;
 
-	mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
 	ctx->event_func(&evt, ctx->opaque);
 }
 
@@ -2021,10 +2022,11 @@ MTY_Hash *mty_app_get_hotkey_hash(MTY_App *ctx)
 	return ctx->hotkey;
 }
 
-bool mty_app_dedupe_key(MTY_App *ctx, MTY_Key key, bool pressed, bool repeat)
+bool mty_app_dedupe_key(MTY_App *ctx, MTY_EventType event, MTY_Event MTY_Key key, bool pressed, bool repeat)
 {
 	bool was_down = ctx->keys[key];
 	bool should_fire = !(ctx->flags & MTY_APP_FLAG_HID_KEYBOARD) || !ctx->grab_kb
+		|| event != MTY_EVENT_KEY
 		|| ((pressed && (repeat || !was_down)) || (!pressed && was_down));
 
 	ctx->keys[key] = pressed;
