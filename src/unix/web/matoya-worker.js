@@ -554,6 +554,8 @@ const MTY_NET_API = {
 			sync: MTY_W.sync,
 		});
 
+		mty_wait(MTY_W.sync);
+
 		return MTY_GetUint16(MTY_W.cbuf);
 	},
 };
