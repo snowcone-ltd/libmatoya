@@ -813,6 +813,8 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 	// WASI preopened directory (/)
 	fd_prestat_get: function (fd, retptr0) {
 		if (MTY_W.preopen == 0) {
+			MTY_SetInt8(retptr0, 0);
+			MTY_SetUint64(retptr0 + 4, 1);
 			MTY_W.preopen = fd;
 			return 0;
 		}
@@ -821,7 +823,7 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 	},
 	fd_prestat_dir_name: function (fd, path, path_len) {
 		if (MTY_W.preopen == fd) {
-			MTY_StrToC('/', path, path_len);
+			MTY_Strcpy(path, new TextEncoder().encode('/'));
 			MTY_W.preopen = true;
 
 			return 0;
