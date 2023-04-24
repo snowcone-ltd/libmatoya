@@ -785,10 +785,10 @@ static void window_keyboard_event(struct window *ctx, uint16_t key_code, NSEvent
 		.key.pressed = pressed,
 	};
 
-	if (!mty_app_dedupe_key(ctx->app, evt.key.key, pressed, repeat))
-		return;
-
 	mty_app_kb_to_hotkey(ctx->app, &evt, MTY_EVENT_HOTKEY);
+
+	if (evt.type != MTY_EVENT_HOTKEY && !mty_app_dedupe_key(ctx->app, evt.key.key, pressed, repeat))
+		return;
 
 	if ((evt.type == MTY_EVENT_HOTKEY && pressed) || (evt.type == MTY_EVENT_KEY && evt.key.key != MTY_KEY_NONE))
 		ctx->app->event_func(&evt, ctx->app->opaque);
