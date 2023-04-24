@@ -270,8 +270,14 @@ const MTY_GL_API = {
 	glGetError: function () {
 		return MTY_W.gl.getError();
 	},
-	glGetShaderInfoLog: function () {
-		// FIXME Logged automatically as part of glGetShaderiv
+	glGetShaderInfoLog: function (shader, maxLength, length, infoLog) {
+		const log = gl.getShaderInfoLog(mty_gl_obj(shader));
+		const buf = new TextEncoder().encode();
+
+		if (buf.length < maxLength) {
+			MTY_SetUint32(length);
+			MTY_Strcpy(infoLog, buf);
+		}
 	},
 	glFinish: function () {
 		MTY_W.gl.finish();
@@ -785,8 +791,7 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 		const args = mty_arg_list(MTY_W.bin, MTY_W.queryString);
 
 		for (let x = 0; x < args.length; x++) {
-			MTY_Memcpy(argv_buf, args[x]);
-			MTY_SetInt8(argv_buf + args[x].length, 0);
+			MTY_Strcpy(argv_buf, args[x]);
 			MTY_SetUint32(argv + x * 4, argv_buf);
 			argv_buf += args[x].length + 1;
 		}

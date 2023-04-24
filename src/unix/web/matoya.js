@@ -131,6 +131,11 @@ function MTY_Memcpy(cptr, abuffer) {
 	heap.set(abuffer);
 }
 
+function MTY_Strcpy(cptr, abuffer) {
+	MTY_Memcpy(cptr, abuffer);
+	MTY_SetInt8(cptr + abuffer.length, 0);
+}
+
 function MTY_StrToJS(ptr) {
 	const len = mty_strlen(new Uint8Array(mty_mem(), ptr));
 	const slice = new Uint8Array(mty_mem(), ptr, len)
@@ -945,8 +950,7 @@ async function mty_thread_message(ev) {
 
 					if (buf) {
 						if (buf.length < msg.size) {
-							MTY_Memcpy(msg.buf, buf);
-							MTY_SetInt8(msg.buf + buf.length, 0);
+							MTY_Strcpy(msg.buf, buf);
 							MTY_SetUint32(msg.cbuf, 0); // MTY_ASYNC_OK
 						}
 
