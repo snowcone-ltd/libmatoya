@@ -342,7 +342,8 @@ void window_controller(MTY_App *ctx, uint32_t id, uint32_t state, uint32_t butto
 
 // App / Window
 
-static void app_set_keys(void)
+__attribute__((export_name("app_set_keys")))
+void app_set_keys(void)
 {
 	MTY_Hash *h = web_keymap_hash();
 
@@ -371,8 +372,6 @@ MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eve
 	ctx->hotkey = MTY_HashCreate(0);
 	ctx->deduper = MTY_HashCreate(0);
 
-	app_set_keys();
-
 	return ctx;
 }
 
@@ -392,7 +391,7 @@ void MTY_AppDestroy(MTY_App **app)
 
 void MTY_AppRun(MTY_App *ctx)
 {
-	web_raf(ctx->app_func, ctx->opaque);
+	web_set_app_func(ctx->app_func, ctx->opaque);
 }
 
 void MTY_AppSetTimeout(MTY_App *ctx, uint32_t timeout)

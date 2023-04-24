@@ -21,8 +21,8 @@ const MTY = {
 	synthesizeEsc: true,
 	relative: false,
 	gps: [false, false, false, false],
-	lastX: 0,
-	lastY: 0,
+	posX: 0,
+	posY: 0,
 };
 
 
@@ -694,8 +694,8 @@ function mty_window_info() {
 	const rect = MTY.canvas.getBoundingClientRect();
 
 	return {
-		lastX: window.screenX,
-		lastY: window.screenY,
+		posX: window.screenX,
+		posY: window.screenY,
 		relative: MTY.relative,
 		devicePixelRatio: window.devicePixelRatio,
 		hasFocus: document.hasFocus(),
@@ -708,15 +708,15 @@ function mty_window_info() {
 	};
 }
 
-function mty_raf(thread) {
+function mty_update_interval(thread) {
 	// Poll gamepads
 	if (document.hasFocus())
 		mty_poll_gamepads();
 
 	// Poll position changes
-	if (MTY.lastX != window.screenX || MTY.lastY != window.screenY) {
-		MTY.lastX = window.screenX;
-		MTY.lastY = window.screenY;
+	if (MTY.posX != window.screenX || MTY.posY != window.screenY) {
+		MTY.posX = window.screenX;
+		MTY.posY = window.screenY;
 
 		thread.postMessage({
 			type: 'move',
@@ -725,13 +725,9 @@ function mty_raf(thread) {
 
 	// send rect event
 	thread.postMessage({
-		type: 'raf',
+		type: 'window-update',
 		windowInfo: mty_window_info(),
 	});
-
-	setTimeout(() => {
-		mty_raf(thread);
-	}, 10);
 }
 
 function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, userEnv, kbMap, glver, name) {
@@ -812,9 +808,11 @@ async function MTY_Start(bin, userEnv, glver) {
 		0, userEnv, MTY.kbMap, MTY.glver, 'main');
 
 	// Init position, update loop
-	MTY.lastX = window.screenX;
-	MTY.lastY = window.screenY;
-	mty_raf(MTY.mainThread);
+	MTY.posX = window.screenX;
+	MTY.posY = window.screenY;
+	setInterval(() => {
+		mty_update_interval(MTY.mainThread);
+	}, 10);
 
 	// Add input events
 	mty_add_input_events(MTY.mainThread);
@@ -843,7 +841,7 @@ async function mty_thread_message(ev) {
 		case 'present':
 			MTY.renderer.transferFromImageBitmap(msg.image);
 			break;
-		case 'image':
+		case 'image': {
 			const image = await mty_decode_image(msg.input);
 
 			this.tmp = image.data;
@@ -852,10 +850,11 @@ async function mty_thread_message(ev) {
 
 			mty_signal(msg.sync);
 			break;
+		}
 		case 'title':
 			document.title = msg.title;
 			break;
-		case 'get-ls':
+		case 'get-ls': {
 			const val = window.localStorage[msg.key];
 
 			if (val) {
@@ -868,6 +867,7 @@ async function mty_thread_message(ev) {
 
 			mty_signal(msg.sync);
 			break;
+		}
 		case 'set-ls':
 			window.localStorage[msg.key] = msg.val;
 			mty_signal(msg.sync);
@@ -913,7 +913,7 @@ async function mty_thread_message(ev) {
 				window.open(MTY_StrToJS(msg.uri), '_blank');
 			});
 			break;
-		case 'http':
+		case 'http': {
 			const res = await mty_http_request(msg.url, msg.method, msg.headers,
 				msg.body);
 
@@ -924,11 +924,13 @@ async function mty_thread_message(ev) {
 
 			mty_signal(msg.sync);
 			break;
-		case 'ws':
+		}
+		case 'ws': {
 			const ws = await mty_ws_connect(msg.url);
 			MTY_SetUint32(msg.buf, ws ? mty_ws_new(ws) : 0);
 			mty_signal(msg.sync);
 			break;
+		}
 		case 'ws-read': {
 			MTY_SetUint32(msg.cbuf, 3); // MTY_ASYNC_ERROR
 

@@ -49,14 +49,6 @@ function mty_free(ptr) {
 	MTY_W.exports.mty_free(ptr);
 }
 
-function mty_strtocd(js_str) {
-	const buf = (new TextEncoder()).encode(js_str);
-	const ptr = mty_alloc(buf.length);
-	mty_copy_str(ptr, buf);
-
-	return ptr;
-}
-
 
 // window.localStorage
 
@@ -624,7 +616,7 @@ const MTY_SYSTEM_API = {
 // Web API (mostly used in app.c)
 
 function mty_update_window(app, info) {
-	MTY_W.exports.window_update_position(app, info.lastX, info.lastY);
+	MTY_W.exports.window_update_position(app, info.posX, info.posY);
 	MTY_W.exports.window_update_screen(app, info.screenWidth, info.screenHeight);
 	MTY_W.exports.window_update_size(app, info.canvasWidth, info.canvasHeight);
 	MTY_W.exports.window_update_focus(app, info.hasFocus);
@@ -675,7 +667,11 @@ const MTY_WEB_API = {
 		postMessage({type: 'cursor', buffer, size, hot_x, hot_y});
 	},
 	web_get_hostname: function () {
-		return mty_strtocd(MTY_W.hostname);
+		const buf = new TextEncoder().encode(MTY_W.hostname);
+		const ptr = mty_alloc(buf.length);
+		mty_copy_str(ptr, buf);
+
+		return ptr;
 	},
 	web_platform: function (platform, size) {
 		MTY_StrToC(navigator.platform, platform, size);
@@ -738,7 +734,7 @@ const MTY_WEB_API = {
 		MTY_W.app = app;
 		mty_update_window(app, MTY_W.initWindowInfo);
 	},
-	web_raf: function (func, opaque) {
+	web_set_app_func: function (func, opaque) {
 		const step = () => {
 			// Keep looping recursively or end based on AppFunc return value
 			if (mty_cfunc(func)(opaque))
@@ -752,8 +748,6 @@ const MTY_WEB_API = {
 
 
 // WASI API
-
-// https://github.com/WebAssembly/WASI/blob/master/phases/snapshot/docs.md
 
 function mty_append_buf_to_b64(cur_buf, buf) {
 	// FIXME This is a crude way to handle appending to an open file,
@@ -857,7 +851,6 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 	path_readlink: function () {
 	},
 	path_rename: function () {
-		console.log('path_rename', arguments);
 		return 0;
 	},
 
@@ -1070,8 +1063,8 @@ onmessage = async (ev) => {
 			MTY_W.exports = MTY_W.module.instance.exports;
 			MTY_W.cbuf = mty_alloc(2048);
 
-			// Unbuffers stderr / stdout
-			MTY_W.exports.mty_setbuf();
+			MTY_W.exports.mty_setbuf(); // Unbuffers stderr / stdout
+			MTY_W.exports.app_set_keys();
 
 			try {
 				// Secondary thread
@@ -1090,7 +1083,7 @@ onmessage = async (ev) => {
 			break;
 
 		// Main thread only
-		case 'raf':
+		case 'window-update':
 			if (MTY_W.app)
 				mty_update_window(MTY_W.app, msg.windowInfo);
 			break;
