@@ -6,4 +6,4 @@
 
 #include <stdbool.h>
 
-#define mty_app_dedupe_key(ctx, event, key, pressed, repeat) true
+#define mty_app_dedupe_key(ctx, key, pressed, repeat) true
