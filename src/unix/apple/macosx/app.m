@@ -1341,7 +1341,7 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 		.key.pressed = down,
 	};
 
-	if (!(ctx->flags & MTY_APP_FLAG_HID_KEYBOARD) || !ctx->grab_kb)
+	if (!repeat && !(ctx->flags & MTY_APP_FLAG_HID_KEYBOARD) || !ctx->grab_kb)
 		return;
 
 	if (!mty_app_dedupe_key(ctx, evt.key.key, down, false))
