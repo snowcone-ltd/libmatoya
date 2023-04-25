@@ -1351,8 +1351,13 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 		return;
 
 	mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
-	if (evt.type == MTY_EVENT_HOTKEY && down)
-		return;
+	if (evt.type == MTY_EVENT_HOTKEY && down) {
+		// When grabbed, and command+shift+w is pressed,
+		// it doesn't get triggered to the window_key handler
+		if (evt.key.key != 2 || evt.key.mod != 65) {
+			return;
+		}
+	}
 
 	ctx->event_func(&evt, ctx->opaque);
 }
@@ -2037,7 +2042,9 @@ MTY_Hash *mty_app_get_hotkey_hash(MTY_App *ctx)
 bool mty_app_dedupe_key(MTY_App *ctx, MTY_Key key, bool pressed, bool repeat)
 {
 	bool was_down = ctx->keys[key];
-	bool should_fire = (pressed && (repeat || !was_down)) || (!pressed && was_down);
+	bool should_fire = ((ctx->flags & MTY_APP_FLAG_HID_KEYBOARD) && !ctx->grab_kb)
+	 || (!(ctx->flags & MTY_APP_FLAG_HID_KEYBOARD))
+	 || (pressed && (repeat || !was_down)) || (!pressed && was_down);
 
 	ctx->keys[key] = pressed;
 
