@@ -1350,8 +1350,8 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 	if (active_window == MTY_WINDOW_MAX)
 		return;
 
-	mty_app_kb_to_hotkey(ctx->app, &evt, MTY_EVENT_HOTKEY);
-	if (evt.type == MTY_EVENT_HOTKEY && pressed)
+	mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
+	if (evt.type == MTY_EVENT_HOTKEY && down)
 		return;
 
 	ctx->event_func(&evt, ctx->opaque);
