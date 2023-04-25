@@ -791,7 +791,7 @@ static void window_keyboard_event(struct window *ctx, uint16_t key_code, NSEvent
 		return;
 	}
 
-	if ((ctx->app->flags & MTY_APP_FLAG_HID_KEYBOARD) && ctx->app->grab_kb)
+	if (!repeat && (ctx->app->flags & MTY_APP_FLAG_HID_KEYBOARD) && ctx->app->grab_kb)
 		return;
 
 	if (!mty_app_dedupe_key(ctx->app, evt.key.key, pressed, repeat))
@@ -1341,7 +1341,7 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 		.key.pressed = down,
 	};
 
-	if (!repeat && !(ctx->flags & MTY_APP_FLAG_HID_KEYBOARD) || !ctx->grab_kb)
+	if (!(ctx->flags & MTY_APP_FLAG_HID_KEYBOARD) || !ctx->grab_kb)
 		return;
 
 	if (!mty_app_dedupe_key(ctx, evt.key.key, down, false))
