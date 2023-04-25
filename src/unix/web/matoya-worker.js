@@ -9,7 +9,7 @@ const MTY_W = {
 	module: null,
 	hostname: '',
 	queryString: '',
-	cbuf: 0,
+	sab: null,
 	sync: null,
 	sleeper: null,
 
@@ -56,31 +56,27 @@ function mty_get_ls(key) {
 	postMessage({
 		type: 'get-ls',
 		key: key,
-		buf: MTY_W.cbuf,
+		sab: MTY_W.sab,
 		sync: MTY_W.sync,
 	});
 
 	mty_wait(MTY_W.sync);
 
-	const size = MTY_GetUint32(MTY_W.cbuf);
+	const size = MTY_GetUint32SAB(MTY_W.sab, 0);
 	if (size == 0)
 		return 0;
 
-	const cbuf = mty_alloc(size);
+	const sab8 = new Uint8Array(new SharedArrayBuffer(size));
 
 	postMessage({
 		type: 'async-copy',
-		buf: cbuf,
+		sab8: sab8,
 		sync: MTY_W.sync,
 	});
 
 	mty_wait(MTY_W.sync);
 
-	const buf = new Uint8Array(size);
-	buf.set(new Uint8Array(mty_mem(), cbuf, size));
-	mty_free(cbuf);
-
-	return buf;
+	return sab8;
 }
 
 function mty_set_ls(key, val) {
@@ -463,29 +459,29 @@ const MTY_NET_API = {
 			headers: args.headers,
 			body: body,
 			sync: MTY_W.sync,
-			buf: MTY_W.cbuf,
+			sab: MTY_W.sab,
 		});
 
 		mty_wait(MTY_W.sync);
 
-		const error = MTY_GetUint32(MTY_W.cbuf);
+		const error = MTY_GetUint32SAB(MTY_W.sab, 0);
 		if (error)
 			return false;
 
-		const size = MTY_GetUint32(MTY_W.cbuf + 4);
+		const size = MTY_GetUint32SAB(MTY_W.sab, 4);
 		MTY_SetUint32(responseSize, size);
 
-		const status = MTY_GetUint32(MTY_W.cbuf + 8);
+		const status = MTY_GetUint32SAB(MTY_W.sab, 8);
 		MTY_SetUint16(cstatus, status);
 
 		if (size > 0) {
-			const cbuf = mty_alloc(size + 1);
-			MTY_SetUint32(response, cbuf);
+			const buf = mty_alloc(size + 1);
+			MTY_SetUint32(response, buf);
 
 			postMessage({
 				type: 'async-copy',
 				sync: MTY_W.sync,
-				buf: cbuf,
+				sab8: new Uint8Array(mty_mem(), buf, size + 1),
 			});
 
 			mty_wait(MTY_W.sync);
@@ -504,12 +500,12 @@ const MTY_NET_API = {
 			type: 'ws',
 			url: args.url,
 			sync: MTY_W.sync,
-			buf: MTY_W.cbuf,
+			sab: MTY_W.sab,
 		});
 
 		mty_wait(MTY_W.sync);
 
-		return MTY_GetUint32(MTY_W.cbuf);
+		return MTY_GetUint32SAB(MTY_W.sab, 0);
 	},
 	MTY_WebSocketDestroy: function (ctx_out) {
 		if (!ctx_out)
@@ -527,13 +523,13 @@ const MTY_NET_API = {
 			timeout: timeout,
 			buf: msg_out,
 			size: size,
-			cbuf: MTY_W.cbuf,
+			sab: MTY_W.sab,
 			sync: MTY_W.sync,
 		});
 
 		mty_wait(MTY_W.sync);
 
-		return MTY_GetUint32(MTY_W.cbuf); // MTY_Async
+		return MTY_GetUint32SAB(MTY_W.sab, 0); // MTY_Async
 	},
 	MTY_WebSocketWrite: function (ctx, msg_c) {
 		postMessage({
@@ -548,13 +544,13 @@ const MTY_NET_API = {
 		postMessage({
 			type: 'ws-code',
 			ctx: ctx,
-			cbuf: MTY_W.cbuf,
+			sab: MTY_W.sab,
 			sync: MTY_W.sync,
 		});
 
 		mty_wait(MTY_W.sync);
 
-		return MTY_GetUint16(MTY_W.cbuf);
+		return MTY_GetUint16SAB(MTY_W.sab);
 	},
 };
 
@@ -570,19 +566,21 @@ const MTY_IMAGE_API = {
 			type: 'image',
 			input: jinput,
 			sync: MTY_W.sync,
-			buf: MTY_W.cbuf,
+			sab: MTY_W.sab,
 		}, [jinput]);
 
 		mty_wait(MTY_W.sync);
 
-		const width = MTY_GetUint32(MTY_W.cbuf);
-		const height = MTY_GetUint32(MTY_W.cbuf + 4);
-		const cimage = mty_alloc(width * height * 4);
+		const width = MTY_GetUint32SAB(MTY_W.sab, 0);
+		const height = MTY_GetUint32SAB(MTY_W.sab, 4);
+
+		const buf_size = width * height * 4;
+		const buf = mty_alloc(buf_size);
 
 		postMessage({
 			type: 'async-copy',
 			sync: MTY_W.sync,
-			buf: cimage,
+			sab8: new Uint8Array(mty_mem(), buf, buf_size),
 		});
 
 		mty_wait(MTY_W.sync);
@@ -590,7 +588,7 @@ const MTY_IMAGE_API = {
 		MTY_SetUint32(cwidth, width);
 		MTY_SetUint32(cheight, height);
 
-		return cimage;
+		return buf;
 	},
 	MTY_CompressImage: function (method, input, width, height, outputSize) {
 	},
@@ -653,13 +651,18 @@ const MTY_WEB_API = {
 		postMessage({type: 'show-cursor', show});
 	},
 	web_get_clipboard: function () {
-		postMessage({type: 'get-clip', sync: MTY_W.sync, buf: MTY_W.cbuf});
+		postMessage({type: 'get-clip', sync: MTY_W.sync, sab: MTY_W.sab});
 		mty_wait(MTY_W.sync);
 
-		const size = MTY_GetUint32(MTY_W.cbuf);
+		const size = MTY_GetUint32SAB(MTY_W.sab, 0);
 		const buf = mty_alloc(size + 1);
 
-		postMessage({type: 'async-copy', sync: MTY_W.sync, buf: buf});
+		postMessage({
+			type: 'async-copy',
+			sync: MTY_W.sync,
+			sab8: new Uint8Array(mty_mem(), buf, size + 1),
+		});
+
 		mty_wait(MTY_W.sync);
 
 		return buf;
@@ -679,7 +682,7 @@ const MTY_WEB_API = {
 	web_get_hostname: function () {
 		const buf = new TextEncoder().encode(MTY_W.hostname);
 		const ptr = mty_alloc(buf.length);
-		mty_copy_str(ptr, buf);
+		MTY_Strcpy(ptr, buf);
 
 		return ptr;
 	},
@@ -693,16 +696,16 @@ const MTY_WEB_API = {
 		if (reverse)
 			MTY_W.keysRev[key] = str;
 	},
-	web_get_key: function (key, cbuf, len) {
+	web_get_key: function (key, buf, len) {
 		const code = MTY_W.keysRev[key];
 
 		if (code != undefined) {
 			const text = MTY_W.kbMap[code];
 			if (text) {
-				MTY_StrToC(text.toUpperCase(), cbuf, len);
+				MTY_StrToC(text.toUpperCase(), buf, len);
 
 			} else {
-				MTY_StrToC(code, cbuf, len);
+				MTY_StrToC(code, buf, len);
 			}
 
 			return true;
@@ -895,11 +898,11 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 
 			for (let x = 0; x < iovs_len; x++) {
 				let ptr = iovs + x * 8;
-				let cbuf = MTY_GetUint32(ptr);
-				let cbuf_len = MTY_GetUint32(ptr + 4);
-				let len = cbuf_len < full_buf.length - total ? cbuf_len : full_buf.length - total;
+				let buf = MTY_GetUint32(ptr);
+				let buf_len = MTY_GetUint32(ptr + 4);
+				let len = buf_len < full_buf.length - total ? buf_len : full_buf.length - total;
 
-				let view = new Uint8Array(mty_mem(), cbuf, cbuf_len);
+				let view = new Uint8Array(mty_mem(), buf, buf_len);
 				let slice = new Uint8Array(full_buf.buffer, total, len);
 				view.set(slice);
 
@@ -924,11 +927,11 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 		let full_buf = new Uint8Array(len);
 		for (let x = 0; x < iovs_len; x++) {
 			let ptr = iovs + x * 8;
-			let cbuf = MTY_GetUint32(ptr);
-			let cbuf_len = MTY_GetUint32(ptr + 4);
+			let buf = MTY_GetUint32(ptr);
+			let buf_len = MTY_GetUint32(ptr + 4);
 
-			full_buf.set(new Uint8Array(mty_mem(), cbuf, cbuf_len), offset);
-			offset += cbuf_len;
+			full_buf.set(new Uint8Array(mty_mem(), buf, buf_len), offset);
+			offset += buf_len;
 		}
 
 		// stdout
@@ -989,13 +992,13 @@ const MTY_WASI_API = {
 		postMessage({
 			type: 'thread',
 			startArg: start_arg,
-			buf: MTY_W.cbuf,
+			sab: MTY_W.sab,
 			sync: MTY_W.sync,
 		});
 
 		mty_wait(MTY_W.sync);
 
-		return MTY_GetUint32(MTY_W.cbuf);
+		return MTY_GetUint32SAB(MTY_W.sab, 0);
 	},
 };
 
@@ -1044,13 +1047,13 @@ async function mty_instantiate_wasm(wasmBuf, userEnv) {
 				type: 'user-env',
 				name: key,
 				args: args,
-				rbuf: MTY_W.cbuf,
+				sab: MTY_W.sab,
 				sync: MTY_W.sync,
 			});
 
 			mty_wait(MTY_W.sync);
 
-			return MTY_GetInt32(MTY_W.cbuf);
+			return MTY_GetUint32SAB(MTY_W.sab, 0);
 		};
 	}
 
@@ -1078,7 +1081,7 @@ onmessage = async (ev) => {
 			MTY_W.sleeper = new Int32Array(new SharedArrayBuffer(4), 0, 1);
 			MTY_W.module = await mty_instantiate_wasm(msg.wasmBuf, msg.userEnv);
 			MTY_W.exports = MTY_W.module.instance.exports;
-			MTY_W.cbuf = mty_alloc(2048);
+			MTY_W.sab = new SharedArrayBuffer(2048);
 
 			MTY_W.exports.mty_setbuf(); // Unbuffers stderr / stdout
 			MTY_W.exports.app_set_keys();
@@ -1111,8 +1114,16 @@ onmessage = async (ev) => {
 			const key = MTY_W.keys[msg.code];
 
 			if (key != undefined) {
-				const text = msg.key.length == 1 ? MTY_StrToC(msg.key, MTY_W.cbuf, 2048) : 0;
-				MTY_W.exports.window_keyboard(MTY_W.app, msg.pressed, key, text, msg.mods);
+				let packed = 0;
+
+				if (msg.key.length == 1) {
+					const buf = new TextEncoder().encode(msg.key);
+
+					for (let x = 0; x < buf.length; x++)
+						packed |= buf[x] << x * 8;
+				}
+
+				MTY_W.exports.window_keyboard(MTY_W.app, msg.pressed, key, packed, msg.mods);
 			}
 			break;
 		}
@@ -1161,10 +1172,13 @@ onmessage = async (ev) => {
 			const cmem = mty_alloc(buf.length);
 			MTY_Memcpy(cmem, buf);
 
-			const name_c = MTY_StrToC(msg.name, MTY_W.cbuf, 2048);
+			const name = new TextEncoder().encode(msg.name);
+			const cname = mty_alloc(buf.length);
+			MTY_Strcpy(cname, name);
 
-			MTY_W.exports.window_drop(MTY_W.app, name_c, cmem, buf.length);
+			MTY_W.exports.window_drop(MTY_W.app, cname, cmem, buf.length);
 
+			mty_free(cname);
 			mty_free(cmem);
 			break;
 		}

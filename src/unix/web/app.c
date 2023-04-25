@@ -202,14 +202,17 @@ static bool window_allow_default(MTY_Mod mod, MTY_Key key)
 }
 
 __attribute__((export_name("window_keyboard")))
-bool window_keyboard(MTY_App *ctx, bool pressed, MTY_Key key, const char *text, uint32_t mods)
+bool window_keyboard(MTY_App *ctx, bool pressed, MTY_Key key, uint32_t text, uint32_t mods)
 {
 	MTY_Event evt = {0};
 
-	if (text) {
+	if (text > 0) {
 		evt.type = MTY_EVENT_TEXT;
-		snprintf(evt.text, 8, "%s", text);
 
+		for (uint8_t x = 0; x < 4; x++)
+			evt.text[x] = text >> x * 8 & 0xFF;
+
+		evt.text[4] = '\0';
 		ctx->event_func(&evt, ctx->opaque);
 	}
 
