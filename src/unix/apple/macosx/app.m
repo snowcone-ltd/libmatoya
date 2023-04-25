@@ -292,6 +292,15 @@ static void app_applicationDidFinishLaunching(id self, SEL _cmd, NSNotification 
 
 	submenu = [NSMenuItem new];
 	[menubar addItem:submenu];
+	menu = [[NSMenu alloc] initWithTitle:@"Edit"];
+	[menu addItem:[[NSMenuItem alloc] initWithTitle:@"Cut" action:@selector(cut:) keyEquivalent:@"x"]];
+	[menu addItem:[[NSMenuItem alloc] initWithTitle:@"Copy" action:@selector(copy:) keyEquivalent:@"c"]];
+	[menu addItem:[[NSMenuItem alloc] initWithTitle:@"Paste" action:@selector(paste:) keyEquivalent:@"v"]];
+	[menu addItem:[[NSMenuItem alloc] initWithTitle:@"Select All" action:@selector(selectAll:) keyEquivalent:@"a"]];
+	[submenu setSubmenu:menu];
+
+	submenu = [NSMenuItem new];
+	[menubar addItem:submenu];
 	menu = [[NSMenu alloc] initWithTitle:@"Window"];
 	[menu addItem:[[NSMenuItem alloc] initWithTitle:@"Minimize" action:@selector(appMinimize) keyEquivalent:@"m"]];
 
