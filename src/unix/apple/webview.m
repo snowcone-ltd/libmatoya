@@ -164,6 +164,8 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 
 	[ctx->webview setValue:@NO forKey:@"drawsBackground"];
 	[ctx->webview.configuration.preferences setValue:ndebug forKey:@"developerExtrasEnabled"];
+	[ctx->webview.configuration.preferences setValue:@YES forKey:@"tabFocusesLinks"];
+	[ctx->webview.configuration.preferences setValue:@YES forKey:@"textInteractionEnabled"];
 
 	// Message handler
 	NSObject <WKScriptMessageHandler> *handler = OBJC_NEW(msg_handler_class(), ctx);
