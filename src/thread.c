@@ -370,3 +370,11 @@ void MTY_GlobalUnlock(MTY_Atomic32 *lock)
 {
 	mty_rwlock_unlock_writer(&THREAD_GLOCKS[MTY_Atomic32Get(lock)]);
 }
+
+
+// Thread loop
+
+void MTY_ThreadRun(MTY_ThreadLoop loop, void *opaque)
+{
+	thread_run(loop, opaque);
+}

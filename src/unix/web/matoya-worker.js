@@ -733,13 +733,16 @@ const MTY_WEB_API = {
 		MTY_W.gl.canvas.width = w;
 		MTY_W.gl.canvas.height = h;
 	},
-	web_present: function () {
+	web_present: function (wait) {
 		const image = MTY_W.gl.canvas.transferToImageBitmap();
 
 		postMessage({
 			type: 'present',
 			image: image,
 		}, [image]);
+
+		if (wait)
+			mty_wait(MTY_W.psync);
 	},
 
 	// Should be called on main thread only
@@ -747,15 +750,16 @@ const MTY_WEB_API = {
 		MTY_W.app = app;
 		mty_update_window(app, MTY_W.initWindowInfo);
 	},
-	web_set_app_func: function (func, opaque) {
+	web_thread_run: function (func, opaque) {
+		MTY_W.exports.app_set_keys();
+
 		const step = () => {
-			// Keep looping recursively or end based on AppFunc return value
 			if (mty_cfunc(func)(opaque))
 				setTimeout(step, 0);
 		};
 
 		setTimeout(step, 0);
-		throw 'MTY_AppRun halted execution';
+		throw 'MTY_ThreadRun halted execution';
 	},
 };
 
@@ -1075,6 +1079,7 @@ onmessage = async (ev) => {
 			MTY_W.bin = msg.bin;
 			MTY_W.fdIndex = 64;
 			MTY_W.kbMap = msg.kbMap;
+			MTY_W.psync = msg.psync;
 			MTY_W.initWindowInfo = msg.windowInfo;
 			MTY_W.glver = msg.glver ? msg.glver : 'webgl';
 			MTY_W.sync = new Int32Array(new SharedArrayBuffer(4), 0, 1);
@@ -1084,20 +1089,21 @@ onmessage = async (ev) => {
 			MTY_W.sab = new SharedArrayBuffer(2048);
 
 			MTY_W.exports.mty_setbuf(); // Unbuffers stderr / stdout
-			MTY_W.exports.app_set_keys();
 
 			try {
 				// Secondary thread
 				if (msg.startArg) {
 					MTY_W.exports.wasi_thread_start(msg.threadId, msg.startArg);
-					close();
 
 				// Main thread
 				} else {
 					MTY_W.exports._start();
 				}
+
+				close();
+
 			} catch (e) {
-				if (e.toString().search('MTY_AppRun') == -1)
+				if (e.toString().search('MTY_ThreadRun') == -1)
 					console.error(e);
 			}
 			break;

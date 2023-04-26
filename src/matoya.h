@@ -2477,6 +2477,8 @@ typedef void (*MTY_AnonFunc)(void *opaque);
 ///   has not been run as detached.
 typedef void *(*MTY_ThreadFunc)(void *opaque);
 
+typedef bool (*MTY_ThreadLoop)(void *opaque);
+
 /// @brief Status of an asynchronous task.
 typedef enum {
 	MTY_ASYNC_OK       = 0, ///< The task has completed and the result is ready.
@@ -2770,6 +2772,9 @@ MTY_GlobalLock(MTY_Atomic32 *lock);
 /// @param lock An MTY_Atomic32.
 MTY_EXPORT void
 MTY_GlobalUnlock(MTY_Atomic32 *lock);
+
+MTY_EXPORT void
+MTY_ThreadRun(MTY_ThreadLoop loop, void *opaque);
 
 
 //- #module Net

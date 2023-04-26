@@ -10,6 +10,7 @@ GFX_CTX_PROTOTYPES(_gl_)
 struct gl_ctx {
 	MTY_App *app;
 	uint32_t fb0;
+	bool vsync;
 };
 
 struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
@@ -17,6 +18,7 @@ struct gfx_ctx *mty_gl_ctx_create(void *native_window, bool vsync)
 	struct gl_ctx *ctx = MTY_Alloc(1, sizeof(struct gl_ctx));
 
 	ctx->app = native_window;
+	ctx->vsync = vsync;
 
 	web_set_gfx();
 
@@ -64,9 +66,12 @@ MTY_Surface *mty_gl_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 
 void mty_gl_ctx_present(struct gfx_ctx *gfx_ctx)
 {
+	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;
+
 	// This helps jitter
 	web_gl_flush();
-	web_present();
+
+	web_present(ctx->vsync);
 }
 
 bool mty_gl_ctx_lock(struct gfx_ctx *gfx_ctx)

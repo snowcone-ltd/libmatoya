@@ -8,7 +8,7 @@
 const MTY_IS_WORKER = typeof importScripts == 'function';
 
 const MTY = {
-	file: !MTY_IS_WORKER ? new URL(document.currentScript.src).pathname : '',
+	file: !MTY_IS_WORKER ? new URL(document.currentScript.src).pathname : location.pathname,
 
 	wsObj: {},
 	wsIndex: 1,
@@ -736,7 +736,7 @@ function mty_update_interval(thread) {
 	});
 }
 
-function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, userEnv, kbMap, glver, name) {
+function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, userEnv, kbMap, glver, psync, name) {
 	const worker = new Worker(baseFile.replace('.js', '-worker.js'), {name: name});
 
 	worker.onmessage = mty_thread_message;
@@ -747,6 +747,7 @@ function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, us
 		bin: bin,
 		wasmBuf: wasmBuf,
 		glver: glver,
+		psync: psync,
 		windowInfo: mty_window_info(),
 		args: window.location.search,
 		hostname: window.location.hostname,
@@ -767,6 +768,7 @@ async function MTY_Start(bin, userEnv, glver) {
 	MTY.bin = bin;
 	MTY.userEnv = userEnv;
 	MTY.glver = glver;
+	MTY.psync = new Int32Array(new SharedArrayBuffer(4), 0, 1);
 
 	// Canvas container
 	const html = document.querySelector('html');
@@ -811,7 +813,7 @@ async function MTY_Start(bin, userEnv, glver) {
 
 	// Main thread
 	MTY.mainThread = mty_thread_start(MTY.threadId, bin, MTY.file, MTY.wasmBuf, MTY.memory,
-		0, userEnv, MTY.kbMap, MTY.glver, 'main');
+		0, userEnv, MTY.kbMap, MTY.glver, MTY.psync, 'main');
 
 	// Init position, update loop
 	MTY.posX = window.screenX;
@@ -819,6 +821,13 @@ async function MTY_Start(bin, userEnv, glver) {
 	setInterval(() => {
 		mty_update_interval(MTY.mainThread);
 	}, 10);
+
+	// Vsync
+	const vsync = () => {
+		mty_signal(MTY.psync);
+		requestAnimationFrame(vsync);
+	};
+	requestAnimationFrame(vsync);
 
 	// Add input events
 	mty_add_input_events(MTY.mainThread);
@@ -838,7 +847,7 @@ async function mty_thread_message(ev) {
 			MTY.threadId++;
 
 			const worker = mty_thread_start(MTY.threadId, MTY.bin, MTY.file, MTY.wasmBuf, MTY.memory,
-				msg.startArg, MTY.userEnv, MTY.kbMap, MTY.glver, 'thread-' + MTY.threadId);
+				msg.startArg, MTY.userEnv, MTY.kbMap, MTY.glver, MTY.psync, 'thread-' + MTY.threadId);
 
 			MTY_SetUint32SAB(msg.sab, 0, MTY.threadId);
 			mty_signal(msg.sync);
