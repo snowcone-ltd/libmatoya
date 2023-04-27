@@ -177,32 +177,8 @@ void window_scroll(MTY_App *ctx, int32_t x, int32_t y)
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-static bool window_allow_default(MTY_Mod mod, MTY_Key key)
-{
-	// The "allowed" browser hotkey list. Copy/Paste, Refresh, fullscreen, developer console, and tab switching
-
-	return
-		(((mod & MTY_MOD_CTRL) || (mod & MTY_MOD_WIN)) && key == MTY_KEY_V) ||
-		(((mod & MTY_MOD_CTRL) || (mod & MTY_MOD_WIN)) && key == MTY_KEY_C) ||
-		((mod & MTY_MOD_CTRL) && (mod & MTY_MOD_SHIFT) && key == MTY_KEY_I) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_R) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_F5) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_1) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_2) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_3) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_4) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_5) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_6) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_7) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_8) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_9) ||
-		(key == MTY_KEY_F5) ||
-		(key == MTY_KEY_F11) ||
-		(key == MTY_KEY_F12);
-}
-
 __attribute__((export_name("window_keyboard")))
-bool window_keyboard(MTY_App *ctx, bool pressed, MTY_Key key, uint32_t text, uint32_t mods)
+void window_keyboard(MTY_App *ctx, bool pressed, MTY_Key key, uint32_t text, uint32_t mods)
 {
 	MTY_Event evt = {0};
 
@@ -224,11 +200,7 @@ bool window_keyboard(MTY_App *ctx, bool pressed, MTY_Key key, uint32_t text, uin
 
 		mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
 		ctx->event_func(&evt, ctx->opaque);
-
-		return !window_allow_default(evt.key.mod, evt.key.key) || ctx->kb_grab;
 	}
-
-	return true;
 }
 
 __attribute__((export_name("window_focus")))
@@ -499,6 +471,8 @@ bool MTY_AppIsKeyboardGrabbed(MTY_App *ctx)
 void MTY_AppGrabKeyboard(MTY_App *ctx, bool grab)
 {
 	ctx->kb_grab = grab;
+
+	web_set_kb_grab(grab);
 }
 
 uint32_t MTY_AppGetHotkey(MTY_App *ctx, MTY_Scope scope, MTY_Mod mod, MTY_Key key)

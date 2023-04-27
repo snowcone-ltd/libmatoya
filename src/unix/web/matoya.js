@@ -203,6 +203,28 @@ function mty_update_canvas(canvas) {
 	return rect;
 }
 
+function mty_allow_default(ev) {
+	// The "allowed" browser hotkey list. Copy/Paste, Refresh, fullscreen, developer console, and tab switching
+
+	return ((ev.ctrlKey || ev.metaKey) && ev.code == 'KeyV') ||
+		((ev.ctrlKey || ev.metaKey) && ev.code == 'KeyC') ||
+		((ev.ctrlKey || ev.shiftKey) && ev.code == 'KeyI') ||
+		(ev.ctrlKey && ev.code == 'KeyR') ||
+		(ev.ctrlKey && ev.code == 'F5') ||
+		(ev.ctrlKey && ev.code == 'Digit1') ||
+		(ev.ctrlKey && ev.code == 'Digit2') ||
+		(ev.ctrlKey && ev.code == 'Digit3') ||
+		(ev.ctrlKey && ev.code == 'Digit4') ||
+		(ev.ctrlKey && ev.code == 'Digit5') ||
+		(ev.ctrlKey && ev.code == 'Digit6') ||
+		(ev.ctrlKey && ev.code == 'Digit7') ||
+		(ev.ctrlKey && ev.code == 'Digit8') ||
+		(ev.ctrlKey && ev.code == 'Digit9') ||
+		(ev.code == 'F5') ||
+		(ev.code == 'F11') ||
+		(ev.code == 'F12');
+}
+
 function mty_add_input_events(thread) {
 	MTY.canvas.addEventListener('mousemove', (ev) => {
 		let x = mty_scaled(ev.clientX);
@@ -302,7 +324,7 @@ function mty_add_input_events(thread) {
 			mods: mty_get_mods(ev),
 		});
 
-		if (MTY.kbGrab)
+		if (MTY.kb_grab || !mty_allow_default(ev))
 			ev.preventDefault();
 	});
 
@@ -315,7 +337,7 @@ function mty_add_input_events(thread) {
 			mods: mty_get_mods(ev),
 		});
 
-		if (MTY.kbGrab)
+		if (MTY.kb_grab || !mty_allow_default(ev))
 			ev.preventDefault();
 	});
 
@@ -857,6 +879,9 @@ async function mty_thread_message(ev) {
 			mty_signal(msg.sync);
 			break;
 		}
+		case 'kb-grab':
+			MTY.kb_grab = msg.grab;
+			break;
 		case 'title':
 			document.title = msg.title;
 			break;

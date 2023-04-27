@@ -18,6 +18,7 @@ void web_rumble_gamepad(uint32_t id, float low, float high);
 void web_show_cursor(bool show);
 void web_use_default_cursor(bool use_default);
 void web_set_png_cursor(const void *image, size_t size, uint32_t hotX, uint32_t hotY);
+void web_set_kb_grab(bool grab);
 void web_set_pointer_lock(bool enable);
 char *web_get_hostname(void);
 char *web_get_clipboard(void);

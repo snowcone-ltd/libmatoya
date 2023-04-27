@@ -679,6 +679,9 @@ const MTY_WEB_API = {
 	web_set_png_cursor: function (buffer, size, hot_x, hot_y) {
 		postMessage({type: 'cursor', buffer, size, hot_x, hot_y});
 	},
+	web_set_kb_grab: function (grab) {
+		postMessage({type: 'kb-grab', grab});
+	},
 	web_get_hostname: function () {
 		const buf = new TextEncoder().encode(MTY_W.hostname);
 		const ptr = mty_alloc(buf.length);
