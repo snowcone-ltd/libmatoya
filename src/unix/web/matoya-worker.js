@@ -62,7 +62,7 @@ function mty_get_ls(key) {
 
 	mty_wait(MTY_W.sync);
 
-	const size = MTY_GetUint32SAB(MTY_W.sab, 0);
+	const size = MTY_W.sab[0];
 	if (size == 0)
 		return 0;
 
@@ -464,14 +464,14 @@ const MTY_NET_API = {
 
 		mty_wait(MTY_W.sync);
 
-		const error = MTY_GetUint32SAB(MTY_W.sab, 0);
+		const error = MTY_W.sab[0];
 		if (error)
 			return false;
 
-		const size = MTY_GetUint32SAB(MTY_W.sab, 4);
+		const size = MTY_W.sab[1];
 		MTY_SetUint32(responseSize, size);
 
-		const status = MTY_GetUint32SAB(MTY_W.sab, 8);
+		const status = MTY_W.sab[2];
 		MTY_SetUint16(cstatus, status);
 
 		if (size > 0) {
@@ -505,7 +505,7 @@ const MTY_NET_API = {
 
 		mty_wait(MTY_W.sync);
 
-		return MTY_GetUint32SAB(MTY_W.sab, 0);
+		return MTY_W.sab[0];
 	},
 	MTY_WebSocketDestroy: function (ctx_out) {
 		if (!ctx_out)
@@ -529,7 +529,7 @@ const MTY_NET_API = {
 
 		mty_wait(MTY_W.sync);
 
-		return MTY_GetUint32SAB(MTY_W.sab, 0); // MTY_Async
+		return MTY_W.sab[0]; // MTY_Async
 	},
 	MTY_WebSocketWrite: function (ctx, msg_c) {
 		postMessage({
@@ -550,7 +550,7 @@ const MTY_NET_API = {
 
 		mty_wait(MTY_W.sync);
 
-		return MTY_GetUint16SAB(MTY_W.sab);
+		return MTY_W.sab[0];
 	},
 };
 
@@ -571,8 +571,8 @@ const MTY_IMAGE_API = {
 
 		mty_wait(MTY_W.sync);
 
-		const width = MTY_GetUint32SAB(MTY_W.sab, 0);
-		const height = MTY_GetUint32SAB(MTY_W.sab, 4);
+		const width = MTY_W.sab[0];
+		const height = MTY_W.sab[1];
 
 		const buf_size = width * height * 4;
 		const buf = mty_alloc(buf_size);
@@ -654,7 +654,7 @@ const MTY_WEB_API = {
 		postMessage({type: 'get-clip', sync: MTY_W.sync, sab: MTY_W.sab});
 		mty_wait(MTY_W.sync);
 
-		const size = MTY_GetUint32SAB(MTY_W.sab, 0);
+		const size = MTY_W.sab[0];
 		const buf = mty_alloc(size + 1);
 
 		postMessage({
@@ -1002,7 +1002,7 @@ const MTY_WASI_API = {
 
 		mty_wait(MTY_W.sync);
 
-		return MTY_GetUint32SAB(MTY_W.sab, 0);
+		return MTY_W.sab[0];
 	},
 };
 
@@ -1057,7 +1057,7 @@ async function mty_instantiate_wasm(wasmBuf, userEnv) {
 
 			mty_wait(MTY_W.sync);
 
-			return MTY_GetUint32SAB(MTY_W.sab, 0);
+			return MTY_W.sab[0];
 		};
 	}
 
@@ -1082,11 +1082,11 @@ onmessage = async (ev) => {
 			MTY_W.psync = msg.psync;
 			MTY_W.initWindowInfo = msg.windowInfo;
 			MTY_W.glver = msg.glver ? msg.glver : 'webgl';
-			MTY_W.sync = new Int32Array(new SharedArrayBuffer(4), 0, 1);
-			MTY_W.sleeper = new Int32Array(new SharedArrayBuffer(4), 0, 1);
+			MTY_W.sync = new Int32Array(new SharedArrayBuffer(4));
+			MTY_W.sleeper = new Int32Array(new SharedArrayBuffer(4));
 			MTY_W.module = await mty_instantiate_wasm(msg.wasmBuf, msg.userEnv);
 			MTY_W.exports = MTY_W.module.instance.exports;
-			MTY_W.sab = new SharedArrayBuffer(2048);
+			MTY_W.sab = new Uint32Array(new SharedArrayBuffer(128));
 
 			MTY_W.exports.mty_setbuf(); // Unbuffers stderr / stdout
 

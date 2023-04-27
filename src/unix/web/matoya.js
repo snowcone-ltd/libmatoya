@@ -113,32 +113,16 @@ function MTY_SetInt8(ptr, value) {
 	mty_mem_view().setInt8(ptr, value);
 }
 
-function MTY_GetUint16SAB(sab, i) {
-	return new DataView(sab).getUint16(i, true);
-}
-
 function MTY_SetUint16(ptr, value) {
 	mty_mem_view().setUint16(ptr, value, true);
-}
-
-function MTY_SetUint16SAB(sab, i, value) {
-	new DataView(sab).setUint16(i, value, true);
 }
 
 function MTY_GetUint32(ptr) {
 	return mty_mem_view().getUint32(ptr, true);
 }
 
-function MTY_GetUint32SAB(sab, i) {
-	return new DataView(sab).getUint32(i, true);
-}
-
 function MTY_SetUint32(ptr, value) {
 	mty_mem_view().setUint32(ptr, value, true);
-}
-
-function MTY_SetUint32SAB(sab, i, value) {
-	new DataView(sab).setUint32(i, value, true);
 }
 
 function MTY_GetUint64(ptr, value) {
@@ -768,7 +752,7 @@ async function MTY_Start(bin, userEnv, glver) {
 	MTY.bin = bin;
 	MTY.userEnv = userEnv;
 	MTY.glver = glver;
-	MTY.psync = new Int32Array(new SharedArrayBuffer(4), 0, 1);
+	MTY.psync = new Int32Array(new SharedArrayBuffer(4));
 
 	// Canvas container
 	const html = document.querySelector('html');
@@ -840,7 +824,7 @@ async function mty_thread_message(ev) {
 
 	switch (msg.type) {
 		case 'user-env':
-			MTY_SetUint32SAB(msg.sab, 0, MTY.userEnv[msg.name](...msg.args));
+			msg.sab[0] = MTY.userEnv[msg.name](...msg.args);
 			mty_signal(msg.sync);
 			break;
 		case 'thread': {
@@ -849,7 +833,7 @@ async function mty_thread_message(ev) {
 			const worker = mty_thread_start(MTY.threadId, MTY.bin, MTY.file, MTY.wasmBuf, MTY.memory,
 				msg.startArg, MTY.userEnv, MTY.kbMap, MTY.glver, MTY.psync, 'thread-' + MTY.threadId);
 
-			MTY_SetUint32SAB(msg.sab, 0, MTY.threadId);
+			msg.sab[0] = MTY.threadId;
 			mty_signal(msg.sync);
 			break;
 		}
@@ -860,8 +844,8 @@ async function mty_thread_message(ev) {
 			const image = await mty_decode_image(msg.input);
 
 			this.tmp = image.data;
-			MTY_SetUint32SAB(msg.sab, 0, image.width);
-			MTY_SetUint32SAB(msg.sab, 4, image.height);
+			msg.sab[0] = image.width;
+			msg.sab[1] = image.height;
 
 			mty_signal(msg.sync);
 			break;
@@ -874,10 +858,10 @@ async function mty_thread_message(ev) {
 
 			if (val) {
 				this.tmp = mty_b64_to_buf(val);
-				MTY_SetUint32SAB(msg.sab, 0, this.tmp.byteLength);
+				msg.sab[0] = this.tmp.byteLength;
 
 			} else {
-				MTY_SetUint32SAB(msg.sab, 0, 0);
+				msg.sab[0] = 0;
 			}
 
 			mty_signal(msg.sync);
@@ -907,7 +891,7 @@ async function mty_thread_message(ev) {
 			const text = await navigator.clipboard.readText();
 
 			this.tmp = enc.encode(text);
-			MTY_SetUint32SAB(msg.sab, 0, this.tmp.byteLength);
+			msg.sab[0] = this.tmp.byteLength;
 			mty_signal(msg.sync);
 			break;
 		}
@@ -932,27 +916,27 @@ async function mty_thread_message(ev) {
 			const res = await mty_http_request(msg.url, msg.method, msg.headers, msg.body);
 
 			this.tmp = res.data;
-			MTY_SetUint32SAB(msg.sab, 0, res.error ? 1 : 0);
-			MTY_SetUint32SAB(msg.sab, 4, res.size);
-			MTY_SetUint32SAB(msg.sab, 8, res.status);
+			msg.sab[0] = res.error ? 1 : 0;
+			msg.sab[1] = res.size;
+			msg.sab[2] = res.status;
 
 			mty_signal(msg.sync);
 			break;
 		}
 		case 'ws': {
 			const ws = await mty_ws_connect(msg.url);
-			MTY_SetUint32SAB(msg.sab, 0, ws ? mty_ws_new(ws) : 0);
+			msg.sab[0] = ws ? mty_ws_new(ws) : 0;
 			mty_signal(msg.sync);
 			break;
 		}
 		case 'ws-read': {
-			MTY_SetUint32SAB(msg.sab, 0, 3); // MTY_ASYNC_ERROR
+			msg.sab[0] = 3; // MTY_ASYNC_ERROR
 
 			const ws = mty_ws_obj(msg.ctx);
 
 			if (ws) {
 				if (ws.closeCode != 0) {
-					MTY_SetUint32SAB(msg.sab, 0, 1); // MTY_ASYNC_DONE
+					msg.sab[0] = 1; // MTY_ASYNC_DONE
 
 				} else {
 					const buf = await mty_ws_read(ws, msg.timeout);
@@ -960,11 +944,11 @@ async function mty_thread_message(ev) {
 					if (buf) {
 						if (buf.length < msg.size) {
 							MTY_Strcpy(msg.buf, buf);
-							MTY_SetUint32SAB(msg.sab, 0, 0); // MTY_ASYNC_OK
+							msg.sab[0] = 0; // MTY_ASYNC_OK;
 						}
 
 					} else {
-						MTY_SetUint32SAB(msg.sab, 0, 2); // MTY_ASYNC_CONTINUE
+						msg.sab[0] = 2; // MTY_ASYNC_CONTINUE
 					}
 				}
 			}
@@ -987,11 +971,11 @@ async function mty_thread_message(ev) {
 			break;
 		}
 		case 'ws-code': {
-			MTY_SetUint16SAB(msg.sab, 0, 0);
+			msg.sab[0] = 0;
 
 			const ws = mty_ws_obj(msg.ctx);
 			if (ws)
-				MTY_SetUint16SAB(msg.sab, sab, ws.closeCode);
+				msg.sab[0] = ws.closeCode;
 
 			mty_signal(msg.sync);
 			break;
