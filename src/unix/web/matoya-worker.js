@@ -110,7 +110,6 @@ function mty_gl_new(obj) {
 function mty_gl_del(index) {
 	let obj = MTY_W.glObj[index];
 
-	MTY_W.glObj[index] = undefined;
 	delete MTY_W.glObj[index];
 
 	return obj;
@@ -745,6 +744,11 @@ const MTY_WEB_API = {
 
 		if (wait)
 			mty_wait(MTY_W.psync);
+	},
+
+	// Synchronization from C
+	MTY_WaitPtr: function (csync) {
+		mty_wait(new Int32Array(MTY_MEMORY.buffer, csync, 1));
 	},
 
 	// Should be called on main thread only

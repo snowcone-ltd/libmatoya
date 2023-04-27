@@ -43,60 +43,34 @@ function mty_buf_to_b64(buf) {
 
 function mty_strlen(buf) {
 	let len = 0;
-	for (; len < 0x7FFFFFFF && buf[len] != 0; len++);
+	for (; buf[len] != 0; len++);
 
 	return len;
 }
 
-function MTY_Strcpy(cptr, abuffer) {
-	MTY_Memcpy(cptr, abuffer);
-	MTY_SetInt8(cptr + abuffer.length, 0);
+function MTY_Memcpy(ptr, buf) {
+	new Uint8Array(MTY_MEMORY.buffer, ptr, buf.byteLength).set(buf);
+}
+
+function MTY_Strcpy(ptr, buf) {
+	MTY_Memcpy(ptr, buf);
+	MTY_SetInt8(ptr + buf.byteLength, 0);
 }
 
 function MTY_StrToJS(ptr) {
-	const len = mty_strlen(new Uint8Array(MTY_MEMORY.buffer, ptr));
-	const slice = new Uint8Array(MTY_MEMORY.buffer, ptr, len)
+	const buf = new Uint8Array(MTY_MEMORY.buffer, ptr);
 
-	const cpy = new Uint8Array(slice.byteLength);
-	cpy.set(new Uint8Array(slice));
-
-	return new TextDecoder().decode(cpy);
+	return new TextDecoder().decode(buf.slice(0, mty_strlen(buf)));
 }
 
-function MTY_StrToC(js_str, ptr, size) {
-	if (size == 0)
-		return;
+function MTY_StrToC(str, ptr, size) {
+	const buf = new TextEncoder().encode(str);
 
-	const buf = new TextEncoder().encode(js_str);
-	const copy_size = buf.length < size ? buf.length : size - 1;
-	MTY_Strcpy(ptr, new Uint8Array(buf, 0, copy_size));
+	if (buf.byteLength >= size)
+		throw 'MTY_StrToC overflow'
 
-	return ptr;
+	MTY_Strcpy(ptr, buf);
 }
-
-
-// Synchronization
-
-function mty_wait(sync) {
-	if (Atomics.compareExchange(sync, 0, 0, 1) == 0) {
-		Atomics.wait(sync, 0, 1);
-
-	} else {
-		Atomics.store(sync, 0);
-	}
-}
-
-function mty_signal(sync) {
-	if (Atomics.compareExchange(sync, 0, 0, 1) == 0) {
-
-	} else {
-		Atomics.store(sync, 0);
-		Atomics.notify(sync, 0);
-	}
-}
-
-
-// Public helpers
 
 function MTY_GetUint8(ptr) {
 	return new DataView(MTY_MEMORY.buffer).getUint8(ptr);
@@ -130,9 +104,29 @@ function MTY_SetFloat(ptr, value) {
 	new DataView(MTY_MEMORY.buffer).setFloat32(ptr, value, true);
 }
 
-function MTY_Memcpy(cptr, abuffer) {
-	const heap = new Uint8Array(MTY_MEMORY.buffer, cptr, abuffer.length);
-	heap.set(abuffer);
+
+// Synchronization
+
+function mty_wait(sync) {
+	if (Atomics.compareExchange(sync, 0, 0, 1) == 0) {
+		Atomics.wait(sync, 0, 1);
+
+	} else {
+		Atomics.store(sync, 0);
+	}
+}
+
+function mty_signal(sync) {
+	if (Atomics.compareExchange(sync, 0, 0, 1) == 0) {
+
+	} else {
+		Atomics.store(sync, 0);
+		Atomics.notify(sync, 0);
+	}
+}
+
+function MTY_SignalPtr(csync) {
+	mty_signal(new Int32Array(MTY_MEMORY.buffer, csync, 1));
 }
 
 
@@ -483,10 +477,10 @@ async function mty_wake_lock(enable) {
 
 		} else if (!enable && MTY.wakeLock) {
 			MTY.wakeLock.release();
-			MTY.wakeLock = undefined;
+			delete MTY.wakeLock;
 		}
 	} catch (e) {
-		MTY.wakeLock = undefined;
+		delete MTY.wakeLock;
 	}
 }
 
@@ -594,7 +588,6 @@ function mty_ws_new(obj) {
 function mty_ws_del(index) {
 	let obj = MTY.wsObj[index];
 
-	MTY.wsObj[index] = undefined;
 	delete MTY.wsObj[index];
 
 	return obj;
@@ -1008,7 +1001,7 @@ async function mty_thread_message(ev) {
 		}
 		case 'async-copy':
 			msg.sab8.set(this.tmp);
-			this.tmp = undefined;
+			delete this.tmp;
 
 			mty_signal(msg.sync);
 			break;

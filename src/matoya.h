@@ -1388,6 +1388,9 @@ MTY_GLGetProcAddress(const char *name);
 MTY_EXPORT void
 MTY_RunAndYield(MTY_IterFunc iter, void *opaque);
 
+MTY_EXPORT void
+MTY_WaitPtr(int32_t *sync);
+
 
 //- #module Audio
 //- #mbrief Simple audio playback and resampling.
