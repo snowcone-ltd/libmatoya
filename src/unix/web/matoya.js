@@ -195,6 +195,14 @@ function mty_get_mods(ev) {
 	return mods;
 }
 
+function mty_update_canvas(canvas) {
+	const rect = canvas.getBoundingClientRect();
+	canvas.width = rect.width;
+	canvas.height = rect.height;
+
+	return rect;
+}
+
 function mty_add_input_events(thread) {
 	MTY.canvas.addEventListener('mousemove', (ev) => {
 		let x = mty_scaled(ev.clientX);
@@ -326,7 +334,7 @@ function mty_add_input_events(thread) {
 	});
 
 	window.addEventListener('resize', (ev) => {
-		const rect = MTY.canvas.getBoundingClientRect();
+		const rect = mty_update_canvas(MTY.canvas);
 
 		thread.postMessage({
 			type: 'resize',
@@ -674,7 +682,7 @@ function mty_supports_wasm() {
 
 function mty_supports_web_gl() {
 	try {
-		return document.createElement('canvas').getContext('webgl');
+		return document.createElement('canvas').getContext('webgl2');
 	} catch (e) {}
 
 	return false;
@@ -720,7 +728,7 @@ function mty_update_interval(thread) {
 	});
 }
 
-function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, userEnv, kbMap, glver, psync, name) {
+function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, userEnv, kbMap, psync, name) {
 	const worker = new Worker(baseFile.replace('.js', '-worker.js'), {name: name});
 
 	worker.onmessage = mty_thread_message;
@@ -730,7 +738,6 @@ function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, us
 		file: baseFile,
 		bin: bin,
 		wasmBuf: wasmBuf,
-		glver: glver,
 		psync: psync,
 		windowInfo: mty_window_info(),
 		args: window.location.search,
@@ -745,13 +752,12 @@ function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, us
 	return worker;
 }
 
-async function MTY_Start(bin, userEnv, glver) {
+async function MTY_Start(bin, userEnv) {
 	if (!mty_supports_wasm() || !mty_supports_web_gl())
 		return false;
 
 	MTY.bin = bin;
 	MTY.userEnv = userEnv;
-	MTY.glver = glver;
 	MTY.psync = new Int32Array(new SharedArrayBuffer(4));
 
 	// Canvas container
@@ -773,6 +779,7 @@ async function MTY_Start(bin, userEnv, glver) {
 	MTY.canvas.style.width = '100%';
 	MTY.canvas.style.height = '100%';
 	document.body.appendChild(MTY.canvas);
+	mty_update_canvas(MTY.canvas);
 
 	// WASM binary
 	const wasmRes = await fetch(bin);
@@ -797,7 +804,7 @@ async function MTY_Start(bin, userEnv, glver) {
 
 	// Main thread
 	MTY.mainThread = mty_thread_start(MTY.threadId, bin, MTY.file, MTY.wasmBuf, MTY.memory,
-		0, userEnv, MTY.kbMap, MTY.glver, MTY.psync, 'main');
+		0, userEnv, MTY.kbMap, MTY.psync, 'main');
 
 	// Init position, update loop
 	MTY.posX = window.screenX;
@@ -831,7 +838,7 @@ async function mty_thread_message(ev) {
 			MTY.threadId++;
 
 			const worker = mty_thread_start(MTY.threadId, MTY.bin, MTY.file, MTY.wasmBuf, MTY.memory,
-				msg.startArg, MTY.userEnv, MTY.kbMap, MTY.glver, MTY.psync, 'thread-' + MTY.threadId);
+				msg.startArg, MTY.userEnv, MTY.kbMap, MTY.psync, 'thread-' + MTY.threadId);
 
 			msg.sab[0] = MTY.threadId;
 			mty_signal(msg.sync);

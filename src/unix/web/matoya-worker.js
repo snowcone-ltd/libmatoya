@@ -23,7 +23,6 @@ const MTY_W = {
 
 	// GL
 	gl: null,
-	glver: '',
 	glIndex: 0,
 	glObj: {},
 
@@ -294,10 +293,6 @@ const MTY_GL_API = {
 		MTY_SetUint32(params, MTY_W.gl.getProgramParameter(mty_gl_obj(program), pname));
 	},
 	glPixelStorei: function (pname, param) {
-		// GL_UNPACK_ROW_LENGTH is not compatible with WebGL 1
-		if (MTY_W.glver == 'webgl' && pname == 0x0CF2)
-			return;
-
 		MTY_W.gl.pixelStorei(pname, param);
 	},
 	web_gl_flush: function () {
@@ -448,7 +443,12 @@ const MTY_NET_API = {
 	{
 		// FIXME timeout is currently ignored
 
-		const body = cbody ? MTY_StrToJS(cbody) : undefined;
+		let body = null;
+		if (cbody) {
+			body = new Uint8Array(bodySize);
+			body.set(new Uint8Array(mty_mem(), cbody, bodySize));
+		}
+
 		const method = MTY_StrToJS(cmethod);
 		const args = mty_net_args('http', chost, port, secure, cpath, cheaders);
 
@@ -723,7 +723,7 @@ const MTY_WEB_API = {
 		const info = MTY_W.initWindowInfo;
 		const canvas = new OffscreenCanvas(info.canvasWidth, info.canvasHeight);
 
-		MTY_W.gl = canvas.getContext(MTY_W.glver, {
+		MTY_W.gl = canvas.getContext('webgl2', {
 			depth: false,
 			antialias: false,
 			premultipliedAlpha: true,
@@ -1081,7 +1081,6 @@ onmessage = async (ev) => {
 			MTY_W.kbMap = msg.kbMap;
 			MTY_W.psync = msg.psync;
 			MTY_W.initWindowInfo = msg.windowInfo;
-			MTY_W.glver = msg.glver ? msg.glver : 'webgl';
 			MTY_W.sync = new Int32Array(new SharedArrayBuffer(4));
 			MTY_W.sleeper = new Int32Array(new SharedArrayBuffer(4));
 			MTY_W.module = await mty_instantiate_wasm(msg.wasmBuf, msg.userEnv);
