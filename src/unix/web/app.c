@@ -394,7 +394,7 @@ void MTY_AppDestroy(MTY_App **app)
 
 void MTY_AppRun(MTY_App *ctx)
 {
-	MTY_RunAndYield(ctx->app_func, ctx->opaque);
+	web_run_and_yield(ctx->app_func, ctx->opaque);
 }
 
 void MTY_AppSetTimeout(MTY_App *ctx, uint32_t timeout)

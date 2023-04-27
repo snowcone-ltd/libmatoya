@@ -726,12 +726,11 @@ const MTY_WEB_API = {
 		MTY_W.gl = canvas.getContext('webgl2', {
 			depth: false,
 			antialias: false,
-			premultipliedAlpha: true,
 		});
 	},
-	web_set_canvas_size: function (w, h) {
-		MTY_W.gl.canvas.width = w;
-		MTY_W.gl.canvas.height = h;
+	web_set_canvas_size: function (width, height) {
+		MTY_W.gl.canvas.width = width;
+		MTY_W.gl.canvas.height = height;
 	},
 	web_present: function (wait) {
 		const image = MTY_W.gl.canvas.transferToImageBitmap();
