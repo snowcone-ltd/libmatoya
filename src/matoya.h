@@ -55,6 +55,11 @@ extern "C" {
 typedef struct MTY_App MTY_App;
 typedef int8_t MTY_Window;
 
+/// @brief Function called in a loop by MTY_RunAndYield until it returns false.
+/// @param opaque Pointer set via MTY_RunAndYield.
+/// @returns Return true to continue iterating, false to break.
+typedef bool (*MTY_IterFunc)(void *opaque);
+
 /// @brief Function called once per message cycle.
 /// @details A "message cycle" can be thought of as one iteration through all of the
 ///   available messages that the OS has accumulated. libmatoya loops through each
@@ -1372,6 +1377,17 @@ MTY_PrintEvent(const MTY_Event *evt);
 MTY_EXPORT void *
 MTY_GLGetProcAddress(const char *name);
 
+/// @brief Runs a loop while also allowing the OS's event loop to continue to run.
+/// @details This function only matters when targeting a browser environment. If a regular
+///   `while` loop is used to block a thread, under the hood the `Worker` that is executing
+///   the WebAssembly will be blocked and can not process the JavaScript event loop. This means
+///   that the `Worker` can not communicate with the main thread via `postMessage`, and most
+///   importantly can not perform deferred cleanup via the event loop, causing memory leaks.
+/// @param iter Function called in a loop until it returns false.
+/// @param opaque Pointer passed to each call to `iter`.
+MTY_EXPORT void
+MTY_RunAndYield(MTY_IterFunc iter, void *opaque);
+
 
 //- #module Audio
 //- #mbrief Simple audio playback and resampling.
@@ -2477,8 +2493,6 @@ typedef void (*MTY_AnonFunc)(void *opaque);
 ///   has not been run as detached.
 typedef void *(*MTY_ThreadFunc)(void *opaque);
 
-typedef bool (*MTY_ThreadLoop)(void *opaque);
-
 /// @brief Status of an asynchronous task.
 typedef enum {
 	MTY_ASYNC_OK       = 0, ///< The task has completed and the result is ready.
@@ -2772,9 +2786,6 @@ MTY_GlobalLock(MTY_Atomic32 *lock);
 /// @param lock An MTY_Atomic32.
 MTY_EXPORT void
 MTY_GlobalUnlock(MTY_Atomic32 *lock);
-
-MTY_EXPORT void
-MTY_ThreadRun(MTY_ThreadLoop loop, void *opaque);
 
 
 //- #module Net

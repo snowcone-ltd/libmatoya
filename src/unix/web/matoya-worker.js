@@ -750,16 +750,16 @@ const MTY_WEB_API = {
 		MTY_W.app = app;
 		mty_update_window(app, MTY_W.initWindowInfo);
 	},
-	web_thread_run: function (func, opaque) {
+	web_run_and_yield: function (iter, opaque) {
 		MTY_W.exports.app_set_keys();
 
 		const step = () => {
-			if (mty_cfunc(func)(opaque))
+			if (mty_cfunc(iter)(opaque))
 				setTimeout(step, 0);
 		};
 
 		setTimeout(step, 0);
-		throw 'MTY_ThreadRun halted execution';
+		throw 'MTY_RunAndYield halted execution';
 	},
 };
 
@@ -1103,7 +1103,7 @@ onmessage = async (ev) => {
 				close();
 
 			} catch (e) {
-				if (e.toString().search('MTY_ThreadRun') == -1)
+				if (e.toString().search('MTY_RunAndYield') == -1)
 					console.error(e);
 			}
 			break;

@@ -23,7 +23,7 @@ char *web_get_hostname(void);
 char *web_get_clipboard(void);
 void web_set_clipboard(const char *text);
 void web_set_title(const char *title);
-void web_thread_run(bool (*func)(void *opaque), void *opaque);
+void web_run_and_yield(MTY_IterFunc iter, void *opaque);
 void web_register_drag(void);
 void web_gl_flush(void);
 void web_set_gfx(void);

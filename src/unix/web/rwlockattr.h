@@ -4,11 +4,4 @@
 
 #pragma once
 
-#include "web.h"
-
 #define mty_rwlockattr_set(attr) (void) (attr)
-
-static void thread_run(MTY_ThreadLoop loop, void *opaque)
-{
-	web_thread_run(loop, opaque);
-}
