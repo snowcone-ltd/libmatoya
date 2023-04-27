@@ -160,11 +160,11 @@ const MTY_GL_API = {
 	},
 	glTexImage2D: function (target, level, internalformat, width, height, border, format, type, data) {
 		MTY_W.gl.texImage2D(target, level, internalformat, width, height, border, format, type,
-			new Uint8Array(mty_mem(), data));
+			new Uint8Array(MTY_MEMORY.buffer, data));
 	},
 	glTexSubImage2D: function (target, level, xoffset, yoffset, width, height, format, type, pixels) {
 		MTY_W.gl.texSubImage2D(target, level, xoffset, yoffset, width, height, format, type,
-			new Uint8Array(mty_mem(), pixels));
+			new Uint8Array(MTY_MEMORY.buffer, pixels));
 	},
 	glDrawElements: function (mode, count, type, indices) {
 		MTY_W.gl.drawElements(mode, count, type, indices);
@@ -211,7 +211,7 @@ const MTY_GL_API = {
 		MTY_W.gl.enableVertexAttribArray(index);
 	},
 	glBufferData: function (target, size, data, usage) {
-		MTY_W.gl.bufferData(target, new Uint8Array(mty_mem(), data, size), usage);
+		MTY_W.gl.bufferData(target, new Uint8Array(MTY_MEMORY.buffer, data, size), usage);
 	},
 	glDeleteShader: function (shader) {
 		MTY_W.gl.deleteShader(mty_gl_del(shader));
@@ -287,7 +287,7 @@ const MTY_GL_API = {
 		MTY_W.gl.blendEquation(mode);
 	},
 	glUniformMatrix4fv: function (loc, count, transpose, value) {
-		MTY_W.gl.uniformMatrix4fv(mty_gl_obj(loc), transpose, new Float32Array(mty_mem(), value, 4 * 4 * count));
+		MTY_W.gl.uniformMatrix4fv(mty_gl_obj(loc), transpose, new Float32Array(MTY_MEMORY.buffer, value, 4 * 4 * count));
 	},
 	glGetProgramiv: function (program, pname, params) {
 		MTY_SetUint32(params, MTY_W.gl.getProgramParameter(mty_gl_obj(program), pname));
@@ -357,7 +357,7 @@ const MTY_AUDIO_API = {
 		// Convert PCM int16_t to float
 		if (!MTY.audio.flushing) {
 			let size = count * 2 * MTY.audio.channels;
-			MTY_Memcpy(MTY.audio.buf + MTY.audio.offset, new Uint8Array(mty_mem(), frames, size));
+			MTY_Memcpy(MTY.audio.buf + MTY.audio.offset, new Uint8Array(MTY_MEMORY.buffer, frames, size));
 			MTY.audio.offset += size;
 		}
 
@@ -371,7 +371,7 @@ const MTY_AUDIO_API = {
 
 		// Queue the audio if playing
 		if (MTY.audio.playing) {
-			const src = new Int16Array(mty_mem(), MTY.audio.buf);
+			const src = new Int16Array(MTY_MEMORY.buffer, MTY.audio.buf);
 			const bcount = MTY.audio.offset / (2 * MTY.audio.channels);
 
 			const buf = MTY.audio.ctx.createBuffer(MTY.audio.channels, bcount, MTY.audio.sample_rate);
@@ -446,7 +446,7 @@ const MTY_NET_API = {
 		let body = null;
 		if (cbody) {
 			body = new Uint8Array(bodySize);
-			body.set(new Uint8Array(mty_mem(), cbody, bodySize));
+			body.set(new Uint8Array(MTY_MEMORY.buffer, cbody, bodySize));
 		}
 
 		const method = MTY_StrToJS(cmethod);
@@ -481,7 +481,7 @@ const MTY_NET_API = {
 			postMessage({
 				type: 'async-copy',
 				sync: MTY_W.sync,
-				sab8: new Uint8Array(mty_mem(), buf, size + 1),
+				sab8: new Uint8Array(MTY_MEMORY.buffer, buf, size + 1),
 			});
 
 			mty_wait(MTY_W.sync);
@@ -560,7 +560,7 @@ const MTY_NET_API = {
 const MTY_IMAGE_API = {
 	MTY_DecompressImage: function (input, size, cwidth, cheight) {
 		const jinput = new ArrayBuffer(size);
-		new Uint8Array(jinput).set(new Uint8Array(mty_mem(), input, size));
+		new Uint8Array(jinput).set(new Uint8Array(MTY_MEMORY.buffer, input, size));
 
 		postMessage({
 			type: 'image',
@@ -580,7 +580,7 @@ const MTY_IMAGE_API = {
 		postMessage({
 			type: 'async-copy',
 			sync: MTY_W.sync,
-			sab8: new Uint8Array(mty_mem(), buf, buf_size),
+			sab8: new Uint8Array(MTY_MEMORY.buffer, buf, buf_size),
 		});
 
 		mty_wait(MTY_W.sync);
@@ -606,7 +606,7 @@ const MTY_CRYPTO_API = {
 		const cpy = new Uint8Array(size);
 		crypto.getRandomValues(cpy);
 
-		const jbuf = new Uint8Array(mty_mem(), buf, size);
+		const jbuf = new Uint8Array(MTY_MEMORY.buffer, buf, size);
 		jbuf.set(cpy);
 	},
 };
@@ -660,7 +660,7 @@ const MTY_WEB_API = {
 		postMessage({
 			type: 'async-copy',
 			sync: MTY_W.sync,
-			sab8: new Uint8Array(mty_mem(), buf, size + 1),
+			sab8: new Uint8Array(MTY_MEMORY.buffer, buf, size + 1),
 		});
 
 		mty_wait(MTY_W.sync);
@@ -908,7 +908,7 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 				let buf_len = MTY_GetUint32(ptr + 4);
 				let len = buf_len < full_buf.length - total ? buf_len : full_buf.length - total;
 
-				let view = new Uint8Array(mty_mem(), buf, buf_len);
+				let view = new Uint8Array(MTY_MEMORY.buffer, buf, buf_len);
 				let slice = new Uint8Array(full_buf.buffer, total, len);
 				view.set(slice);
 
@@ -936,7 +936,7 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 			let buf = MTY_GetUint32(ptr);
 			let buf_len = MTY_GetUint32(ptr + 4);
 
-			full_buf.set(new Uint8Array(mty_mem(), buf, buf_len), offset);
+			full_buf.set(new Uint8Array(MTY_MEMORY.buffer, buf, buf_len), offset);
 			offset += buf_len;
 		}
 
@@ -1019,7 +1019,7 @@ async function mty_instantiate_wasm(wasmBuf, userEnv) {
 	const imports = {
 		// Custom imports
 		env: {
-			memory: MTY.memory,
+			memory: MTY_MEMORY,
 			...MTY_UNISTD_API,
 			...MTY_GL_API,
 			...MTY_AUDIO_API,
@@ -1074,7 +1074,7 @@ onmessage = async (ev) => {
 		case 'init':
 			importScripts(msg.file);
 
-			MTY.memory = msg.memory;
+			MTY_MEMORY = msg.memory;
 
 			MTY_W.queryString = msg.args;
 			MTY_W.hostname = msg.hostname;

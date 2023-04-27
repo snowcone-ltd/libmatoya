@@ -5,11 +5,12 @@
 
 // Global State
 
-const MTY_IS_WORKER = typeof importScripts == 'function';
+let MTY_MEMORY;
+
+const MTY_CURRENT_SCRIPT = typeof importScripts == 'function' ? location :
+	new URL(document.currentScript.src);
 
 const MTY = {
-	file: !MTY_IS_WORKER ? new URL(document.currentScript.src).pathname : location.pathname,
-
 	wsObj: {},
 	wsIndex: 1,
 
@@ -27,14 +28,6 @@ const MTY = {
 
 
 // Memory
-
-function mty_mem() {
-	return MTY.memory.buffer;
-}
-
-function mty_mem_view() {
-	return new DataView(mty_mem());
-}
 
 function mty_buf_to_js_str(buf) {
 	return new TextDecoder().decode(buf);
@@ -61,8 +54,8 @@ function MTY_Strcpy(cptr, abuffer) {
 }
 
 function MTY_StrToJS(ptr) {
-	const len = mty_strlen(new Uint8Array(mty_mem(), ptr));
-	const slice = new Uint8Array(mty_mem(), ptr, len)
+	const len = mty_strlen(new Uint8Array(MTY_MEMORY.buffer, ptr));
+	const slice = new Uint8Array(MTY_MEMORY.buffer, ptr, len)
 
 	const cpy = new Uint8Array(slice.byteLength);
 	cpy.set(new Uint8Array(slice));
@@ -106,39 +99,39 @@ function mty_signal(sync) {
 // Public helpers
 
 function MTY_GetUint8(ptr) {
-	return mty_mem_view().getUint8(ptr);
+	return new DataView(MTY_MEMORY.buffer).getUint8(ptr);
 }
 
 function MTY_SetInt8(ptr, value) {
-	mty_mem_view().setInt8(ptr, value);
+	new DataView(MTY_MEMORY.buffer).setInt8(ptr, value);
 }
 
 function MTY_SetUint16(ptr, value) {
-	mty_mem_view().setUint16(ptr, value, true);
+	new DataView(MTY_MEMORY.buffer).setUint16(ptr, value, true);
 }
 
 function MTY_GetUint32(ptr) {
-	return mty_mem_view().getUint32(ptr, true);
+	return new DataView(MTY_MEMORY.buffer).getUint32(ptr, true);
 }
 
 function MTY_SetUint32(ptr, value) {
-	mty_mem_view().setUint32(ptr, value, true);
+	new DataView(MTY_MEMORY.buffer).setUint32(ptr, value, true);
 }
 
 function MTY_GetUint64(ptr, value) {
-	return mty_mem_view().getBigUint64(ptr, true);
+	return new DataView(MTY_MEMORY.buffer).getBigUint64(ptr, true);
 }
 
 function MTY_SetUint64(ptr, value) {
-	mty_mem_view().setBigUint64(ptr, BigInt(value), true);
+	new DataView(MTY_MEMORY.buffer).setBigUint64(ptr, BigInt(value), true);
 }
 
 function MTY_SetFloat(ptr, value) {
-	mty_mem_view().setFloat32(ptr, value, true);
+	new DataView(MTY_MEMORY.buffer).setFloat32(ptr, value, true);
 }
 
 function MTY_Memcpy(cptr, abuffer) {
-	const heap = new Uint8Array(mty_mem(), cptr, abuffer.length);
+	const heap = new Uint8Array(MTY_MEMORY.buffer, cptr, abuffer.length);
 	heap.set(abuffer);
 }
 
@@ -541,7 +534,7 @@ function mty_use_default_cursor(use_default) {
 
 function mty_set_png_cursor(buffer, size, hot_x, hot_y) {
 	if (buffer) {
-		const buf = new Uint8Array(mty_mem(), buffer, size);
+		const buf = new Uint8Array(MTY_MEMORY.buffer, buffer, size);
 		const b64_png = mty_buf_to_b64(buf);
 
 		if (!MTY.cursorCache[b64_png]) {
@@ -750,7 +743,8 @@ function mty_update_interval(thread) {
 	});
 }
 
-function mty_thread_start(threadId, bin, baseFile, wasmBuf, memory, startArg, userEnv, kbMap, psync, name) {
+function mty_thread_start(threadId, bin, wasmBuf, memory, startArg, userEnv, kbMap, psync, name) {
+	const baseFile = MTY_CURRENT_SCRIPT.pathname;
 	const worker = new Worker(baseFile.replace('.js', '-worker.js'), {name: name});
 
 	worker.onmessage = mty_thread_message;
@@ -808,7 +802,7 @@ async function MTY_Start(bin, userEnv) {
 	MTY.wasmBuf = await wasmRes.arrayBuffer();
 
 	// Shared global memory
-	MTY.memory = new WebAssembly.Memory({
+	MTY_MEMORY = new WebAssembly.Memory({
 		initial: 512,   // 32 MB
 		maximum: 16384, // 1 GB
 		shared: true,
@@ -825,7 +819,7 @@ async function MTY_Start(bin, userEnv) {
 	}
 
 	// Main thread
-	MTY.mainThread = mty_thread_start(MTY.threadId, bin, MTY.file, MTY.wasmBuf, MTY.memory,
+	MTY.mainThread = mty_thread_start(MTY.threadId, bin, MTY.wasmBuf, MTY_MEMORY,
 		0, userEnv, MTY.kbMap, MTY.psync, 'main');
 
 	// Init position, update loop
@@ -859,7 +853,7 @@ async function mty_thread_message(ev) {
 		case 'thread': {
 			MTY.threadId++;
 
-			const worker = mty_thread_start(MTY.threadId, MTY.bin, MTY.file, MTY.wasmBuf, MTY.memory,
+			const worker = mty_thread_start(MTY.threadId, MTY.bin, MTY.wasmBuf, MTY_MEMORY,
 				msg.startArg, MTY.userEnv, MTY.kbMap, MTY.psync, 'thread-' + MTY.threadId);
 
 			msg.sab[0] = MTY.threadId;
