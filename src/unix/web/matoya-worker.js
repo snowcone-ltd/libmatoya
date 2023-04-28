@@ -656,13 +656,15 @@ const MTY_WEB_API = {
 		const size = MTY_W.sab[0];
 		const buf = mty_alloc(size + 1);
 
-		postMessage({
-			type: 'async-copy',
-			sync: MTY_W.sync,
-			sab8: new Uint8Array(MTY_MEMORY.buffer, buf, size + 1),
-		});
+		if (size > 0) {
+			postMessage({
+				type: 'async-copy',
+				sync: MTY_W.sync,
+				sab8: new Uint8Array(MTY_MEMORY.buffer, buf, size + 1),
+			});
 
-		mty_wait(MTY_W.sync);
+			mty_wait(MTY_W.sync);
+		}
 
 		return buf;
 	},

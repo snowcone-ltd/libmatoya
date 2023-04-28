@@ -906,11 +906,18 @@ async function mty_thread_message(ev) {
 			mty_show_cursor(msg.show);
 			break;
 		case 'get-clip': {
-			const enc = new TextEncoder();
-			const text = await navigator.clipboard.readText();
+			// FIXME Unsupported on Firefox
+			if (navigator.clipboard.readText) {
+				const enc = new TextEncoder();
+				const text = await navigator.clipboard.readText();
 
-			this.tmp = enc.encode(text);
-			msg.sab[0] = this.tmp.byteLength;
+				this.tmp = enc.encode(text);
+				msg.sab[0] = this.tmp.byteLength;
+
+			} else {
+				msg.sab[0] = 0;
+			}
+
 			mty_signal(msg.sync);
 			break;
 		}
