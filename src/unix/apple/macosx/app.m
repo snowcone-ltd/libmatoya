@@ -56,6 +56,7 @@ struct MTY_App {
 	bool cursor_showing;
 	bool eraser;
 	bool pen_left;
+	bool hid_keyboard_active;
 	NSUInteger buttons;
 	uint32_t cb_seq;
 	struct window *windows[MTY_WINDOW_MAX];
@@ -776,6 +777,10 @@ static void window_text_event(struct window *ctx, const char *text)
 static void window_keyboard_event(struct window *ctx, uint16_t key_code, NSEventModifierFlags flags,
 	bool pressed, bool repeat)
 {
+	// Only process repeats if grabbed and MTY_APP_FLAG_HID_KEYBOARD was successful
+	if (!repeat && ctx->app->hid_keyboard_active && ctx->app->grab_kb)
+		return;
+
 	MTY_Event evt = {
 		.type = MTY_EVENT_KEY,
 		.window = ctx->window,
@@ -786,18 +791,8 @@ static void window_keyboard_event(struct window *ctx, uint16_t key_code, NSEvent
 	};
 
 	mty_app_kb_to_hotkey(ctx->app, &evt, MTY_EVENT_HOTKEY);
-	if ((evt.type == MTY_EVENT_HOTKEY && pressed)) {
-		ctx->app->event_func(&evt, ctx->app->opaque);
-		return;
-	}
 
-	if (!repeat && (ctx->app->flags & MTY_APP_FLAG_HID_KEYBOARD) && ctx->app->grab_kb)
-		return;
-
-	if (!mty_app_dedupe_key(ctx->app, evt.key.key, pressed, repeat))
-		return;
-
-	if (evt.type == MTY_EVENT_KEY && evt.key.key != MTY_KEY_NONE)
+	if ((evt.type == MTY_EVENT_HOTKEY && pressed) || (evt.type == MTY_EVENT_KEY && evt.key.key != MTY_KEY_NONE))
 		ctx->app->event_func(&evt, ctx->app->opaque);
 }
 
@@ -1305,6 +1300,8 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 {
 	MTY_App *ctx = opaque;
 
+	ctx->hid_keyboard_active = true;
+
 	MTY_Key key = keymap_usage_to_key(usage);
 	if (key == MTY_KEY_NONE)
 		return;
@@ -1317,6 +1314,10 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 	} else {
 		ctx->hid_kb_mod &= ~mod;
 	}
+
+	// MTY_APP_FLAG_HID_KEYBOARD only applies when keyboard is grabbed
+	if (!ctx->grab_kb)
+		return;
 
 	if (!MTY_AppIsActive(ctx))
 		return;
@@ -1340,24 +1341,6 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 		.key.mod = ctx->hid_kb_mod,
 		.key.pressed = down,
 	};
-
-	if (!(ctx->flags & MTY_APP_FLAG_HID_KEYBOARD) || !ctx->grab_kb)
-		return;
-
-	if (!mty_app_dedupe_key(ctx, evt.key.key, down, false))
-		return;
-
-	if (active_window == MTY_WINDOW_MAX)
-		return;
-
-	mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
-	if (evt.type == MTY_EVENT_HOTKEY && down) {
-		// When grabbed, and command+shift+w is pressed,
-		// it doesn't get triggered to the window_key handler
-		if (evt.key.key != 2 || evt.key.mod != 65) {
-			return;
-		}
-	}
 
 	ctx->event_func(&evt, ctx->opaque);
 }
@@ -2037,18 +2020,6 @@ MTY_EventFunc mty_app_get_event_func(MTY_App *ctx, void **opaque)
 MTY_Hash *mty_app_get_hotkey_hash(MTY_App *ctx)
 {
 	return ctx->hotkey;
-}
-
-bool mty_app_dedupe_key(MTY_App *ctx, MTY_Key key, bool pressed, bool repeat)
-{
-	bool was_down = ctx->keys[key];
-	bool should_fire = ((ctx->flags & MTY_APP_FLAG_HID_KEYBOARD) && !ctx->grab_kb)
-		|| (!(ctx->flags & MTY_APP_FLAG_HID_KEYBOARD))
-		|| (pressed && (repeat || !was_down)) || (!pressed && was_down);
-
-	ctx->keys[key] = pressed;
-
-	return should_fire;
 }
 
 struct window_common *mty_window_get_common(MTY_App *app, MTY_Window window)

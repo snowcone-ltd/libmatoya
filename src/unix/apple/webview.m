@@ -101,8 +101,9 @@ static void msg_handler_userContentController_didReceiveScriptMessage(id self, S
 			MTY_Mod mods = web_keymap_mods(jmods);
 			bool pressed = str[0] == 'D';
 
-			if (mty_app_dedupe_key(ctx->app, key, pressed, false))
-				ctx->key_func(ctx->app, ctx->window, pressed, key, mods);
+			// TODO if (mty_app_dedupe_key(ctx->app, key, pressed, false))
+
+			ctx->key_func(ctx->app, ctx->window, pressed, key, mods);
 			break;
 	}
 
