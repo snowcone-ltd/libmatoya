@@ -5,6 +5,7 @@
 #include "matoya.h"
 
 #include <string.h>
+#include <stdio.h>
 
 #include "tlocal.h"
 #include "web.h"
@@ -104,4 +105,27 @@ void MTY_SetRunOnStartup(const char *name, const char *path, const char *args)
 void *MTY_GetJNIEnv(void)
 {
 	return NULL;
+}
+
+
+// Exports
+
+__attribute__((export_name("system_alloc")))
+void *system_alloc(size_t len, size_t size)
+{
+	return MTY_Alloc(len, size);
+}
+
+__attribute__((export_name("system_free")))
+void system_free(void *mem)
+{
+	MTY_Free(mem);
+}
+
+__attribute__((export_name("system_setbuf")))
+void system_setbuf(void)
+{
+	// WASI will buffer stdout and stderr by default, disable it
+	setbuf(stdout, NULL);
+	setbuf(stderr, NULL);
 }

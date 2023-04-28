@@ -22,8 +22,6 @@ const MTY = {
 	synthesizeEsc: true,
 	relative: false,
 	gps: [false, false, false, false],
-	posX: 0,
-	posY: 0,
 };
 
 
@@ -607,7 +605,7 @@ async function mty_http_request(url, method, headers, body, buf) {
 		const response = await fetch(url, {
 			method: method,
 			headers: headers,
-			body: body
+			body: body,
 		});
 
 		const res_ab = await response.arrayBuffer();

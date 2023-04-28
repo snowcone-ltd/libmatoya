@@ -4,7 +4,6 @@
 
 #include "app.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -35,29 +34,6 @@ struct MTY_App {
 	double scale;
 	bool relative;
 };
-
-
-// Global exports
-
-__attribute__((export_name("mty_alloc")))
-void *app_alloc(size_t len, size_t size)
-{
-	return MTY_Alloc(len, size);
-}
-
-__attribute__((export_name("mty_free")))
-void app_free(void *mem)
-{
-	MTY_Free(mem);
-}
-
-__attribute__((export_name("mty_setbuf")))
-void app_setbuf(void)
-{
-	// WASI will buffer stdout and stderr by default, disable it
-	setbuf(stdout, NULL);
-	setbuf(stderr, NULL);
-}
 
 
 // Window properties
