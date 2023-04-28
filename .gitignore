@@ -10,7 +10,7 @@
 /test/mty*
 /test/json
 
-**/gfx/shaders/*/*.h
+**/gfx/shaders/*.h
 **/gfx/*/shaders/*.h
 
 .DS_Store

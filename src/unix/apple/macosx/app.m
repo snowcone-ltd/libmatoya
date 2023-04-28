@@ -562,7 +562,7 @@ static void window_pen_event(struct window *ctx, NSEvent *event, bool pressed)
 
 	MTY_Event evt = {
 		.type = MTY_EVENT_PEN,
-		.window = ctx->window,
+		.window = cur->window,
 		.pen.pressure = (uint16_t) lrint(event.pressure * 1024.0f),
 		.pen.rotation = (uint16_t) lrint(event.rotation * 359.0f),
 		.pen.tiltX = (int8_t) lrint(event.tilt.x * 90.0f),
@@ -613,7 +613,7 @@ static void window_mouse_button_event(struct window *ctx, NSUInteger index, bool
 
 	MTY_Event evt = {
 		.type = MTY_EVENT_BUTTON,
-		.window = ctx->window,
+		.window = cur->window,
 		.button.button = APP_MOUSE_MAP[index],
 		.button.pressed = pressed,
 		.button.x = lrint(scale * p.x),
@@ -713,7 +713,7 @@ static void window_mouse_motion_event(struct window *ctx, NSEvent *event, bool p
 
 				MTY_Event evt = {
 					.type = MTY_EVENT_MOTION,
-					.window = ctx->window,
+					.window = cur->window,
 					.motion.relative = false,
 					.motion.x = lrint(scale * p.x),
 					.motion.y = lrint(scale * p.y),
@@ -1233,6 +1233,8 @@ static Class view_class(void)
 	OBJC_OVERRIDE(cls, @selector(acceptsFirstMouse:), view_acceptsFirstMouse);
 	OBJC_OVERRIDE(cls, @selector(updateTrackingAreas), view_updateTrackingAreas);
 
+	objc_registerClassPair(cls);
+
 	return cls;
 }
 
@@ -1722,7 +1724,6 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 
 	// View
 	content = [OBJC_NEW(view_class(), ctx) initWithFrame:[ctx->nsw contentRectForFrameRect:ctx->nsw.frame]];
-	[content setWantsBestResolutionOpenGLSurface:YES];
 	[ctx->nsw setContentView:content];
 
 	ctx->app->windows[window] = ctx;

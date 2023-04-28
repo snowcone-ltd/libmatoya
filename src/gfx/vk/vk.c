@@ -610,19 +610,3 @@ void mty_vk_destroy(struct gfx **gfx, MTY_Device *device)
 	MTY_Free(ctx);
 	*gfx = NULL;
 }
-
-
-// State
-
-void *mty_vk_get_state(MTY_Device *device, MTY_Context *_context)
-{
-	return NULL;
-}
-
-void mty_vk_set_state(MTY_Device *device, MTY_Context *_context, void *state)
-{
-}
-
-void mty_vk_free_state(void **state)
-{
-}

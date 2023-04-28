@@ -2,25 +2,13 @@ TARGET = windows
 ARCH = %%Platform%%
 NAME = matoya
 
-.SUFFIXES : .ps4 .vs4 .ps3 .vs3 .vert .frag .vert .fragvk .vertvk
+.SUFFIXES : .ps .vs .fragvk .vertvk
 
-.vs4.h:
+.vs.h:
 	@fxc $(FXCFLAGS) /Fh $@ /T vs_4_0 /Vn $(*B) $<
 
-.ps4.h:
+.ps.h:
 	@fxc $(FXCFLAGS) /Fh $@ /T ps_4_0 /Vn $(*B) $<
-
-.vs3.h:
-	@fxc $(FXCFLAGS) /Fh $@ /T vs_3_0 /Vn $(*B) $<
-
-.ps3.h:
-	@fxc $(FXCFLAGS) /Fh $@ /T ps_3_0 /Vn $(*B) $<
-
-.vert.h:
-	@echo static const GLchar VERT[]={ > $@ && powershell "Format-Hex $< | %{$$_ -replace '^.*?   ',''} | %{$$_ -replace '  .*',' '} | %{$$_ -replace '(\w\w)','0x$$1,'}" >> $@ && echo 0x00}; >> $@
-
-.frag.h:
-	@echo static const GLchar FRAG[]={ > $@ && powershell "Format-Hex $< | %{$$_ -replace '^.*?   ',''} | %{$$_ -replace '  .*',' '} | %{$$_ -replace '(\w\w)','0x$$1,'}" >> $@ && echo 0x00}; >> $@
 
 .vertvk.h:
 	@deps\bin\glslangValidator -S vert -V --vn VERT $< -o $@
@@ -48,14 +36,11 @@ OBJS = \
 	src\log.obj \
 	src\memory.obj \
 	src\queue.obj \
-	src\render.obj \
 	src\resample.obj \
 	src\system.obj \
 	src\thread.obj \
 	src\tlocal.obj \
 	src\version.obj \
-	src\gfx\gl\gl.obj \
-	src\gfx\gl\gl-ui.obj \
 	src\gfx\vk\vk.obj \
 	src\gfx\vk\vk-ctx.obj \
 	src\gfx\vk\vk-ui.obj \
@@ -82,27 +67,17 @@ OBJS = \
 	src\windows\gfx\d3d11.obj \
 	src\windows\gfx\d3d11-ctx.obj \
 	src\windows\gfx\d3d11-ui.obj \
-	src\windows\gfx\d3d9.obj \
-	src\windows\gfx\d3d9-ctx.obj \
-	src\windows\gfx\d3d9-ui.obj \
-	src\windows\gfx\gl-ctx.obj \
 	$(WEBVIEW_OBJ)
 
 SHADERS = \
-	src\gfx\gl\shaders\fs.h \
-	src\gfx\gl\shaders\vs.h \
-	src\gfx\gl\shaders\fsui.h \
-	src\gfx\gl\shaders\vsui.h \
 	src\gfx\vk\shaders\fs.h \
 	src\gfx\vk\shaders\vs.h \
 	src\gfx\vk\shaders\fsui.h \
 	src\gfx\vk\shaders\vsui.h \
-	src\windows\gfx\shaders\d3d11\ps.h \
-	src\windows\gfx\shaders\d3d11\vs.h \
-	src\windows\gfx\shaders\d3d11\psui.h \
-	src\windows\gfx\shaders\d3d11\vsui.h \
-	src\windows\gfx\shaders\d3d9\ps.h \
-	src\windows\gfx\shaders\d3d9\vs.h
+	src\windows\gfx\shaders\ps.h \
+	src\windows\gfx\shaders\vs.h \
+	src\windows\gfx\shaders\psui.h \
+	src\windows\gfx\shaders\vsui.h
 
 INCLUDES = \
 	-Ideps \

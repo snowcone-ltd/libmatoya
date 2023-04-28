@@ -17,12 +17,9 @@ LIBS = \
 	../bin/macosx/$(ARCH)/libmatoya.a \
 	-framework AppKit \
 	-framework Carbon \
-	-framework Foundation \
 	-framework IOKit \
 	-framework Metal \
-	-framework OpenGL \
 	-framework QuartzCore \
-	-framework Security \
 	-framework WebKit
 
 else
@@ -31,9 +28,8 @@ CFLAGS := $(CFLAGS) -Wno-format-overflow
 
 LIBS = \
 	../bin/linux/$(ARCH)/libmatoya.a \
-	-lpthread \
-	-lm \
-	-ldl
+	-lc \
+	-lm
 endif
 
 test: clean clear

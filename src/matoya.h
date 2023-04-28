@@ -27,282 +27,6 @@ extern "C" {
 #endif
 
 
-//- #module Render
-//- #mbrief Common rendering tasks.
-//- #mdetails Currently there are only two operations: drawing a quad (rectangle)
-//-   intended for video frames from a player or emulator, and drawing a 2D command
-//-   list intended for drawing user interfaces.\n\n
-//-   Textures can be loaded via MTY_RendererSetUITexture and referenced in the
-//-   MTY_DrawData struct for loading images in a UI.\n\n
-//-   When creating an MTY_Window, the App module wraps an MTY_Renderer for you.
-
-typedef struct MTY_Device MTY_Device;
-typedef struct MTY_Context MTY_Context;
-typedef struct MTY_Surface MTY_Surface;
-typedef struct MTY_Renderer MTY_Renderer;
-typedef struct MTY_RenderState MTY_RenderState;
-
-/// @brief 3D graphics APIs.
-typedef enum {
-	MTY_GFX_NONE    = 0, ///< No 3D graphics API.
-	MTY_GFX_GL      = 1, ///< OpenGL/GLES.
-	MTY_GFX_VK      = 2, ///< Vulkan. Not available on Apple OS's.
-	MTY_GFX_D3D9    = 3, ///< Direct3D 9. Windows only.
-	MTY_GFX_D3D11   = 4, ///< Direct3D 11. Windows only.
-	MTY_GFX_D3D12   = 5, ///< Direct3D 12. Windows only.
-	MTY_GFX_METAL   = 6, ///< Metal. Apple only.
-	MTY_GFX_MAX     = 7, ///< Maximum number of 3D graphics APIs.
-	MTY_GFX_MAKE_32 = INT32_MAX,
-} MTY_GFX;
-
-/// @brief Raw image color formats.
-typedef enum {
-	MTY_COLOR_FORMAT_UNKNOWN    = 0,  ///< Unknown color format.
-	MTY_COLOR_FORMAT_BGRA       = 1,  ///< 32-bit BGRA, 8 bits per channel.
-	MTY_COLOR_FORMAT_RGBA       = 2,  ///< 32-bit RGBA, 8 bits per channel.
-	MTY_COLOR_FORMAT_BGR565     = 3,  ///< 16-bit BGR, 5 bits B, 6 bits G, 5 bits R.
-	MTY_COLOR_FORMAT_BGRA5551   = 4,  ///< 16-bit BGRA, 5 bits per BGR, 1 bit A.
-	MTY_COLOR_FORMAT_AYUV       = 5,  ///< 32-bit 4:4:4 AYUV, 8 bits per channel.
-	MTY_COLOR_FORMAT_Y410       = 6,  ///< 32-bit 4:4:4 YUVA, 10 bits per YUV, 2 bits A.
-	MTY_COLOR_FORMAT_Y416       = 7,  ///< 64-bit 4:4:4 YUVA, 16 bits per channel.
-	MTY_COLOR_FORMAT_2PLANES    = 8,  ///< 1 plane Y, 1 plane interleaved UV, 8 bits per channel.
-	MTY_COLOR_FORMAT_3PLANES    = 9,  ///< 3 consecutive planes of YUV, 8 bits per channel.
-	MTY_COLOR_FORMAT_2PLANES_16 = 10, ///< 1 plane Y, 1 plane interleaved UV, 16 bits per channel.
-	MTY_COLOR_FORMAT_3PLANES_16 = 11, ///< 3 consecutive planes of YUV, 16 bits per channel.
-	MTY_COLOR_FORMAT_MAX        = 12, ///< Maximum number of color formats.
-	MTY_COLOR_FORMAT_MAKE_32    = INT32_MAX,
-} MTY_ColorFormat;
-
-/// @brief Quad texture filtering.
-typedef enum {
-	MTY_FILTER_NEAREST = 0, ///< Nearest neighbor filter, can cause shimmering.
-	MTY_FILTER_LINEAR  = 1, ///< Bilinear interpolation filter, can cause noticeable blurring.
-	MTY_FILTER_MAKE_32 = INT32_MAX,
-} MTY_Filter;
-
-/// @brief Quad texture effects.
-typedef enum {
-	MTY_EFFECT_NONE      = 0, ///< No effect applied.
-	MTY_EFFECT_SCANLINES = 1, ///< A scanline effect simulating a 480i CRT television.
-	MTY_EFFECT_SHARPEN   = 2, ///< Sharpens bilinear filter.
-	MTY_EFFECT_MAKE_32   = INT32_MAX,
-} MTY_Effect;
-
-/// @brief Quad rotation.
-typedef enum {
-	MTY_ROTATION_NONE    = 0, ///< No rotation.
-	MTY_ROTATION_90      = 1, ///< Rotate 90 degrees.
-	MTY_ROTATION_180     = 2, ///< Rotate 180 degrees.
-	MTY_ROTATION_270     = 3, ///< Rotate 270 degrees.
-	MTY_ROTATION_MAKE_32 = INT32_MAX,
-} MTY_Rotation;
-
-typedef enum {
-	MTY_CHROMA_444     = 0, ///< Full width, full height UV.
-	MTY_CHROMA_422     = 1, ///< Half width, full height UV.
-	MTY_CHROMA_420     = 2, ///< Half width, half height UV.
-	MTY_CHROMA_MAKE_32 = INT32_MAX,
-} MTY_Chroma;
-
-/// @brief Description of a render operation.
-typedef struct {
-	MTY_ColorFormat format; ///< The color format of a raw image.
-	MTY_Rotation rotation;  ///< Rotation applied to the image.
-	MTY_Chroma chroma;      ///< Color subsampling, chroma layout for planar YUV formats.
-	MTY_Filter filter;      ///< Filter applied to the image.
-	MTY_Effect effects[2];  ///< Effects applied to the image.
-	float levels[2];        ///< Intensity of the applied `effects` between `0.0f` and `1.0f`.
-	bool fullRangeYUV;      ///< Use the full 0-255 color range for YUV formats.
-	bool multiplyYUV;       ///< Properly normalize 10-bit YUV formats if not already done.
-	uint8_t layer;          ///< If drawing multiple layers of quads between present, `layer`
-	                        ///<   determines the order in the blending hierarchy.
-	uint32_t imageWidth;    ///< The width in pixels of the image.
-	uint32_t imageHeight;   ///< The height in pixels of the image.
-	uint32_t cropWidth;     ///< Desired crop width of the image from the top left corner.
-	uint32_t cropHeight;    ///< Desired crop height of the image from the top left corner.
-	uint32_t viewWidth;     ///< The width of the viewport.
-	uint32_t viewHeight;    ///< The height of the viewport.
-	float aspectRatio;      ///< Desired aspect ratio of the image. The renderer will letterbox
-	                        ///<   the image to maintain the specified aspect ratio.
-	float scale;            ///< Multiplier applied to the dimensions of the image, producing an
-	                        ///<   minimized or magnified image. This can be set to 0
-	                        ///<   if unnecessary.
-} MTY_RenderDesc;
-
-/// @brief A point with an `x` and `y` coordinate.
-typedef struct {
-	float x; ///< Horizontal position.
-	float y; ///< Vertical position
-} MTY_Point;
-
-/// @brief A rectangle with `left`, `top`, `right`, and `bottom` coordinates.
-typedef struct {
-	float left;   ///< Left edge position.
-	float top;    ///< Top edge position.
-	float right;  ///< Right edge position.
-	float bottom; ///< Bottom edge position.
-} MTY_Rect;
-
-/// @brief UI vertex.
-typedef struct {
-	MTY_Point pos; ///< Vertex position.
-	MTY_Point uv;  ///< Vertex texcoord.
-	uint32_t col;  ///< Element color.
-} MTY_Vtx;
-
-/// @brief UI draw command.
-typedef struct {
-	MTY_Rect clip;      ///< Clip rectangle.
-	uint32_t texture;   ///< Texture reference.
-	uint32_t elemCount; ///< Number of indices.
-	uint32_t idxOffset; ///< Index buffer offset.
-	uint32_t vtxOffset; ///< Vertex buffer offset.
-} MTY_Cmd;
-
-/// @brief UI draw command list.
-typedef struct {
-	MTY_Cmd *cmd;       ///< List of commands.
-	MTY_Vtx *vtx;       ///< Vertex buffer data.
-	uint16_t *idx;      ///< Index buffer data.
-	uint32_t cmdLength; ///< Number of commands.
-	uint32_t cmdMax;    ///< Size of the `cmd` buffer, used internally for deduping.
-	uint32_t vtxLength; ///< Total number of vertices.
-	uint32_t vtxMax;    ///< Size of the `vtx` buffer, used internally for deduping.
-	uint32_t idxLength; ///< Total number of indices.
-	uint32_t idxMax;    ///< Size of the `idx` buffer, used internally for deduping.
-} MTY_CmdList;
-
-/// @brief UI draw data.
-typedef struct {
-	MTY_Point displaySize;   ///< Size of the viewport.
-	MTY_CmdList *cmdList;    ///< Command lists.
-	uint32_t cmdListLength;  ///< Number of command lists.
-	uint32_t cmdListMax;     ///< Size of `cmdList`, used internally for deduping.
-	uint32_t idxTotalLength; ///< Total number of indices in all command lists.
-	uint32_t vtxTotalLength; ///< Total number of vertices in all command lists.
-	bool clear;              ///< Surface should be cleared before drawing.
-} MTY_DrawData;
-
-/// @brief Vulkan specific device handles.
-typedef struct {
-	void *device;                               ///< VkDevice
-	const void *physicalDeviceMemoryProperties; ///< VkPhysicalDeviceMemoryProperties
-} MTY_VkDeviceObjects;
-
-/// @brief Create an MTY_Renderer capable of executing drawing commands.
-/// @returns On failure, NULL is returned. Call MTY_GetLog for details.\n\n
-///   The returned MTY_Renderer must be destroyed with MTY_RendererDestroy.
-MTY_EXPORT MTY_Renderer *
-MTY_RendererCreate(void);
-
-/// @brief Destroy an MTY_Renderer.
-/// @param renderer Passed by reference and set to NULL after being destroyed.
-MTY_EXPORT void
-MTY_RendererDestroy(MTY_Renderer **renderer);
-
-/// @brief Draw a quad with a raw image and MTY_RenderDesc.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @param image The raw image.
-/// @param desc Description of the raw image and how it should be rendered.
-/// @param dst The output drawing surface. See Generic Objects.
-/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
-MTY_EXPORT bool
-MTY_RendererDrawQuad(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device,
-	MTY_Context *context, const void *image, const MTY_RenderDesc *desc,
-	MTY_Surface *dst);
-
-/// @brief Clear an MTY_Surface to a solid color.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @param width Width of the area within `dst` to clear.
-/// @param height Height of the area within `dst` to clear.
-/// @param r The red color channel value between 0 and 1.
-/// @param g The green color channel value between 0 and 1.
-/// @param b The blue color channel value between 0 and 1.
-/// @param a The alpha color channel value between 0 and 1.
-/// @param dst The surface to be cleared. See Generic Objects.
-MTY_EXPORT void
-MTY_RendererClear(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device, MTY_Context *context,
-	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dst);
-
-/// @brief Draw a UI with MTY_DrawData.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @param dd The UI draw data containing a full frame of commands.
-/// @param dst The output drawing surface. See Generic Objects.
-/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
-MTY_EXPORT bool
-MTY_RendererDrawUI(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device,
-	MTY_Context *context, const MTY_DrawData *dd, MTY_Surface *dst);
-
-/// @brief Set an RGBA texture image for use in MTY_DrawData.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @param id The desired `id` for the texture.
-/// @param rgba RGBA 8-bits per channel image.
-/// @param width Width of `rgba`.
-/// @param height Height of `rgba`.
-/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
-MTY_EXPORT bool
-MTY_RendererSetUITexture(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device,
-	MTY_Context *context, uint32_t id, const void *rgba, uint32_t width,
-	uint32_t height);
-
-/// @brief Check if a texture with `id` has been set.
-/// @param ctx An MTY_Renderer.
-/// @param id An `id` specified via MTY_RendererSetUITexture.
-MTY_EXPORT bool
-MTY_RendererHasUITexture(MTY_Renderer *ctx, uint32_t id);
-
-/// @brief Get a list of available graphics APIs on the current OS.
-/// @param apis Array to receive the list of available graphics APIs. This buffer
-///   should be MTY_GFX_MAX elements.
-/// @returns The number of graphics APIs set in `apis`.
-MTY_EXPORT uint32_t
-MTY_GetAvailableGFX(MTY_GFX *apis);
-
-/// @brief Get the default graphics API for the current OS.
-MTY_EXPORT MTY_GFX
-MTY_GetDefaultGFX(void);
-
-/// @brief Get the current rendering context state.
-/// @details This function can be used to snapshot the current context state before
-///   rendering with libmatoya.\n\n
-///   MTY_GFX_METAL is stateless and using MTY_RenderState has no effect.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @returns On failure, NULL is returned. Call MTY_GetLog for details.\n\n
-///   The returned MTY_RenderState must be destroyed with MTY_FreeRenderState.
-MTY_EXPORT MTY_RenderState *
-MTY_GetRenderState(MTY_GFX api, MTY_Device *device, MTY_Context *context);
-
-/// @brief Restore a previously acquired MTY_RenderState.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @param state Renderer state acquired via MTY_GetRenderState.
-MTY_EXPORT void
-MTY_SetRenderState(MTY_GFX api, MTY_Device *device, MTY_Context *context,
-	MTY_RenderState *state);
-
-/// @brief Free all resources associated with an MTY_RenderState.
-/// @param state Passed by reference and set to NULL after being destroyed.
-MTY_EXPORT void
-MTY_FreeRenderState(MTY_RenderState **state);
-
-
 //- #module App
 //- #mbrief Application, window, and input management.
 //- #mdetails Use these function to create a "libmatoya app", which handles window
@@ -362,6 +86,68 @@ typedef bool (*MTY_MenuItemCheckedFunc)(void *opaque);
 //- #support Windows
 typedef intptr_t (*MTY_WMsgFunc)(MTY_App *app, MTY_Window window, void *hwnd, uint32_t msg,
 	intptr_t wparam, uintptr_t lparam, bool *shouldReturn, void *opaque);
+
+/// @brief 3D graphics APIs.
+typedef enum {
+	MTY_GFX_NONE    = 0, ///< No 3D graphics API.
+	MTY_GFX_GL      = 1, ///< OpenGL/GLES. Linux, Android, and Web only.
+	MTY_GFX_VK      = 2, ///< Vulkan. Not available on Apple OS's.
+	MTY_GFX_D3D11   = 3, ///< Direct3D 11. Windows only.
+	MTY_GFX_D3D12   = 4, ///< Direct3D 12. Windows only.
+	MTY_GFX_METAL   = 5, ///< Metal. Apple only.
+	MTY_GFX_MAX     = 6, ///< Maximum number of 3D graphics APIs.
+	MTY_GFX_MAKE_32 = INT32_MAX,
+} MTY_GFX;
+
+/// @brief Raw image color formats.
+typedef enum {
+	MTY_COLOR_FORMAT_UNKNOWN    = 0,  ///< Unknown color format.
+	MTY_COLOR_FORMAT_BGRA       = 1,  ///< 32-bit BGRA, 8 bits per channel.
+	MTY_COLOR_FORMAT_RGBA       = 2,  ///< 32-bit RGBA, 8 bits per channel.
+	MTY_COLOR_FORMAT_BGR565     = 3,  ///< 16-bit BGR, 5 bits B, 6 bits G, 5 bits R.
+	MTY_COLOR_FORMAT_BGRA5551   = 4,  ///< 16-bit BGRA, 5 bits per BGR, 1 bit A.
+	MTY_COLOR_FORMAT_AYUV       = 5,  ///< 32-bit 4:4:4 AYUV, 8 bits per channel.
+	MTY_COLOR_FORMAT_Y410       = 6,  ///< 32-bit 4:4:4 YUVA, 10 bits per YUV, 2 bits A.
+	MTY_COLOR_FORMAT_Y416       = 7,  ///< 64-bit 4:4:4 YUVA, 16 bits per channel.
+	MTY_COLOR_FORMAT_2PLANES    = 8,  ///< 1 plane Y, 1 plane interleaved UV, 8 bits per channel.
+	MTY_COLOR_FORMAT_3PLANES    = 9,  ///< 3 consecutive planes of YUV, 8 bits per channel.
+	MTY_COLOR_FORMAT_2PLANES_16 = 10, ///< 1 plane Y, 1 plane interleaved UV, 16 bits per channel.
+	MTY_COLOR_FORMAT_3PLANES_16 = 11, ///< 3 consecutive planes of YUV, 16 bits per channel.
+	MTY_COLOR_FORMAT_MAX        = 12, ///< Maximum number of color formats.
+	MTY_COLOR_FORMAT_MAKE_32    = INT32_MAX,
+} MTY_ColorFormat;
+
+/// @brief Quad texture filtering.
+typedef enum {
+	MTY_FILTER_NEAREST = 0, ///< Nearest neighbor filter, can cause shimmering.
+	MTY_FILTER_LINEAR  = 1, ///< Bilinear interpolation filter, can cause noticeable blurring.
+	MTY_FILTER_MAKE_32 = INT32_MAX,
+} MTY_Filter;
+
+/// @brief Quad texture effects.
+typedef enum {
+	MTY_EFFECT_NONE      = 0, ///< No effect applied.
+	MTY_EFFECT_SCANLINES = 1, ///< A scanline effect simulating a 480i CRT television.
+	MTY_EFFECT_SHARPEN   = 2, ///< Sharpens bilinear filter.
+	MTY_EFFECT_MAKE_32   = INT32_MAX,
+} MTY_Effect;
+
+/// @brief Quad rotation.
+typedef enum {
+	MTY_ROTATION_NONE    = 0, ///< No rotation.
+	MTY_ROTATION_90      = 1, ///< Rotate 90 degrees.
+	MTY_ROTATION_180     = 2, ///< Rotate 180 degrees.
+	MTY_ROTATION_270     = 3, ///< Rotate 270 degrees.
+	MTY_ROTATION_MAKE_32 = INT32_MAX,
+} MTY_Rotation;
+
+/// @brief Chroma subsampling for planar color formats.
+typedef enum {
+	MTY_CHROMA_444 = 0, ///< Full width, full height UV.
+	MTY_CHROMA_422 = 1, ///< Half width, full height UV.
+	MTY_CHROMA_420 = 2, ///< Half width, half height UV.
+	MTY_CHROMA_MAKE_32 = INT32_MAX,
+} MTY_Chroma;
 
 /// @brief Alternative MTY_App behaviors.
 typedef enum {
@@ -704,6 +490,85 @@ typedef enum {
 	MTY_CURSOR_IBEAM   = 3, ///< I-beam cursor.
 	MTY_CURSOR_MAKE_32 = INT32_MAX,
 } MTY_Cursor;
+
+/// @brief Description of a render operation.
+typedef struct {
+	MTY_ColorFormat format; ///< The color format of a raw image.
+	MTY_Rotation rotation;  ///< Rotation applied to the image.
+	MTY_Chroma chroma;      ///< Color subsampling, chroma layout for planar YUV formats.
+	MTY_Filter filter;      ///< Filter applied to the image.
+	MTY_Effect effects[2];  ///< Effects applied to the image.
+	float levels[2];        ///< Intensity of the applied `effects` between `0.0f` and `1.0f`.
+	bool fullRangeYUV;      ///< Use the full 0-255 color range for YUV formats.
+	bool multiplyYUV;       ///< Properly normalize 10-bit YUV formats if not already done.
+	uint8_t layer;          ///< If drawing multiple layers of quads between present, `layer`
+	                        ///<   determines the order in the blending hierarchy.
+	uint32_t imageWidth;    ///< The width in pixels of the image.
+	uint32_t imageHeight;   ///< The height in pixels of the image.
+	uint32_t cropWidth;     ///< Desired crop width of the image from the top left corner.
+	uint32_t cropHeight;    ///< Desired crop height of the image from the top left corner.
+	uint32_t viewWidth;     ///< The width of the viewport.
+	uint32_t viewHeight;    ///< The height of the viewport.
+	float aspectRatio;      ///< Desired aspect ratio of the image. The renderer will letterbox
+	                        ///<   the image to maintain the specified aspect ratio.
+	float scale;            ///< Multiplier applied to the dimensions of the image, producing an
+	                        ///<   minimized or magnified image. This can be set to 0
+	                        ///<   if unnecessary.
+} MTY_RenderDesc;
+
+/// @brief A point with an `x` and `y` coordinate.
+typedef struct {
+	float x; ///< Horizontal position.
+	float y; ///< Vertical position
+} MTY_Point;
+
+/// @brief A rectangle with `left`, `top`, `right`, and `bottom` coordinates.
+typedef struct {
+	float left;   ///< Left edge position.
+	float top;    ///< Top edge position.
+	float right;  ///< Right edge position.
+	float bottom; ///< Bottom edge position.
+} MTY_Rect;
+
+/// @brief UI vertex.
+typedef struct {
+	MTY_Point pos; ///< Vertex position.
+	MTY_Point uv;  ///< Vertex texcoord.
+	uint32_t col;  ///< Element color.
+} MTY_Vtx;
+
+/// @brief UI draw command.
+typedef struct {
+	MTY_Rect clip;      ///< Clip rectangle.
+	uint32_t texture;   ///< Texture reference.
+	uint32_t elemCount; ///< Number of indices.
+	uint32_t idxOffset; ///< Index buffer offset.
+	uint32_t vtxOffset; ///< Vertex buffer offset.
+} MTY_Cmd;
+
+/// @brief UI draw command list.
+typedef struct {
+	MTY_Cmd *cmd;       ///< List of commands.
+	MTY_Vtx *vtx;       ///< Vertex buffer data.
+	uint16_t *idx;      ///< Index buffer data.
+	uint32_t cmdLength; ///< Number of commands.
+	uint32_t cmdMax;    ///< Size of the `cmd` buffer, used internally for deduping.
+	uint32_t vtxLength; ///< Total number of vertices.
+	uint32_t vtxMax;    ///< Size of the `vtx` buffer, used internally for deduping.
+	uint32_t idxLength; ///< Total number of indices.
+	uint32_t idxMax;    ///< Size of the `idx` buffer, used internally for deduping.
+} MTY_CmdList;
+
+/// @brief UI draw data.
+typedef struct {
+	MTY_Point displaySize;   ///< Size of the viewport.
+	MTY_CmdList *cmdList;    ///< Command lists.
+	uint32_t cmdListLength;  ///< Number of command lists.
+	uint32_t cmdListMax;     ///< Size of `cmdList`, used internally for deduping.
+	uint32_t idxTotalLength; ///< Total number of indices in all command lists.
+	uint32_t vtxTotalLength; ///< Total number of vertices in all command lists.
+	bool clear;              ///< Surface should be cleared before drawing.
+} MTY_DrawData;
 
 /// @brief Key event.
 typedef struct {
@@ -1285,7 +1150,7 @@ MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen);
 MTY_EXPORT void
 MTY_WindowWarpCursor(MTY_App *app, MTY_Window window, uint32_t x, uint32_t y);
 
-/// @brief Wrapped MTY_RendererDrawQuad for the window.
+/// @brief Draw a quad with a raw image and MTY_RenderDesc.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 /// @param image The raw image.
@@ -1295,7 +1160,7 @@ MTY_EXPORT void
 MTY_WindowDrawQuad(MTY_App *app, MTY_Window window, const void *image,
 	const MTY_RenderDesc *desc);
 
-/// @brief Wrapped MTY_RendererClear for the window.
+/// @brief Clear the window surface to a solid color.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 /// @param r The red color channel value between 0 and 1.
@@ -1305,21 +1170,21 @@ MTY_WindowDrawQuad(MTY_App *app, MTY_Window window, const void *image,
 MTY_EXPORT void
 MTY_WindowClear(MTY_App *app, MTY_Window window, float r, float g, float b, float a);
 
-/// @brief Wrapped MTY_RendererDrawUI for the window.
+/// @brief Draw a UI with MTY_DrawData.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 /// @param dd The UI draw data containing a full frame.
 MTY_EXPORT void
 MTY_WindowDrawUI(MTY_App *app, MTY_Window window, const MTY_DrawData *dd);
 
-/// @brief Wraped MTY_RendererHasUITexture for the window.
+/// @brief Check if a texture with `id` has been set.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 /// @param id An `id` specified via MTY_WindowSetUITexture.
 MTY_EXPORT bool
 MTY_WindowHasUITexture(MTY_App *app, MTY_Window window, uint32_t id);
 
-/// @brief Wrapped MTY_RendererSetUITexture for the window.
+/// @brief Set an RGBA texture image for use in MTY_DrawData.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 /// @param id The desired `id` for the texture.
@@ -1353,6 +1218,17 @@ MTY_WindowGetGFX(MTY_App *app, MTY_Window window);
 /// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
 MTY_EXPORT bool
 MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync);
+
+/// @brief Get a list of available graphics APIs on the current OS.
+/// @param apis Array to receive the list of available graphics APIs. This buffer
+///   should be MTY_GFX_MAX elements.
+/// @returns The number of graphics APIs set in `apis`.
+MTY_EXPORT uint32_t
+MTY_GetAvailableGFX(MTY_GFX *apis);
+
+/// @brief Get the default graphics API for the current OS.
+MTY_EXPORT MTY_GFX
+MTY_GetDefaultGFX(void);
 
 /// @brief Get the graphics context's current state.
 /// @details The context state can inform you if your textures need to be reloaded.

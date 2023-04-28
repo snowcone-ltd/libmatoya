@@ -2143,10 +2143,5 @@ void MTY_SetAppID(const char *id)
 
 void *MTY_GLGetProcAddress(const char *name)
 {
-	void *p = wglGetProcAddress(name);
-
-	if (!p)
-		p = GetProcAddress(GetModuleHandle(L"opengl32.dll"), name);
-
-	return p;
+	return NULL;
 }
