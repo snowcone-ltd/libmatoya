@@ -38,53 +38,53 @@ struct MTY_App {
 
 // Window properties
 
-__attribute__((export_name("window_update_position")))
-void window_update_position(MTY_App *ctx, double x, double y)
+__attribute__((export_name("mty_window_update_position")))
+void mty_window_update_position(MTY_App *ctx, double x, double y)
 {
 	ctx->pos_x = x;
 	ctx->pos_y = y;
 }
 
-__attribute__((export_name("window_update_screen")))
-void window_update_screen(MTY_App *ctx, double width, double height)
+__attribute__((export_name("mty_window_update_screen")))
+void mty_window_update_screen(MTY_App *ctx, double width, double height)
 {
 	ctx->screen_width = width;
 	ctx->screen_height = height;
 }
 
-__attribute__((export_name("window_update_size")))
-void window_update_size(MTY_App *ctx, double width, double height)
+__attribute__((export_name("mty_window_update_size")))
+void mty_window_update_size(MTY_App *ctx, double width, double height)
 {
 	ctx->width = width;
 	ctx->height = height;
 }
 
-__attribute__((export_name("window_update_focus")))
-void window_update_focus(MTY_App *ctx, bool focus)
+__attribute__((export_name("mty_window_update_focus")))
+void mty_window_update_focus(MTY_App *ctx, bool focus)
 {
 	ctx->focus = focus;
 }
 
-__attribute__((export_name("window_update_fullscreen")))
-void window_update_fullscreen(MTY_App *ctx, bool fullscreen)
+__attribute__((export_name("mty_window_update_fullscreen")))
+void mty_window_update_fullscreen(MTY_App *ctx, bool fullscreen)
 {
 	ctx->fullscreen = fullscreen;
 }
 
-__attribute__((export_name("window_update_visibility")))
-void window_update_visibility(MTY_App *ctx, bool visible)
+__attribute__((export_name("mty_window_update_visibility")))
+void mty_window_update_visibility(MTY_App *ctx, bool visible)
 {
 	ctx->visible = visible;
 }
 
-__attribute__((export_name("window_update_pixel_ratio")))
-void window_update_pixel_ratio(MTY_App *ctx, double ratio)
+__attribute__((export_name("mty_window_update_pixel_ratio")))
+void mty_window_update_pixel_ratio(MTY_App *ctx, double ratio)
 {
 	ctx->scale = ratio;
 }
 
-__attribute__((export_name("window_update_relative_mouse")))
-void window_update_relative_mouse(MTY_App *ctx, bool relative)
+__attribute__((export_name("mty_window_update_relative_mouse")))
+void mty_window_update_relative_mouse(MTY_App *ctx, bool relative)
 {
 	ctx->relative = relative;
 }
@@ -92,8 +92,8 @@ void window_update_relative_mouse(MTY_App *ctx, bool relative)
 
 // Window events
 
-__attribute__((export_name("window_motion")))
-void window_motion(MTY_App *ctx, bool relative, int32_t x, int32_t y)
+__attribute__((export_name("mty_window_motion")))
+void mty_window_motion(MTY_App *ctx, bool relative, int32_t x, int32_t y)
 {
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_MOTION;
@@ -104,8 +104,8 @@ void window_motion(MTY_App *ctx, bool relative, int32_t x, int32_t y)
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-__attribute__((export_name("window_resize")))
-void window_resize(MTY_App *ctx)
+__attribute__((export_name("mty_window_size")))
+void mty_window_size(MTY_App *ctx)
 {
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_SIZE;
@@ -113,8 +113,8 @@ void window_resize(MTY_App *ctx)
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-__attribute__((export_name("window_move")))
-void window_move(MTY_App *ctx)
+__attribute__((export_name("mty_window_move")))
+void mty_window_move(MTY_App *ctx)
 {
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_MOVE;
@@ -122,8 +122,8 @@ void window_move(MTY_App *ctx)
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-__attribute__((export_name("window_button")))
-void window_button(MTY_App *ctx, bool pressed, int32_t button, int32_t x, int32_t y)
+__attribute__((export_name("mty_window_button")))
+void mty_window_button(MTY_App *ctx, bool pressed, int32_t button, int32_t x, int32_t y)
 {
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_BUTTON;
@@ -142,8 +142,8 @@ void window_button(MTY_App *ctx, bool pressed, int32_t button, int32_t x, int32_
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-__attribute__((export_name("window_scroll")))
-void window_scroll(MTY_App *ctx, int32_t x, int32_t y)
+__attribute__((export_name("mty_window_scroll")))
+void mty_window_scroll(MTY_App *ctx, int32_t x, int32_t y)
 {
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_SCROLL;
@@ -153,8 +153,8 @@ void window_scroll(MTY_App *ctx, int32_t x, int32_t y)
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-__attribute__((export_name("window_keyboard")))
-void window_keyboard(MTY_App *ctx, bool pressed, MTY_Key key, uint32_t text, uint32_t mods)
+__attribute__((export_name("mty_window_keyboard")))
+void mty_window_keyboard(MTY_App *ctx, bool pressed, MTY_Key key, uint32_t text, uint32_t mods)
 {
 	MTY_Event evt = {0};
 
@@ -179,8 +179,8 @@ void window_keyboard(MTY_App *ctx, bool pressed, MTY_Key key, uint32_t text, uin
 	}
 }
 
-__attribute__((export_name("window_focus")))
-void window_focus(MTY_App *ctx, bool focus)
+__attribute__((export_name("mty_window_focus")))
+void mty_window_focus(MTY_App *ctx, bool focus)
 {
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_FOCUS;
@@ -189,8 +189,8 @@ void window_focus(MTY_App *ctx, bool focus)
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-__attribute__((export_name("window_drop")))
-void window_drop(MTY_App *ctx, const char *name, const void *data, size_t size)
+__attribute__((export_name("mty_window_drop")))
+void mty_window_drop(MTY_App *ctx, const char *name, const void *data, size_t size)
 {
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_DROP;
@@ -201,8 +201,8 @@ void window_drop(MTY_App *ctx, const char *name, const void *data, size_t size)
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-__attribute__((export_name("window_controller")))
-void window_controller(MTY_App *ctx, uint32_t id, uint32_t state, uint32_t buttons,
+__attribute__((export_name("mty_window_controller")))
+void mty_window_controller(MTY_App *ctx, uint32_t id, uint32_t state, uint32_t buttons,
 	float lx, float ly, float rx, float ry, float lt, float rt)
 {
 	#define TESTB(i) \
@@ -293,8 +293,8 @@ void window_controller(MTY_App *ctx, uint32_t id, uint32_t state, uint32_t butto
 
 // App / Window
 
-__attribute__((export_name("app_set_keys")))
-void app_set_keys(void)
+__attribute__((export_name("mty_app_set_keys")))
+void mty_app_set_keys(void)
 {
 	MTY_Hash *h = web_keymap_hash();
 

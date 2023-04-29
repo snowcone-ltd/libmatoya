@@ -22,11 +22,11 @@ function mty_cfunc(ptr) {
 }
 
 function mty_alloc(size, el) {
-	return MTY.exports.system_alloc(size, el ? el : 1);
+	return MTY.exports.mty_system_alloc(size, el ? el : 1);
 }
 
 function mty_free(ptr) {
-	MTY.exports.system_free(ptr);
+	MTY.exports.mty_system_free(ptr);
 }
 
 
@@ -477,7 +477,7 @@ const MTY_NET_API = {
 		const args = mty_net_args('ws', chost, port, secure, cpath, cheaders);
 
 		postMessage({
-			type: 'ws',
+			type: 'ws-connect',
 			url: args.url,
 			sync: MTY.sync,
 			sab: MTY.sab,
@@ -543,7 +543,7 @@ const MTY_IMAGE_API = {
 		new Uint8Array(jinput).set(new Uint8Array(MTY_MEMORY.buffer, input, size));
 
 		postMessage({
-			type: 'image',
+			type: 'decode-image',
 			input: jinput,
 			sync: MTY.sync,
 			sab: MTY.sab,
@@ -604,14 +604,14 @@ const MTY_SYSTEM_API = {
 // Web API (mostly used in app.c)
 
 function mty_update_window(app, info) {
-	MTY.exports.window_update_position(app, info.posX, info.posY);
-	MTY.exports.window_update_screen(app, info.screenWidth, info.screenHeight);
-	MTY.exports.window_update_size(app, info.canvasWidth, info.canvasHeight);
-	MTY.exports.window_update_focus(app, info.hasFocus);
-	MTY.exports.window_update_fullscreen(app, info.fullscreen);
-	MTY.exports.window_update_visibility(app, info.visible);
-	MTY.exports.window_update_pixel_ratio(app, info.devicePixelRatio);
-	MTY.exports.window_update_relative_mouse(app, info.relative);
+	MTY.exports.mty_window_update_position(app, info.posX, info.posY);
+	MTY.exports.mty_window_update_screen(app, info.screenWidth, info.screenHeight);
+	MTY.exports.mty_window_update_size(app, info.canvasWidth, info.canvasHeight);
+	MTY.exports.mty_window_update_focus(app, info.hasFocus);
+	MTY.exports.mty_window_update_fullscreen(app, info.fullscreen);
+	MTY.exports.mty_window_update_visibility(app, info.visible);
+	MTY.exports.mty_window_update_pixel_ratio(app, info.devicePixelRatio);
+	MTY.exports.mty_window_update_relative_mouse(app, info.relative);
 }
 
 const MTY_WEB_API = {
@@ -659,7 +659,7 @@ const MTY_WEB_API = {
 		postMessage({type: 'cursor-default', use_default});
 	},
 	web_set_png_cursor: function (buffer, size, hot_x, hot_y) {
-		postMessage({type: 'cursor', buffer, size, hot_x, hot_y});
+		postMessage({type: 'cursor-image', buffer, size, hot_x, hot_y});
 	},
 	web_set_kb_grab: function (grab) {
 		postMessage({type: 'kb-grab', grab});
@@ -740,7 +740,7 @@ const MTY_WEB_API = {
 		mty_update_window(app, MTY.initWindowInfo);
 	},
 	web_run_and_yield: function (iter, opaque) {
-		MTY.exports.app_set_keys();
+		MTY.exports.mty_app_set_keys();
 
 		const step = () => {
 			if (mty_cfunc(iter)(opaque))
@@ -1074,7 +1074,7 @@ onmessage = async (ev) => {
 			MTY.exports = MTY.module.instance.exports;
 			MTY.sab = new Uint32Array(new SharedArrayBuffer(128));
 
-			MTY.exports.system_setbuf();
+			MTY.exports.mty_system_setbuf();
 
 			try {
 				// Secondary thread
@@ -1099,7 +1099,7 @@ onmessage = async (ev) => {
 			if (MTY.app)
 				mty_update_window(MTY.app, msg.windowInfo);
 			break;
-		case 'key': {
+		case 'keyboard': {
 			if (!MTY.app)
 				return;
 
@@ -1115,46 +1115,46 @@ onmessage = async (ev) => {
 						packed |= buf[x] << x * 8;
 				}
 
-				MTY.exports.window_keyboard(MTY.app, msg.pressed, key, packed, msg.mods);
+				MTY.exports.mty_window_keyboard(MTY.app, msg.pressed, key, packed, msg.mods);
 			}
 			break;
 		}
 		case 'motion':
 			if (MTY.app)
-				MTY.exports.window_motion(MTY.app, msg.relative, msg.x, msg.y);
+				MTY.exports.mty_window_motion(MTY.app, msg.relative, msg.x, msg.y);
 			break;
 		case 'button':
 			if (MTY.app)
-				MTY.exports.window_button(MTY.app, msg.pressed, msg.button, msg.x, msg.y);
+				MTY.exports.mty_window_button(MTY.app, msg.pressed, msg.button, msg.x, msg.y);
 			break;
-		case 'wheel':
+		case 'scroll':
 			if (MTY.app)
-				MTY.exports.window_scroll(MTY.app, msg.x, msg.y);
+				MTY.exports.mty_window_scroll(MTY.app, msg.x, msg.y);
 			break;
 		case 'move':
 			if (MTY.app)
-				MTY.exports.window_move(MTY.app);
+				MTY.exports.mty_window_move(MTY.app);
 			break;
-		case 'resize':
+		case 'size':
 			if (MTY.app) {
-				MTY.exports.window_update_size(MTY.app, msg.width, msg.height);
-				MTY.exports.window_resize(MTY.app);
+				MTY.exports.mty_window_update_size(MTY.app, msg.width, msg.height);
+				MTY.exports.mty_window_size(MTY.app);
 			}
 			break;
 		case 'focus':
 			if (MTY.app) {
-				MTY.exports.window_update_focus(MTY.app, msg.focus);
-				MTY.exports.window_focus(MTY.app, msg.focus);
+				MTY.exports.mty_window_update_focus(MTY.app, msg.focus);
+				MTY.exports.mty_window_focus(MTY.app, msg.focus);
 			}
 			break;
-		case 'gamepad':
+		case 'controller':
 			if (MTY.app)
-				MTY.exports.window_controller(MTY.app, msg.id, msg.state, msg.buttons, msg.lx,
+				MTY.exports.mty_window_controller(MTY.app, msg.id, msg.state, msg.buttons, msg.lx,
 					msg.ly, msg.rx, msg.ry, msg.lt, msg.rt);
 			break;
-		case 'disconnect':
+		case 'controller-disconnect':
 			if (MTY.app)
-				MTY.exports.window_controller(MTY.app, msg.id, msg.state, 0, 0, 0, 0, 0, 0, 0);
+				MTY.exports.mty_window_controller(MTY.app, msg.id, msg.state, 0, 0, 0, 0, 0, 0, 0);
 			break;
 		case 'drop': {
 			if (!MTY.app)
@@ -1168,7 +1168,7 @@ onmessage = async (ev) => {
 			const cname = mty_alloc(buf.length);
 			MTY_Strcpy(cname, name);
 
-			MTY.exports.window_drop(MTY.app, cname, cmem, buf.length);
+			MTY.exports.mty_window_drop(MTY.app, cname, cmem, buf.length);
 
 			mty_free(cname);
 			mty_free(cmem);

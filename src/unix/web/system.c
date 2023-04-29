@@ -110,20 +110,20 @@ void *MTY_GetJNIEnv(void)
 
 // Exports
 
-__attribute__((export_name("system_alloc")))
-void *system_alloc(size_t len, size_t size)
+__attribute__((export_name("mty_system_alloc")))
+void *mty_system_alloc(size_t len, size_t size)
 {
 	return MTY_Alloc(len, size);
 }
 
-__attribute__((export_name("system_free")))
-void system_free(void *mem)
+__attribute__((export_name("mty_system_free")))
+void mty_system_free(void *mem)
 {
 	MTY_Free(mem);
 }
 
-__attribute__((export_name("system_setbuf")))
-void system_setbuf(void)
+__attribute__((export_name("mty_system_setbuf")))
+void mty_system_setbuf(void)
 {
 	// WASI will buffer stdout and stderr by default, disable it
 	setbuf(stdout, NULL);

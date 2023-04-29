@@ -25,7 +25,6 @@ char *web_get_clipboard(void);
 void web_set_clipboard(const char *text);
 void web_set_title(const char *title);
 void web_run_and_yield(MTY_IterFunc iter, void *opaque);
-void web_register_drag(void);
 void web_gl_flush(void);
 void web_set_gfx(void);
 void web_set_canvas_size(uint32_t width, uint32_t height);

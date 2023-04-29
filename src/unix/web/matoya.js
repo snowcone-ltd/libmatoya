@@ -238,7 +238,7 @@ function mty_add_input_events(thread) {
 		// Left relative via the ESC key, which swallows a natural ESC keypress
 		if (!document.pointerLockElement && MTY.synthesizeEsc) {
 			const msg = {
-				type: 'key',
+				type: 'keyboard',
 				pressed: true,
 				code: 'Escape',
 				key: 'Escape',
@@ -298,7 +298,7 @@ function mty_add_input_events(thread) {
 		let y = ev.deltaY > 0 ? 120 : ev.deltaY < 0 ? -120 : 0;
 
 		thread.postMessage({
-			type: 'wheel',
+			type: 'scroll',
 			x: x,
 			y: y,
 		});
@@ -308,7 +308,7 @@ function mty_add_input_events(thread) {
 		mty_correct_relative();
 
 		thread.postMessage({
-			type: 'key',
+			type: 'keyboard',
 			pressed: true,
 			code: ev.code,
 			key: ev.key,
@@ -321,7 +321,7 @@ function mty_add_input_events(thread) {
 
 	window.addEventListener('keyup', (ev) => {
 		thread.postMessage({
-			type: 'key',
+			type: 'keyboard',
 			pressed: false,
 			code: ev.code,
 			key: '',
@@ -350,7 +350,7 @@ function mty_add_input_events(thread) {
 		const rect = mty_update_canvas(MTY.canvas);
 
 		thread.postMessage({
-			type: 'resize',
+			type: 'size',
 			width: mty_scaled(rect.width),
 			height: mty_scaled(rect.height),
 		});
@@ -427,7 +427,7 @@ function mty_poll_gamepads() {
 			}
 
 			thread.postMessage({
-				type: 'gamepad',
+				type: 'controller',
 				id: x,
 				state: state,
 				buttons: buttons,
@@ -442,7 +442,7 @@ function mty_poll_gamepads() {
 		// Disconnected
 		} else if (MTY.gps[x]) {
 			thread.postMessage({
-				type: 'disconnect',
+				type: 'controller-disconnect',
 				id: x,
 				state: 2,
 			});
@@ -679,19 +679,6 @@ async function mty_ws_read(ws, timeout) {
 
 // Entry
 
-function mty_supports_wasm() {
-	try {
-		if (typeof WebAssembly == 'object' && typeof WebAssembly.instantiate == 'function') {
-			const module = new WebAssembly.Module(Uint8Array.of(0x0, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00));
-
-			if (module instanceof WebAssembly.Module)
-				return new WebAssembly.Instance(module) instanceof WebAssembly.Instance;
-		}
-	} catch (e) {}
-
-	return false;
-}
-
 function mty_supports_web_gl() {
 	try {
 		return document.createElement('canvas').getContext('webgl2');
@@ -766,7 +753,7 @@ function mty_thread_start(threadId, bin, wasmBuf, memory, startArg, userEnv, kbM
 }
 
 async function MTY_Start(bin, userEnv) {
-	if (!mty_supports_wasm() || !mty_supports_web_gl())
+	if (!mty_supports_web_gl())
 		return false;
 
 	MTY.bin = bin;
@@ -860,7 +847,7 @@ async function mty_thread_message(ev) {
 		case 'present':
 			MTY.renderer.transferFromImageBitmap(msg.image);
 			break;
-		case 'image': {
+		case 'decode-image': {
 			const image = await mty_decode_image(msg.input);
 
 			this.tmp = image.data;
@@ -934,7 +921,7 @@ async function mty_thread_message(ev) {
 		case 'cursor-default':
 			mty_use_default_cursor(msg.use_default);
 			break;
-		case 'cursor':
+		case 'cursor-image':
 			mty_set_png_cursor(msg.buffer, msg.size, msg.hot_x, msg.hot_y);
 			break;
 		case 'uri':
@@ -953,7 +940,7 @@ async function mty_thread_message(ev) {
 			mty_signal(msg.sync);
 			break;
 		}
-		case 'ws': {
+		case 'ws-connect': {
 			const ws = await mty_ws_connect(msg.url);
 			msg.sab[0] = ws ? mty_ws_new(ws) : 0;
 			mty_signal(msg.sync);
