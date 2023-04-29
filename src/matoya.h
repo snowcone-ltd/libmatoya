@@ -1378,16 +1378,25 @@ MTY_EXPORT void *
 MTY_GLGetProcAddress(const char *name);
 
 /// @brief Runs a loop while also allowing the OS's event loop to continue to run.
-/// @details This function only matters when targeting a browser environment. If a regular
-///   `while` loop is used to block a thread, under the hood the `Worker` that is executing
-///   the WebAssembly will be blocked and can not process the JavaScript event loop. This means
-///   that the `Worker` can not communicate with the main thread via `postMessage`, and most
-///   importantly can not perform deferred cleanup via the event loop, causing memory leaks.
+/// @details This function only matters when targeting the Web. If a regular `while` loop is used
+///   to block a thread, under the hood the `Worker` that is executing the WebAssembly will be
+///   blocked and can not process the JavaScript event loop. This means that the `Worker` can not
+///   communicate with the main thread via `postMessage`, and most importantly can not perform
+///   deferred cleanup via the event loop, causing memory leaks.
 /// @param iter Function called in a loop until it returns false.
 /// @param opaque Pointer passed to each call to `iter`.
 MTY_EXPORT void
 MTY_RunAndYield(MTY_IterFunc iter, void *opaque);
 
+/// @brief Wait until signaled by the main JavaScript thread. Web only.
+/// @details When providing a `userEnv` argument to the `MTY_Start` JavaScript function, it may
+///   become necessary to have the WebAssembly thread wait while running asynchronous code in
+///   JavaScript. All functions supplied via the `userEnv` argument will always run on the main
+///   JavaScript thread which is not allowed to block in any way. These functions should call
+///   `MTY_SignalPtr` when done with their asynchronous operations on a `sync` variable, which
+///   will then unblock the WebAssembly side waiting with MTY_WaitPtr.
+/// @param sync Pointer to arbitrary shared memory.
+//- #support Web
 MTY_EXPORT void
 MTY_WaitPtr(int32_t *sync);
 

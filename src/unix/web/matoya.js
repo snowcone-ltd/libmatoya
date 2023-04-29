@@ -58,10 +58,7 @@ function mty_strcpy(ptr, buf) {
 }
 
 function mty_dup(ptr, size) {
-	const buf = new Uint8Array(size);
-	buf.set(new Uint8Array(MTY_MEMORY.buffer, ptr, size));
-
-	return buf;
+	return new Uint8Array(MTY_MEMORY.buffer, ptr).slice(0, size);
 }
 
 function mty_str_to_js(ptr) {
