@@ -1208,3 +1208,8 @@ void *MTY_GLGetProcAddress(const char *name)
 {
 	return NULL;
 }
+
+void MTY_RunAndYield(MTY_IterFunc iter, void *opaque)
+{
+	while (iter(opaque));
+}

@@ -1593,3 +1593,8 @@ void *MTY_GLGetProcAddress(const char *name)
 
 	return glXGetProcAddress((const GLubyte *) name);
 }
+
+void MTY_RunAndYield(MTY_IterFunc iter, void *opaque)
+{
+	while (iter(opaque));
+}
