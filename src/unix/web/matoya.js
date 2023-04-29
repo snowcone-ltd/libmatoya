@@ -52,59 +52,59 @@ function mty_strlen(buf) {
 	return len;
 }
 
-function MTY_Memcpy(ptr, buf) {
+function mty_memcpy(ptr, buf) {
 	new Uint8Array(MTY_MEMORY.buffer, ptr, buf.byteLength).set(buf);
 }
 
-function MTY_Strcpy(ptr, buf) {
-	MTY_Memcpy(ptr, buf);
-	MTY_SetInt8(ptr + buf.byteLength, 0);
+function mty_strcpy(ptr, buf) {
+	mty_memcpy(ptr, buf);
+	mty_set_int8(ptr + buf.byteLength, 0);
 }
 
-function MTY_StrToJS(ptr) {
+function mty_str_to_js(ptr) {
 	const buf = new Uint8Array(MTY_MEMORY.buffer, ptr);
 
 	return new TextDecoder().decode(buf.slice(0, mty_strlen(buf)));
 }
 
-function MTY_StrToC(str, ptr, size) {
+function mty_str_to_c(str, ptr, size) {
 	const buf = new TextEncoder().encode(str);
 
 	if (buf.byteLength >= size)
-		throw 'MTY_StrToC overflow'
+		throw 'mty_str_to_c overflow'
 
-	MTY_Strcpy(ptr, buf);
+	mty_strcpy(ptr, buf);
 }
 
-function MTY_GetUint8(ptr) {
+function mty_get_uint8(ptr) {
 	return new DataView(MTY_MEMORY.buffer).getUint8(ptr);
 }
 
-function MTY_SetInt8(ptr, value) {
+function mty_set_int8(ptr, value) {
 	new DataView(MTY_MEMORY.buffer).setInt8(ptr, value);
 }
 
-function MTY_SetUint16(ptr, value) {
+function mty_set_uint16(ptr, value) {
 	new DataView(MTY_MEMORY.buffer).setUint16(ptr, value, true);
 }
 
-function MTY_GetUint32(ptr) {
+function mty_get_uint32(ptr) {
 	return new DataView(MTY_MEMORY.buffer).getUint32(ptr, true);
 }
 
-function MTY_SetUint32(ptr, value) {
+function mty_set_uint32(ptr, value) {
 	new DataView(MTY_MEMORY.buffer).setUint32(ptr, value, true);
 }
 
-function MTY_GetUint64(ptr, value) {
+function mty_get_uint64(ptr, value) {
 	return new DataView(MTY_MEMORY.buffer).getBigUint64(ptr, true);
 }
 
-function MTY_SetUint64(ptr, value) {
+function mty_set_uint64(ptr, value) {
 	new DataView(MTY_MEMORY.buffer).setBigUint64(ptr, BigInt(value), true);
 }
 
-function MTY_SetFloat(ptr, value) {
+function mty_set_float(ptr, value) {
 	new DataView(MTY_MEMORY.buffer).setFloat32(ptr, value, true);
 }
 
@@ -456,7 +456,7 @@ function mty_poll_gamepads() {
 // Web
 
 function mty_alert(title, msg) {
-	window.alert(MTY_StrToJS(title) + '\n\n' + MTY_StrToJS(msg));
+	window.alert(mty_str_to_js(title) + '\n\n' + mty_str_to_js(msg));
 }
 
 function mty_set_fullscreen(fullscreen) {
@@ -913,7 +913,7 @@ async function mty_thread_message(ev) {
 			break;
 		}
 		case 'set-clip':
-			navigator.clipboard.writeText(MTY_StrToJS(msg.text));
+			navigator.clipboard.writeText(mty_str_to_js(msg.text));
 			break;
 		case 'pointer-lock':
 			mty_set_pointer_lock(msg.enable);
@@ -926,7 +926,7 @@ async function mty_thread_message(ev) {
 			break;
 		case 'uri':
 			mty_set_action(() => {
-				window.open(MTY_StrToJS(msg.uri), '_blank');
+				window.open(mty_str_to_js(msg.uri), '_blank');
 			});
 			break;
 		case 'http': {
@@ -960,7 +960,7 @@ async function mty_thread_message(ev) {
 
 					if (buf) {
 						if (buf.length < msg.size) {
-							MTY_Strcpy(msg.buf, buf);
+							mty_strcpy(msg.buf, buf);
 							msg.sab[0] = 0; // MTY_ASYNC_OK;
 						}
 

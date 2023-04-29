@@ -103,11 +103,11 @@ function mty_gl_obj(index) {
 const MTY_GL_API = {
 	glGenFramebuffers: function (n, ids) {
 		for (let x = 0; x < n; x++)
-			MTY_SetUint32(ids + x * 4, mty_gl_new(MTY.gl.createFramebuffer()));
+			mty_set_uint32(ids + x * 4, mty_gl_new(MTY.gl.createFramebuffer()));
 	},
 	glDeleteFramebuffers: function (n, ids) {
 		for (let x = 0; x < n; x++)
-			MTY.gl.deleteFramebuffer(mty_gl_del(MTY_GetUint32(ids + x * 4)));
+			MTY.gl.deleteFramebuffer(mty_gl_del(mty_get_uint32(ids + x * 4)));
 	},
 	glBindFramebuffer: function (target, fb) {
 		MTY.gl.bindFramebuffer(target, fb ? mty_gl_obj(fb) : null);
@@ -129,14 +129,14 @@ const MTY_GL_API = {
 	},
 	glDeleteTextures: function (n, ids) {
 		for (let x = 0; x < n; x++)
-			MTY.gl.deleteTexture(mty_gl_del(MTY_GetUint32(ids + x * 4)));
+			MTY.gl.deleteTexture(mty_gl_del(mty_get_uint32(ids + x * 4)));
 	},
 	glTexParameteri: function (target, pname, param) {
 		MTY.gl.texParameteri(target, pname, param);
 	},
 	glGenTextures: function (n, ids) {
 		for (let x = 0; x < n; x++)
-			MTY_SetUint32(ids + x * 4, mty_gl_new(MTY.gl.createTexture()));
+			mty_set_uint32(ids + x * 4, mty_gl_new(MTY.gl.createTexture()));
 	},
 	glTexImage2D: function (target, level, internalformat, width, height, border, format, type, data) {
 		MTY.gl.texImage2D(target, level, internalformat, width, height, border, format, type,
@@ -150,12 +150,12 @@ const MTY_GL_API = {
 		MTY.gl.drawElements(mode, count, type, indices);
 	},
 	glGetAttribLocation: function (program, c_name) {
-		return MTY.gl.getAttribLocation(mty_gl_obj(program), MTY_StrToJS(c_name));
+		return MTY.gl.getAttribLocation(mty_gl_obj(program), mty_str_to_js(c_name));
 	},
 	glShaderSource: function (shader, count, c_strings, c_len) {
 		let source = '';
 		for (let x = 0; x < count; x++)
-			source += MTY_StrToJS(MTY_GetUint32(c_strings + x * 4));
+			source += mty_str_to_js(mty_get_uint32(c_strings + x * 4));
 
 		MTY.gl.shaderSource(mty_gl_obj(shader), source);
 	},
@@ -185,7 +185,7 @@ const MTY_GL_API = {
 	},
 	glDeleteBuffers: function (n, ids) {
 		for (let x = 0; x < n; x++)
-			MTY.gl.deleteBuffer(mty_gl_del(MTY_GetUint32(ids + x * 4)));
+			MTY.gl.deleteBuffer(mty_gl_del(mty_get_uint32(ids + x * 4)));
 	},
 	glEnableVertexAttribArray: function (index) {
 		MTY.gl.enableVertexAttribArray(index);
@@ -198,7 +198,7 @@ const MTY_GL_API = {
 	},
 	glGenBuffers: function (n, ids) {
 		for (let x = 0; x < n; x++)
-			MTY_SetUint32(ids + x * 4, mty_gl_new(MTY.gl.createBuffer()));
+			mty_set_uint32(ids + x * 4, mty_gl_new(MTY.gl.createBuffer()));
 	},
 	glCompileShader: function (shader) {
 		MTY.gl.compileShader(mty_gl_obj(shader));
@@ -207,7 +207,7 @@ const MTY_GL_API = {
 		MTY.gl.linkProgram(mty_gl_obj(program));
 	},
 	glGetUniformLocation: function (program, name) {
-		return mty_gl_new(MTY.gl.getUniformLocation(mty_gl_obj(program), MTY_StrToJS(name)));
+		return mty_gl_new(MTY.gl.getUniformLocation(mty_gl_obj(program), mty_str_to_js(name)));
 	},
 	glCreateShader: function (type) {
 		return mty_gl_new(MTY.gl.createShader(type));
@@ -221,13 +221,13 @@ const MTY_GL_API = {
 	glGetShaderiv: function (shader, pname, params) {
 		if (pname == 0x8B81) {
 			let ok = MTY.gl.getShaderParameter(mty_gl_obj(shader), MTY.gl.COMPILE_STATUS);
-			MTY_SetUint32(params, ok);
+			mty_set_uint32(params, ok);
 
 			if (!ok)
 				console.warn(MTY.gl.getShaderInfoLog(mty_gl_obj(shader)));
 
 		} else {
-			MTY_SetUint32(params, 0);
+			mty_set_uint32(params, 0);
 		}
 	},
 	glDetachShader: function (program, shader) {
@@ -250,8 +250,8 @@ const MTY_GL_API = {
 		const buf = new TextEncoder().encode();
 
 		if (buf.length < maxLength) {
-			MTY_SetUint32(length);
-			MTY_Strcpy(infoLog, buf);
+			mty_set_uint32(length);
+			mty_strcpy(infoLog, buf);
 		}
 	},
 	glFinish: function () {
@@ -270,7 +270,7 @@ const MTY_GL_API = {
 		MTY.gl.uniformMatrix4fv(mty_gl_obj(loc), transpose, new Float32Array(MTY_MEMORY.buffer, value, 4 * 4 * count));
 	},
 	glGetProgramiv: function (program, pname, params) {
-		MTY_SetUint32(params, MTY.gl.getProgramParameter(mty_gl_obj(program), pname));
+		mty_set_uint32(params, MTY.gl.getProgramParameter(mty_gl_obj(program), pname));
 	},
 	glPixelStorei: function (pname, param) {
 		MTY.gl.pixelStorei(pname, param);
@@ -312,7 +312,7 @@ const MTY_AUDIO_API = {
 			return;
 
 		mty_free(MTY.audio.buf);
-		MTY_SetUint32(audio, 0);
+		mty_set_uint32(audio, 0);
 		MTY.audio = null;
 	},
 	MTY_AudioQueue: function (ctx, frames, count) {
@@ -337,7 +337,7 @@ const MTY_AUDIO_API = {
 		// Convert PCM int16_t to float
 		if (!MTY.audio.flushing) {
 			let size = count * 2 * MTY.audio.channels;
-			MTY_Memcpy(MTY.audio.buf + MTY.audio.offset, new Uint8Array(MTY_MEMORY.buffer, frames, size));
+			mty_memcpy(MTY.audio.buf + MTY.audio.offset, new Uint8Array(MTY_MEMORY.buffer, frames, size));
 			MTY.audio.offset += size;
 		}
 
@@ -396,9 +396,9 @@ const MTY_AUDIO_API = {
 function mty_net_args(base_scheme, chost, port, secure, cpath, cheaders) {
 	const jport = port != 0 ? ':' + port.toString() : '';
 	const scheme = secure ? base_scheme + 's' : base_scheme;
-	const host = MTY_StrToJS(chost);
-	const path = MTY_StrToJS(cpath);
-	const headers_str = MTY_StrToJS(cheaders);
+	const host = mty_str_to_js(chost);
+	const path = mty_str_to_js(cpath);
+	const headers_str = mty_str_to_js(cheaders);
 	const url = scheme + '://' + host + jport + path;
 
 	const headers = {};
@@ -429,7 +429,7 @@ const MTY_NET_API = {
 			body.set(new Uint8Array(MTY_MEMORY.buffer, cbody, bodySize));
 		}
 
-		const method = MTY_StrToJS(cmethod);
+		const method = mty_str_to_js(cmethod);
 		const args = mty_net_args('http', chost, port, secure, cpath, cheaders);
 
 		postMessage({
@@ -449,14 +449,14 @@ const MTY_NET_API = {
 			return false;
 
 		const size = MTY.sab[1];
-		MTY_SetUint32(responseSize, size);
+		mty_set_uint32(responseSize, size);
 
 		const status = MTY.sab[2];
-		MTY_SetUint16(cstatus, status);
+		mty_set_uint16(cstatus, status);
 
 		if (size > 0) {
 			const buf = mty_alloc(size + 1);
-			MTY_SetUint32(response, buf);
+			mty_set_uint32(response, buf);
 
 			postMessage({
 				type: 'async-copy',
@@ -493,7 +493,7 @@ const MTY_NET_API = {
 
 		postMessage({
 			type: 'ws-close',
-			ctx: MTY_GetUint32(ctx_out),
+			ctx: mty_get_uint32(ctx_out),
 		});
 	},
 	MTY_WebSocketRead: function (ctx, timeout, msg_out, size) {
@@ -515,7 +515,7 @@ const MTY_NET_API = {
 		postMessage({
 			type: 'ws-write',
 			ctx: ctx,
-			text: MTY_StrToJS(msg_c),
+			text: mty_str_to_js(msg_c),
 		});
 
 		return true;
@@ -565,8 +565,8 @@ const MTY_IMAGE_API = {
 
 		mty_wait(MTY.sync);
 
-		MTY_SetUint32(cwidth, width);
-		MTY_SetUint32(cheight, height);
+		mty_set_uint32(cwidth, width);
+		mty_set_uint32(cheight, height);
 
 		return buf;
 	},
@@ -667,15 +667,15 @@ const MTY_WEB_API = {
 	web_get_hostname: function () {
 		const buf = new TextEncoder().encode(MTY.hostname);
 		const ptr = mty_alloc(buf.length);
-		MTY_Strcpy(ptr, buf);
+		mty_strcpy(ptr, buf);
 
 		return ptr;
 	},
 	web_platform: function (platform, size) {
-		MTY_StrToC(navigator.platform, platform, size);
+		mty_str_to_c(navigator.platform, platform, size);
 	},
 	web_set_key: function (reverse, code, key) {
-		const str = MTY_StrToJS(code);
+		const str = mty_str_to_js(code);
 		MTY.keys[str] = key;
 
 		if (reverse)
@@ -687,10 +687,10 @@ const MTY_WEB_API = {
 		if (code != undefined) {
 			const text = MTY.kbMap[code];
 			if (text) {
-				MTY_StrToC(text.toUpperCase(), buf, len);
+				mty_str_to_c(text.toUpperCase(), buf, len);
 
 			} else {
-				MTY_StrToC(code, buf, len);
+				mty_str_to_c(code, buf, len);
 			}
 
 			return true;
@@ -701,7 +701,7 @@ const MTY_WEB_API = {
 	web_set_title: function (title) {
 		postMessage({
 			type: 'title',
-			title: MTY_StrToJS(title),
+			title: mty_str_to_js(title),
 		});
 	},
 	web_set_gfx: function () {
@@ -787,8 +787,8 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 		const args = mty_arg_list(MTY.bin, MTY.queryString);
 
 		for (let x = 0; x < args.length; x++) {
-			MTY_Strcpy(argv_buf, args[x]);
-			MTY_SetUint32(argv + x * 4, argv_buf);
+			mty_strcpy(argv_buf, args[x]);
+			mty_set_uint32(argv + x * 4, argv_buf);
 			argv_buf += args[x].length + 1;
 		}
 
@@ -801,16 +801,16 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 		for (let x = 0; x < args.length; x++)
 			total_len += args[x].length + 1;
 
-		MTY_SetUint32(retptr0, args.length);
-		MTY_SetUint32(retptr1, total_len);
+		mty_set_uint32(retptr0, args.length);
+		mty_set_uint32(retptr1, total_len);
 		return 0;
 	},
 
 	// WASI preopened directory (/)
 	fd_prestat_get: function (fd, retptr0) {
 		if (MTY.preopen == undefined) {
-			MTY_SetInt8(retptr0, 0);
-			MTY_SetUint64(retptr0 + 4, 1);
+			mty_set_int8(retptr0, 0);
+			mty_set_uint64(retptr0 + 4, 1);
 			MTY.preopen = fd;
 			return 0;
 		}
@@ -819,7 +819,7 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 	},
 	fd_prestat_dir_name: function (fd, path, path_len) {
 		if (MTY.preopen == fd) {
-			MTY_Strcpy(path, new TextEncoder().encode('/'));
+			mty_strcpy(path, new TextEncoder().encode('/'));
 			return 0;
 		}
 
@@ -828,22 +828,22 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 
 	// Paths
 	path_filestat_get: function (fd, flags, path, path_size, retptr0) {
-		const jpath = MTY_StrToJS(path);
+		const jpath = mty_str_to_js(path);
 		const buf = mty_get_ls(jpath);
 
 		if (buf) {
 			// We only need to return the size
-			MTY_SetUint64(retptr0 + 32, buf.byteLength);
+			mty_set_uint64(retptr0 + 32, buf.byteLength);
 		}
 
 		return 0;
 	},
 	path_open: function (fd, dirflags, path, path_size, oflags, fs_rights_base, fs_rights_inheriting, fdflags, retptr0) {
 		const new_fd = MTY.fdIndex++;
-		MTY_SetUint32(retptr0, new_fd);
+		mty_set_uint32(retptr0, new_fd);
 
 		MTY.fds[new_fd] = {
-			path: MTY_StrToJS(path),
+			path: mty_str_to_js(path),
 			append: fdflags == 1,
 			offset: 0,
 		};
@@ -889,8 +889,8 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 
 			for (let x = 0; x < iovs_len; x++) {
 				let ptr = iovs + x * 8;
-				let buf = MTY_GetUint32(ptr);
-				let buf_len = MTY_GetUint32(ptr + 4);
+				let buf = mty_get_uint32(ptr);
+				let buf_len = mty_get_uint32(ptr + 4);
 				let len = buf_len < full_buf.length - total ? buf_len : full_buf.length - total;
 
 				let view = new Uint8Array(MTY_MEMORY.buffer, buf, buf_len);
@@ -900,7 +900,7 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 				total += len;
 			}
 
-			MTY_SetUint32(retptr0, total);
+			mty_set_uint32(retptr0, total);
 		}
 
 		return 0;
@@ -909,17 +909,17 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 		// Calculate full write size
 		let len = 0;
 		for (let x = 0; x < iovs_len; x++)
-			len += MTY_GetUint32(iovs + x * 8 + 4);
+			len += mty_get_uint32(iovs + x * 8 + 4);
 
-		MTY_SetUint32(retptr0, len);
+		mty_set_uint32(retptr0, len);
 
 		// Create a contiguous buffer
 		let offset = 0;
 		let full_buf = new Uint8Array(len);
 		for (let x = 0; x < iovs_len; x++) {
 			let ptr = iovs + x * 8;
-			let buf = MTY_GetUint32(ptr);
-			let buf_len = MTY_GetUint32(ptr + 4);
+			let buf = mty_get_uint32(ptr);
+			let buf_len = mty_get_uint32(ptr + 4);
 
 			full_buf.set(new Uint8Array(MTY_MEMORY.buffer, buf, buf_len), offset);
 			offset += buf_len;
@@ -957,15 +957,15 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 
 	// Misc
 	clock_time_get: function (id, precision, retptr0) {
-		MTY_SetUint64(retptr0, Math.round(performance.now() * 1000.0 * 1000.0));
+		mty_set_uint64(retptr0, Math.round(performance.now() * 1000.0 * 1000.0));
 		return 0;
 	},
 	poll_oneoff: function (_in, out, nsubscriptions, retptr0) {
 		// __WASI_EVENTTYPE_CLOCK
-		if (MTY_GetUint8(_in + 8) == 0)
-			Atomics.wait(MTY.sleeper, 0, 0, Number(MTY_GetUint64(_in + 24)) / 1000000);
+		if (mty_get_uint8(_in + 8) == 0)
+			Atomics.wait(MTY.sleeper, 0, 0, Number(mty_get_uint64(_in + 24)) / 1000000);
 
-		MTY_SetUint32(out + 8, 0);
+		mty_set_uint32(out + 8, 0);
 		return 0;
 	},
 	proc_exit: function (rval) {
@@ -1162,11 +1162,11 @@ onmessage = async (ev) => {
 
 			const buf = new Uint8Array(msg.data);
 			const cmem = mty_alloc(buf.length);
-			MTY_Memcpy(cmem, buf);
+			mty_memcpy(cmem, buf);
 
 			const name = new TextEncoder().encode(msg.name);
 			const cname = mty_alloc(buf.length);
-			MTY_Strcpy(cname, name);
+			mty_strcpy(cname, name);
 
 			MTY.exports.mty_window_drop(MTY.app, cname, cmem, buf.length);
 
