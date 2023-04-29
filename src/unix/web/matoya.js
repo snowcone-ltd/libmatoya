@@ -6,23 +6,29 @@
 // Global State
 
 let MTY_MEMORY;
+let MTY_CURRENT_SCRIPT;
 
-const MTY_CURRENT_SCRIPT = typeof importScripts == 'function' ? location :
-	new URL(document.currentScript.src);
+// Worker
+if (typeof importScripts == 'function') {
+	MTY_CURRENT_SCRIPT = location;
 
-const MTY = {
-	wsObj: {},
-	wsIndex: 1,
+// Main thread
+} else {
+	MTY_CURRENT_SCRIPT = new URL(document.currentScript.src);
 
-	cursorId: 0,
-	threadId: 1,
-	cursorCache: {},
-	cursorClass: '',
-	defaultCursor: false,
-	synthesizeEsc: true,
-	relative: false,
-	gps: [false, false, false, false],
-};
+	window.MTY = {
+		wsIndex: 1,
+		wsObj: {},
+		cursorId: 0,
+		threadId: 1,
+		cursorCache: {},
+		cursorClass: '',
+		defaultCursor: false,
+		synthesizeEsc: true,
+		relative: false,
+		gps: [false, false, false, false],
+	};
+}
 
 
 // Memory

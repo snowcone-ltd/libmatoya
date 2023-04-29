@@ -5,16 +5,11 @@
 
 // Worker State
 
-const MTY_W = {
-	// Keyboard
+const MTY = {
 	keys: {},
 	keysRev: {},
-
-	// GL
 	glIndex: 0,
 	glObj: {},
-
-	// WASI
 	fds: {},
 	fdIndex: 0,
 };
@@ -23,15 +18,15 @@ const MTY_W = {
 // Allocation
 
 function mty_cfunc(ptr) {
-	return MTY_W.exports.__indirect_function_table.get(ptr);
+	return MTY.exports.__indirect_function_table.get(ptr);
 }
 
 function mty_alloc(size, el) {
-	return MTY_W.exports.system_alloc(size, el ? el : 1);
+	return MTY.exports.system_alloc(size, el ? el : 1);
 }
 
 function mty_free(ptr) {
-	MTY_W.exports.system_free(ptr);
+	MTY.exports.system_free(ptr);
 }
 
 
@@ -41,13 +36,13 @@ function mty_get_ls(key) {
 	postMessage({
 		type: 'get-ls',
 		key: key,
-		sab: MTY_W.sab,
-		sync: MTY_W.sync,
+		sab: MTY.sab,
+		sync: MTY.sync,
 	});
 
-	mty_wait(MTY_W.sync);
+	mty_wait(MTY.sync);
 
-	const size = MTY_W.sab[0];
+	const size = MTY.sab[0];
 	if (size == 0)
 		return 0;
 
@@ -56,10 +51,10 @@ function mty_get_ls(key) {
 	postMessage({
 		type: 'async-copy',
 		sab8: sab8,
-		sync: MTY_W.sync,
+		sync: MTY.sync,
 	});
 
-	mty_wait(MTY_W.sync);
+	mty_wait(MTY.sync);
 
 	return sab8;
 }
@@ -69,10 +64,10 @@ function mty_set_ls(key, val) {
 		type: 'set-ls',
 		key: key,
 		val: val,
-		sync: MTY_W.sync,
+		sync: MTY.sync,
 	});
 
-	mty_wait(MTY_W.sync);
+	mty_wait(MTY.sync);
 }
 
 
@@ -88,167 +83,167 @@ const MTY_UNISTD_API = {
 // GL
 
 function mty_gl_new(obj) {
-	MTY_W.glObj[MTY_W.glIndex] = obj;
+	MTY.glObj[MTY.glIndex] = obj;
 
-	return MTY_W.glIndex++;
+	return MTY.glIndex++;
 }
 
 function mty_gl_del(index) {
-	let obj = MTY_W.glObj[index];
+	let obj = MTY.glObj[index];
 
-	delete MTY_W.glObj[index];
+	delete MTY.glObj[index];
 
 	return obj;
 }
 
 function mty_gl_obj(index) {
-	return MTY_W.glObj[index];
+	return MTY.glObj[index];
 }
 
 const MTY_GL_API = {
 	glGenFramebuffers: function (n, ids) {
 		for (let x = 0; x < n; x++)
-			MTY_SetUint32(ids + x * 4, mty_gl_new(MTY_W.gl.createFramebuffer()));
+			MTY_SetUint32(ids + x * 4, mty_gl_new(MTY.gl.createFramebuffer()));
 	},
 	glDeleteFramebuffers: function (n, ids) {
 		for (let x = 0; x < n; x++)
-			MTY_W.gl.deleteFramebuffer(mty_gl_del(MTY_GetUint32(ids + x * 4)));
+			MTY.gl.deleteFramebuffer(mty_gl_del(MTY_GetUint32(ids + x * 4)));
 	},
 	glBindFramebuffer: function (target, fb) {
-		MTY_W.gl.bindFramebuffer(target, fb ? mty_gl_obj(fb) : null);
+		MTY.gl.bindFramebuffer(target, fb ? mty_gl_obj(fb) : null);
 	},
 	glFramebufferTexture2D: function (target, attachment, textarget, texture, level) {
-		MTY_W.gl.framebufferTexture2D(target, attachment, textarget, mty_gl_obj(texture), level);
+		MTY.gl.framebufferTexture2D(target, attachment, textarget, mty_gl_obj(texture), level);
 	},
 	glEnable: function (cap) {
-		MTY_W.gl.enable(cap);
+		MTY.gl.enable(cap);
 	},
 	glDisable: function (cap) {
-		MTY_W.gl.disable(cap);
+		MTY.gl.disable(cap);
 	},
 	glViewport: function (x, y, width, height) {
-		MTY_W.gl.viewport(x, y, width, height);
+		MTY.gl.viewport(x, y, width, height);
 	},
 	glBindTexture: function (target, texture) {
-		MTY_W.gl.bindTexture(target, texture ? mty_gl_obj(texture) : null);
+		MTY.gl.bindTexture(target, texture ? mty_gl_obj(texture) : null);
 	},
 	glDeleteTextures: function (n, ids) {
 		for (let x = 0; x < n; x++)
-			MTY_W.gl.deleteTexture(mty_gl_del(MTY_GetUint32(ids + x * 4)));
+			MTY.gl.deleteTexture(mty_gl_del(MTY_GetUint32(ids + x * 4)));
 	},
 	glTexParameteri: function (target, pname, param) {
-		MTY_W.gl.texParameteri(target, pname, param);
+		MTY.gl.texParameteri(target, pname, param);
 	},
 	glGenTextures: function (n, ids) {
 		for (let x = 0; x < n; x++)
-			MTY_SetUint32(ids + x * 4, mty_gl_new(MTY_W.gl.createTexture()));
+			MTY_SetUint32(ids + x * 4, mty_gl_new(MTY.gl.createTexture()));
 	},
 	glTexImage2D: function (target, level, internalformat, width, height, border, format, type, data) {
-		MTY_W.gl.texImage2D(target, level, internalformat, width, height, border, format, type,
+		MTY.gl.texImage2D(target, level, internalformat, width, height, border, format, type,
 			new Uint8Array(MTY_MEMORY.buffer, data));
 	},
 	glTexSubImage2D: function (target, level, xoffset, yoffset, width, height, format, type, pixels) {
-		MTY_W.gl.texSubImage2D(target, level, xoffset, yoffset, width, height, format, type,
+		MTY.gl.texSubImage2D(target, level, xoffset, yoffset, width, height, format, type,
 			new Uint8Array(MTY_MEMORY.buffer, pixels));
 	},
 	glDrawElements: function (mode, count, type, indices) {
-		MTY_W.gl.drawElements(mode, count, type, indices);
+		MTY.gl.drawElements(mode, count, type, indices);
 	},
 	glGetAttribLocation: function (program, c_name) {
-		return MTY_W.gl.getAttribLocation(mty_gl_obj(program), MTY_StrToJS(c_name));
+		return MTY.gl.getAttribLocation(mty_gl_obj(program), MTY_StrToJS(c_name));
 	},
 	glShaderSource: function (shader, count, c_strings, c_len) {
 		let source = '';
 		for (let x = 0; x < count; x++)
 			source += MTY_StrToJS(MTY_GetUint32(c_strings + x * 4));
 
-		MTY_W.gl.shaderSource(mty_gl_obj(shader), source);
+		MTY.gl.shaderSource(mty_gl_obj(shader), source);
 	},
 	glBindBuffer: function (target, buffer) {
-		MTY_W.gl.bindBuffer(target, buffer ? mty_gl_obj(buffer) : null);
+		MTY.gl.bindBuffer(target, buffer ? mty_gl_obj(buffer) : null);
 	},
 	glVertexAttribPointer: function (index, size, type, normalized, stride, pointer) {
-		MTY_W.gl.vertexAttribPointer(index, size, type, normalized, stride, pointer);
+		MTY.gl.vertexAttribPointer(index, size, type, normalized, stride, pointer);
 	},
 	glCreateProgram: function () {
-		return mty_gl_new(MTY_W.gl.createProgram());
+		return mty_gl_new(MTY.gl.createProgram());
 	},
 	glUniform1i: function (loc, v0) {
-		MTY_W.gl.uniform1i(mty_gl_obj(loc), v0);
+		MTY.gl.uniform1i(mty_gl_obj(loc), v0);
 	},
 	glUniform1f: function (loc, v0) {
-		MTY_W.gl.uniform1f(mty_gl_obj(loc), v0);
+		MTY.gl.uniform1f(mty_gl_obj(loc), v0);
 	},
 	glUniform4i: function (loc, v0, v1, v2, v3) {
-		MTY_W.gl.uniform4i(mty_gl_obj(loc), v0, v1, v2, v3);
+		MTY.gl.uniform4i(mty_gl_obj(loc), v0, v1, v2, v3);
 	},
 	glUniform4f: function (loc, v0, v1, v2, v3) {
-		MTY_W.gl.uniform4f(mty_gl_obj(loc), v0, v1, v2, v3);
+		MTY.gl.uniform4f(mty_gl_obj(loc), v0, v1, v2, v3);
 	},
 	glActiveTexture: function (texture) {
-		MTY_W.gl.activeTexture(texture);
+		MTY.gl.activeTexture(texture);
 	},
 	glDeleteBuffers: function (n, ids) {
 		for (let x = 0; x < n; x++)
-			MTY_W.gl.deleteBuffer(mty_gl_del(MTY_GetUint32(ids + x * 4)));
+			MTY.gl.deleteBuffer(mty_gl_del(MTY_GetUint32(ids + x * 4)));
 	},
 	glEnableVertexAttribArray: function (index) {
-		MTY_W.gl.enableVertexAttribArray(index);
+		MTY.gl.enableVertexAttribArray(index);
 	},
 	glBufferData: function (target, size, data, usage) {
-		MTY_W.gl.bufferData(target, new Uint8Array(MTY_MEMORY.buffer, data, size), usage);
+		MTY.gl.bufferData(target, new Uint8Array(MTY_MEMORY.buffer, data, size), usage);
 	},
 	glDeleteShader: function (shader) {
-		MTY_W.gl.deleteShader(mty_gl_del(shader));
+		MTY.gl.deleteShader(mty_gl_del(shader));
 	},
 	glGenBuffers: function (n, ids) {
 		for (let x = 0; x < n; x++)
-			MTY_SetUint32(ids + x * 4, mty_gl_new(MTY_W.gl.createBuffer()));
+			MTY_SetUint32(ids + x * 4, mty_gl_new(MTY.gl.createBuffer()));
 	},
 	glCompileShader: function (shader) {
-		MTY_W.gl.compileShader(mty_gl_obj(shader));
+		MTY.gl.compileShader(mty_gl_obj(shader));
 	},
 	glLinkProgram: function (program) {
-		MTY_W.gl.linkProgram(mty_gl_obj(program));
+		MTY.gl.linkProgram(mty_gl_obj(program));
 	},
 	glGetUniformLocation: function (program, name) {
-		return mty_gl_new(MTY_W.gl.getUniformLocation(mty_gl_obj(program), MTY_StrToJS(name)));
+		return mty_gl_new(MTY.gl.getUniformLocation(mty_gl_obj(program), MTY_StrToJS(name)));
 	},
 	glCreateShader: function (type) {
-		return mty_gl_new(MTY_W.gl.createShader(type));
+		return mty_gl_new(MTY.gl.createShader(type));
 	},
 	glAttachShader: function (program, shader) {
-		MTY_W.gl.attachShader(mty_gl_obj(program), mty_gl_obj(shader));
+		MTY.gl.attachShader(mty_gl_obj(program), mty_gl_obj(shader));
 	},
 	glUseProgram: function (program) {
-		MTY_W.gl.useProgram(program ? mty_gl_obj(program) : null);
+		MTY.gl.useProgram(program ? mty_gl_obj(program) : null);
 	},
 	glGetShaderiv: function (shader, pname, params) {
 		if (pname == 0x8B81) {
-			let ok = MTY_W.gl.getShaderParameter(mty_gl_obj(shader), MTY_W.gl.COMPILE_STATUS);
+			let ok = MTY.gl.getShaderParameter(mty_gl_obj(shader), MTY.gl.COMPILE_STATUS);
 			MTY_SetUint32(params, ok);
 
 			if (!ok)
-				console.warn(MTY_W.gl.getShaderInfoLog(mty_gl_obj(shader)));
+				console.warn(MTY.gl.getShaderInfoLog(mty_gl_obj(shader)));
 
 		} else {
 			MTY_SetUint32(params, 0);
 		}
 	},
 	glDetachShader: function (program, shader) {
-		MTY_W.gl.detachShader(mty_gl_obj(program), mty_gl_obj(shader));
+		MTY.gl.detachShader(mty_gl_obj(program), mty_gl_obj(shader));
 	},
 	glDeleteProgram: function (program) {
-		MTY_W.gl.deleteProgram(mty_gl_del(program));
+		MTY.gl.deleteProgram(mty_gl_del(program));
 	},
 	glClear: function (mask) {
-		MTY_W.gl.clear(mask);
+		MTY.gl.clear(mask);
 	},
 	glClearColor: function (red, green, blue, alpha) {
-		MTY_W.gl.clearColor(red, green, blue, alpha);
+		MTY.gl.clearColor(red, green, blue, alpha);
 	},
 	glGetError: function () {
-		return MTY_W.gl.getError();
+		return MTY.gl.getError();
 	},
 	glGetShaderInfoLog: function (shader, maxLength, length, infoLog) {
 		const log = gl.getShaderInfoLog(mty_gl_obj(shader));
@@ -260,28 +255,28 @@ const MTY_GL_API = {
 		}
 	},
 	glFinish: function () {
-		MTY_W.gl.finish();
+		MTY.gl.finish();
 	},
 	glScissor: function (x, y, width, height) {
-		MTY_W.gl.scissor(x, y, width, height);
+		MTY.gl.scissor(x, y, width, height);
 	},
 	glBlendFunc: function (sfactor, dfactor) {
-		MTY_W.gl.blendFunc(sfactor, dfactor);
+		MTY.gl.blendFunc(sfactor, dfactor);
 	},
 	glBlendEquation: function (mode) {
-		MTY_W.gl.blendEquation(mode);
+		MTY.gl.blendEquation(mode);
 	},
 	glUniformMatrix4fv: function (loc, count, transpose, value) {
-		MTY_W.gl.uniformMatrix4fv(mty_gl_obj(loc), transpose, new Float32Array(MTY_MEMORY.buffer, value, 4 * 4 * count));
+		MTY.gl.uniformMatrix4fv(mty_gl_obj(loc), transpose, new Float32Array(MTY_MEMORY.buffer, value, 4 * 4 * count));
 	},
 	glGetProgramiv: function (program, pname, params) {
-		MTY_SetUint32(params, MTY_W.gl.getProgramParameter(mty_gl_obj(program), pname));
+		MTY_SetUint32(params, MTY.gl.getProgramParameter(mty_gl_obj(program), pname));
 	},
 	glPixelStorei: function (pname, param) {
-		MTY_W.gl.pixelStorei(pname, param);
+		MTY.gl.pixelStorei(pname, param);
 	},
 	web_gl_flush: function () {
-		MTY_W.gl.flush();
+		MTY.gl.flush();
 	},
 };
 
@@ -443,20 +438,20 @@ const MTY_NET_API = {
 			method: method,
 			headers: args.headers,
 			body: body,
-			sync: MTY_W.sync,
-			sab: MTY_W.sab,
+			sync: MTY.sync,
+			sab: MTY.sab,
 		});
 
-		mty_wait(MTY_W.sync);
+		mty_wait(MTY.sync);
 
-		const error = MTY_W.sab[0];
+		const error = MTY.sab[0];
 		if (error)
 			return false;
 
-		const size = MTY_W.sab[1];
+		const size = MTY.sab[1];
 		MTY_SetUint32(responseSize, size);
 
-		const status = MTY_W.sab[2];
+		const status = MTY.sab[2];
 		MTY_SetUint16(cstatus, status);
 
 		if (size > 0) {
@@ -465,11 +460,11 @@ const MTY_NET_API = {
 
 			postMessage({
 				type: 'async-copy',
-				sync: MTY_W.sync,
+				sync: MTY.sync,
 				sab8: new Uint8Array(MTY_MEMORY.buffer, buf, size + 1),
 			});
 
-			mty_wait(MTY_W.sync);
+			mty_wait(MTY.sync);
 		}
 
 		return true;
@@ -484,13 +479,13 @@ const MTY_NET_API = {
 		postMessage({
 			type: 'ws',
 			url: args.url,
-			sync: MTY_W.sync,
-			sab: MTY_W.sab,
+			sync: MTY.sync,
+			sab: MTY.sab,
 		});
 
-		mty_wait(MTY_W.sync);
+		mty_wait(MTY.sync);
 
-		return MTY_W.sab[0];
+		return MTY.sab[0];
 	},
 	MTY_WebSocketDestroy: function (ctx_out) {
 		if (!ctx_out)
@@ -508,13 +503,13 @@ const MTY_NET_API = {
 			timeout: timeout,
 			buf: msg_out,
 			size: size,
-			sab: MTY_W.sab,
-			sync: MTY_W.sync,
+			sab: MTY.sab,
+			sync: MTY.sync,
 		});
 
-		mty_wait(MTY_W.sync);
+		mty_wait(MTY.sync);
 
-		return MTY_W.sab[0]; // MTY_Async
+		return MTY.sab[0]; // MTY_Async
 	},
 	MTY_WebSocketWrite: function (ctx, msg_c) {
 		postMessage({
@@ -529,13 +524,13 @@ const MTY_NET_API = {
 		postMessage({
 			type: 'ws-code',
 			ctx: ctx,
-			sab: MTY_W.sab,
-			sync: MTY_W.sync,
+			sab: MTY.sab,
+			sync: MTY.sync,
 		});
 
-		mty_wait(MTY_W.sync);
+		mty_wait(MTY.sync);
 
-		return MTY_W.sab[0];
+		return MTY.sab[0];
 	},
 };
 
@@ -550,25 +545,25 @@ const MTY_IMAGE_API = {
 		postMessage({
 			type: 'image',
 			input: jinput,
-			sync: MTY_W.sync,
-			sab: MTY_W.sab,
+			sync: MTY.sync,
+			sab: MTY.sab,
 		}, [jinput]);
 
-		mty_wait(MTY_W.sync);
+		mty_wait(MTY.sync);
 
-		const width = MTY_W.sab[0];
-		const height = MTY_W.sab[1];
+		const width = MTY.sab[0];
+		const height = MTY.sab[1];
 
 		const buf_size = width * height * 4;
 		const buf = mty_alloc(buf_size);
 
 		postMessage({
 			type: 'async-copy',
-			sync: MTY_W.sync,
+			sync: MTY.sync,
 			sab8: new Uint8Array(MTY_MEMORY.buffer, buf, buf_size),
 		});
 
-		mty_wait(MTY_W.sync);
+		mty_wait(MTY.sync);
 
 		MTY_SetUint32(cwidth, width);
 		MTY_SetUint32(cheight, height);
@@ -609,14 +604,14 @@ const MTY_SYSTEM_API = {
 // Web API (mostly used in app.c)
 
 function mty_update_window(app, info) {
-	MTY_W.exports.window_update_position(app, info.posX, info.posY);
-	MTY_W.exports.window_update_screen(app, info.screenWidth, info.screenHeight);
-	MTY_W.exports.window_update_size(app, info.canvasWidth, info.canvasHeight);
-	MTY_W.exports.window_update_focus(app, info.hasFocus);
-	MTY_W.exports.window_update_fullscreen(app, info.fullscreen);
-	MTY_W.exports.window_update_visibility(app, info.visible);
-	MTY_W.exports.window_update_pixel_ratio(app, info.devicePixelRatio);
-	MTY_W.exports.window_update_relative_mouse(app, info.relative);
+	MTY.exports.window_update_position(app, info.posX, info.posY);
+	MTY.exports.window_update_screen(app, info.screenWidth, info.screenHeight);
+	MTY.exports.window_update_size(app, info.canvasWidth, info.canvasHeight);
+	MTY.exports.window_update_focus(app, info.hasFocus);
+	MTY.exports.window_update_fullscreen(app, info.fullscreen);
+	MTY.exports.window_update_visibility(app, info.visible);
+	MTY.exports.window_update_pixel_ratio(app, info.devicePixelRatio);
+	MTY.exports.window_update_relative_mouse(app, info.relative);
 }
 
 const MTY_WEB_API = {
@@ -636,20 +631,20 @@ const MTY_WEB_API = {
 		postMessage({type: 'show-cursor', show});
 	},
 	web_get_clipboard: function () {
-		postMessage({type: 'get-clip', sync: MTY_W.sync, sab: MTY_W.sab});
-		mty_wait(MTY_W.sync);
+		postMessage({type: 'get-clip', sync: MTY.sync, sab: MTY.sab});
+		mty_wait(MTY.sync);
 
-		const size = MTY_W.sab[0];
+		const size = MTY.sab[0];
 		const buf = mty_alloc(size + 1);
 
 		if (size > 0) {
 			postMessage({
 				type: 'async-copy',
-				sync: MTY_W.sync,
+				sync: MTY.sync,
 				sab8: new Uint8Array(MTY_MEMORY.buffer, buf, size + 1),
 			});
 
-			mty_wait(MTY_W.sync);
+			mty_wait(MTY.sync);
 		}
 
 		return buf;
@@ -670,7 +665,7 @@ const MTY_WEB_API = {
 		postMessage({type: 'kb-grab', grab});
 	},
 	web_get_hostname: function () {
-		const buf = new TextEncoder().encode(MTY_W.hostname);
+		const buf = new TextEncoder().encode(MTY.hostname);
 		const ptr = mty_alloc(buf.length);
 		MTY_Strcpy(ptr, buf);
 
@@ -681,16 +676,16 @@ const MTY_WEB_API = {
 	},
 	web_set_key: function (reverse, code, key) {
 		const str = MTY_StrToJS(code);
-		MTY_W.keys[str] = key;
+		MTY.keys[str] = key;
 
 		if (reverse)
-			MTY_W.keysRev[key] = str;
+			MTY.keysRev[key] = str;
 	},
 	web_get_key: function (key, buf, len) {
-		const code = MTY_W.keysRev[key];
+		const code = MTY.keysRev[key];
 
 		if (code != undefined) {
-			const text = MTY_W.kbMap[code];
+			const text = MTY.kbMap[code];
 			if (text) {
 				MTY_StrToC(text.toUpperCase(), buf, len);
 
@@ -710,20 +705,20 @@ const MTY_WEB_API = {
 		});
 	},
 	web_set_gfx: function () {
-		const info = MTY_W.initWindowInfo;
+		const info = MTY.initWindowInfo;
 		const canvas = new OffscreenCanvas(info.canvasWidth, info.canvasHeight);
 
-		MTY_W.gl = canvas.getContext('webgl2', {
+		MTY.gl = canvas.getContext('webgl2', {
 			depth: false,
 			antialias: false,
 		});
 	},
 	web_set_canvas_size: function (width, height) {
-		MTY_W.gl.canvas.width = width;
-		MTY_W.gl.canvas.height = height;
+		MTY.gl.canvas.width = width;
+		MTY.gl.canvas.height = height;
 	},
 	web_present: function (wait) {
-		const image = MTY_W.gl.canvas.transferToImageBitmap();
+		const image = MTY.gl.canvas.transferToImageBitmap();
 
 		postMessage({
 			type: 'present',
@@ -731,7 +726,7 @@ const MTY_WEB_API = {
 		}, [image]);
 
 		if (wait)
-			mty_wait(MTY_W.psync);
+			mty_wait(MTY.psync);
 	},
 
 	// Synchronization from C
@@ -741,11 +736,11 @@ const MTY_WEB_API = {
 
 	// Should be called on main thread only
 	web_set_app: function (app) {
-		MTY_W.app = app;
-		mty_update_window(app, MTY_W.initWindowInfo);
+		MTY.app = app;
+		mty_update_window(app, MTY.initWindowInfo);
 	},
 	web_run_and_yield: function (iter, opaque) {
-		MTY_W.exports.app_set_keys();
+		MTY.exports.app_set_keys();
 
 		const step = () => {
 			if (mty_cfunc(iter)(opaque))
@@ -789,7 +784,7 @@ function mty_arg_list(bin, args) {
 const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 	// Command line arguments
 	args_get: function (argv, argv_buf) {
-		const args = mty_arg_list(MTY_W.bin, MTY_W.queryString);
+		const args = mty_arg_list(MTY.bin, MTY.queryString);
 
 		for (let x = 0; x < args.length; x++) {
 			MTY_Strcpy(argv_buf, args[x]);
@@ -800,7 +795,7 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 		return 0;
 	},
 	args_sizes_get: function (retptr0, retptr1) {
-		const args = mty_arg_list(MTY_W.bin, MTY_W.queryString);
+		const args = mty_arg_list(MTY.bin, MTY.queryString);
 
 		let total_len = 0;
 		for (let x = 0; x < args.length; x++)
@@ -813,17 +808,17 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 
 	// WASI preopened directory (/)
 	fd_prestat_get: function (fd, retptr0) {
-		if (MTY_W.preopen == undefined) {
+		if (MTY.preopen == undefined) {
 			MTY_SetInt8(retptr0, 0);
 			MTY_SetUint64(retptr0 + 4, 1);
-			MTY_W.preopen = fd;
+			MTY.preopen = fd;
 			return 0;
 		}
 
 		return 8;
 	},
 	fd_prestat_dir_name: function (fd, path, path_len) {
-		if (MTY_W.preopen == fd) {
+		if (MTY.preopen == fd) {
 			MTY_Strcpy(path, new TextEncoder().encode('/'));
 			return 0;
 		}
@@ -844,10 +839,10 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 		return 0;
 	},
 	path_open: function (fd, dirflags, path, path_size, oflags, fs_rights_base, fs_rights_inheriting, fdflags, retptr0) {
-		const new_fd = MTY_W.fdIndex++;
+		const new_fd = MTY.fdIndex++;
 		MTY_SetUint32(retptr0, new_fd);
 
-		MTY_W.fds[new_fd] = {
+		MTY.fds[new_fd] = {
 			path: MTY_StrToJS(path),
 			append: fdflags == 1,
 			offset: 0,
@@ -872,7 +867,7 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 
 	// File descriptors
 	fd_close: function (fd) {
-		delete MTY_W.fds[fd];
+		delete MTY.fds[fd];
 	},
 	fd_fdstat_get: function (fd, retptr0) {
 		return 0;
@@ -886,7 +881,7 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 		return 0;
 	},
 	fd_read: function (fd, iovs, iovs_len, retptr0) {
-		const finfo = MTY_W.fds[fd];
+		const finfo = MTY.fds[fd];
 		const full_buf = mty_get_ls(finfo.path);
 
 		if (finfo && full_buf) {
@@ -943,8 +938,8 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 				console.error(str);
 
 		// Filesystem
-		} else if (MTY_W.fds[fd]) {
-			const finfo = MTY_W.fds[fd];
+		} else if (MTY.fds[fd]) {
+			const finfo = MTY.fds[fd];
 			const cur_buf = mty_get_ls(finfo.path);
 
 			if (cur_buf && finfo.append) {
@@ -968,7 +963,7 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 	poll_oneoff: function (_in, out, nsubscriptions, retptr0) {
 		// __WASI_EVENTTYPE_CLOCK
 		if (MTY_GetUint8(_in + 8) == 0)
-			Atomics.wait(MTY_W.sleeper, 0, 0, Number(MTY_GetUint64(_in + 24)) / 1000000);
+			Atomics.wait(MTY.sleeper, 0, 0, Number(MTY_GetUint64(_in + 24)) / 1000000);
 
 		MTY_SetUint32(out + 8, 0);
 		return 0;
@@ -988,13 +983,13 @@ const MTY_WASI_API = {
 		postMessage({
 			type: 'thread',
 			startArg: start_arg,
-			sab: MTY_W.sab,
-			sync: MTY_W.sync,
+			sab: MTY.sab,
+			sync: MTY.sync,
 		});
 
-		mty_wait(MTY_W.sync);
+		mty_wait(MTY.sync);
 
-		return MTY_W.sab[0];
+		return MTY.sab[0];
 	},
 };
 
@@ -1043,13 +1038,13 @@ async function mty_instantiate_wasm(wasmBuf, userEnv) {
 				type: 'user-env',
 				name: key,
 				args: args,
-				sab: MTY_W.sab,
-				sync: MTY_W.sync,
+				sab: MTY.sab,
+				sync: MTY.sync,
 			});
 
-			mty_wait(MTY_W.sync);
+			mty_wait(MTY.sync);
 
-			return MTY_W.sab[0];
+			return MTY.sab[0];
 		};
 	}
 
@@ -1066,29 +1061,29 @@ onmessage = async (ev) => {
 
 			MTY_MEMORY = msg.memory;
 
-			MTY_W.queryString = msg.args;
-			MTY_W.hostname = msg.hostname;
-			MTY_W.bin = msg.bin;
-			MTY_W.fdIndex = 64;
-			MTY_W.kbMap = msg.kbMap;
-			MTY_W.psync = msg.psync;
-			MTY_W.initWindowInfo = msg.windowInfo;
-			MTY_W.sync = new Int32Array(new SharedArrayBuffer(4));
-			MTY_W.sleeper = new Int32Array(new SharedArrayBuffer(4));
-			MTY_W.module = await mty_instantiate_wasm(msg.wasmBuf, msg.userEnv);
-			MTY_W.exports = MTY_W.module.instance.exports;
-			MTY_W.sab = new Uint32Array(new SharedArrayBuffer(128));
+			MTY.queryString = msg.args;
+			MTY.hostname = msg.hostname;
+			MTY.bin = msg.bin;
+			MTY.fdIndex = 64;
+			MTY.kbMap = msg.kbMap;
+			MTY.psync = msg.psync;
+			MTY.initWindowInfo = msg.windowInfo;
+			MTY.sync = new Int32Array(new SharedArrayBuffer(4));
+			MTY.sleeper = new Int32Array(new SharedArrayBuffer(4));
+			MTY.module = await mty_instantiate_wasm(msg.wasmBuf, msg.userEnv);
+			MTY.exports = MTY.module.instance.exports;
+			MTY.sab = new Uint32Array(new SharedArrayBuffer(128));
 
-			MTY_W.exports.system_setbuf();
+			MTY.exports.system_setbuf();
 
 			try {
 				// Secondary thread
 				if (msg.startArg) {
-					MTY_W.exports.wasi_thread_start(msg.threadId, msg.startArg);
+					MTY.exports.wasi_thread_start(msg.threadId, msg.startArg);
 
 				// Main thread
 				} else {
-					MTY_W.exports._start();
+					MTY.exports._start();
 				}
 
 				close();
@@ -1101,14 +1096,14 @@ onmessage = async (ev) => {
 
 		// Main thread only
 		case 'window-update':
-			if (MTY_W.app)
-				mty_update_window(MTY_W.app, msg.windowInfo);
+			if (MTY.app)
+				mty_update_window(MTY.app, msg.windowInfo);
 			break;
 		case 'key': {
-			if (!MTY_W.app)
+			if (!MTY.app)
 				return;
 
-			const key = MTY_W.keys[msg.code];
+			const key = MTY.keys[msg.code];
 
 			if (key != undefined) {
 				let packed = 0;
@@ -1120,49 +1115,49 @@ onmessage = async (ev) => {
 						packed |= buf[x] << x * 8;
 				}
 
-				MTY_W.exports.window_keyboard(MTY_W.app, msg.pressed, key, packed, msg.mods);
+				MTY.exports.window_keyboard(MTY.app, msg.pressed, key, packed, msg.mods);
 			}
 			break;
 		}
 		case 'motion':
-			if (MTY_W.app)
-				MTY_W.exports.window_motion(MTY_W.app, msg.relative, msg.x, msg.y);
+			if (MTY.app)
+				MTY.exports.window_motion(MTY.app, msg.relative, msg.x, msg.y);
 			break;
 		case 'button':
-			if (MTY_W.app)
-				MTY_W.exports.window_button(MTY_W.app, msg.pressed, msg.button, msg.x, msg.y);
+			if (MTY.app)
+				MTY.exports.window_button(MTY.app, msg.pressed, msg.button, msg.x, msg.y);
 			break;
 		case 'wheel':
-			if (MTY_W.app)
-				MTY_W.exports.window_scroll(MTY_W.app, msg.x, msg.y);
+			if (MTY.app)
+				MTY.exports.window_scroll(MTY.app, msg.x, msg.y);
 			break;
 		case 'move':
-			if (MTY_W.app)
-				MTY_W.exports.window_move(MTY_W.app);
+			if (MTY.app)
+				MTY.exports.window_move(MTY.app);
 			break;
 		case 'resize':
-			if (MTY_W.app) {
-				MTY_W.exports.window_update_size(MTY_W.app, msg.width, msg.height);
-				MTY_W.exports.window_resize(MTY_W.app);
+			if (MTY.app) {
+				MTY.exports.window_update_size(MTY.app, msg.width, msg.height);
+				MTY.exports.window_resize(MTY.app);
 			}
 			break;
 		case 'focus':
-			if (MTY_W.app) {
-				MTY_W.exports.window_update_focus(MTY_W.app, msg.focus);
-				MTY_W.exports.window_focus(MTY_W.app, msg.focus);
+			if (MTY.app) {
+				MTY.exports.window_update_focus(MTY.app, msg.focus);
+				MTY.exports.window_focus(MTY.app, msg.focus);
 			}
 			break;
 		case 'gamepad':
-			if (MTY_W.app)
-				MTY_W.exports.window_controller(MTY_W.app, msg.id, msg.state, msg.buttons, msg.lx,
+			if (MTY.app)
+				MTY.exports.window_controller(MTY.app, msg.id, msg.state, msg.buttons, msg.lx,
 					msg.ly, msg.rx, msg.ry, msg.lt, msg.rt);
 			break;
 		case 'disconnect':
-			if (MTY_W.app)
-				MTY_W.exports.window_controller(MTY_W.app, msg.id, msg.state, 0, 0, 0, 0, 0, 0, 0);
+			if (MTY.app)
+				MTY.exports.window_controller(MTY.app, msg.id, msg.state, 0, 0, 0, 0, 0, 0, 0);
 			break;
 		case 'drop': {
-			if (!MTY_W.app)
+			if (!MTY.app)
 				return;
 
 			const buf = new Uint8Array(msg.data);
@@ -1173,7 +1168,7 @@ onmessage = async (ev) => {
 			const cname = mty_alloc(buf.length);
 			MTY_Strcpy(cname, name);
 
-			MTY_W.exports.window_drop(MTY_W.app, cname, cmem, buf.length);
+			MTY.exports.window_drop(MTY.app, cname, cmem, buf.length);
 
 			mty_free(cname);
 			mty_free(cmem);
