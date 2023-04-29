@@ -33,16 +33,12 @@ if (typeof importScripts == 'function') {
 
 // Memory
 
-function mty_buf_to_js_str(buf) {
+function mty_encode(str) {
+	return new TextEncoder().encode(str);
+}
+
+function mty_decode(buf) {
 	return new TextDecoder().decode(buf);
-}
-
-function mty_b64_to_buf(str) {
-	return new TextEncoder().encode(atob(str));
-}
-
-function mty_buf_to_b64(buf) {
-	return btoa(new TextDecoder().decode(buf));
 }
 
 function mty_strlen(buf) {
@@ -61,14 +57,21 @@ function mty_strcpy(ptr, buf) {
 	mty_set_int8(ptr + buf.byteLength, 0);
 }
 
+function mty_dup(ptr, size) {
+	const buf = new Uint8Array(size);
+	buf.set(new Uint8Array(MTY_MEMORY.buffer, ptr, size));
+
+	return buf;
+}
+
 function mty_str_to_js(ptr) {
 	const buf = new Uint8Array(MTY_MEMORY.buffer, ptr);
 
-	return new TextDecoder().decode(buf.slice(0, mty_strlen(buf)));
+	return mty_decode(buf.slice(0, mty_strlen(buf)));
 }
 
 function mty_str_to_c(str, ptr, size) {
-	const buf = new TextEncoder().encode(str);
+	const buf = mty_encode(str);
 
 	if (buf.byteLength >= size)
 		throw 'mty_str_to_c overflow'
@@ -533,7 +536,7 @@ function mty_use_default_cursor(use_default) {
 function mty_set_png_cursor(buffer, size, hot_x, hot_y) {
 	if (buffer) {
 		const buf = new Uint8Array(MTY_MEMORY.buffer, buffer, size);
-		const b64_png = mty_buf_to_b64(buf);
+		const b64_png = btoa(mty_decode(buf));
 
 		if (!MTY.cursorCache[b64_png]) {
 			MTY.cursorCache[b64_png] = `cursor-x-${MTY.cursorId}`;
@@ -673,7 +676,7 @@ async function mty_ws_read(ws, timeout) {
 			msg = ws.msgs.shift()
 	}
 
-	return msg ? new TextEncoder().encode(msg) : null;
+	return msg ? mty_encode(msg) : null;
 }
 
 
@@ -867,7 +870,7 @@ async function mty_thread_message(ev) {
 			const val = window.localStorage[msg.key];
 
 			if (val) {
-				this.tmp = mty_b64_to_buf(val);
+				this.tmp = mty_encode(atob(val));
 				msg.sab[0] = this.tmp.byteLength;
 
 			} else {
@@ -878,7 +881,7 @@ async function mty_thread_message(ev) {
 			break;
 		}
 		case 'set-ls':
-			window.localStorage[msg.key] = msg.val;
+			window.localStorage[msg.key] = btoa(mty_decode(msg.val));
 			mty_signal(msg.sync);
 			break;
 		case 'alert':
@@ -896,13 +899,12 @@ async function mty_thread_message(ev) {
 		case 'show-cursor':
 			mty_show_cursor(msg.show);
 			break;
-		case 'get-clip': {
+		case 'get-clip':
 			// FIXME Unsupported on Firefox
 			if (navigator.clipboard.readText) {
-				const enc = new TextEncoder();
 				const text = await navigator.clipboard.readText();
 
-				this.tmp = enc.encode(text);
+				this.tmp = mty_encode(text);
 				msg.sab[0] = this.tmp.byteLength;
 
 			} else {
@@ -911,7 +913,6 @@ async function mty_thread_message(ev) {
 
 			mty_signal(msg.sync);
 			break;
-		}
 		case 'set-clip':
 			navigator.clipboard.writeText(mty_str_to_js(msg.text));
 			break;

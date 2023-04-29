@@ -29,6 +29,13 @@ function mty_free(ptr) {
 	MTY.exports.mty_system_free(ptr);
 }
 
+function mty_dup_c(buf) {
+	const ptr = mty_alloc(buf.byteLength + 1);
+	mty_memcpy(ptr, buf);
+
+	return ptr;
+}
+
 
 // window.localStorage
 
@@ -247,7 +254,7 @@ const MTY_GL_API = {
 	},
 	glGetShaderInfoLog: function (shader, maxLength, length, infoLog) {
 		const log = gl.getShaderInfoLog(mty_gl_obj(shader));
-		const buf = new TextEncoder().encode();
+		const buf = mty_encode(log);
 
 		if (buf.length < maxLength) {
 			mty_set_uint32(length);
@@ -423,12 +430,7 @@ const MTY_NET_API = {
 	{
 		// FIXME timeout is currently ignored
 
-		let body = null;
-		if (cbody) {
-			body = new Uint8Array(bodySize);
-			body.set(new Uint8Array(MTY_MEMORY.buffer, cbody, bodySize));
-		}
-
+		const body = cbody ? mty_dup(cbody, bodySize) : null;
 		const method = mty_str_to_js(cmethod);
 		const args = mty_net_args('http', chost, port, secure, cpath, cheaders);
 
@@ -539,15 +541,14 @@ const MTY_NET_API = {
 
 const MTY_IMAGE_API = {
 	MTY_DecompressImage: function (input, size, cwidth, cheight) {
-		const jinput = new ArrayBuffer(size);
-		new Uint8Array(jinput).set(new Uint8Array(MTY_MEMORY.buffer, input, size));
+		const jinput = mty_dup(input, size);
 
 		postMessage({
 			type: 'decode-image',
-			input: jinput,
+			input: jinput.buffer,
 			sync: MTY.sync,
 			sab: MTY.sab,
-		}, [jinput]);
+		}, [jinput.buffer]);
 
 		mty_wait(MTY.sync);
 
@@ -583,11 +584,7 @@ const MTY_CRYPTO_API = {
 	MTY_CryptoHash: function (algo, input, inputSize, key, keySize, output, outputSize) {
 	},
 	MTY_GetRandomBytes: function (buf, size) {
-		const cpy = new Uint8Array(size);
-		crypto.getRandomValues(cpy);
-
-		const jbuf = new Uint8Array(MTY_MEMORY.buffer, buf, size);
-		jbuf.set(cpy);
+		mty_memcpy(buf, crypto.getRandomValues(new Uint8Array(size)));
 	},
 };
 
@@ -665,11 +662,7 @@ const MTY_WEB_API = {
 		postMessage({type: 'kb-grab', grab});
 	},
 	web_get_hostname: function () {
-		const buf = new TextEncoder().encode(MTY.hostname);
-		const ptr = mty_alloc(buf.length);
-		mty_strcpy(ptr, buf);
-
-		return ptr;
+		return mty_dup_c(mty_encode(MTY.hostname));
 	},
 	web_platform: function (platform, size) {
 		mty_str_to_c(navigator.platform, platform, size);
@@ -757,7 +750,7 @@ const MTY_WEB_API = {
 
 // github.com/WebAssembly/wasi-libc/blob/main/libc-bottom-half/headers/public/wasi/api.h
 
-function mty_append_buf_to_b64(cur_buf, buf) {
+function mty_append_buf(cur_buf, buf) {
 	// FIXME This is a crude way to handle appending to an open file,
 	// complex seek operations will break this
 
@@ -766,17 +759,17 @@ function mty_append_buf_to_b64(cur_buf, buf) {
 	new_buf.set(cur_buf);
 	new_buf.set(buf, cur_buf.length);
 
-	return mty_buf_to_b64(new_buf);
+	return new_buf;
 }
 
 function mty_arg_list(bin, args) {
-	let plist = [new TextEncoder().encode(bin)];
+	let plist = [mty_encode(bin)];
 
 	const params = new URLSearchParams(args);
 	const qs = params.toString();
 
 	if (qs)
-		plist.push(new TextEncoder().encode(qs));
+		plist.push(mty_encode(qs));
 
 	return plist;
 }
@@ -819,7 +812,7 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 	},
 	fd_prestat_dir_name: function (fd, path, path_len) {
 		if (MTY.preopen == fd) {
-			mty_strcpy(path, new TextEncoder().encode('/'));
+			mty_strcpy(path, mty_encode('/'));
 			return 0;
 		}
 
@@ -927,13 +920,13 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 
 		// stdout
 		if (fd == 1) {
-			const str = mty_buf_to_js_str(full_buf);
+			const str = mty_decode(full_buf);
 			if (str != '\n')
 				console.log(str);
 
 		// stderr
 		} else if (fd == 2) {
-			const str = mty_buf_to_js_str(full_buf)
+			const str = mty_decode(full_buf)
 			if (str != '\n')
 				console.error(str);
 
@@ -943,10 +936,10 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 			const cur_buf = mty_get_ls(finfo.path);
 
 			if (cur_buf && finfo.append) {
-				mty_set_ls(finfo.path, mty_append_buf_to_b64(cur_buf, full_buf));
+				mty_set_ls(finfo.path, mty_append_buf(cur_buf, full_buf));
 
 			} else {
-				mty_set_ls(finfo.path, mty_buf_to_b64(full_buf, len));
+				mty_set_ls(finfo.path, full_buf);
 			}
 
 			finfo.offet += len;
@@ -1109,7 +1102,7 @@ onmessage = async (ev) => {
 				let packed = 0;
 
 				if (msg.key.length == 1) {
-					const buf = new TextEncoder().encode(msg.key);
+					const buf = mty_encode(msg.key);
 
 					for (let x = 0; x < buf.length; x++)
 						packed |= buf[x] << x * 8;
@@ -1160,13 +1153,8 @@ onmessage = async (ev) => {
 			if (!MTY.app)
 				return;
 
-			const buf = new Uint8Array(msg.data);
-			const cmem = mty_alloc(buf.length);
-			mty_memcpy(cmem, buf);
-
-			const name = new TextEncoder().encode(msg.name);
-			const cname = mty_alloc(buf.length);
-			mty_strcpy(cname, name);
+			const cmem = mty_dup_c(new Uint8Array(msg.data));
+			const cname = mty_dup_c(mty_encode(msg.name));
 
 			MTY.exports.mty_window_drop(MTY.app, cname, cmem, buf.length);
 
