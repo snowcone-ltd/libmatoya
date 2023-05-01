@@ -849,7 +849,7 @@ static BOOL window_performKeyEquivalent(NSWindow *self, SEL _cmd, NSEvent *event
 {
 	struct window *ctx = OBJC_CTX();
 
-	return ctx->app->grab_kb && ctx->app->hid_keyboard_active;
+	return ctx->app->grab_kb;
 }
 
 static BOOL window_windowShouldClose(NSWindow *self, SEL _cmd, NSWindow *sender)
@@ -969,17 +969,8 @@ static void window_flagsChanged(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
 
-	// Simulate full button press for the Caps Lock key
-	if (event.keyCode == kVK_CapsLock) {
-		if (!ctx->app->hid_keyboard_active || !ctx->app->grab_kb) {
-			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true, true);
-			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, true);
-		}
-
-	} else {
-		bool pressed = window_flags_changed(event.keyCode, event.modifierFlags);
-		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, pressed, false);
-	}
+	bool pressed = window_flags_changed(event.keyCode, event.modifierFlags);
+	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, pressed, false);
 }
 
 static void window_mouseUp(NSWindow *self, SEL _cmd, NSEvent *event)
@@ -1324,7 +1315,10 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 		.key.pressed = down,
 	};
 
-	ctx->event_func(&evt, ctx->opaque);
+	mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
+
+	if ((evt.type == MTY_EVENT_HOTKEY && down) || (evt.type == MTY_EVENT_KEY && evt.key.key != MTY_KEY_NONE))
+		ctx->event_func(&evt, ctx->opaque);
 }
 
 static void app_pump_events(MTY_App *ctx, NSDate *until)
