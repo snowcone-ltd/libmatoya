@@ -406,6 +406,15 @@ static struct window *app_get_window(MTY_App *ctx, MTY_Window window)
 	return window < 0 ? NULL : ctx->windows[window];
 }
 
+static struct window *app_get_active_window(MTY_App *ctx)
+{
+	for (MTY_Window x = 0; x < MTY_WINDOW_MAX; x++)
+		if (ctx->windows[x] && ctx->windows[x]->nsw.isKeyWindow)
+			return ctx->windows[x];
+
+	return NULL;
+}
+
 static struct window *app_get_window_by_number(MTY_App *ctx, NSInteger number)
 {
 	for (MTY_Window x = 0; x < MTY_WINDOW_MAX; x++)
@@ -840,26 +849,7 @@ static BOOL window_performKeyEquivalent(NSWindow *self, SEL _cmd, NSEvent *event
 {
 	struct window *ctx = OBJC_CTX();
 
-	bool cmd = event.modifierFlags & NSEventModifierFlagCommand;
-	bool ctrl = event.modifierFlags & NSEventModifierFlagControl;
-
-	bool cmd_tab = event.keyCode == kVK_Tab && cmd;
-	bool ctrl_tab = event.keyCode == kVK_Tab && ctrl;
-	bool cmd_q = event.keyCode == kVK_ANSI_Q && cmd;
-	bool cmd_w = event.keyCode == kVK_ANSI_W && cmd;
-	bool cmd_space = event.keyCode == kVK_Space && cmd;
-
-	// While keyboard is grabbed, make sure we pass through special OS hotkeys
-	if (ctx->app->grab_kb && (cmd_tab || ctrl_tab || cmd_q || cmd_w || cmd_space)) {
-		if (!(ctx->app->flags & MTY_APP_FLAG_HID_KEYBOARD)) {
-			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true, true);
-			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, true);
-		}
-
-		return YES;
-	}
-
-	return NO;
+	return ctx->app->grab_kb && ctx->app->hid_keyboard_active;
 }
 
 static BOOL window_windowShouldClose(NSWindow *self, SEL _cmd, NSWindow *sender)
@@ -981,7 +971,7 @@ static void window_flagsChanged(NSWindow *self, SEL _cmd, NSEvent *event)
 
 	// Simulate full button press for the Caps Lock key
 	if (event.keyCode == kVK_CapsLock) {
-		if (!(ctx->app->flags & MTY_APP_FLAG_HID_KEYBOARD)) {
+		if (!ctx->app->hid_keyboard_active || !ctx->app->grab_kb) {
 			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true, true);
 			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, true);
 		}
@@ -1319,24 +1309,16 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 	if (!ctx->grab_kb)
 		return;
 
-	if (!MTY_AppIsActive(ctx))
+	struct window *window = app_get_active_window(ctx);
+	if (!window)
 		return;
 
-	struct window *window0 = ctx->windows[0];
-
-	if (window0 && window0->cmn.webview && mty_webview_is_visible(window0->cmn.webview))
+	if (window->cmn.webview && mty_webview_is_visible(window->cmn.webview))
 		return;
-
-	MTY_Window active_window = MTY_WINDOW_MAX;
-	for (MTY_Window i = 0; active_window == MTY_WINDOW_MAX && i < MTY_WINDOW_MAX; i++) {
-		if (MTY_WindowIsActive(ctx, i)) {
-			active_window = i;
-		}
-	}
 
 	MTY_Event evt = {
 		.type = MTY_EVENT_KEY,
-		.window = active_window,
+		.window = window->window,
 		.key.key = key,
 		.key.mod = ctx->hid_kb_mod,
 		.key.pressed = down,
