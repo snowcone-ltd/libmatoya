@@ -21,10 +21,12 @@ NAME = libmatoya
 
 OBJS = \
 	src/app.o \
+	src/async.o \
 	src/crypto.o \
 	src/dtls.o \
 	src/file.o \
 	src/hash.o \
+	src/http.o \
 	src/image.o \
 	src/json.o \
 	src/list.o \
@@ -73,7 +75,7 @@ endif
 ifdef WASM
 WASI_SDK = $(HOME)/wasi-sdk
 
-CC = $(WASI_SDK)/bin/clang --sysroot=$(WASI_SDK)/share/wasi-sysroot
+CC = $(WASI_SDK)/bin/clang
 AR = $(WASI_SDK)/bin/ar
 
 ARCH := wasm32
@@ -92,6 +94,11 @@ SHADERS = \
 	src/gfx/gl/shaders/vs.h \
 	src/gfx/gl/shaders/fsui.h \
 	src/gfx/gl/shaders/vsui.h
+
+FLAGS := $(FLAGS) \
+	--sysroot=$(WASI_SDK)/share/wasi-sysroot \
+	--target=wasm32-wasi-threads \
+	-pthread
 
 DEFS := $(DEFS) \
 	-DCLOCK_MONOTONIC_RAW=CLOCK_MONOTONIC \
@@ -115,8 +122,6 @@ WEBVIEW_OBJ = src/unix/linux/x11/webview.o
 endif
 
 OBJS := $(OBJS) \
-	src/async.o \
-	src/http.o \
 	src/gfx/gl/gl.o \
 	src/gfx/gl/gl-ui.o \
 	src/gfx/vk/vk.o \
@@ -193,8 +198,6 @@ endif
 endif
 
 OBJS := $(OBJS) \
-	src/async.o \
-	src/http.o \
 	src/unix/system.o \
 	src/unix/apple/request.o \
 	src/unix/apple/audio.o \

@@ -55,6 +55,11 @@ extern "C" {
 typedef struct MTY_App MTY_App;
 typedef int8_t MTY_Window;
 
+/// @brief Function called in a loop by MTY_RunAndYield until it returns false.
+/// @param opaque Pointer set via MTY_RunAndYield.
+/// @returns Return true to continue iterating, false to break.
+typedef bool (*MTY_IterFunc)(void *opaque);
+
 /// @brief Function called once per message cycle.
 /// @details A "message cycle" can be thought of as one iteration through all of the
 ///   available messages that the OS has accumulated. libmatoya loops through each
@@ -1372,6 +1377,29 @@ MTY_PrintEvent(const MTY_Event *evt);
 MTY_EXPORT void *
 MTY_GLGetProcAddress(const char *name);
 
+/// @brief Runs a loop while also allowing the OS's event loop to continue to run.
+/// @details This function only matters when targeting the Web. If a regular `while` loop is used
+///   to block a thread, under the hood the `Worker` that is executing the WebAssembly will be
+///   blocked and can not process the JavaScript event loop. This means that the `Worker` can not
+///   communicate with the main thread via `postMessage`, and most importantly can not perform
+///   deferred cleanup via the event loop, causing memory leaks.
+/// @param iter Function called in a loop until it returns false.
+/// @param opaque Pointer passed to each call to `iter`.
+MTY_EXPORT void
+MTY_RunAndYield(MTY_IterFunc iter, void *opaque);
+
+/// @brief Wait until signaled by the main JavaScript thread. Web only.
+/// @details When providing a `userEnv` argument to the MTY_Start JavaScript function, it may
+///   become necessary to have the WebAssembly thread wait while running asynchronous code in
+///   JavaScript. All functions supplied via the `userEnv` argument will always run on the main
+///   JavaScript thread which is not allowed to block in any way. These functions should call
+///   MTY_SignalPtr when done with their asynchronous operations on a `sync` variable, which
+///   will then unblock the WebAssembly side waiting with MTY_WaitPtr.
+/// @param sync Pointer to arbitrary shared memory.
+//- #support Web
+MTY_EXPORT void
+MTY_WaitPtr(int32_t *sync);
+
 
 //- #module Audio
 //- #mbrief Simple audio playback and resampling.
@@ -1825,13 +1853,6 @@ typedef enum {
 	MTY_IMAGE_COMPRESSION_MAKE_32 = INT32_MAX,
 } MTY_ImageCompression;
 
-/// @brief Function called after decompression is finished.
-/// @param image The decompressed image on success, or NULL if there was an error.
-/// @param width The width of `image`.
-/// @param height The height of `image`.
-/// @param opaque Pointer supplied to MTY_DecompressImageAsync.
-typedef void (*MTY_ImageFunc)(void *image, uint32_t width, uint32_t height, void *opaque);
-
 /// @brief Compress an RGBA image.
 /// @param method The compression method to be used on `input`.
 /// @param input RGBA 8-bits per channel image data.
@@ -1855,16 +1876,6 @@ MTY_CompressImage(MTY_ImageCompression method, const void *input, uint32_t width
 ///   The returned buffer must be destroyed with MTY_Free.
 MTY_EXPORT void *
 MTY_DecompressImage(const void *input, size_t size, uint32_t *width, uint32_t *height);
-
-/// @brief Decompress an image asynchronously into RGBA.
-/// @details This function is synchronous and functionally equivalent to MTY_DecompressImage on
-///   all platforms except the Web.
-/// @param input The compressed image data.
-/// @param size The size in bytes of `input`.
-/// @param func Function called after decompression is finished.
-/// @param opaque Passed to `func` when it is called.
-MTY_EXPORT void
-MTY_DecompressImageAsync(const void *input, size_t size, MTY_ImageFunc func, void *opaque);
 
 /// @brief Center crop an RGBA image.
 /// @param image RGBA 8-bits per channel image to be cropped.

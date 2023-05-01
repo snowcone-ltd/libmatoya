@@ -6,7 +6,8 @@
 
 #include <errno.h>
 
-#include "thread.h"
+#include <pthread.h>
+
 #include "rwlockattr.h"
 
 typedef pthread_rwlock_t mty_rwlock;

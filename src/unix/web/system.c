@@ -5,6 +5,7 @@
 #include "matoya.h"
 
 #include <string.h>
+#include <stdio.h>
 
 #include "tlocal.h"
 #include "web.h"
@@ -104,4 +105,26 @@ void MTY_SetRunOnStartup(const char *name, const char *path, const char *args)
 void *MTY_GetJNIEnv(void)
 {
 	return NULL;
+}
+
+
+// Exports
+
+__attribute__((export_name("mty_system_alloc")))
+void *mty_system_alloc(size_t len, size_t size)
+{
+	return MTY_Alloc(len, size);
+}
+
+__attribute__((export_name("mty_system_free")))
+void mty_system_free(void *mem)
+{
+	MTY_Free(mem);
+}
+
+__attribute__((export_name("mty_system_disable_buffering")))
+void mty_system_disable_buffering(void)
+{
+	setbuf(stdout, NULL);
+	setbuf(stderr, NULL);
 }
