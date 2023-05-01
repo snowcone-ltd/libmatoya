@@ -994,9 +994,6 @@ const MTY_WASI_API = {
 // Entry
 
 async function mty_instantiate_wasm(wasmBuf, userEnv) {
-	if (!userEnv)
-		userEnv = [];
-
 	// Imports
 	const imports = {
 		env: {
