@@ -122,10 +122,9 @@ void mty_system_free(void *mem)
 	MTY_Free(mem);
 }
 
-__attribute__((export_name("mty_system_setbuf")))
-void mty_system_setbuf(void)
+__attribute__((export_name("mty_system_disable_buffering")))
+void mty_system_disable_buffering(void)
 {
-	// WASI will buffer stdout and stderr by default, disable it
 	setbuf(stdout, NULL);
 	setbuf(stderr, NULL);
 }

@@ -1063,7 +1063,8 @@ onmessage = async (ev) => {
 			MTY.exports = MTY.module.instance.exports;
 			MTY.sab = new Uint32Array(new SharedArrayBuffer(128));
 
-			MTY.exports.mty_system_setbuf();
+			// WASI will buffer stdout and stderr by default, disable it
+			MTY.exports.mty_system_disable_buffering();
 
 			try {
 				// Additional thread
