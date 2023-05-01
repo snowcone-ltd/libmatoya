@@ -274,7 +274,8 @@ const MTY_GL_API = {
 		MTY.gl.blendEquation(mode);
 	},
 	glUniformMatrix4fv: function (loc, count, transpose, value) {
-		MTY.gl.uniformMatrix4fv(mty_gl_obj(loc), transpose, new Float32Array(MTY_MEMORY.buffer, value, 4 * 4 * count));
+		MTY.gl.uniformMatrix4fv(mty_gl_obj(loc), transpose,
+			new Float32Array(MTY_MEMORY.buffer, value, 4 * 4 * count));
 	},
 	glGetProgramiv: function (program, pname, params) {
 		mty_set_uint32(params, MTY.gl.getProgramParameter(mty_gl_obj(program), pname));
@@ -400,13 +401,17 @@ const MTY_AUDIO_API = {
 
 // Net
 
-function mty_net_args(base_scheme, chost, port, secure, cpath, cheaders) {
+function mty_net_url(base_scheme, chost, port, secure, cpath) {
 	const jport = port != 0 ? ':' + port.toString() : '';
 	const scheme = secure ? base_scheme + 's' : base_scheme;
 	const host = mty_str_to_js(chost);
 	const path = mty_str_to_js(cpath);
+
+	return scheme + '://' + host + jport + path;
+}
+
+function mty_net_headers(cheaders) {
 	const headers_str = mty_str_to_js(cheaders);
-	const url = scheme + '://' + host + jport + path;
 
 	const headers = {};
 	const headers_nl = headers_str.split('\n');
@@ -418,10 +423,7 @@ function mty_net_args(base_scheme, chost, port, secure, cpath, cheaders) {
 			headers[pair_split[0]] = pair_split[1];
 	}
 
-	return {
-		url,
-		headers,
-	};
+	return headers;
 }
 
 const MTY_NET_API = {
@@ -432,13 +434,12 @@ const MTY_NET_API = {
 
 		const body = cbody ? mty_dup(cbody, bodySize) : null;
 		const method = mty_str_to_js(cmethod);
-		const args = mty_net_args('http', chost, port, secure, cpath, cheaders);
 
 		postMessage({
 			type: 'http',
-			url: args.url,
+			url: mty_net_url('http', chost, port, secure, cpath, cheaders),
 			method: method,
-			headers: args.headers,
+			headers: mty_net_headers(cheaders),
 			body: body,
 			sync: MTY.sync,
 			sab: MTY.sab,
@@ -476,11 +477,9 @@ const MTY_NET_API = {
 		// FIXME headers are currently ignored
 		// FIXME upgrade_status_out currently unsupported
 
-		const args = mty_net_args('ws', chost, port, secure, cpath, cheaders);
-
 		postMessage({
 			type: 'ws-connect',
-			url: args.url,
+			url: mty_net_url('ws', chost, port, secure, cpath),
 			sync: MTY.sync,
 			sab: MTY.sab,
 		});
@@ -553,7 +552,10 @@ const MTY_IMAGE_API = {
 		mty_wait(MTY.sync);
 
 		const width = MTY.sab[0];
+		mty_set_uint32(cwidth, width);
+
 		const height = MTY.sab[1];
+		mty_set_uint32(cheight, height);
 
 		const buf_size = width * height * 4;
 		const buf = mty_alloc(buf_size);
@@ -565,9 +567,6 @@ const MTY_IMAGE_API = {
 		});
 
 		mty_wait(MTY.sync);
-
-		mty_set_uint32(cwidth, width);
-		mty_set_uint32(cheight, height);
 
 		return buf;
 	},
@@ -750,6 +749,10 @@ const MTY_WEB_API = {
 
 // github.com/WebAssembly/wasi-libc/blob/main/libc-bottom-half/headers/public/wasi/api.h
 
+const __WASI_ERRNO_SUCCESS = 0;
+const __WASI_ERRNO_BADF = 8;
+const __WASI_ERRNO_INVAL = 28;
+
 function mty_append_buf(cur_buf, buf) {
 	// FIXME This is a crude way to handle appending to an open file,
 	// complex seek operations will break this
@@ -785,18 +788,19 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 			argv_buf += args[x].length + 1;
 		}
 
-		return 0;
+		return __WASI_ERRNO_SUCCESS;
 	},
 	args_sizes_get: function (retptr0, retptr1) {
 		const args = mty_arg_list(MTY.bin, MTY.queryString);
 
-		let total_len = 0;
+		let len = 0;
 		for (let x = 0; x < args.length; x++)
-			total_len += args[x].length + 1;
+			len += args[x].length + 1;
 
 		mty_set_uint32(retptr0, args.length);
-		mty_set_uint32(retptr1, total_len);
-		return 0;
+		mty_set_uint32(retptr1, len);
+
+		return __WASI_ERRNO_SUCCESS;
 	},
 
 	// WASI preopened directory (/)
@@ -805,18 +809,19 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 			mty_set_int8(retptr0, 0);
 			mty_set_uint64(retptr0 + 4, 1);
 			MTY.preopen = fd;
-			return 0;
+
+			return __WASI_ERRNO_SUCCESS;
 		}
 
-		return 8;
+		return __WASI_ERRNO_BADF;
 	},
 	fd_prestat_dir_name: function (fd, path, path_len) {
 		if (MTY.preopen == fd) {
 			mty_strcpy(path, mty_encode('/'));
-			return 0;
+			return __WASI_ERRNO_SUCCESS;
 		}
 
-		return 28;
+		return __WASI_ERRNO_INVAL;
 	},
 
 	// Paths
@@ -824,14 +829,15 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 		const jpath = mty_str_to_js(path);
 		const buf = mty_get_ls(jpath);
 
-		if (buf) {
-			// We only need to return the size
+		// We only need to return the size
+		if (buf)
 			mty_set_uint64(retptr0 + 32, buf.byteLength);
-		}
 
-		return 0;
+		return __WASI_ERRNO_SUCCESS;
 	},
-	path_open: function (fd, dirflags, path, path_size, oflags, fs_rights_base, fs_rights_inheriting, fdflags, retptr0) {
+	path_open: function (fd, dirflags, path, path_size, oflags, fs_rights_base,
+		fs_rights_inheriting, fdflags, retptr0)
+	{
 		const new_fd = MTY.fdIndex++;
 		mty_set_uint32(retptr0, new_fd);
 
@@ -841,21 +847,21 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 			offset: 0,
 		};
 
-		return 0;
+		return __WASI_ERRNO_SUCCESS;
 	},
 	path_create_directory: function (fd, path) {
-		return 0;
+		return __WASI_ERRNO_SUCCESS;
 	},
 	path_remove_directory: function (fd, path) {
-		return 0;
+		return __WASI_ERRNO_SUCCESS;
 	},
 	path_unlink_file: function (fd, path) {
-		return 0;
+		return __WASI_ERRNO_SUCCESS;
 	},
 	path_readlink: function (fd, path, buf, buf_len, retptr0) {
 	},
 	path_rename: function (fd, old_path, new_fd, new_path) {
-		return 0;
+		return __WASI_ERRNO_SUCCESS;
 	},
 
 	// File descriptors
@@ -863,40 +869,38 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 		delete MTY.fds[fd];
 	},
 	fd_fdstat_get: function (fd, retptr0) {
-		return 0;
+		return __WASI_ERRNO_SUCCESS;
 	},
 	fd_fdstat_set_flags: function (fd, flags) {
 	},
 	fd_readdir: function (fd, buf, buf_len, cookie, retptr0) {
-		return 8;
+		return __WASI_ERRNO_BADF;
 	},
 	fd_seek: function (fd, offset, whence, retptr0) {
-		return 0;
+		return __WASI_ERRNO_SUCCESS;
 	},
 	fd_read: function (fd, iovs, iovs_len, retptr0) {
 		const finfo = MTY.fds[fd];
-		const full_buf = mty_get_ls(finfo.path);
+		const file_buf = mty_get_ls(finfo.path);
 
-		if (finfo && full_buf) {
-			let total = 0;
+		if (finfo && file_buf) {
+			let offset = 0;
 
 			for (let x = 0; x < iovs_len; x++) {
 				let ptr = iovs + x * 8;
 				let buf = mty_get_uint32(ptr);
 				let buf_len = mty_get_uint32(ptr + 4);
-				let len = buf_len < full_buf.length - total ? buf_len : full_buf.length - total;
+				let len = buf_len < file_buf.length - offset ? buf_len : file_buf.length - offset;
 
-				let view = new Uint8Array(MTY_MEMORY.buffer, buf, buf_len);
-				let slice = new Uint8Array(full_buf.buffer, total, len);
-				view.set(slice);
+				mty_memcpy(buf, new Uint8Array(file_buf.buffer, offset, len));
 
-				total += len;
+				offset += len;
 			}
 
-			mty_set_uint32(retptr0, total);
+			mty_set_uint32(retptr0, offset);
 		}
 
-		return 0;
+		return __WASI_ERRNO_SUCCESS;
 	},
 	fd_write: function (fd, iovs, iovs_len, retptr0) {
 		// Calculate full write size
@@ -908,25 +912,25 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 
 		// Create a contiguous buffer
 		let offset = 0;
-		let full_buf = new Uint8Array(len);
+		let file_buf = new Uint8Array(len);
 		for (let x = 0; x < iovs_len; x++) {
 			let ptr = iovs + x * 8;
 			let buf = mty_get_uint32(ptr);
 			let buf_len = mty_get_uint32(ptr + 4);
 
-			full_buf.set(new Uint8Array(MTY_MEMORY.buffer, buf, buf_len), offset);
+			file_buf.set(new Uint8Array(MTY_MEMORY.buffer, buf, buf_len), offset);
 			offset += buf_len;
 		}
 
 		// stdout
 		if (fd == 1) {
-			const str = mty_decode(full_buf);
+			const str = mty_decode(file_buf);
 			if (str != '\n')
 				console.log(str);
 
 		// stderr
 		} else if (fd == 2) {
-			const str = mty_decode(full_buf)
+			const str = mty_decode(file_buf)
 			if (str != '\n')
 				console.error(str);
 
@@ -936,22 +940,22 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 			const cur_buf = mty_get_ls(finfo.path);
 
 			if (cur_buf && finfo.append) {
-				mty_set_ls(finfo.path, mty_append_buf(cur_buf, full_buf));
+				mty_set_ls(finfo.path, mty_append_buf(cur_buf, file_buf));
 
 			} else {
-				mty_set_ls(finfo.path, full_buf);
+				mty_set_ls(finfo.path, file_buf);
 			}
 
 			finfo.offet += len;
 		}
 
-		return 0;
+		return __WASI_ERRNO_SUCCESS;
 	},
 
 	// Misc
 	clock_time_get: function (id, precision, retptr0) {
 		mty_set_uint64(retptr0, Math.round(performance.now() * 1000.0 * 1000.0));
-		return 0;
+		return __WASI_ERRNO_SUCCESS;
 	},
 	poll_oneoff: function (_in, out, nsubscriptions, retptr0) {
 		// __WASI_EVENTTYPE_CLOCK
@@ -959,7 +963,7 @@ const MTY_WASI_SNAPSHOT_PREVIEW1_API = {
 			Atomics.wait(MTY.sleeper, 0, 0, Number(mty_get_uint64(_in + 24)) / 1000000);
 
 		mty_set_uint32(out + 8, 0);
-		return 0;
+		return __WASI_ERRNO_SUCCESS;
 	},
 	proc_exit: function (rval) {
 	},
@@ -995,7 +999,6 @@ async function mty_instantiate_wasm(wasmBuf, userEnv) {
 
 	// Imports
 	const imports = {
-		// Custom imports
 		env: {
 			memory: MTY_MEMORY,
 			...MTY_UNISTD_API,
@@ -1007,18 +1010,15 @@ async function mty_instantiate_wasm(wasmBuf, userEnv) {
 			...MTY_SYSTEM_API,
 			...MTY_WEB_API,
 		},
-
-		// Current version of WASI we're compiling against, 'wasi_snapshot_preview1'
 		wasi_snapshot_preview1: {
 			...MTY_WASI_SNAPSHOT_PREVIEW1_API,
 		},
-
 		wasi: {
 			...MTY_WASI_API,
 		},
 	}
 
-	// Add userEnv to imports
+	// Add userEnv to imports, run on the main thread
 	for (let x = 0; x < userEnv.length; x++) {
 		const key = userEnv[x];
 
@@ -1041,7 +1041,6 @@ async function mty_instantiate_wasm(wasmBuf, userEnv) {
 		};
 	}
 
-	// Create wasm instance (module) from the ArrayBuffer
 	return await WebAssembly.instantiate(wasmBuf, imports);
 }
 
@@ -1070,7 +1069,7 @@ onmessage = async (ev) => {
 			MTY.exports.mty_system_setbuf();
 
 			try {
-				// Secondary thread
+				// Additional thread
 				if (msg.startArg) {
 					MTY.exports.wasi_thread_start(msg.threadId, msg.startArg);
 
@@ -1087,7 +1086,7 @@ onmessage = async (ev) => {
 			}
 			break;
 
-		// Main thread only
+		// "Main" thread only
 		case 'window-update':
 			if (MTY.app)
 				mty_update_window(MTY.app, msg.windowInfo);
