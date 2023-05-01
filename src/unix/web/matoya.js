@@ -752,7 +752,7 @@ function mty_thread_start(threadId, bin, wasmBuf, memory, startArg, userEnv, kbM
 	return worker;
 }
 
-async function MTY_Start(bin, userEnv) {
+async function MTY_Start(bin, container, userEnv) {
 	if (!mty_supports_web_gl())
 		return false;
 
@@ -760,25 +760,12 @@ async function MTY_Start(bin, userEnv) {
 	MTY.userEnv = userEnv;
 	MTY.psync = new Int32Array(new SharedArrayBuffer(4));
 
-	// Canvas container
-	const html = document.querySelector('html');
-	html.style.width = '100%';
-	html.style.height = '100%';
-	html.style.margin = 0;
-
-	const body = document.querySelector('body');
-	body.style.width = '100%';
-	body.style.height = '100%';
-	body.style.background = 'black';
-	body.style.overflow = 'hidden';
-	body.style.margin = 0;
-
 	// Drawing surface
 	MTY.canvas = document.createElement('canvas');
 	MTY.renderer = MTY.canvas.getContext('bitmaprenderer');
 	MTY.canvas.style.width = '100%';
 	MTY.canvas.style.height = '100%';
-	document.body.appendChild(MTY.canvas);
+	container.appendChild(MTY.canvas);
 	mty_update_canvas(MTY.canvas);
 
 	// WASM binary

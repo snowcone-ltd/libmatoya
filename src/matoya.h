@@ -1389,11 +1389,11 @@ MTY_EXPORT void
 MTY_RunAndYield(MTY_IterFunc iter, void *opaque);
 
 /// @brief Wait until signaled by the main JavaScript thread. Web only.
-/// @details When providing a `userEnv` argument to the `MTY_Start` JavaScript function, it may
+/// @details When providing a `userEnv` argument to the MTY_Start JavaScript function, it may
 ///   become necessary to have the WebAssembly thread wait while running asynchronous code in
 ///   JavaScript. All functions supplied via the `userEnv` argument will always run on the main
 ///   JavaScript thread which is not allowed to block in any way. These functions should call
-///   `MTY_SignalPtr` when done with their asynchronous operations on a `sync` variable, which
+///   MTY_SignalPtr when done with their asynchronous operations on a `sync` variable, which
 ///   will then unblock the WebAssembly side waiting with MTY_WaitPtr.
 /// @param sync Pointer to arbitrary shared memory.
 //- #support Web
