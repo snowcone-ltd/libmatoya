@@ -29,6 +29,7 @@ struct MTY_Audio {
 
 	uint8_t *buffer;
 	size_t size;
+	size_t min_request;
 };
 
 static void audio_error(AAudioStream *stream, void *userData, aaudio_result_t error)
@@ -48,6 +49,7 @@ static aaudio_data_callback_result_t audio_callback(AAudioStream *stream, void *
 	if (ctx->playing && ctx->size >= want_size) {
 		memcpy(audioData, ctx->buffer, want_size);
 		ctx->size -= want_size;
+		ctx->min_request = MTY_MIN(want_size, ctx->min_request);
 
 		memmove(ctx->buffer, ctx->buffer + want_size, ctx->size);
 
@@ -72,6 +74,7 @@ MTY_Audio *MTY_AudioCreate(uint32_t sampleRate, uint32_t minBuffer, uint32_t max
 	uint32_t frames_per_ms = lrint((float) sampleRate / 1000.0f);
 	ctx->min_buffer = minBuffer * frames_per_ms * ctx->channels * AUDIO_SAMPLE_SIZE;
 	ctx->max_buffer = maxBuffer * frames_per_ms * ctx->channels * AUDIO_SAMPLE_SIZE;
+	ctx->min_request = ctx->max_buffer;
 
 	return ctx;
 }
@@ -100,6 +103,7 @@ void MTY_AudioReset(MTY_Audio *ctx)
 		ctx->playing = false;
 		ctx->flushing = false;
 		ctx->size = 0;
+		ctx->min_request = ctx->max_buffer;
 
 		MTY_MutexUnlock(ctx->mutex);
 
@@ -148,6 +152,12 @@ void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 
 	if (ctx->size + data_size >= ctx->max_buffer)
 		ctx->flushing = true;
+
+	// If the data remaining is less than the minimum Android has ever requested, clear it so we don't get stuck flushing
+	if (ctx->flushing && ctx->size < ctx->min_request) {
+		memset(ctx->buffer, 0, ctx->size);
+		ctx->size = 0;
+	}
 
 	if (ctx->size == 0) {
 		ctx->playing = false;
