@@ -12,10 +12,10 @@ GFX_UI_PROTOTYPES(_d3d11_)
 #include <d3d11.h>
 
 static
-#include "shaders/d3d11/psui.h"
+#include "shaders/psui.h"
 
 static
-#include "shaders/d3d11/vsui.h"
+#include "shaders/vsui.h"
 
 struct d3d11_ui_buffer {
 	ID3D11Buffer *b;

@@ -241,16 +241,6 @@ void *MTY_DecompressImage(const void *input, size_t size, uint32_t *width, uint3
 	return rgba;
 }
 
-void MTY_DecompressImageAsync(const void *input, size_t size, MTY_ImageFunc func, void *opaque)
-{
-	uint32_t w = 0;
-	uint32_t h = 0;
-
-	void *image = MTY_DecompressImage(input, size, &w, &h);
-
-	func(image, w, h, opaque);
-}
-
 
 // Program Icons
 

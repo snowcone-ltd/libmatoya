@@ -114,24 +114,24 @@ void *MTY_DecompressImage(const void *input, size_t size, uint32_t *width, uint3
 	if (!raw)
 		goto except;
 
-	size_t bpp = CGImageGetBitsPerPixel(cgimg);
-	const UInt8 *raw_buf = CFDataGetBytePtr(raw);
-	CFIndex raw_size = CFDataGetLength(raw);
+	if (CGImageGetBitsPerPixel(cgimg) == 32) {
+		const UInt8 *raw_buf = CFDataGetBytePtr(raw);
+		CFIndex raw_size = CFDataGetLength(raw);
 
-	// No alpha channel
-	if (bpp == 24) {
-		image = MTY_Alloc(raw_size * 4 / 3, 1);
-
-		for (CFIndex x = 0, y = 0; y < raw_size; x += 4, y += 3) {
-			image[x] = raw_buf[y];
-			image[x + 1] = raw_buf[y + 1];
-			image[x + 2] = raw_buf[y + 2];
-			image[x + 3] = 0xFF;
-		}
-
-	} else if (bpp == 32) {
 		image = MTY_Alloc(raw_size, 1);
 		memcpy(image, raw_buf, raw_size);
+
+	} else {
+		image = MTY_Alloc(*width * *height, 4);
+		CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
+
+		CGContextRef context = CGBitmapContextCreate(image, *width, *height, 8, *width * 4, cs,
+			kCGImageAlphaNoneSkipLast | kCGBitmapByteOrderDefault);
+
+		CGColorSpaceRelease(cs);
+
+		CGContextDrawImage(context, CGRectMake(0, 0, *width, *height), cgimg);
+		CGContextRelease(context);
 	}
 
 	CFRelease(raw);
@@ -145,16 +145,6 @@ void *MTY_DecompressImage(const void *input, size_t size, uint32_t *width, uint3
 		CGDataProviderRelease(provider);
 
 	return image;
-}
-
-void MTY_DecompressImageAsync(const void *input, size_t size, MTY_ImageFunc func, void *opaque)
-{
-	uint32_t w = 0;
-	uint32_t h = 0;
-
-	void *image = MTY_DecompressImage(input, size, &w, &h);
-
-	func(image, w, h, opaque);
 }
 
 void *MTY_GetProgramIcon(const char *path, uint32_t *width, uint32_t *height)

@@ -11,7 +11,7 @@
 #include <errno.h>
 #include <time.h>
 
-#include "thread.h"
+#include <pthread.h>
 
 
 // Thread

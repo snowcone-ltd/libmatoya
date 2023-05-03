@@ -4,7 +4,6 @@
 
 #include "app.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -23,21 +22,78 @@ struct MTY_App {
 	MTY_ControllerEvent cevt[4];
 	void *opaque;
 	bool kb_grab;
+	double pos_x;
+	double pos_y;
+	double screen_width;
+	double screen_height;
+	double width;
+	double height;
+	bool focus;
+	bool fullscreen;
+	bool visible;
+	double scale;
+	bool relative;
 };
 
-static void __attribute__((constructor)) app_global_init(void)
-{
-	web_set_mem_funcs(MTY_Alloc, MTY_Free);
 
-	// WASI will buffer stdout and stderr by default, disable it
-	setbuf(stdout, NULL);
-	setbuf(stderr, NULL);
+// Window properties
+
+__attribute__((export_name("mty_window_update_position")))
+void mty_window_update_position(MTY_App *ctx, double x, double y)
+{
+	ctx->pos_x = x;
+	ctx->pos_y = y;
+}
+
+__attribute__((export_name("mty_window_update_screen")))
+void mty_window_update_screen(MTY_App *ctx, double width, double height)
+{
+	ctx->screen_width = width;
+	ctx->screen_height = height;
+}
+
+__attribute__((export_name("mty_window_update_size")))
+void mty_window_update_size(MTY_App *ctx, double width, double height)
+{
+	ctx->width = width;
+	ctx->height = height;
+}
+
+__attribute__((export_name("mty_window_update_focus")))
+void mty_window_update_focus(MTY_App *ctx, bool focus)
+{
+	ctx->focus = focus;
+}
+
+__attribute__((export_name("mty_window_update_fullscreen")))
+void mty_window_update_fullscreen(MTY_App *ctx, bool fullscreen)
+{
+	ctx->fullscreen = fullscreen;
+}
+
+__attribute__((export_name("mty_window_update_visibility")))
+void mty_window_update_visibility(MTY_App *ctx, bool visible)
+{
+	ctx->visible = visible;
+}
+
+__attribute__((export_name("mty_window_update_pixel_ratio")))
+void mty_window_update_pixel_ratio(MTY_App *ctx, double ratio)
+{
+	ctx->scale = ratio;
+}
+
+__attribute__((export_name("mty_window_update_relative_mouse")))
+void mty_window_update_relative_mouse(MTY_App *ctx, bool relative)
+{
+	ctx->relative = relative;
 }
 
 
 // Window events
 
-static void window_motion(MTY_App *ctx, bool relative, int32_t x, int32_t y)
+__attribute__((export_name("mty_window_motion")))
+void mty_window_motion(MTY_App *ctx, bool relative, int32_t x, int32_t y)
 {
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_MOTION;
@@ -48,7 +104,8 @@ static void window_motion(MTY_App *ctx, bool relative, int32_t x, int32_t y)
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-static void window_resize(MTY_App *ctx)
+__attribute__((export_name("mty_window_size")))
+void mty_window_size(MTY_App *ctx)
 {
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_SIZE;
@@ -56,7 +113,8 @@ static void window_resize(MTY_App *ctx)
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-static void window_move(MTY_App *ctx)
+__attribute__((export_name("mty_window_move")))
+void mty_window_move(MTY_App *ctx)
 {
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_MOVE;
@@ -64,7 +122,8 @@ static void window_move(MTY_App *ctx)
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-static void window_button(MTY_App *ctx, bool pressed, int32_t button, int32_t x, int32_t y)
+__attribute__((export_name("mty_window_button")))
+void mty_window_button(MTY_App *ctx, bool pressed, int32_t button, int32_t x, int32_t y)
 {
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_BUTTON;
@@ -83,7 +142,8 @@ static void window_button(MTY_App *ctx, bool pressed, int32_t button, int32_t x,
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-static void window_scroll(MTY_App *ctx, int32_t x, int32_t y)
+__attribute__((export_name("mty_window_scroll")))
+void mty_window_scroll(MTY_App *ctx, int32_t x, int32_t y)
 {
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_SCROLL;
@@ -93,38 +153,18 @@ static void window_scroll(MTY_App *ctx, int32_t x, int32_t y)
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-static bool window_allow_default(MTY_Mod mod, MTY_Key key)
-{
-	// The "allowed" browser hotkey list. Copy/Paste, Refresh, fullscreen, developer console, and tab switching
-
-	return
-		(((mod & MTY_MOD_CTRL) || (mod & MTY_MOD_WIN)) && key == MTY_KEY_V) ||
-		(((mod & MTY_MOD_CTRL) || (mod & MTY_MOD_WIN)) && key == MTY_KEY_C) ||
-		((mod & MTY_MOD_CTRL) && (mod & MTY_MOD_SHIFT) && key == MTY_KEY_I) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_R) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_F5) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_1) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_2) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_3) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_4) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_5) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_6) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_7) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_8) ||
-		((mod & MTY_MOD_CTRL) && key == MTY_KEY_9) ||
-		(key == MTY_KEY_F5) ||
-		(key == MTY_KEY_F11) ||
-		(key == MTY_KEY_F12);
-}
-
-static bool window_keyboard(MTY_App *ctx, bool pressed, MTY_Key key, const char *text, uint32_t mods)
+__attribute__((export_name("mty_window_keyboard")))
+void mty_window_keyboard(MTY_App *ctx, bool pressed, MTY_Key key, uint32_t text, uint32_t mods)
 {
 	MTY_Event evt = {0};
 
-	if (text) {
+	if (text > 0) {
 		evt.type = MTY_EVENT_TEXT;
-		snprintf(evt.text, 8, "%s", text);
 
+		for (uint8_t x = 0; x < 4; x++)
+			evt.text[x] = text >> x * 8 & 0xFF;
+
+		evt.text[4] = '\0';
 		ctx->event_func(&evt, ctx->opaque);
 	}
 
@@ -136,14 +176,11 @@ static bool window_keyboard(MTY_App *ctx, bool pressed, MTY_Key key, const char 
 
 		mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
 		ctx->event_func(&evt, ctx->opaque);
-
-		return !window_allow_default(evt.key.mod, evt.key.key) || ctx->kb_grab;
 	}
-
-	return true;
 }
 
-static void window_focus(MTY_App *ctx, bool focus)
+__attribute__((export_name("mty_window_focus")))
+void mty_window_focus(MTY_App *ctx, bool focus)
 {
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_FOCUS;
@@ -152,7 +189,8 @@ static void window_focus(MTY_App *ctx, bool focus)
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-static void window_drop(MTY_App *ctx, const char *name, const void *data, size_t size)
+__attribute__((export_name("mty_window_drop")))
+void mty_window_drop(MTY_App *ctx, const char *name, const void *data, size_t size)
 {
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_DROP;
@@ -163,7 +201,8 @@ static void window_drop(MTY_App *ctx, const char *name, const void *data, size_t
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-static void window_controller(MTY_App *ctx, uint32_t id, uint32_t state, uint32_t buttons,
+__attribute__((export_name("mty_window_controller")))
+void mty_window_controller(MTY_App *ctx, uint32_t id, uint32_t state, uint32_t buttons,
 	float lx, float ly, float rx, float ry, float lt, float rt)
 {
 	#define TESTB(i) \
@@ -254,7 +293,8 @@ static void window_controller(MTY_App *ctx, uint32_t id, uint32_t state, uint32_
 
 // App / Window
 
-static void app_set_keys(void)
+__attribute__((export_name("mty_app_set_keys")))
+void mty_app_set_keys(void)
 {
 	MTY_Hash *h = web_keymap_hash();
 
@@ -271,21 +311,17 @@ static void app_set_keys(void)
 	MTY_HashDestroy(&h, NULL);
 }
 
-MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
+MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
 {
 	MTY_App *ctx = MTY_Alloc(1, sizeof(MTY_App));
 	ctx->app_func = appFunc;
 	ctx->event_func = eventFunc;
 	ctx->opaque = opaque;
 
-	web_attach_events(ctx, window_motion, window_button,
-		window_scroll, window_keyboard, window_focus, window_drop,
-		window_resize);
+	web_set_app(ctx);
 
 	ctx->hotkey = MTY_HashCreate(0);
 	ctx->deduper = MTY_HashCreate(0);
-
-	app_set_keys();
 
 	return ctx;
 }
@@ -306,7 +342,7 @@ void MTY_AppDestroy(MTY_App **app)
 
 void MTY_AppRun(MTY_App *ctx)
 {
-	web_raf(ctx, ctx->app_func, window_controller, window_move, ctx->opaque);
+	web_run_and_yield(ctx->app_func, ctx->opaque);
 }
 
 void MTY_AppSetTimeout(MTY_App *ctx, uint32_t timeout)
@@ -315,7 +351,7 @@ void MTY_AppSetTimeout(MTY_App *ctx, uint32_t timeout)
 
 bool MTY_AppIsActive(MTY_App *ctx)
 {
-	return web_has_focus();
+	return ctx->focus;
 }
 
 void MTY_AppActivate(MTY_App *ctx, bool active)
@@ -370,7 +406,7 @@ void MTY_AppGrabMouse(MTY_App *ctx, bool grab)
 
 bool MTY_AppGetRelativeMouse(MTY_App *ctx)
 {
-	return web_get_relative();
+	return ctx->relative;
 }
 
 void MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative)
@@ -411,6 +447,8 @@ bool MTY_AppIsKeyboardGrabbed(MTY_App *ctx)
 void MTY_AppGrabKeyboard(MTY_App *ctx, bool grab)
 {
 	ctx->kb_grab = grab;
+
+	web_set_kb_grab(grab);
 }
 
 uint32_t MTY_AppGetHotkey(MTY_App *ctx, MTY_Scope scope, MTY_Mod mod, MTY_Key key)
@@ -469,10 +507,6 @@ MTY_CType MTY_AppGetControllerType(MTY_App *ctx, uint32_t id)
 	return MTY_CTYPE_DEFAULT;
 }
 
-void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
-{
-}
-
 void MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_t size)
 {
 }
@@ -515,8 +549,10 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 
 MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
 {
-	MTY_Size size = {0};
-	web_get_size(&size.w, &size.h);
+	MTY_Size size = {
+		.w = app->width,
+		.h = app->height,
+	};
 
 	return size;
 }
@@ -525,9 +561,9 @@ MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 {
 	MTY_Frame frame = {
 		.size = MTY_WindowGetSize(app, window),
+		.x = app->pos_x,
+		.y = app->pos_y,
 	};
-
-	web_get_position(&frame.x, &frame.y);
 
 	return frame;
 }
@@ -542,15 +578,17 @@ void MTY_WindowSetMinSize(MTY_App *app, MTY_Window window, uint32_t minWidth, ui
 
 MTY_Size MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window)
 {
-	MTY_Size size = {0};
-	web_get_screen_size(&size.w, &size.h);
+	MTY_Size size = {
+		.w = app->screen_width,
+		.h = app->screen_height,
+	};
 
 	return size;
 }
 
 float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
 {
-	return web_get_pixel_ratio();
+	return app->scale;
 }
 
 void MTY_WindowSetTitle(MTY_App *app, MTY_Window window, const char *title)
@@ -560,12 +598,12 @@ void MTY_WindowSetTitle(MTY_App *app, MTY_Window window, const char *title)
 
 bool MTY_WindowIsVisible(MTY_App *app, MTY_Window window)
 {
-	return web_is_visible();
+	return app->visible;
 }
 
 bool MTY_WindowIsActive(MTY_App *app, MTY_Window window)
 {
-	return web_has_focus();
+	return app->focus;
 }
 
 void MTY_WindowActivate(MTY_App *app, MTY_Window window, bool active)
@@ -579,7 +617,7 @@ bool MTY_WindowExists(MTY_App *app, MTY_Window window)
 
 bool MTY_WindowIsFullscreen(MTY_App *app, MTY_Window window)
 {
-	return web_get_fullscreen();
+	return app->fullscreen;
 }
 
 void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
@@ -598,7 +636,7 @@ MTY_ContextState MTY_WindowGetContextState(MTY_App *app, MTY_Window window)
 
 void *MTY_WindowGetNative(MTY_App *app, MTY_Window window)
 {
-	return NULL;
+	return app;
 }
 
 
@@ -655,4 +693,9 @@ void MTY_SetAppID(const char *id)
 void *MTY_GLGetProcAddress(const char *name)
 {
 	return NULL;
+}
+
+void MTY_RunAndYield(MTY_IterFunc iter, void *opaque)
+{
+	web_run_and_yield(iter, opaque);
 }

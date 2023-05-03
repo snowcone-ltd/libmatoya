@@ -3,6 +3,7 @@
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
 #include "app.h"
+#include "app-os.h"
 
 #include <AppKit/AppKit.h>
 #include <Carbon/Carbon.h>
@@ -40,7 +41,9 @@ struct MTY_App {
 	MTY_Hash *hotkey;
 	MTY_Hash *deduper;
 	MTY_DetachState detach;
+	MTY_Mod hid_kb_mod;
 	MTY_Cursor scursor;
+	MTY_AppFlag flags;
 	void *opaque;
 	void *kb_mode;
 	bool relative;
@@ -53,10 +56,10 @@ struct MTY_App {
 	bool cursor_showing;
 	bool eraser;
 	bool pen_left;
-	bool hid_reports;
 	NSUInteger buttons;
 	uint32_t cb_seq;
 	struct window *windows[MTY_WINDOW_MAX];
+	bool keys[MTY_KEY_MAX];
 	float timeout;
 	struct hid *hid;
 };
@@ -247,6 +250,11 @@ static void app_appMinimize(id self, SEL _cmd)
 	[[NSApp keyWindow] miniaturize:self];
 }
 
+static void app_appFullScreen(id self, SEL _cmd)
+{
+	[[NSApp keyWindow] toggleFullScreen:self];
+}
+
 static void app_appFunc(id self, SEL _cmd, NSTimer *timer)
 {
 	MTY_App *ctx = OBJC_CTX();
@@ -284,8 +292,22 @@ static void app_applicationDidFinishLaunching(id self, SEL _cmd, NSNotification 
 
 	submenu = [NSMenuItem new];
 	[menubar addItem:submenu];
+	menu = [[NSMenu alloc] initWithTitle:@"Edit"];
+	[menu addItem:[[NSMenuItem alloc] initWithTitle:@"Cut" action:@selector(cut:) keyEquivalent:@"x"]];
+	[menu addItem:[[NSMenuItem alloc] initWithTitle:@"Copy" action:@selector(copy:) keyEquivalent:@"c"]];
+	[menu addItem:[[NSMenuItem alloc] initWithTitle:@"Paste" action:@selector(paste:) keyEquivalent:@"v"]];
+	[menu addItem:[[NSMenuItem alloc] initWithTitle:@"Select All" action:@selector(selectAll:) keyEquivalent:@"a"]];
+	[submenu setSubmenu:menu];
+
+	submenu = [NSMenuItem new];
+	[menubar addItem:submenu];
 	menu = [[NSMenu alloc] initWithTitle:@"Window"];
 	[menu addItem:[[NSMenuItem alloc] initWithTitle:@"Minimize" action:@selector(appMinimize) keyEquivalent:@"m"]];
+
+	NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Toggle Full Screen" action:@selector(appFullScreen) keyEquivalent:@"f"];
+	[item setKeyEquivalentModifierMask:NSEventModifierFlagCommand | NSEventModifierFlagControl];
+	[menu addItem:item];
+
 	[menu addItem:[[NSMenuItem alloc] initWithTitle:@"Close" action:@selector(appClose) keyEquivalent:@"w"]];
 	[submenu setSubmenu:menu];
 
@@ -353,6 +375,7 @@ static Class app_class(void)
 	class_addMethod(cls, @selector(appClose), (IMP) app_appClose, "v@:");
 	class_addMethod(cls, @selector(appRestart), (IMP) app_appRestart, "v@:");
 	class_addMethod(cls, @selector(appMinimize), (IMP) app_appMinimize, "v@:");
+	class_addMethod(cls, @selector(appFullScreen), (IMP) app_appFullScreen, "v@:");
 	class_addMethod(cls, @selector(appFunc:), (IMP) app_appFunc, "v@:@");
 	class_addMethod(cls, @selector(appHandleGetURLEvent:withReplyEvent:),
 		(IMP) app_appHandleGetURLEvent_withReplyEvent, "v@:@@");
@@ -372,6 +395,7 @@ struct window {
 	struct window_common cmn;
 	MTY_Window window;
 	NSRect normal_frame;
+	NSRect restore_frame;
 	bool was_maximized;
 	bool top;
 };
@@ -402,13 +426,20 @@ static MTY_Window app_find_open_window(MTY_App *ctx, MTY_Window req)
 	return -1;
 }
 
-static MTY_Event window_event(struct window *window, MTY_EventType type)
+static void app_set_presentation(bool fullscreen)
 {
-	MTY_Event evt = {0};
-	evt.type = type;
-	evt.window = window->window;
+	NSApplicationPresentationOptions opts = fullscreen ?
+		NSApplicationPresentationHideDock | NSApplicationPresentationHideMenuBar :
+		NSApplicationPresentationDefault;
 
-	return evt;
+	[NSApp setPresentationOptions:opts];
+}
+
+static bool window_is_fullscreen(NSWindow *window, bool alt_fs)
+{
+	// NSWindowStyleMaskBorderless == 0
+	return alt_fs ? window.styleMask == NSWindowStyleMaskBorderless :
+		window.styleMask & NSWindowStyleMaskFullScreen;
 }
 
 
@@ -480,7 +511,7 @@ static bool window_event_in_nc(NSWindow *window)
 	return window_hit_test(&p, window.frame.size);
 }
 
-static struct window *window_find_mouse(struct window *me, NSPoint *p)
+static struct window *window_find_mouse(struct window *ctx, NSPoint *p)
 {
 	// Find the window where the cursor resides, accounting for overlapping windows
 	// and non-client areas
@@ -489,13 +520,13 @@ static struct window *window_find_mouse(struct window *me, NSPoint *p)
 	NSArray<NSWindow *> *windows = [NSApp windows];
 
 	for (uint32_t x = 0; x < windows.count; x++) {
-		struct window *window = app_get_window_by_number(me->app, windows[x].windowNumber);
+		struct window *window = app_get_window_by_number(ctx->app, windows[x].windowNumber);
 		if (!window)
 			continue;
 
 		NSPoint wp = {0};
 		if (window_event_in_view(window->nsw, &wp)) {
-			if (window->nsw.isKeyWindow && window->nsw.windowNumber == me->nsw.windowNumber) {
+			if (window->nsw.isKeyWindow && window->nsw.windowNumber == ctx->nsw.windowNumber) {
 				*p = wp;
 				return window;
 			}
@@ -520,27 +551,31 @@ static struct window *window_find_mouse(struct window *me, NSPoint *p)
 
 // Pen
 
-static void window_pen_event(struct window *window, NSEvent *event, bool pressed)
+static void window_pen_event(struct window *ctx, NSEvent *event, bool pressed)
 {
 	NSPoint p = {0};
-	struct window *cur = window_find_mouse(window, &p);
+	struct window *cur = window_find_mouse(ctx, &p);
 	if (!cur)
 		return;
 
 	CGFloat scale = mty_screen_scale(cur->nsw.screen);
-	MTY_Event evt = window_event(cur, MTY_EVENT_PEN);
-	evt.pen.pressure = (uint16_t) lrint(event.pressure * 1024.0f);
-	evt.pen.rotation = (uint16_t) lrint(event.rotation * 359.0f);
-	evt.pen.tiltX = (int8_t) lrint(event.tilt.x * 90.0f);
-	evt.pen.tiltY = (int8_t) lrint(event.tilt.y * -90.0f);
-	evt.pen.x = lrint(p.x * scale);
-	evt.pen.y = lrint(p.y * scale);
+
+	MTY_Event evt = {
+		.type = MTY_EVENT_PEN,
+		.window = cur->window,
+		.pen.pressure = (uint16_t) lrint(event.pressure * 1024.0f),
+		.pen.rotation = (uint16_t) lrint(event.rotation * 359.0f),
+		.pen.tiltX = (int8_t) lrint(event.tilt.x * 90.0f),
+		.pen.tiltY = (int8_t) lrint(event.tilt.y * -90.0f),
+		.pen.x = lrint(p.x * scale),
+		.pen.y = lrint(p.y * scale),
+	};
 
 	bool touching = event.buttonMask & NSEventButtonMaskPenTip || pressed;
 
 	// INVERTED must be set while hovering, but ERASER should only be set by
 	// while TOUCHING is also true
-	if (window->app->eraser) {
+	if (ctx->app->eraser) {
 		evt.pen.flags |= MTY_PEN_FLAG_INVERTED;
 
 		if (touching) {
@@ -553,21 +588,21 @@ static void window_pen_event(struct window *window, NSEvent *event, bool pressed
 	}
 
 	// LEAVE is set when the pen moves out of the tracking area (only once)
-	if (window->app->pen_left) {
+	if (ctx->app->pen_left) {
 		evt.pen.flags |= MTY_PEN_FLAG_LEAVE;
-		window->app->pen_left = false;
+		ctx->app->pen_left = false;
 	}
 
-	window->app->event_func(&evt, window->app->opaque);
+	ctx->app->event_func(&evt, ctx->app->opaque);
 }
 
 
 // Mouse
 
-static void window_mouse_button_event(struct window *window, NSUInteger index, bool pressed)
+static void window_mouse_button_event(struct window *ctx, NSUInteger index, bool pressed)
 {
 	NSPoint p = {0};
-	struct window *cur = window_find_mouse(window, &p);
+	struct window *cur = window_find_mouse(ctx, &p);
 	if (!cur)
 		return;
 
@@ -576,32 +611,35 @@ static void window_mouse_button_event(struct window *window, NSUInteger index, b
 
 	CGFloat scale = mty_screen_scale(cur->nsw.screen);
 
-	MTY_Event evt = window_event(cur, MTY_EVENT_BUTTON);
-	evt.button.button = APP_MOUSE_MAP[index];
-	evt.button.pressed = pressed;
-	evt.button.x = lrint(scale * p.x);
-	evt.button.y = lrint(scale * p.y);
+	MTY_Event evt = {
+		.type = MTY_EVENT_BUTTON,
+		.window = cur->window,
+		.button.button = APP_MOUSE_MAP[index],
+		.button.pressed = pressed,
+		.button.x = lrint(scale * p.x),
+		.button.y = lrint(scale * p.y),
+	};
 
-	window->app->event_func(&evt, window->app->opaque);
+	ctx->app->event_func(&evt, ctx->app->opaque);
 
 	if (pressed) {
-		window->app->buttons |= 1 << index;
+		ctx->app->buttons |= 1 << index;
 
 	} else {
-		window->app->buttons &= ~(1 << index);
+		ctx->app->buttons &= ~(1 << index);
 	}
 }
 
-static void window_button_event(struct window *window, NSEvent *event, NSUInteger index, bool pressed)
+static void window_button_event(struct window *ctx, NSEvent *event, NSUInteger index, bool pressed)
 {
 	// An index of zero indicates a pen event
 	bool is_pen_press = event.buttonMask & NSEventButtonMaskPenTip || index == 0;
 
-	if (window->app->pen_enabled && event.subtype == NSEventSubtypeTabletPoint && is_pen_press) {
-		window_pen_event(window, event, pressed);
+	if (ctx->app->pen_enabled && event.subtype == NSEventSubtypeTabletPoint && is_pen_press) {
+		window_pen_event(ctx, event, pressed);
 
 	} else {
-		window_mouse_button_event(window, index, pressed);
+		window_mouse_button_event(ctx, index, pressed);
 	}
 }
 
@@ -649,114 +687,128 @@ static void window_confine_cursor(void)
 	window_warp_cursor(window, lrint(wp.x * scale), lrint(wp.y * scale));
 }
 
-static void window_mouse_motion_event(struct window *window, NSEvent *event, bool pen_in_range)
+static void window_mouse_motion_event(struct window *ctx, NSEvent *event, bool pen_in_range)
 {
-	if (window->app->relative && window->app->detach == MTY_DETACH_STATE_NONE && !pen_in_range) {
-		MTY_Event evt = window_event(window, MTY_EVENT_MOTION);
+	if (ctx->app->relative && ctx->app->detach == MTY_DETACH_STATE_NONE && !pen_in_range) {
+		MTY_Event evt = {
+			.type = MTY_EVENT_MOTION,
+			.window = ctx->window,
+			.motion.relative = true,
+		};
 
-		evt.motion.relative = true;
 		CGGetLastMouseDelta(&evt.motion.x, &evt.motion.y);
 
-		window->app->event_func(&evt, window->app->opaque);
+		ctx->app->event_func(&evt, ctx->app->opaque);
 
 	} else {
 		NSPoint p = {0};
-		struct window *cur = window_find_mouse(window, &p);
+		struct window *cur = window_find_mouse(ctx, &p);
 
 		if (cur) {
-			if (window->app->grab_mouse && window->app->detach == MTY_DETACH_STATE_NONE && !cur->nsw.isKeyWindow) {
+			if (ctx->app->grab_mouse && ctx->app->detach == MTY_DETACH_STATE_NONE && !cur->nsw.isKeyWindow) {
 				window_confine_cursor();
 
 			} else if (cur->nsw.occlusionState & NSWindowOcclusionStateVisible) {
-				MTY_Event evt = window_event(cur, MTY_EVENT_MOTION);
-
 				CGFloat scale = mty_screen_scale(cur->nsw.screen);
-				evt.motion.relative = false;
-				evt.motion.x = lrint(scale * p.x);
-				evt.motion.y = lrint(scale * p.y);
 
-				window->app->event_func(&evt, window->app->opaque);
+				MTY_Event evt = {
+					.type = MTY_EVENT_MOTION,
+					.window = cur->window,
+					.motion.relative = false,
+					.motion.x = lrint(scale * p.x),
+					.motion.y = lrint(scale * p.y),
+				};
+
+				ctx->app->event_func(&evt, ctx->app->opaque);
 			}
 
-		} else if (window->app->grab_mouse && window->app->detach == MTY_DETACH_STATE_NONE) {
+		} else if (ctx->app->grab_mouse && ctx->app->detach == MTY_DETACH_STATE_NONE) {
 			window_confine_cursor();
 		}
 	}
 }
 
-static void window_motion_event(struct window *window, NSEvent *event)
+static void window_motion_event(struct window *ctx, NSEvent *event)
 {
 	bool pen_in_range = event.subtype == NSEventSubtypeTabletPoint;
 
-	if (window->app->pen_enabled && pen_in_range) {
-		window_pen_event(window, event, false);
+	if (ctx->app->pen_enabled && pen_in_range) {
+		window_pen_event(ctx, event, false);
 
 	} else {
-		window_mouse_motion_event(window, event, pen_in_range);
+		window_mouse_motion_event(ctx, event, pen_in_range);
 	}
 }
 
-static void window_scroll_event(struct window *window, NSEvent *event)
+static void window_scroll_event(struct window *ctx, NSEvent *event)
 {
-	CGFloat scale = mty_screen_scale(window->nsw.screen);
+	CGFloat scale = mty_screen_scale(ctx->nsw.screen);
 	int32_t delta = event.hasPreciseScrollingDeltas ? scale : scale * 80.0f;
 
-	MTY_Event evt = window_event(window, MTY_EVENT_SCROLL);
-	evt.scroll.x = lrint(-event.scrollingDeltaX * delta);
-	evt.scroll.y = lrint(event.scrollingDeltaY * delta);
+	MTY_Event evt = {
+		.type = MTY_EVENT_SCROLL,
+		.window = ctx->window,
+		.scroll.x = lrint(-event.scrollingDeltaX * delta),
+		.scroll.y = lrint(event.scrollingDeltaY * delta),
+	};
 
-	window->app->event_func(&evt, window->app->opaque);
+	ctx->app->event_func(&evt, ctx->app->opaque);
 }
 
 
 // Keyboard
 
-static void window_text_event(struct window *window, const char *text)
+static void window_text_event(struct window *ctx, const char *text)
 {
 	// Make sure visible ASCII
 	if (text && text[0] && text[0] >= 0x20 && text[0] != 0x7F) {
-		MTY_Event evt = window_event(window, MTY_EVENT_TEXT);
+		MTY_Event evt = {
+			.type = MTY_EVENT_TEXT,
+			.window = ctx->window,
+		};
+
 		snprintf(evt.text, 8, "%s", text);
 
-		window->app->event_func(&evt, window->app->opaque);
+		ctx->app->event_func(&evt, ctx->app->opaque);
 	}
 }
 
-static void window_keyboard_event(struct window *window, uint16_t key_code, NSEventModifierFlags flags, bool pressed)
+static void window_keyboard_event(struct window *ctx, uint16_t key_code, NSEventModifierFlags flags,
+	bool pressed, bool repeat)
 {
-	MTY_Event evt = window_event(window, MTY_EVENT_KEY);
-	evt.key.key = keymap_keycode_to_key(key_code);
-	evt.key.vkey = key_code;
-	evt.key.mod = keymap_modifier_flags_to_keymod(flags);
-	evt.key.pressed = pressed;
+	MTY_Event evt = {
+		.type = MTY_EVENT_KEY,
+		.window = ctx->window,
+		.key.key = keymap_keycode_to_key(key_code),
+		.key.vkey = key_code,
+		.key.mod = keymap_modifier_flags_to_keymod(flags),
+		.key.pressed = pressed,
+	};
 
-	mty_app_kb_to_hotkey(window->app, &evt, MTY_EVENT_HOTKEY);
+	if (!mty_app_dedupe_key(ctx->app, evt.key.key, pressed, repeat))
+		return;
+
+	mty_app_kb_to_hotkey(ctx->app, &evt, MTY_EVENT_HOTKEY);
 
 	if ((evt.type == MTY_EVENT_HOTKEY && pressed) || (evt.type == MTY_EVENT_KEY && evt.key.key != MTY_KEY_NONE))
-		window->app->event_func(&evt, window->app->opaque);
+		ctx->app->event_func(&evt, ctx->app->opaque);
 }
 
-static void window_mod_event(struct window *window, NSEvent *event)
+static bool window_flags_changed(uint16_t key_code, NSEventModifierFlags flags)
 {
-	MTY_Event evt = window_event(window, MTY_EVENT_KEY);
-	evt.key.key = keymap_keycode_to_key(event.keyCode);
-	evt.key.vkey = event.keyCode;
-	evt.key.mod = keymap_modifier_flags_to_keymod(event.modifierFlags);
-
-	switch (evt.key.key) {
-		case MTY_KEY_LSHIFT: evt.key.pressed = evt.key.mod & MTY_MOD_LSHIFT; break;
-		case MTY_KEY_LCTRL:  evt.key.pressed = evt.key.mod & MTY_MOD_LCTRL;  break;
-		case MTY_KEY_LALT:   evt.key.pressed = evt.key.mod & MTY_MOD_LALT;   break;
-		case MTY_KEY_LWIN:   evt.key.pressed = evt.key.mod & MTY_MOD_LWIN;   break;
-		case MTY_KEY_RSHIFT: evt.key.pressed = evt.key.mod & MTY_MOD_RSHIFT; break;
-		case MTY_KEY_RCTRL:  evt.key.pressed = evt.key.mod & MTY_MOD_RCTRL;  break;
-		case MTY_KEY_RALT:   evt.key.pressed = evt.key.mod & MTY_MOD_RALT;   break;
-		case MTY_KEY_RWIN:   evt.key.pressed = evt.key.mod & MTY_MOD_RWIN;   break;
-		default:
-			return;
+	switch (key_code) {
+		case kVK_Shift: return flags & NS_MOD_LSHIFT;
+		case kVK_Control: return flags & NS_MOD_LCTRL;
+		case kVK_Option: return flags & NS_MOD_LALT;
+		case kVK_Command: return flags & NS_MOD_LCMD;
+		case kVK_RightShift: return flags & NS_MOD_RSHIFT;
+		case kVK_RightControl: return flags & NS_MOD_RCTRL;
+		case kVK_RightOption: return flags & NS_MOD_RALT;
+		case kVK_RightCommand: return flags & NS_MOD_RCMD;
+		case kVK_CapsLock: return flags & NSEventModifierFlagCapsLock;
 	}
 
-	window->app->event_func(&evt, window->app->opaque);
+	return false;
 }
 
 
@@ -797,8 +849,10 @@ static BOOL window_performKeyEquivalent(NSWindow *self, SEL _cmd, NSEvent *event
 
 	// While keyboard is grabbed, make sure we pass through special OS hotkeys
 	if (ctx->app->grab_kb && (cmd_tab || ctrl_tab || cmd_q || cmd_w || cmd_space)) {
-		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true);
-		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false);
+		if (!(ctx->app->flags & MTY_APP_FLAG_HID_KEYBOARD)) {
+			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true, true);
+			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, true);
+		}
 
 		return YES;
 	}
@@ -810,34 +864,41 @@ static BOOL window_windowShouldClose(NSWindow *self, SEL _cmd, NSWindow *sender)
 {
 	struct window *ctx = OBJC_CTX();
 
-	MTY_Event evt = window_event(ctx, MTY_EVENT_CLOSE);
+	MTY_Event evt = {
+		.type = MTY_EVENT_CLOSE,
+		.window = ctx->window,
+	};
+
 	ctx->app->event_func(&evt, ctx->app->opaque);
 
 	return NO;
+}
+
+static void window_windowWillClose(NSWindow *self, SEL _cmd, NSNotification *notification)
+{
+	app_set_presentation(false);
 }
 
 static void window_windowDidResignKey(NSWindow *self, SEL _cmd, NSNotification *notification)
 {
 	struct window *ctx = OBJC_CTX();
 
-	MTY_Event evt = window_event(ctx, MTY_EVENT_FOCUS);
-	evt.focus = false;
+	MTY_Event evt = {
+		.type = MTY_EVENT_FOCUS,
+		.window = ctx->window,
+		.focus = false,
+	};
 
-	// When in full screen and the window loses focus (changing spaces etc)
-	// we need to set the window level back to normal and change the content size.
-	// Cmd+Tab behavior and rendering can have weird edge case behvavior when the OS
-	// is optimizing the graphics and the window is above the dock
-	if (self.styleMask & NSWindowStyleMaskFullScreen) {
-		[self setLevel:NSNormalWindowLevel];
+	if (ctx->app->flags & MTY_APP_FLAG_ALT_FULLSCREEN) {
+		app_set_presentation(false);
 
-		// 1px hack for older versions of macOS
-		if (@available(macOS 11.0, *)) {
-		} else {
-			NSSize cur = self.contentView.frame.size;
-			cur.height -= 1.0f;
-
-			[self setContentSize:cur];
-		}
+	} else {
+		// When in full screen and the window loses focus (changing spaces etc)
+		// we need to set the window level back to normal and change the content size.
+		// Cmd+Tab behavior and rendering can have weird edge case behvavior when the OS
+		// is optimizing the graphics and the window is above the dock
+		if (self.styleMask & NSWindowStyleMaskFullScreen)
+			[self setLevel:NSNormalWindowLevel];
 	}
 
 	ctx->app->event_func(&evt, ctx->app->opaque);
@@ -847,8 +908,14 @@ static void window_windowDidBecomeKey(NSWindow *self, SEL _cmd, NSNotification *
 {
 	struct window *ctx = OBJC_CTX();
 
-	MTY_Event evt = window_event(ctx, MTY_EVENT_FOCUS);
-	evt.focus = true;
+	MTY_Event evt = {
+		.type = MTY_EVENT_FOCUS,
+		.window = ctx->window,
+		.focus = true,
+	};
+
+	if (ctx->app->flags & MTY_APP_FLAG_ALT_FULLSCREEN)
+		app_set_presentation(window_is_fullscreen(self, true));
 
 	ctx->app->event_func(&evt, ctx->app->opaque);
 }
@@ -868,7 +935,11 @@ static void window_windowDidResize(NSWindow *self, SEL _cmd, NSNotification *not
 {
 	struct window *ctx = OBJC_CTX();
 
-	MTY_Event evt = window_event(ctx, MTY_EVENT_SIZE);
+	MTY_Event evt = {
+		.type = MTY_EVENT_SIZE,
+		.window = ctx->window,
+	};
+
 	ctx->app->event_func(&evt, ctx->app->opaque);
 
 	if (ctx->cmn.webview)
@@ -879,7 +950,11 @@ static void window_windowDidMove(NSWindow *self, SEL _cmd, NSNotification *notif
 {
 	struct window *ctx = OBJC_CTX();
 
-	MTY_Event evt = window_event(ctx, MTY_EVENT_MOVE);
+	MTY_Event evt = {
+		.type = MTY_EVENT_MOVE,
+		.window = ctx->window,
+	};
+
 	ctx->app->event_func(&evt, ctx->app->opaque);
 }
 
@@ -887,18 +962,15 @@ static void window_keyUp(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
 
-	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false);
+	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, false);
 }
 
 static void window_keyDown(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
 
-	if (ctx->cmn.webview && mty_webview_was_hidden_during_keydown(ctx->cmn.webview))
-		return;
-
 	window_text_event(ctx, [event.characters UTF8String]);
-	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true);
+	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true, event.isARepeat);
 }
 
 static void window_flagsChanged(NSWindow *self, SEL _cmd, NSEvent *event)
@@ -907,11 +979,14 @@ static void window_flagsChanged(NSWindow *self, SEL _cmd, NSEvent *event)
 
 	// Simulate full button press for the Caps Lock key
 	if (event.keyCode == kVK_CapsLock) {
-		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true);
-		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false);
+		if (!(ctx->app->flags & MTY_APP_FLAG_HID_KEYBOARD)) {
+			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true, true);
+			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, true);
+		}
 
 	} else {
-		window_mod_event(ctx, event);
+		bool pressed = window_flags_changed(event.keyCode, event.modifierFlags);
+		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, pressed, false);
 	}
 }
 
@@ -1030,7 +1105,38 @@ static void window_windowWillExitFullScreen(NSWindow *self, SEL _cmd, NSNotifica
 	[self setLevel:NSNormalWindowLevel];
 }
 
-static Class window_class(void)
+static void window_toggleFullScreen(NSWindow *self, SEL _cmd, id sender)
+{
+	struct window *ctx = OBJC_CTX();
+
+	if (window_is_fullscreen(self, true)) {
+		if (self.isKeyWindow)
+			app_set_presentation(false);
+
+		[self setFrame:ctx->restore_frame display:YES];
+		[self setStyleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
+			NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable];
+
+	} else {
+		ctx->restore_frame = self.frame;
+
+		if (![self isZoomed]) {
+			ctx->was_maximized = false;
+			ctx->normal_frame = ctx->restore_frame;
+
+		} else {
+			ctx->was_maximized = true;
+		}
+
+		[self setStyleMask:NSWindowStyleMaskBorderless];
+		[self setFrame:self.screen.frame display:YES];
+
+		if (self.isKeyWindow)
+			app_set_presentation(true);
+	}
+}
+
+static Class window_class(bool alt_fs)
 {
 	Class cls = objc_getClass(WINDOW_CLASS_NAME);
 	if (cls)
@@ -1046,13 +1152,19 @@ static Class window_class(void)
 		OBJC_POVERRIDE(cls, proto, NO, @selector(windowShouldClose:), window_windowShouldClose);
 		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidResignKey:), window_windowDidResignKey);
 		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidBecomeKey:), window_windowDidBecomeKey);
-		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidChangeScreen:), window_windowDidChangeScreen);
 		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidResize:), window_windowDidResize);
 		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidMove:), window_windowDidMove);
-		OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidEnterFullScreen:), window_windowDidEnterFullScreen);
-		OBJC_POVERRIDE(cls, proto, NO, @selector(windowWillExitFullScreen:), window_windowWillExitFullScreen);
-		OBJC_POVERRIDE(cls, proto, NO, @selector(window:willUseFullScreenPresentationOptions:),
-			window_window_willUseFullScreenPresentationOptions);
+
+		if (alt_fs) {
+			OBJC_POVERRIDE(cls, proto, NO, @selector(windowWillClose:), window_windowWillClose);
+
+		} else {
+			OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidChangeScreen:), window_windowDidChangeScreen);
+			OBJC_POVERRIDE(cls, proto, NO, @selector(windowDidEnterFullScreen:), window_windowDidEnterFullScreen);
+			OBJC_POVERRIDE(cls, proto, NO, @selector(windowWillExitFullScreen:), window_windowWillExitFullScreen);
+			OBJC_POVERRIDE(cls, proto, NO, @selector(window:willUseFullScreenPresentationOptions:),
+				window_window_willUseFullScreenPresentationOptions);
+		}
 	}
 
 	// Overrides
@@ -1076,6 +1188,9 @@ static Class window_class(void)
 	OBJC_OVERRIDE(cls, @selector(mouseExited:), window_mouseExited);
 	OBJC_OVERRIDE(cls, @selector(scrollWheel:), window_scrollWheel);
 	OBJC_OVERRIDE(cls, @selector(tabletProximity:), window_tabletProximity);
+
+	if (alt_fs)
+		OBJC_OVERRIDE(cls, @selector(toggleFullScreen:), window_toggleFullScreen);
 
 	objc_registerClassPair(cls);
 
@@ -1117,6 +1232,8 @@ static Class view_class(void)
 	// Overrides
 	OBJC_OVERRIDE(cls, @selector(acceptsFirstMouse:), view_acceptsFirstMouse);
 	OBJC_OVERRIDE(cls, @selector(updateTrackingAreas), view_updateTrackingAreas);
+
+	objc_registerClassPair(cls);
 
 	return cls;
 }
@@ -1160,7 +1277,7 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 	evt.type = MTY_EVENT_CONTROLLER;
 
 	if (mty_hid_driver_state(device, buf, size, &evt.controller)) {
-		if (ctx->hid_reports)
+		if (ctx->flags & MTY_APP_FLAG_HID_EVENTS)
 			ctx->event_func(&(MTY_Event) {
 				.type = MTY_EVENT_HID,
 				.hid.size = size,
@@ -1172,9 +1289,48 @@ static void app_hid_report(struct hid_dev *device, const void *buf, size_t size,
 			}, ctx->opaque);
 
 		// Prevent gamepad input while in the background, dedupe
-		if (MTY_AppIsActive((MTY_App *) opaque) && mty_hid_dedupe(ctx->deduper, &evt.controller))
+		if (MTY_AppIsActive(ctx) && mty_hid_dedupe(ctx->deduper, &evt.controller))
 			ctx->event_func(&evt, ctx->opaque);
 	}
+}
+
+static void app_hid_key(uint32_t usage, bool down, void *opaque)
+{
+	MTY_App *ctx = opaque;
+
+	MTY_Key key = keymap_usage_to_key(usage);
+	if (key == MTY_KEY_NONE)
+		return;
+
+	MTY_Mod mod = keymap_usage_to_mod(usage);
+
+	if (down) {
+		ctx->hid_kb_mod |= mod;
+
+	} else {
+		ctx->hid_kb_mod &= ~mod;
+	}
+
+	if (!MTY_AppIsActive(ctx))
+		return;
+
+	struct window *window0 = ctx->windows[0];
+
+	if (window0 && window0->cmn.webview && mty_webview_is_visible(window0->cmn.webview))
+		return;
+
+	MTY_Event evt = {
+		.type = MTY_EVENT_KEY,
+		.key.key = key,
+		.key.mod = ctx->hid_kb_mod,
+		.key.pressed = down,
+	};
+
+	if (!mty_app_dedupe_key(ctx, evt.key.key, down, false))
+		return;
+
+	mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
+	ctx->event_func(&evt, ctx->opaque);
 }
 
 static void app_pump_events(MTY_App *ctx, NSDate *until)
@@ -1192,17 +1348,19 @@ static void app_pump_events(MTY_App *ctx, NSDate *until)
 	}
 }
 
-MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
+MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
 {
 	MTY_App *ctx = MTY_Alloc(1, sizeof(MTY_App));
 
+	ctx->flags = flags;
 	ctx->app_func = appFunc;
 	ctx->event_func = eventFunc;
 	ctx->opaque = opaque;
 	ctx->cursor_showing = true;
 	ctx->cont = true;
 
-	ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report, ctx);
+	ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report,
+		ctx->flags & MTY_APP_FLAG_HID_KEYBOARD ? app_hid_key : NULL, ctx);
 
 	ctx->hotkey = MTY_HashCreate(0);
 	ctx->deduper = MTY_HashCreate(0);
@@ -1473,11 +1631,6 @@ MTY_CType MTY_AppGetControllerType(MTY_App *ctx, uint32_t id)
 	return hid_driver(device);
 }
 
-void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
-{
-	ctx->hid_reports = enable;
-}
-
 void MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_t size)
 {
 	struct hid_dev *dev = mty_hid_get_device_by_id(ctx->hid, id);
@@ -1526,6 +1679,13 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	MTY_Window window = -1;
 	bool r = true;
 
+	MTY_Frame dframe = {0};
+
+	if (!frame) {
+		dframe = APP_DEFAULT_FRAME();
+		frame = &dframe;
+	}
+
 	NSView *content = nil;
 	NSScreen *screen = screen_from_display_id(atoi(frame->screen));
 
@@ -1536,14 +1696,10 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 		goto except;
 	}
 
-	window_revert_levels();
+	bool alt_fs = app->flags & MTY_APP_FLAG_ALT_FULLSCREEN;
 
-	MTY_Frame dframe = {0};
-
-	if (!frame) {
-		dframe = APP_DEFAULT_FRAME();
-		frame = &dframe;
-	}
+	if (!alt_fs)
+		window_revert_levels();
 
 	NSRect rect = NSMakeRect(frame->x, frame->y, frame->size.w, frame->size.h);
 	NSWindowStyleMask style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
@@ -1554,18 +1710,20 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	ctx->window = window;
 	ctx->app = app;
 
-	ctx->nsw = [OBJC_NEW(window_class(), ctx) initWithContentRect:rect styleMask:style
+	ctx->nsw = [OBJC_NEW(window_class(alt_fs), ctx) initWithContentRect:rect styleMask:style
 		backing:NSBackingStoreBuffered defer:NO screen:screen];
 	ctx->nsw.title = [NSString stringWithUTF8String:title ? title : "MTY_Window"];
 
 	[ctx->nsw setDelegate:ctx->nsw];
 	[ctx->nsw setAcceptsMouseMovedEvents:YES];
 	[ctx->nsw setReleasedWhenClosed:NO];
-	[ctx->nsw setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
+
+	NSUInteger cb = alt_fs ? NSWindowCollectionBehaviorFullScreenNone |
+		NSWindowCollectionBehaviorFullScreenDisallowsTiling : NSWindowCollectionBehaviorFullScreenPrimary;
+	[ctx->nsw setCollectionBehavior:cb];
 
 	// View
 	content = [OBJC_NEW(view_class(), ctx) initWithFrame:[ctx->nsw contentRectForFrameRect:ctx->nsw.frame]];
-	[content setWantsBestResolutionOpenGLSurface:YES];
 	[ctx->nsw setContentView:content];
 
 	ctx->app->windows[window] = ctx;
@@ -1635,17 +1793,32 @@ MTY_Frame MTY_WindowGetFrame(MTY_App *app, MTY_Window window)
 
 	MTY_WindowType type = MTY_WINDOW_NORMAL;
 
-	if ([ctx->nsw isZoomed]) {
-		w = ctx->normal_frame;
-
-		if (ctx->nsw.styleMask & NSWindowStyleMaskFullScreen) {
+	if (app->flags & MTY_APP_FLAG_ALT_FULLSCREEN) {
+		if (window_is_fullscreen(ctx->nsw, true)) {
+			w = ctx->normal_frame;
 			type = MTY_WINDOW_FULLSCREEN;
 
 			if (ctx->was_maximized)
 				type |= MTY_WINDOW_MAXIMIZED;
 
-		} else {
+		} else if ([ctx->nsw isZoomed]) {
+			w = ctx->normal_frame;
 			type = MTY_WINDOW_MAXIMIZED;
+		}
+
+	} else {
+		if ([ctx->nsw isZoomed]) {
+			w = ctx->normal_frame;
+
+			if (window_is_fullscreen(ctx->nsw, false)) {
+				type = MTY_WINDOW_FULLSCREEN;
+
+				if (ctx->was_maximized)
+					type |= MTY_WINDOW_MAXIMIZED;
+
+			} else {
+				type = MTY_WINDOW_MAXIMIZED;
+			}
 		}
 	}
 
@@ -1781,7 +1954,7 @@ bool MTY_WindowIsFullscreen(MTY_App *app, MTY_Window window)
 	if (!ctx)
 		return false;
 
-	return ctx->nsw.styleMask & NSWindowStyleMaskFullScreen;
+	return window_is_fullscreen(ctx->nsw, app->flags & MTY_APP_FLAG_ALT_FULLSCREEN);
 }
 
 void MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen)
@@ -1835,6 +2008,16 @@ MTY_EventFunc mty_app_get_event_func(MTY_App *ctx, void **opaque)
 MTY_Hash *mty_app_get_hotkey_hash(MTY_App *ctx)
 {
 	return ctx->hotkey;
+}
+
+bool mty_app_dedupe_key(MTY_App *ctx, MTY_Key key, bool pressed, bool repeat)
+{
+	bool was_down = ctx->keys[key];
+	bool should_fire = (pressed && (repeat || !was_down)) || (!pressed && was_down);
+
+	ctx->keys[key] = pressed;
+
+	return should_fire;
 }
 
 struct window_common *mty_window_get_common(MTY_App *app, MTY_Window window)
@@ -1935,4 +2118,9 @@ void MTY_SetAppID(const char *id)
 void *MTY_GLGetProcAddress(const char *name)
 {
 	return NULL;
+}
+
+void MTY_RunAndYield(MTY_IterFunc iter, void *opaque)
+{
+	while (iter(opaque));
 }

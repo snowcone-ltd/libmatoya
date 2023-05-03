@@ -9,7 +9,7 @@ GFX_UI_PROTOTYPES(_metal_)
 
 #import <Metal/Metal.h>
 
-#include "shaders/metal/ui.h"
+#include "shaders/ui.h"
 
 struct metal_ui {
 	id<MTLRenderPipelineState> rps;
@@ -115,24 +115,25 @@ bool mty_metal_ui_render(struct gfx_ui *gfx_ui, MTY_Device *device, MTY_Context 
 	float T = 0;
 	float B = dd->displaySize.y;
 	const float proj[4][4] = {
-		{2.0f / (R-L),   0.0f,         0.0f,  0.0f},
-		{0.0f,           2.0f / (T-B), 0.0f,  0.0f},
-		{0.0f,           0.0f,         1.0f,  0.0f},
-		{(R+L) / (L-R), (T+B) / (B-T), 0.0f,  1.0f},
+		{2 / (R-L),     0,             0, 0},
+		{0,             2 / (T-B),     0, 0},
+		{0,             0,             1, 0},
+		{(R+L) / (L-R), (T+B) / (B-T), 0, 1},
 	};
 
 	// Set viewport based on display size
-	MTLViewport viewport = {0};
-	viewport.width = dd->displaySize.x;
-	viewport.height = dd->displaySize.y;
-	viewport.zfar = 1.0;
+	MTLViewport viewport = {
+		.width = dd->displaySize.x,
+		.height = dd->displaySize.y,
+		.zfar = 1,
+	};
 
 	// Begin render pass, pipeline has been created in advance
 	id<MTLCommandBuffer> cb = [cq commandBuffer];
 	MTLRenderPassDescriptor *rpd = [MTLRenderPassDescriptor new];
 	rpd.colorAttachments[0].texture = _dest;
 	rpd.colorAttachments[0].loadAction = dd->clear ? MTLLoadActionClear : MTLLoadActionLoad;
-	rpd.colorAttachments[0].clearColor = MTLClearColorMake(0.0, 0.0, 0.0, 1.0);
+	rpd.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 1);
 	rpd.colorAttachments[0].storeAction = MTLStoreActionStore;
 
 	id<MTLRenderCommandEncoder> re = [cb renderCommandEncoderWithDescriptor:rpd];
@@ -206,7 +207,7 @@ void *mty_metal_ui_create_texture(struct gfx_ui *gfx_ui, MTY_Device *device, con
 
 	[texture replaceRegion:MTLRegionMake2D(0, 0, width, height) mipmapLevel:0 withBytes:rgba bytesPerRow:width * 4];
 
-	return (void *) CFBridgingRetain(texture);
+	return (__bridge_retained void *) texture;
 }
 
 void mty_metal_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, MTY_Device *device)
@@ -214,8 +215,8 @@ void mty_metal_ui_destroy_texture(struct gfx_ui *gfx_ui, void **texture, MTY_Dev
 	if (!texture || !*texture)
 		return;
 
-	id<MTLTexture> mtexture = (id<MTLTexture>) CFBridgingRelease(*texture);
-	mtexture = nil;
+	id<MTLTexture> mtexture = (__bridge_transfer id<MTLTexture>) *texture;
+	memset(&mtexture, 0, sizeof(id<MTLTexture>));
 
 	*texture = NULL;
 }

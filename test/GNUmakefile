@@ -9,24 +9,27 @@ CFLAGS = \
 	-O3 \
 	-Wall \
 	-Wextra \
-	-Wno-unused-parameter \
-	-Wno-format-overflow
+	-Wno-unused-parameter
 
 ifeq ($(UNAME_S), Darwin)
 
 LIBS = \
 	../bin/macosx/$(ARCH)/libmatoya.a \
-	-framework Foundation \
-	-framework Security \
-	-framework AppKit
+	-framework AppKit \
+	-framework Carbon \
+	-framework IOKit \
+	-framework Metal \
+	-framework QuartzCore \
+	-framework WebKit
 
 else
 
+CFLAGS := $(CFLAGS) -Wno-format-overflow
+
 LIBS = \
 	../bin/linux/$(ARCH)/libmatoya.a \
-	-lpthread \
-	-lm \
-	-ldl
+	-lc \
+	-lm
 endif
 
 test: clean clear

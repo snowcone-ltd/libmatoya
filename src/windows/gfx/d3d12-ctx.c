@@ -107,9 +107,10 @@ static HRESULT d3d12_core_refresh_buffers(struct d3d12_core *core)
 			return e;
 		}
 
-		D3D12_RENDER_TARGET_VIEW_DESC desc = {0};
-		desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-		desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+		D3D12_RENDER_TARGET_VIEW_DESC desc = {
+			.Format = DXGI_FORMAT_B8G8R8A8_UNORM,
+			.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
+		};
 
 		ID3D12Device_CreateRenderTargetView(core->device, core->buffers[x].resource, &desc, dh);
 		core->buffers[x].dh = dh;
@@ -125,22 +126,6 @@ static bool d3d12_core_init(HWND hwnd, struct d3d12_core *core)
 	IUnknown *unknown = NULL;
 	IDXGIFactory2 *factory2 = NULL;
 	IDXGISwapChain1 *swap_chain1 = NULL;
-
-	DXGI_SWAP_CHAIN_DESC1 sd = {0};
-	sd.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	sd.SampleDesc.Count = 1;
-	sd.BufferCount = D3D12_CTX_BUFFERS;
-	sd.Flags = D3D12_SWFLAGS;
-
-	D3D12_COMMAND_QUEUE_DESC qdesc = {0};
-	qdesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	qdesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-
-	D3D12_DESCRIPTOR_HEAP_DESC dhdesc = {0};
-	dhdesc.NumDescriptors = D3D12_CTX_BUFFERS;
-	dhdesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 
 	UINT fflags = 0;
 
@@ -163,6 +148,11 @@ static bool d3d12_core_init(HWND hwnd, struct d3d12_core *core)
 		goto except;
 	}
 
+	D3D12_COMMAND_QUEUE_DESC qdesc = {
+		.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
+		.Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
+	};
+
 	e = ID3D12Device_CreateCommandQueue(core->device, &qdesc, &IID_ID3D12CommandQueue, &core->cq);
 	if (e != S_OK) {
 		MTY_Log("'ID3D12Device_CreateCommandQueue' failed with HRESULT 0x%X", e);
@@ -183,6 +173,11 @@ static bool d3d12_core_init(HWND hwnd, struct d3d12_core *core)
 		goto except;
 	}
 
+	D3D12_DESCRIPTOR_HEAP_DESC dhdesc = {
+		.NumDescriptors = D3D12_CTX_BUFFERS,
+		.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+	};
+
 	e = ID3D12Device_CreateDescriptorHeap(core->device, &dhdesc, &IID_ID3D12DescriptorHeap, &core->rtv_heap);
 	if (e != S_OK) {
 		MTY_Log("'ID3D12Device_CreateDescriptorHeap' failed with HRESULT 0x%X", e);
@@ -200,6 +195,15 @@ static bool d3d12_core_init(HWND hwnd, struct d3d12_core *core)
 		MTY_Log("'ID3D12CommandQueue_QueryInterface' failed with HRESULT 0x%X", e);
 		goto except;
 	}
+
+	DXGI_SWAP_CHAIN_DESC1 sd = {
+		.Format = DXGI_FORMAT_B8G8R8A8_UNORM,
+		.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
+		.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
+		.SampleDesc.Count = 1,
+		.BufferCount = D3D12_CTX_BUFFERS,
+		.Flags = D3D12_SWFLAGS,
+	};
 
 	e = IDXGIFactory2_CreateSwapChainForHwnd(factory2, unknown, hwnd, &sd, NULL, NULL, &swap_chain1);
 	if (e != S_OK) {
@@ -379,12 +383,13 @@ MTY_Surface *mty_d3d12_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 
 		core->fval++;
 
-		D3D12_RESOURCE_BARRIER rb = {0};
-		rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		rb.Transition.pResource = core->back_buffer->resource;
-		rb.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		D3D12_RESOURCE_BARRIER rb = {
+			.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+			.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+			.Transition.pResource = core->back_buffer->resource,
+			.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT,
+			.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET,
+		};
 
 		ID3D12GraphicsCommandList_ResourceBarrier(core->cl, 1, &rb);
 	}
@@ -398,12 +403,13 @@ void mty_d3d12_ctx_present(struct gfx_ctx *gfx_ctx)
 	struct d3d12_core *core = &ctx->core;
 
 	if (core->back_buffer) {
-		D3D12_RESOURCE_BARRIER rb = {0};
-		rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		rb.Transition.pResource = core->back_buffer->resource;
-		rb.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+		D3D12_RESOURCE_BARRIER rb = {
+			.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+			.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+			.Transition.pResource = core->back_buffer->resource,
+			.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET,
+			.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT,
+		};
 
 		ID3D12GraphicsCommandList_ResourceBarrier(core->cl, 1, &rb);
 

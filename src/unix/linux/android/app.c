@@ -3,7 +3,7 @@
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
 #include "app.h"
-#include "aapp.h"
+#include "app-os.h"
 
 #include <string.h>
 #include <math.h>
@@ -705,7 +705,7 @@ static float app_get_scale(MTY_App *ctx)
 	return mty_jni_float(MTY_GetJNIEnv(), ctx->obj, "getDisplayDensity", "()F") * 0.85f;
 }
 
-MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
+MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
 {
 	MTY_App *ctx = &CTX;
 
@@ -936,10 +936,6 @@ const char *MTY_AppGetControllerDeviceName(MTY_App *ctx, uint32_t id)
 MTY_CType MTY_AppGetControllerType(MTY_App *ctx, uint32_t id)
 {
 	return MTY_CTYPE_DEFAULT;
-}
-
-void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
-{
 }
 
 void MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_t size)
@@ -1211,4 +1207,9 @@ void MTY_SetAppID(const char *id)
 void *MTY_GLGetProcAddress(const char *name)
 {
 	return NULL;
+}
+
+void MTY_RunAndYield(MTY_IterFunc iter, void *opaque)
+{
+	while (iter(opaque));
 }

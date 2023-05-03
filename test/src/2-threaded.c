@@ -30,7 +30,7 @@ static void *render_thread(void *opaque)
 {
 	struct context *ctx = opaque;
 
-	MTY_WindowSetGFX(ctx->app, 0, MTY_GFX_GL, true);
+	MTY_WindowSetGFX(ctx->app, 0, MTY_GetDefaultGFX(), true);
 
 	while (!ctx->quit) {
 		MTY_RenderDesc desc = {
@@ -44,7 +44,9 @@ static void *render_thread(void *opaque)
 			.cropHeight = ctx->image_h,
 		};
 
-		MTY_WindowDrawQuad(ctx->app, 0, ctx->image, &desc);
+		if (ctx->image)
+			MTY_WindowDrawQuad(ctx->app, 0, ctx->image, &desc);
+
 		MTY_WindowPresent(ctx->app, 0);
 	}
 
@@ -54,7 +56,7 @@ static void *render_thread(void *opaque)
 int main(int argc, char **argv)
 {
 	struct context ctx = {0};
-	ctx.app = MTY_AppCreate(app_func, event_func, &ctx);
+	ctx.app = MTY_AppCreate(0, app_func, event_func, &ctx);
 	if (!ctx.app)
 		return 1;
 

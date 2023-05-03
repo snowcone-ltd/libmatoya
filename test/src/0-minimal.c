@@ -32,15 +32,15 @@ int main(int argc, char **argv)
 {
 	// Set up the application object and attach it to your context
 	struct context ctx = {0};
-	ctx.app = MTY_AppCreate(app_func, event_func, &ctx);
+	ctx.app = MTY_AppCreate(0, app_func, event_func, &ctx);
 	if (!ctx.app)
 		return 1;
 
 	// Create a window
 	MTY_WindowCreate(ctx.app, "My Window", NULL, 0);
 
-	// Set the graphics API to OpenGL
-	MTY_WindowSetGFX(ctx.app, 0, MTY_GFX_GL, true);
+	// Set the graphics API
+	MTY_WindowSetGFX(ctx.app, 0, MTY_GetDefaultGFX(), true);
 
 	// Run the app -- blocks until your app_func returns false
 	MTY_AppRun(ctx.app);

@@ -10,6 +10,7 @@
 #include <stdbool.h>
 
 #include "gfx/mod-support.h"
+#include "gfx/mod-common.h"
 
 struct gfx_ui;
 

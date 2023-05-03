@@ -14,8 +14,9 @@ struct hid_dev;
 typedef void (*HID_CONNECT)(struct hid_dev *device, void *opaque);
 typedef void (*HID_DISCONNECT)(struct hid_dev *device, void *opaque);
 typedef void (*HID_REPORT)(struct hid_dev *device, const void *buf, size_t size, void *opaque);
+typedef void (*HID_KEY)(uint32_t usage, bool down, void *opaque);
 
-struct hid *mty_hid_create(HID_CONNECT connect, HID_DISCONNECT disconnect, HID_REPORT report, void *opaque);
+struct hid *mty_hid_create(HID_CONNECT connect, HID_DISCONNECT disconnect, HID_REPORT report, HID_KEY key, void *opaque);
 struct hid_dev *mty_hid_get_device_by_id(struct hid *ctx, uint32_t id);
 void mty_hid_destroy(struct hid **hid);
 

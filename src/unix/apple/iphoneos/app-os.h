@@ -4,14 +4,6 @@
 
 #pragma once
 
-#if defined(MTY_GL_ES)
-	#define GL_SHADER_VERSION "#version 100\n"
-#else
-	#define GL_SHADER_VERSION "#version 110\n"
-#endif
+#include <stdbool.h>
 
-#if defined(MTY_GL_EXTERNAL)
-	#define GL_GLEXT_PROTOTYPES
-#endif
-
-#include "glcorearb.h"
+#define mty_app_dedupe_key(ctx, key, pressed, repeat) true

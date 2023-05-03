@@ -27,31 +27,80 @@ extern "C" {
 #endif
 
 
-//- #module Render
-//- #mbrief Common rendering tasks.
-//- #mdetails Currently there are only two operations: drawing a quad (rectangle)
-//-   intended for video frames from a player or emulator, and drawing a 2D command
-//-   list intended for drawing user interfaces.\n\n
-//-   Textures can be loaded via MTY_RendererSetUITexture and referenced in the
-//-   MTY_DrawData struct for loading images in a UI.\n\n
-//-   When creating an MTY_Window, the App module wraps an MTY_Renderer for you.
+//- #module App
+//- #mbrief Application, window, and input management.
+//- #mdetails Use these function to create a "libmatoya app", which handles window
+//-   creation and input event handling via an MTY_EventFunc. This module wrangles
+//-   many different dependencies under the hood responsible for input handling,
+//-   graphics API context creation, window creation, and event loop processing.
 
-typedef struct MTY_Device MTY_Device;
-typedef struct MTY_Context MTY_Context;
-typedef struct MTY_Surface MTY_Surface;
-typedef struct MTY_Renderer MTY_Renderer;
-typedef struct MTY_RenderState MTY_RenderState;
+#define MTY_WINDOW_MAX 8  ///< Maximum number of windows that can be created.
+#define MTY_SCREEN_MAX 32 ///< Maximum size of a screen identifier.
+
+#define MTY_DPAD(c) \
+	((c)->axes[MTY_CAXIS_DPAD].value)
+
+#define MTY_DPAD_UP(c) \
+	(MTY_DPAD(c) == 7 || MTY_DPAD(c) == 0 || MTY_DPAD(c) == 1)
+
+#define MTY_DPAD_RIGHT(c) \
+	(MTY_DPAD(c) == 1 || MTY_DPAD(c) == 2 || MTY_DPAD(c) == 3)
+
+#define MTY_DPAD_DOWN(c) \
+	(MTY_DPAD(c) == 3 || MTY_DPAD(c) == 4 || MTY_DPAD(c) == 5)
+
+#define MTY_DPAD_LEFT(c) \
+	(MTY_DPAD(c) == 5 || MTY_DPAD(c) == 6 || MTY_DPAD(c) == 7)
+
+typedef struct MTY_App MTY_App;
+typedef int8_t MTY_Window;
+
+/// @brief Function called in a loop by MTY_RunAndYield until it returns false.
+/// @param opaque Pointer set via MTY_RunAndYield.
+/// @returns Return true to continue iterating, false to break.
+typedef bool (*MTY_IterFunc)(void *opaque);
+
+/// @brief Function called once per message cycle.
+/// @details A "message cycle" can be thought of as one iteration through all of the
+///   available messages that the OS has accumulated. libmatoya loops through each
+///   OS level message, fires your MTY_EventFunc for each message of interest, then
+///   calls this function. By default, this process will repeat with no delay, but
+///   one can be added by blocking on MTY_WindowPresent or using MTY_AppSetTimeout.
+/// @param opaque Pointer set via MTY_AppCreate.
+/// @returns Return true to continue running the app, false to stop it.
+typedef bool (*MTY_AppFunc)(void *opaque);
+
+/// @brief Function called to test if a tray menu item should be checked.
+/// @param opaque Pointer set via MTY_AppCreate.
+/// @returns Return true to show the menu item as checked, false to show it as unchecked.
+typedef bool (*MTY_MenuItemCheckedFunc)(void *opaque);
+
+/// @brief Function called to add custom processing to window messages.
+/// @details This function is called before any internal processing, and if `shouldReturn` is set
+///   to true, no internal handling of the message will take place. This may affect internal state
+///   tracking for certain message types.
+/// @param app The MTY_App.
+/// @param window The MTY_Window associated with the message.
+/// @param hwnd `HWND hwnd` value passed as the first argument to the `WNDPROC` callback.
+/// @param msg `UINT uMsg` value passed as the second argument to the `WNDPROC` callback.
+/// @param wparam `WPARAM wParam` value passed as the third argument to the `WNDPROC` callback.
+/// @param lparam `LPARAM lParam` value passed as the fourth argument to the `WNDPROC` callback.
+/// @param shouldReturn If set to true, no internal processing of this message will take place
+///   and the return value from this callback will be returned by the internal `WNDPROC` callback.
+/// @param opaque Pointer set via MTY_AppCreate.
+//- #support Windows
+typedef intptr_t (*MTY_WMsgFunc)(MTY_App *app, MTY_Window window, void *hwnd, uint32_t msg,
+	intptr_t wparam, uintptr_t lparam, bool *shouldReturn, void *opaque);
 
 /// @brief 3D graphics APIs.
 typedef enum {
 	MTY_GFX_NONE    = 0, ///< No 3D graphics API.
-	MTY_GFX_GL      = 1, ///< OpenGL/GLES.
+	MTY_GFX_GL      = 1, ///< OpenGL/GLES. Linux, Android, and Web only.
 	MTY_GFX_VK      = 2, ///< Vulkan. Not available on Apple OS's.
-	MTY_GFX_D3D9    = 3, ///< Direct3D 9. Windows only.
-	MTY_GFX_D3D11   = 4, ///< Direct3D 11. Windows only.
-	MTY_GFX_D3D12   = 5, ///< Direct3D 12. Windows only.
-	MTY_GFX_METAL   = 6, ///< Metal. Apple only.
-	MTY_GFX_MAX     = 7, ///< Maximum number of 3D graphics APIs.
+	MTY_GFX_D3D11   = 3, ///< Direct3D 11. Windows only.
+	MTY_GFX_D3D12   = 4, ///< Direct3D 12. Windows only.
+	MTY_GFX_METAL   = 5, ///< Metal. Apple only.
+	MTY_GFX_MAX     = 6, ///< Maximum number of 3D graphics APIs.
 	MTY_GFX_MAKE_32 = INT32_MAX,
 } MTY_GFX;
 
@@ -97,6 +146,7 @@ typedef enum {
 	MTY_ROTATION_MAKE_32 = INT32_MAX,
 } MTY_Rotation;
 
+/// @brief Chroma subsampling for planar color formats.
 typedef enum {
 	MTY_CHROMA_444 = 0, ///< Full width, full height UV.
 	MTY_CHROMA_422 = 1, ///< Half width, full height UV.
@@ -104,264 +154,17 @@ typedef enum {
 	MTY_CHROMA_MAKE_32 = INT32_MAX,
 } MTY_Chroma;
 
-/// @brief Description of a render operation.
-typedef struct {
-	MTY_ColorFormat format; ///< The color format of a raw image.
-	MTY_Rotation rotation;  ///< Rotation applied to the image.
-	MTY_Chroma chroma;      ///< Color subsampling, chroma layout for planar YUV formats.
-	MTY_Filter filter;      ///< Filter applied to the image.
-	MTY_Effect effects[2];  ///< Effects applied to the image.
-	float levels[2];        ///< Intensity of the applied `effects` between `0.0f` and `1.0f`.
-	bool fullRangeYUV;      ///< Use the full 0-255 color range for YUV formats.
-	bool multiplyYUV;       ///< Properly normalize 10-bit YUV formats if not already done.
-	uint8_t layer;          ///< If drawing multiple layers of quads between present, `layer`
-	                        ///<   determines the order in the blending hierarchy.
-	uint32_t imageWidth;    ///< The width in pixels of the image.
-	uint32_t imageHeight;   ///< The height in pixels of the image.
-	uint32_t cropWidth;     ///< Desired crop width of the image from the top left corner.
-	uint32_t cropHeight;    ///< Desired crop height of the image from the top left corner.
-	uint32_t viewWidth;     ///< The width of the viewport.
-	uint32_t viewHeight;    ///< The height of the viewport.
-	float aspectRatio;      ///< Desired aspect ratio of the image. The renderer will letterbox
-	                        ///<   the image to maintain the specified aspect ratio.
-	float scale;            ///< Multiplier applied to the dimensions of the image, producing an
-	                        ///<   minimized or magnified image. This can be set to 0
-	                        ///<   if unnecessary.
-} MTY_RenderDesc;
-
-/// @brief A point with an `x` and `y` coordinate.
-typedef struct {
-	float x; ///< Horizontal position.
-	float y; ///< Vertical position
-} MTY_Point;
-
-/// @brief A rectangle with `left`, `top`, `right`, and `bottom` coordinates.
-typedef struct {
-	float left;   ///< Left edge position.
-	float top;    ///< Top edge position.
-	float right;  ///< Right edge position.
-	float bottom; ///< Bottom edge position.
-} MTY_Rect;
-
-/// @brief UI vertex.
-typedef struct {
-	MTY_Point pos; ///< Vertex position.
-	MTY_Point uv;  ///< Vertex texcoord.
-	uint32_t col;  ///< Element color.
-} MTY_Vtx;
-
-/// @brief UI draw command.
-typedef struct {
-	MTY_Rect clip;      ///< Clip rectangle.
-	uint32_t texture;   ///< Texture reference.
-	uint32_t elemCount; ///< Number of indices.
-	uint32_t idxOffset; ///< Index buffer offset.
-	uint32_t vtxOffset; ///< Vertex buffer offset.
-} MTY_Cmd;
-
-/// @brief UI draw command list.
-typedef struct {
-	MTY_Cmd *cmd;       ///< List of commands.
-	MTY_Vtx *vtx;       ///< Vertex buffer data.
-	uint16_t *idx;      ///< Index buffer data.
-	uint32_t cmdLength; ///< Number of commands.
-	uint32_t cmdMax;    ///< Size of the `cmd` buffer, used internally for deduping.
-	uint32_t vtxLength; ///< Total number of vertices.
-	uint32_t vtxMax;    ///< Size of the `vtx` buffer, used internally for deduping.
-	uint32_t idxLength; ///< Total number of indices.
-	uint32_t idxMax;    ///< Size of the `idx` buffer, used internally for deduping.
-} MTY_CmdList;
-
-/// @brief UI draw data.
-typedef struct {
-	MTY_Point displaySize;   ///< Size of the viewport.
-	MTY_CmdList *cmdList;    ///< Command lists.
-	uint32_t cmdListLength;  ///< Number of command lists.
-	uint32_t cmdListMax;     ///< Size of `cmdList`, used internally for deduping.
-	uint32_t idxTotalLength; ///< Total number of indices in all command lists.
-	uint32_t vtxTotalLength; ///< Total number of vertices in all command lists.
-	bool clear;              ///< Surface should be cleared before drawing.
-} MTY_DrawData;
-
-/// @brief Vulkan specific device handles.
-typedef struct {
-	void *device;                               ///< VkDevice
-	const void *physicalDeviceMemoryProperties; ///< VkPhysicalDeviceMemoryProperties
-} MTY_VkDeviceObjects;
-
-/// @brief Create an MTY_Renderer capable of executing drawing commands.
-/// @returns On failure, NULL is returned. Call MTY_GetLog for details.\n\n
-///   The returned MTY_Renderer must be destroyed with MTY_RendererDestroy.
-MTY_EXPORT MTY_Renderer *
-MTY_RendererCreate(void);
-
-/// @brief Destroy an MTY_Renderer.
-/// @param renderer Passed by reference and set to NULL after being destroyed.
-MTY_EXPORT void
-MTY_RendererDestroy(MTY_Renderer **renderer);
-
-/// @brief Draw a quad with a raw image and MTY_RenderDesc.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @param image The raw image.
-/// @param desc Description of the raw image and how it should be rendered.
-/// @param dst The output drawing surface. See Generic Objects.
-/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
-MTY_EXPORT bool
-MTY_RendererDrawQuad(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device,
-	MTY_Context *context, const void *image, const MTY_RenderDesc *desc,
-	MTY_Surface *dst);
-
-/// @brief Clear an MTY_Surface to a solid color.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @param width Width of the area within `dst` to clear.
-/// @param height Height of the area within `dst` to clear.
-/// @param r The red color channel value between 0 and 1.
-/// @param g The green color channel value between 0 and 1.
-/// @param b The blue color channel value between 0 and 1.
-/// @param a The alpha color channel value between 0 and 1.
-/// @param dst The surface to be cleared. See Generic Objects.
-MTY_EXPORT void
-MTY_RendererClear(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device, MTY_Context *context,
-	uint32_t width, uint32_t height, float r, float g, float b, float a, MTY_Surface *dst);
-
-/// @brief Draw a UI with MTY_DrawData.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @param dd The UI draw data containing a full frame of commands.
-/// @param dst The output drawing surface. See Generic Objects.
-/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
-MTY_EXPORT bool
-MTY_RendererDrawUI(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device,
-	MTY_Context *context, const MTY_DrawData *dd, MTY_Surface *dst);
-
-/// @brief Set an RGBA texture image for use in MTY_DrawData.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @param id The desired `id` for the texture.
-/// @param rgba RGBA 8-bits per channel image.
-/// @param width Width of `rgba`.
-/// @param height Height of `rgba`.
-/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
-MTY_EXPORT bool
-MTY_RendererSetUITexture(MTY_Renderer *ctx, MTY_GFX api, MTY_Device *device,
-	MTY_Context *context, uint32_t id, const void *rgba, uint32_t width,
-	uint32_t height);
-
-/// @brief Check if a texture with `id` has been set.
-/// @param ctx An MTY_Renderer.
-/// @param id An `id` specified via MTY_RendererSetUITexture.
-MTY_EXPORT bool
-MTY_RendererHasUITexture(MTY_Renderer *ctx, uint32_t id);
-
-/// @brief Get a list of available graphics APIs on the current OS.
-/// @param apis Array to receive the list of available graphics APIs. This buffer
-///   should be MTY_GFX_MAX elements.
-/// @returns The number of graphics APIs set in `apis`.
-MTY_EXPORT uint32_t
-MTY_GetAvailableGFX(MTY_GFX *apis);
-
-/// @brief Get the default graphics API for the current OS.
-MTY_EXPORT MTY_GFX
-MTY_GetDefaultGFX(void);
-
-/// @brief Get the current rendering context state.
-/// @details This function can be used to snapshot the current context state before
-///   rendering with libmatoya.\n\n
-///   MTY_GFX_METAL is stateless and using MTY_RenderState has no effect.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @returns On failure, NULL is returned. Call MTY_GetLog for details.\n\n
-///   The returned MTY_RenderState must be destroyed with MTY_FreeRenderState.
-MTY_EXPORT MTY_RenderState *
-MTY_GetRenderState(MTY_GFX api, MTY_Device *device, MTY_Context *context);
-
-/// @brief Restore a previously acquired MTY_RenderState.
-/// @param ctx An MTY_Renderer.
-/// @param api Graphics API used for this operation.
-/// @param device See Generic Objects.
-/// @param context See Generic Objects.
-/// @param state Renderer state acquired via MTY_GetRenderState.
-MTY_EXPORT void
-MTY_SetRenderState(MTY_GFX api, MTY_Device *device, MTY_Context *context,
-	MTY_RenderState *state);
-
-/// @brief Free all resources associated with an MTY_RenderState.
-/// @param state Passed by reference and set to NULL after being destroyed.
-MTY_EXPORT void
-MTY_FreeRenderState(MTY_RenderState **state);
-
-
-//- #module App
-//- #mbrief Application, window, and input management.
-//- #mdetails Use these function to create a "libmatoya app", which handles window
-//-   creation and input event handling via an MTY_EventFunc. This module wrangles
-//-   many different dependencies under the hood responsible for input handling,
-//-   graphics API context creation, window creation, and event loop processing.
-
-#define MTY_WINDOW_MAX 8  ///< Maximum number of windows that can be created.
-#define MTY_SCREEN_MAX 32 ///< Maximum size of a screen identifier.
-
-#define MTY_DPAD(c) \
-	((c)->axes[MTY_CAXIS_DPAD].value)
-
-#define MTY_DPAD_UP(c) \
-	(MTY_DPAD(c) == 7 || MTY_DPAD(c) == 0 || MTY_DPAD(c) == 1)
-
-#define MTY_DPAD_RIGHT(c) \
-	(MTY_DPAD(c) == 1 || MTY_DPAD(c) == 2 || MTY_DPAD(c) == 3)
-
-#define MTY_DPAD_DOWN(c) \
-	(MTY_DPAD(c) == 3 || MTY_DPAD(c) == 4 || MTY_DPAD(c) == 5)
-
-#define MTY_DPAD_LEFT(c) \
-	(MTY_DPAD(c) == 5 || MTY_DPAD(c) == 6 || MTY_DPAD(c) == 7)
-
-typedef struct MTY_App MTY_App;
-typedef int8_t MTY_Window;
-
-/// @brief Function called once per message cycle.
-/// @details A "message cycle" can be thought of as one iteration through all of the
-///   available messages that the OS has accumulated. libmatoya loops through each
-///   OS level message, fires your MTY_EventFunc for each message of interest, then
-///   calls this function. By default, this process will repeat with no delay, but
-///   one can be added by blocking on MTY_WindowPresent or using MTY_AppSetTimeout.
-/// @param opaque Pointer set via MTY_AppCreate.
-/// @returns Return true to continue running the app, false to stop it.
-typedef bool (*MTY_AppFunc)(void *opaque);
-
-/// @brief Function called to test if a tray menu item should be checked.
-/// @param opaque Pointer set via MTY_AppCreate.
-/// @returns Return true to show the menu item as checked, false to show it as unchecked.
-typedef bool (*MTY_MenuItemCheckedFunc)(void *opaque);
-
-/// @brief Function called to add custom processing to window messages.
-/// @details This function is called before any internal processing, and if `shouldReturn` is set
-///   to true, no internal handling of the message will take place. This may affect internal state
-///   tracking for certain message types.
-/// @param app The MTY_App.
-/// @param window The MTY_Window associated with the message.
-/// @param hwnd `HWND hwnd` value passed as the first argument to the `WNDPROC` callback.
-/// @param msg `UINT uMsg` value passed as the second argument to the `WNDPROC` callback.
-/// @param wparam `WPARAM wParam` value passed as the third argument to the `WNDPROC` callback.
-/// @param lparam `LPARAM lParam` value passed as the fourth argument to the `WNDPROC` callback.
-/// @param shouldReturn If set to true, no internal processing of this message will take place
-///   and the return value from this callback will be returned by the internal `WNDPROC` callback.
-/// @param opaque Pointer set via MTY_AppCreate.
-//- #support Windows
-typedef intptr_t (*MTY_WMsgFunc)(MTY_App *app, MTY_Window window, void *hwnd, uint32_t msg,
-	intptr_t wparam, uintptr_t lparam, bool *shouldReturn, void *opaque);
+/// @brief Alternative MTY_App behaviors.
+typedef enum {
+	MTY_APP_FLAG_HID_EVENTS     = 0x01, ///< If enabled, all controllers except XInput controllers
+	                                    ///<   will generate input report events.
+	MTY_APP_FLAG_HID_KEYBOARD   = 0x02, ///< On macOS, use the IOKit HID library to make detecting
+	                                    ///<   key events more robust. Doing so will request highly
+                                        ///<   privileged permissions for the calling application.
+	MTY_APP_FLAG_ALT_FULLSCREEN = 0x04, ///< On macOS, make fullscreen mode feel more like
+	                                    ///<   borderless windowed mode on Windows.
+	MTY_APP_FLAG_MAKE_32        = INT32_MAX,
+} MTY_AppFlag;
 
 /// @brief App events.
 /// @details See MTY_Event for details on how to respond to these values.
@@ -512,6 +315,7 @@ typedef enum {
 	MTY_KEY_INTL_BACKSLASH = 0x056, ///< International Backslash
 	MTY_KEY_F11            = 0x057, ///< F11
 	MTY_KEY_F12            = 0x058, ///< F12
+	MTY_KEY_NP_EQUAL       = 0x059, ///< Equal (numpad)
 	MTY_KEY_LWIN           = 0x15B, ///< Left Windows (Meta/Super)
 	MTY_KEY_RWIN           = 0x15C, ///< Right Windows (Meta/Super)
 	MTY_KEY_APP            = 0x15D, ///< Application Menu
@@ -522,9 +326,14 @@ typedef enum {
 	MTY_KEY_F17            = 0x068, ///< F17
 	MTY_KEY_F18            = 0x069, ///< F18
 	MTY_KEY_F19            = 0x06A, ///< F19
+	MTY_KEY_F20            = 0x06B, ///< F20
+	MTY_KEY_F21            = 0x06C, ///< F21
+	MTY_KEY_F22            = 0x06D, ///< F22
+	MTY_KEY_F23            = 0x06E, ///< F23
 	MTY_KEY_MEDIA_SELECT   = 0x16D, ///< Media Select
-	MTY_KEY_JP             = 0x070, ///< Katakana / Hiragana
+	MTY_KEY_JP             = 0x070, ///< Katakana/Hiragana
 	MTY_KEY_RO             = 0x073, ///< Ro
+	MTY_KEY_F24            = 0x076, ///< F24
 	MTY_KEY_HENKAN         = 0x079, ///< Henkan
 	MTY_KEY_MUHENKAN       = 0x07B, ///< Muhenkan
 	MTY_KEY_INTL_COMMA     = 0x07E, ///< JIS Comma
@@ -573,8 +382,9 @@ typedef enum {
 	MTY_CTYPE_SWITCH  = 2, ///< Nintendo Switch controller.
 	MTY_CTYPE_PS4     = 3, ///< Playstation 4 DualShock controller.
 	MTY_CTYPE_PS5     = 4, ///< Playstation 5 DualSense controller.
-	MTY_CTYPE_XBOX    = 5, ///< Xbox Bluetooth controller.
-	MTY_CTYPE_XBOXW   = 6, ///< Xbox wired controller.
+	MTY_CTYPE_STADIA  = 5, ///< Google Stadia controller.
+	MTY_CTYPE_XBOX    = 6, ///< Xbox Bluetooth controller.
+	MTY_CTYPE_XBOXW   = 7, ///< Xbox wired controller.
 	MTY_CTYPE_MAKE_32 = INT32_MAX,
 } MTY_CType;
 
@@ -596,6 +406,7 @@ typedef enum {
 	MTY_CBUTTON_RIGHT_THUMB    = 11, ///< Right Thumb Stick
 	MTY_CBUTTON_GUIDE          = 12, ///< Guide Button
 	MTY_CBUTTON_TOUCHPAD       = 13, ///< Touchpad Button
+	MTY_CBUTTON_CAPTURE        = 14, ///< Capture Button (Stadia)
 	MTY_CBUTTON_MAX            = 64, ///< Maximum number of possible buttons.
 	MTY_CBUTTON_MAKE_32        = INT32_MAX,
 } MTY_CButton;
@@ -685,6 +496,85 @@ typedef enum {
 	MTY_CURSOR_MAKE_32 = INT32_MAX,
 } MTY_Cursor;
 
+/// @brief Description of a render operation.
+typedef struct {
+	MTY_ColorFormat format; ///< The color format of a raw image.
+	MTY_Rotation rotation;  ///< Rotation applied to the image.
+	MTY_Chroma chroma;      ///< Color subsampling, chroma layout for planar YUV formats.
+	MTY_Filter filter;      ///< Filter applied to the image.
+	MTY_Effect effects[2];  ///< Effects applied to the image.
+	float levels[2];        ///< Intensity of the applied `effects` between `0.0f` and `1.0f`.
+	bool fullRangeYUV;      ///< Use the full 0-255 color range for YUV formats.
+	bool multiplyYUV;       ///< Properly normalize 10-bit YUV formats if not already done.
+	uint8_t layer;          ///< If drawing multiple layers of quads between present, `layer`
+	                        ///<   determines the order in the blending hierarchy.
+	uint32_t imageWidth;    ///< The width in pixels of the image.
+	uint32_t imageHeight;   ///< The height in pixels of the image.
+	uint32_t cropWidth;     ///< Desired crop width of the image from the top left corner.
+	uint32_t cropHeight;    ///< Desired crop height of the image from the top left corner.
+	uint32_t viewWidth;     ///< The width of the viewport.
+	uint32_t viewHeight;    ///< The height of the viewport.
+	float aspectRatio;      ///< Desired aspect ratio of the image. The renderer will letterbox
+	                        ///<   the image to maintain the specified aspect ratio.
+	float scale;            ///< Multiplier applied to the dimensions of the image, producing an
+	                        ///<   minimized or magnified image. This can be set to 0
+	                        ///<   if unnecessary.
+} MTY_RenderDesc;
+
+/// @brief A point with an `x` and `y` coordinate.
+typedef struct {
+	float x; ///< Horizontal position.
+	float y; ///< Vertical position
+} MTY_Point;
+
+/// @brief A rectangle with `left`, `top`, `right`, and `bottom` coordinates.
+typedef struct {
+	float left;   ///< Left edge position.
+	float top;    ///< Top edge position.
+	float right;  ///< Right edge position.
+	float bottom; ///< Bottom edge position.
+} MTY_Rect;
+
+/// @brief UI vertex.
+typedef struct {
+	MTY_Point pos; ///< Vertex position.
+	MTY_Point uv;  ///< Vertex texcoord.
+	uint32_t col;  ///< Element color.
+} MTY_Vtx;
+
+/// @brief UI draw command.
+typedef struct {
+	MTY_Rect clip;      ///< Clip rectangle.
+	uint32_t texture;   ///< Texture reference.
+	uint32_t elemCount; ///< Number of indices.
+	uint32_t idxOffset; ///< Index buffer offset.
+	uint32_t vtxOffset; ///< Vertex buffer offset.
+} MTY_Cmd;
+
+/// @brief UI draw command list.
+typedef struct {
+	MTY_Cmd *cmd;       ///< List of commands.
+	MTY_Vtx *vtx;       ///< Vertex buffer data.
+	uint16_t *idx;      ///< Index buffer data.
+	uint32_t cmdLength; ///< Number of commands.
+	uint32_t cmdMax;    ///< Size of the `cmd` buffer, used internally for deduping.
+	uint32_t vtxLength; ///< Total number of vertices.
+	uint32_t vtxMax;    ///< Size of the `vtx` buffer, used internally for deduping.
+	uint32_t idxLength; ///< Total number of indices.
+	uint32_t idxMax;    ///< Size of the `idx` buffer, used internally for deduping.
+} MTY_CmdList;
+
+/// @brief UI draw data.
+typedef struct {
+	MTY_Point displaySize;   ///< Size of the viewport.
+	MTY_CmdList *cmdList;    ///< Command lists.
+	uint32_t cmdListLength;  ///< Number of command lists.
+	uint32_t cmdListMax;     ///< Size of `cmdList`, used internally for deduping.
+	uint32_t idxTotalLength; ///< Total number of indices in all command lists.
+	uint32_t vtxTotalLength; ///< Total number of vertices in all command lists.
+	bool clear;              ///< Surface should be cleared before drawing.
+} MTY_DrawData;
+
 /// @brief Key event.
 typedef struct {
 	MTY_Key key;   ///< The key that has been pressed or released.
@@ -746,7 +636,7 @@ typedef struct {
 } MTY_ControllerEvent;
 
 /// @brief HID input report from certain controllers.
-/// @details If enabled via MTY_AppEnableHIDEvents, all controllers except XInput
+/// @details If enabled via MTY_APP_FLAG_HID_EVENTS, all controllers except XInput
 ///   controllers will generate input report events.
 typedef struct {
 	const void *report; ///< The HID input report.
@@ -833,7 +723,7 @@ typedef void (*MTY_EventFunc)(const MTY_Event *evt, void *opaque);
 /// @returns On failure, NULL is returned. Call MTY_GetLog for details.\n\n
 ///   The returned MTY_App must be destroyed with MTY_AppDestroy.
 MTY_EXPORT MTY_App *
-MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque);
+MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque);
 
 /// @brief Destroy an MTY_App.
 /// @details This function will also destroy all open windows and the system tray
@@ -1088,15 +978,6 @@ MTY_AppGetControllerDeviceName(MTY_App *ctx, uint32_t id);
 MTY_EXPORT MTY_CType
 MTY_AppGetControllerType(MTY_App *ctx, uint32_t id);
 
-/// @brief Enable or disable HID input reports from certain controllers.
-/// @details If enabled, all controllers except XInput controllers will generate input
-///   report events.
-/// @param ctx The MTY_App.
-/// @param enable Set true to enable HID input reports, false to disable them.
-//- #support Windows macOS
-MTY_EXPORT void
-MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable);
-
 /// @brief Submit an HID output report to a controller.
 /// @details Be careful to make sure the report is compatible with the device!
 /// @param ctx The MTY_App.
@@ -1274,7 +1155,7 @@ MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen);
 MTY_EXPORT void
 MTY_WindowWarpCursor(MTY_App *app, MTY_Window window, uint32_t x, uint32_t y);
 
-/// @brief Wrapped MTY_RendererDrawQuad for the window.
+/// @brief Draw a quad with a raw image and MTY_RenderDesc.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 /// @param image The raw image.
@@ -1284,7 +1165,7 @@ MTY_EXPORT void
 MTY_WindowDrawQuad(MTY_App *app, MTY_Window window, const void *image,
 	const MTY_RenderDesc *desc);
 
-/// @brief Wrapped MTY_RendererClear for the window.
+/// @brief Clear the window surface to a solid color.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 /// @param r The red color channel value between 0 and 1.
@@ -1294,21 +1175,21 @@ MTY_WindowDrawQuad(MTY_App *app, MTY_Window window, const void *image,
 MTY_EXPORT void
 MTY_WindowClear(MTY_App *app, MTY_Window window, float r, float g, float b, float a);
 
-/// @brief Wrapped MTY_RendererDrawUI for the window.
+/// @brief Draw a UI with MTY_DrawData.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 /// @param dd The UI draw data containing a full frame.
 MTY_EXPORT void
 MTY_WindowDrawUI(MTY_App *app, MTY_Window window, const MTY_DrawData *dd);
 
-/// @brief Wraped MTY_RendererHasUITexture for the window.
+/// @brief Check if a texture with `id` has been set.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 /// @param id An `id` specified via MTY_WindowSetUITexture.
 MTY_EXPORT bool
 MTY_WindowHasUITexture(MTY_App *app, MTY_Window window, uint32_t id);
 
-/// @brief Wrapped MTY_RendererSetUITexture for the window.
+/// @brief Set an RGBA texture image for use in MTY_DrawData.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
 /// @param id The desired `id` for the texture.
@@ -1342,6 +1223,17 @@ MTY_WindowGetGFX(MTY_App *app, MTY_Window window);
 /// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
 MTY_EXPORT bool
 MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync);
+
+/// @brief Get a list of available graphics APIs on the current OS.
+/// @param apis Array to receive the list of available graphics APIs. This buffer
+///   should be MTY_GFX_MAX elements.
+/// @returns The number of graphics APIs set in `apis`.
+MTY_EXPORT uint32_t
+MTY_GetAvailableGFX(MTY_GFX *apis);
+
+/// @brief Get the default graphics API for the current OS.
+MTY_EXPORT MTY_GFX
+MTY_GetDefaultGFX(void);
 
 /// @brief Get the graphics context's current state.
 /// @details The context state can inform you if your textures need to be reloaded.
@@ -1484,6 +1376,29 @@ MTY_PrintEvent(const MTY_Event *evt);
 //- #support Windows Linux
 MTY_EXPORT void *
 MTY_GLGetProcAddress(const char *name);
+
+/// @brief Runs a loop while also allowing the OS's event loop to continue to run.
+/// @details This function only matters when targeting the Web. If a regular `while` loop is used
+///   to block a thread, under the hood the `Worker` that is executing the WebAssembly will be
+///   blocked and can not process the JavaScript event loop. This means that the `Worker` can not
+///   communicate with the main thread via `postMessage`, and most importantly can not perform
+///   deferred cleanup via the event loop, causing memory leaks.
+/// @param iter Function called in a loop until it returns false.
+/// @param opaque Pointer passed to each call to `iter`.
+MTY_EXPORT void
+MTY_RunAndYield(MTY_IterFunc iter, void *opaque);
+
+/// @brief Wait until signaled by the main JavaScript thread. Web only.
+/// @details When providing a `userEnv` argument to the MTY_Start JavaScript function, it may
+///   become necessary to have the WebAssembly thread wait while running asynchronous code in
+///   JavaScript. All functions supplied via the `userEnv` argument will always run on the main
+///   JavaScript thread which is not allowed to block in any way. These functions should call
+///   MTY_SignalPtr when done with their asynchronous operations on a `sync` variable, which
+///   will then unblock the WebAssembly side waiting with MTY_WaitPtr.
+/// @param sync Pointer to arbitrary shared memory.
+//- #support Web
+MTY_EXPORT void
+MTY_WaitPtr(int32_t *sync);
 
 
 //- #module Audio
@@ -1769,7 +1684,7 @@ typedef enum {
 typedef enum {
 	MTY_FILE_MODE_SHARED    = 0, ///< Shared access, allowing many open readers but no writers.
 	MTY_FILE_MODE_EXCLUSIVE = 1, ///< Exclusive access, allowing only a single open writer.
-	MTY_FILE_MODE_MAKE_32 = INT32_MAX,
+	MTY_FILE_MODE_MAKE_32   = INT32_MAX,
 } MTY_FileMode;
 
 /// @brief File properties.
@@ -1938,13 +1853,6 @@ typedef enum {
 	MTY_IMAGE_COMPRESSION_MAKE_32 = INT32_MAX,
 } MTY_ImageCompression;
 
-/// @brief Function called after decompression is finished.
-/// @param image The decompressed image on success, or NULL if there was an error.
-/// @param width The width of `image`.
-/// @param height The height of `image`.
-/// @param opaque Pointer supplied to MTY_DecompressImageAsync.
-typedef void (*MTY_ImageFunc)(void *image, uint32_t width, uint32_t height, void *opaque);
-
 /// @brief Compress an RGBA image.
 /// @param method The compression method to be used on `input`.
 /// @param input RGBA 8-bits per channel image data.
@@ -1968,16 +1876,6 @@ MTY_CompressImage(MTY_ImageCompression method, const void *input, uint32_t width
 ///   The returned buffer must be destroyed with MTY_Free.
 MTY_EXPORT void *
 MTY_DecompressImage(const void *input, size_t size, uint32_t *width, uint32_t *height);
-
-/// @brief Decompress an image asynchronously into RGBA.
-/// @details This function is synchronous and functionally equivalent to MTY_DecompressImage on
-///   all platforms except the Web.
-/// @param input The compressed image data.
-/// @param size The size in bytes of `input`.
-/// @param func Function called after decompression is finished.
-/// @param opaque Passed to `func` when it is called.
-MTY_EXPORT void
-MTY_DecompressImageAsync(const void *input, size_t size, MTY_ImageFunc func, void *opaque);
 
 /// @brief Center crop an RGBA image.
 /// @param image RGBA 8-bits per channel image to be cropped.

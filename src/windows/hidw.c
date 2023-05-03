@@ -125,7 +125,7 @@ static struct hid_dev *hid_device_create(HANDLE device)
 	return ctx;
 }
 
-struct hid *mty_hid_create(HID_CONNECT connect, HID_DISCONNECT disconnect, HID_REPORT report, void *opaque)
+struct hid *mty_hid_create(HID_CONNECT connect, HID_DISCONNECT disconnect, HID_REPORT report, HID_KEY key, void *opaque)
 {
 	struct hid *ctx = MTY_Alloc(1, sizeof(struct hid));
 	ctx->devices = MTY_HashCreate(0);

@@ -35,7 +35,8 @@ static bool app_func(void *opaque)
 	};
 
 	// Draw the quad
-	MTY_WindowDrawQuad(ctx->app, 0, ctx->image, &desc);
+	if (ctx->image)
+		MTY_WindowDrawQuad(ctx->app, 0, ctx->image, &desc);
 
 	MTY_WindowPresent(ctx->app, 0);
 
@@ -45,12 +46,12 @@ static bool app_func(void *opaque)
 int main(int argc, char **argv)
 {
 	struct context ctx = {0};
-	ctx.app = MTY_AppCreate(app_func, event_func, &ctx);
+	ctx.app = MTY_AppCreate(0, app_func, event_func, &ctx);
 	if (!ctx.app)
 		return 1;
 
 	MTY_WindowCreate(ctx.app, "My Window", NULL, 0);
-	MTY_WindowSetGFX(ctx.app, 0, MTY_GFX_GL, true);
+	MTY_WindowSetGFX(ctx.app, 0, MTY_GetDefaultGFX(), true);
 
 	// Fetch a PNG from the internet
 	void *png = NULL;

@@ -7,6 +7,7 @@
 #include <WebKit/WebKit.h>
 
 #include "objc.h"
+#include "app-os.h"
 #include "web/keymap.h"
 
 struct webview {
@@ -20,7 +21,6 @@ struct webview {
 	WKWebView *webview;
 	bool ready;
 	bool passthrough;
-	bool hidden_during_keydown;
 };
 
 
@@ -99,12 +99,10 @@ static void msg_handler_userContentController_didReceiveScriptMessage(id self, S
 				break;
 
 			MTY_Mod mods = web_keymap_mods(jmods);
+			bool pressed = str[0] == 'D';
 
-			bool visible = mty_webview_is_visible(ctx);
-
-			ctx->key_func(ctx->app, ctx->window, str[0] == 'D', key, mods);
-
-			ctx->hidden_during_keydown = visible && !mty_webview_is_visible(ctx);
+			if (mty_app_dedupe_key(ctx->app, key, pressed, false))
+				ctx->key_func(ctx->app, ctx->window, pressed, key, mods);
 			break;
 	}
 
@@ -166,6 +164,8 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 
 	[ctx->webview setValue:@NO forKey:@"drawsBackground"];
 	[ctx->webview.configuration.preferences setValue:ndebug forKey:@"developerExtrasEnabled"];
+	[ctx->webview.configuration.preferences setValue:@YES forKey:@"tabFocusesLinks"];
+	[ctx->webview.configuration.preferences setValue:@YES forKey:@"textInteractionEnabled"];
 
 	// Message handler
 	NSObject <WKScriptMessageHandler> *handler = OBJC_NEW(msg_handler_class(), ctx);
@@ -306,14 +306,6 @@ void mty_webview_reload(struct webview *ctx)
 void mty_webview_set_input_passthrough(struct webview *ctx, bool passthrough)
 {
 	ctx->passthrough = passthrough;
-}
-
-bool mty_webview_was_hidden_during_keydown(struct webview *ctx)
-{
-	bool r = ctx->hidden_during_keydown;
-	ctx->hidden_during_keydown = false;
-
-	return r;
 }
 
 bool mty_webview_event(struct webview *ctx, MTY_Event *evt)

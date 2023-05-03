@@ -21,35 +21,28 @@ NAME = libmatoya
 
 OBJS = \
 	src/app.o \
+	src/async.o \
 	src/crypto.o \
 	src/dtls.o \
 	src/file.o \
 	src/hash.o \
+	src/http.o \
 	src/image.o \
 	src/json.o \
 	src/list.o \
 	src/log.o \
 	src/memory.o \
 	src/queue.o \
-	src/render.o \
 	src/resample.o \
 	src/system.o \
 	src/thread.o \
 	src/tlocal.o \
 	src/version.o \
-	src/gfx/gl/gl.o \
-	src/gfx/gl/gl-ui.o \
 	src/hid/utils.o \
 	src/unix/file.o \
 	src/unix/memory.o \
 	src/unix/thread.o \
 	src/unix/time.o
-
-SHADERS = \
-	src/gfx/gl/shaders/fs.h \
-	src/gfx/gl/shaders/vs.h \
-	src/gfx/gl/shaders/fsui.h \
-	src/gfx/gl/shaders/vsui.h
 
 INCLUDES = \
 	-Ideps \
@@ -77,22 +70,35 @@ endif
 ### WASM ###
 ############
 
-# github.com/WebAssembly/wasi-sdk/releases -> ~/wasi-sdk-xx
+# github.com/WebAssembly/wasi-sdk/releases -> ~/wasi-sdk
 
 ifdef WASM
-WASI_SDK = $(HOME)/wasi-sdk-16.0
+WASI_SDK = $(HOME)/wasi-sdk
 
-CC = $(WASI_SDK)/bin/clang --sysroot=$(WASI_SDK)/share/wasi-sysroot
+CC = $(WASI_SDK)/bin/clang
 AR = $(WASI_SDK)/bin/ar
 
 ARCH := wasm32
 
 OBJS := $(OBJS) \
+	src/gfx/gl/gl.o \
+	src/gfx/gl/gl-ui.o \
 	src/unix/web/app.o \
 	src/unix/web/dialog.o \
 	src/unix/web/system.o \
 	src/unix/web/webview.o \
 	src/unix/web/gfx/gl-ctx.o
+
+SHADERS = \
+	src/gfx/gl/shaders/fs.h \
+	src/gfx/gl/shaders/vs.h \
+	src/gfx/gl/shaders/fsui.h \
+	src/gfx/gl/shaders/vsui.h
+
+FLAGS := $(FLAGS) \
+	--sysroot=$(WASI_SDK)/share/wasi-sysroot \
+	--target=wasm32-wasi-threads \
+	-pthread
 
 DEFS := $(DEFS) \
 	-DCLOCK_MONOTONIC_RAW=CLOCK_MONOTONIC \
@@ -116,8 +122,8 @@ WEBVIEW_OBJ = src/unix/linux/x11/webview.o
 endif
 
 OBJS := $(OBJS) \
-	src/async.o \
-	src/http.o \
+	src/gfx/gl/gl.o \
+	src/gfx/gl/gl-ui.o \
 	src/gfx/vk/vk.o \
 	src/gfx/vk/vk-ctx.o \
 	src/gfx/vk/vk-ui.o \
@@ -137,7 +143,11 @@ OBJS := $(OBJS) \
 	src/unix/linux/x11/gfx/gl-ctx.o \
 	$(WEBVIEW_OBJ)
 
-SHADERS := $(SHADERS) \
+SHADERS = \
+	src/gfx/gl/shaders/fs.h \
+	src/gfx/gl/shaders/vs.h \
+	src/gfx/gl/shaders/fsui.h \
+	src/gfx/gl/shaders/vsui.h \
 	src/gfx/vk/shaders/fs.h \
 	src/gfx/vk/shaders/vs.h \
 	src/gfx/vk/shaders/fsui.h \
@@ -158,7 +168,7 @@ ifeq ($(UNAME_S), Darwin)
 .SUFFIXES: .metal
 
 .metal.h:
-	hexdump -ve '1/1 "0x%.2x,"' $< | (echo 'static const char MTL_LIBRARY[]={' && cat && echo '0x00};') > $@
+	@hexdump -ve '1/1 "0x%.2x,"' $< | (echo 'static const char MTL_LIBRARY[]={' && cat && echo '0x00};') > $@
 
 ifndef TARGET
 TARGET = macosx
@@ -171,20 +181,15 @@ endif
 ifeq ($(TARGET), macosx)
 MIN_VER = 10.15
 
-#TODO Remove after phase3
-FLAGS := $(FLAGS) -Wno-deprecated-declarations
-
 OBJS := $(OBJS) \
 	src/hid/hid.o \
 	src/unix/apple/image.o \
 	src/unix/apple/macosx/hid.o \
-	src/unix/apple/macosx/gfx/gl-ctx.o \
 	src/unix/apple/macosx/gfx/metal-ctx.o
 
 else
 MIN_VER = 13.0
 FLAGS := $(FLAGS) -fembed-bitcode
-DEFS := $(DEFS) -DMTY_GL_ES
 
 ifeq ($(ARCH), x86_64)
 FLAGS := $(FLAGS) -maes -mpclmul
@@ -193,8 +198,6 @@ endif
 endif
 
 OBJS := $(OBJS) \
-	src/async.o \
-	src/http.o \
 	src/unix/system.o \
 	src/unix/apple/request.o \
 	src/unix/apple/audio.o \
@@ -209,12 +212,9 @@ OBJS := $(OBJS) \
 	src/unix/apple/$(TARGET)/dialog.o \
 	src/unix/apple/$(TARGET)/system.o
 
-SHADERS := $(SHADERS) \
-	src/unix/apple/gfx/shaders/metal/quad.h \
-	src/unix/apple/gfx/shaders/metal/ui.h
-
-DEFS := $(DEFS) \
-	-DMTY_GL_EXTERNAL
+SHADERS = \
+	src/unix/apple/gfx/shaders/quad.h \
+	src/unix/apple/gfx/shaders/ui.h
 
 FLAGS := $(FLAGS) \
 	-m$(TARGET)-version-min=$(MIN_VER) \
@@ -239,10 +239,10 @@ objs: $(OBJS)
 ### ANDROID ###
 ###############
 
-# developer.android.com/ndk/downloads -> ~/android-ndk-xxx
+# developer.android.com/ndk/downloads -> ~/android-ndk
 
 ifndef ANDROID_NDK_ROOT
-ANDROID_NDK_ROOT = $(HOME)/android-ndk-r25
+ANDROID_NDK_ROOT = $(HOME)/android-ndk
 endif
 
 android: clean clear $(SHADERS)
