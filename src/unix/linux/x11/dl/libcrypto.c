@@ -28,6 +28,7 @@ static unsigned char *(*SHA256)(const unsigned char *d, size_t n, unsigned char 
 static unsigned char *(*HMAC)(const EVP_MD *evp_md, const void *key, int key_len,
 	const unsigned char *d, size_t n, unsigned char *md, unsigned int *md_len);
 static int (*RAND_bytes)(unsigned char *buf, int num);
+static int (*EVP_EncodeBlock)(unsigned char *t, const unsigned char *f, int n);
 
 static MTY_Atomic32 LIBCRYPTO_LOCK;
 static MTY_SO *LIBCRYPTO_SO;
@@ -77,6 +78,7 @@ static bool libcrypto_global_init(void)
 		LOAD_SYM(LIBCRYPTO_SO, SHA256);
 		LOAD_SYM(LIBCRYPTO_SO, HMAC);
 		LOAD_SYM(LIBCRYPTO_SO, RAND_bytes);
+		LOAD_SYM(LIBCRYPTO_SO, EVP_EncodeBlock);
 
 		except:
 

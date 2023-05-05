@@ -109,6 +109,27 @@ function mty_set_float(ptr, value) {
 }
 
 
+// Base64
+
+function mty_buf_to_b64(buf) {
+	let bstr = '';
+	for (let x = 0; x < buf.byteLength; x++)
+		bstr += String.fromCharCode(buf[x]);
+
+	return btoa(bstr);
+}
+
+function mty_b64_to_buf(b64) {
+	const bstr = atob(b64);
+	const buf = new Uint8Array(bstr.length);
+
+	for (let x = 0; x < bstr.length; x++)
+		buf[x] = bstr.charCodeAt(x);
+
+	return buf;
+}
+
+
 // Synchronization
 
 function mty_wait(sync) {
@@ -479,7 +500,7 @@ function mty_use_default_cursor(use_default) {
 function mty_set_png_cursor(buffer, size, hot_x, hot_y) {
 	if (buffer) {
 		const buf = new Uint8Array(MTY_MEMORY.buffer, buffer, size);
-		const b64_png = btoa(mty_decode(buf));
+		const b64_png = mty_buf_to_b64(buf);
 
 		if (!MTY.cursorCache[b64_png]) {
 			MTY.cursorCache[b64_png] = `cursor-x-${MTY.cursorId}`;
@@ -863,7 +884,7 @@ async function mty_thread_message(ev) {
 			const val = window.localStorage[msg.key];
 
 			if (val) {
-				this.tmp = mty_encode(atob(val));
+				this.tmp = mty_b64_to_buf(val);
 				msg.sab[0] = this.tmp.byteLength;
 
 			} else {
@@ -874,7 +895,7 @@ async function mty_thread_message(ev) {
 			break;
 		}
 		case 'set-ls':
-			window.localStorage[msg.key] = btoa(mty_decode(msg.val));
+			window.localStorage[msg.key] = mty_buf_to_b64(msg.val);
 			mty_signal(msg.sync);
 			break;
 		case 'alert':

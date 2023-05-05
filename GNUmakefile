@@ -199,10 +199,11 @@ endif
 
 OBJS := $(OBJS) \
 	src/unix/system.o \
-	src/unix/apple/request.o \
 	src/unix/apple/audio.o \
+	src/unix/apple/base64.o \
 	src/unix/apple/crypto.o \
 	src/unix/apple/dtls.o \
+	src/unix/apple/request.o \
 	src/unix/apple/webview.o \
 	src/unix/apple/ws.o \
 	src/unix/apple/gfx/metal.o \

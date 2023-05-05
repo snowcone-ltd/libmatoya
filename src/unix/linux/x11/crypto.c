@@ -65,3 +65,21 @@ void MTY_GetRandomBytes(void *buf, size_t size)
 	if (e != 1)
 		MTY_Log("'RAND_bytes' failed with error %d", e);
 }
+
+
+// Base64
+
+void MTY_BytesToBase64(const void *bytes, size_t size, char *base64, size_t base64Size)
+{
+	size_t needed = (4 * size / 3 + 3) & ~3;
+
+	if (base64Size <= needed) {
+		MTY_Log("'base64Size' is too small");
+		return;
+	}
+
+	if (!libcrypto_global_init())
+		return;
+
+	EVP_EncodeBlock((void *) base64, bytes, size);
+}

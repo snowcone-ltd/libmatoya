@@ -17,6 +17,7 @@ LIBS = \
 	..\bin\windows\$(ARCH)\matoya.lib \
 	advapi32.lib \
 	bcrypt.lib \
+	crypt32.lib \
 	d3d11.lib \
 	d3d12.lib \
 	dxgi.lib \

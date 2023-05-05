@@ -92,13 +92,15 @@ void mty_jni_memcpy(JNIEnv *env, void *dst, jbyteArray jsrc, size_t size)
 	(*env)->GetByteArrayRegion(env, jsrc, 0, (size_t) jsize < size ? (size_t) jsize : size, dst);
 }
 
-void mty_jni_strcpy(JNIEnv *env, char *buf, size_t size, jstring str)
+int32_t mty_jni_strcpy(JNIEnv *env, char *buf, size_t size, jstring str)
 {
 	const char *cstr = (*env)->GetStringUTFChars(env, str, NULL);
 
-	snprintf(buf, size, "%s", cstr);
+	int32_t n = snprintf(buf, size, "%s", cstr);
 
 	(*env)->ReleaseStringUTFChars(env, str, cstr);
+
+	return n;
 }
 
 char *mty_jni_cstrdup(JNIEnv *env, jstring jstr)

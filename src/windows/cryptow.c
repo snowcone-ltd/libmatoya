@@ -10,6 +10,7 @@
 
 #define WIN32_NO_STATUS
 #include <windows.h>
+#include <wincrypt.h>
 #include <bcrypt.h>
 
 
@@ -101,4 +102,15 @@ void MTY_GetRandomBytes(void *buf, size_t size)
 
 	if (e != STATUS_SUCCESS)
 		MTY_Log("'BCryptGenRandom' failed with error 0x%X", e);
+}
+
+
+// Base64
+
+void MTY_BytesToBase64(const void *bytes, size_t size, char *base64, size_t base64Size)
+{
+	DWORD dsize = (DWORD) base64Size;
+
+	if (!CryptBinaryToStringA(bytes, (DWORD) size, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, base64, &dsize))
+		MTY_Log("'CryptBinaryToString' failed with error 0x%X", GetLastError());
 }

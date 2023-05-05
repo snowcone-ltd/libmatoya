@@ -106,3 +106,24 @@ void MTY_GetRandomBytes(void *buf, size_t size)
 	mty_jni_free(env, b);
 	mty_jni_free(env, obj);
 }
+
+
+// Base64
+
+void MTY_BytesToBase64(const void *bytes, size_t size, char *base64, size_t base64Size)
+{
+	JNIEnv *env = MTY_GetJNIEnv();
+
+	jbyteArray jbuf = mty_jni_dup(env, bytes, size);
+
+	jint Base64_NO_WRAP = 0x00000002;
+
+	jstring str = mty_jni_static_obj(env, "android/util/Base64", "encodeToString",
+		"([BI)Ljava/lang/String;", jbuf, Base64_NO_WRAP);
+
+	if (mty_jni_strcpy(env, base64, base64Size, str) >= (ssize_t) base64Size)
+		MTY_Log("'base64Size' is too small");
+
+	mty_jni_free(env, str);
+	mty_jni_free(env, jbuf);
+}

@@ -585,6 +585,16 @@ const MTY_CRYPTO_API = {
 	MTY_GetRandomBytes: function (buf, size) {
 		mty_memcpy(buf, crypto.getRandomValues(new Uint8Array(size)));
 	},
+	MTY_BytesToBase64: function (bytes, size, base64, base64Size) {
+		const jbytes = new Uint8Array(MTY_MEMORY.buffer, bytes, size);
+
+		try {
+			mty_str_to_c(mty_buf_to_b64(jbytes), base64, base64Size);
+
+		} catch (e) {
+			console.error("'base64Size' is too small");
+		}
+	},
 };
 
 
