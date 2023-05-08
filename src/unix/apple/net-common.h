@@ -26,7 +26,7 @@ static void net_parse_headers(const char *key, const char *val, void *opaque)
 }
 
 static NSMutableURLRequest *net_request(const char *url, const char *method, const char *headers,
-	const void *body, size_t bodySize, const char *proxy, uint32_t timeout)
+	const void *body, size_t bodySize, uint32_t timeout)
 {
 	NSMutableURLRequest *req = [NSMutableURLRequest new];
 
@@ -39,8 +39,9 @@ static NSMutableURLRequest *net_request(const char *url, const char *method, con
 	// Method
 	[req setHTTPMethod:[NSString stringWithUTF8String:method]];
 
-	// URL
-	[req setURL:[NSURL URLWithString:[NSString stringWithUTF8String:url]]];
+	// URL (percent encoded)
+	NSData *urld = [[NSString stringWithUTF8String:url] dataUsingEncoding:NSUTF8StringEncoding];
+	[req setURL:[NSURL URLWithDataRepresentation:urld relativeToURL:nil]];
 
 	// Request headers
 	struct net_parse_args pargs = {.req = req};
