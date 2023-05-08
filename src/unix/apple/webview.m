@@ -7,13 +7,13 @@
 #include <WebKit/WebKit.h>
 
 #include "objc.h"
-#include "app-os.h"
 #include "web/keymap.h"
 
 struct webview {
 	MTY_App *app;
 	MTY_Window window;
 	MTY_Hash *keys;
+	MTY_Time ts;
 	WEBVIEW_READY ready_func;
 	WEBVIEW_TEXT text_func;
 	WEBVIEW_KEY key_func;
@@ -99,9 +99,8 @@ static void msg_handler_userContentController_didReceiveScriptMessage(id self, S
 				break;
 
 			MTY_Mod mods = web_keymap_mods(jmods);
-			bool pressed = str[0] == 'D';
 
-			ctx->key_func(ctx->app, ctx->window, pressed, key, mods);
+			ctx->key_func(ctx->app, ctx->window, str[0] == 'D', key, mods);
 			break;
 	}
 
@@ -264,6 +263,16 @@ void mty_webview_navigate(struct webview *ctx, const char *source, bool url)
 
 void mty_webview_show(struct webview *ctx, bool show)
 {
+	// The way macOS bubbles key events can cause them to fire multiple times
+	// between the WebView and window, potentially firing mty_webview_show
+	// more than intended
+
+	MTY_Time ts = MTY_GetTime();
+
+	if (MTY_TimeDiff(ctx->ts, ts) < 10)
+		return;
+
+	ctx->ts = ts;
 	ctx->webview.hidden = !show;
 
 	#if TARGET_OS_OSX

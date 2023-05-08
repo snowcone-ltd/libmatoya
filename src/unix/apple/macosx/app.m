@@ -3,7 +3,6 @@
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
 #include "app.h"
-#include "app-os.h"
 
 #include <AppKit/AppKit.h>
 #include <Carbon/Carbon.h>
