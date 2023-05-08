@@ -8,7 +8,9 @@
 
 struct net;
 
-struct net *mty_net_connect(const char *host, uint16_t port, bool secure, uint32_t timeout);
+bool mty_net_parse_url(const char *url, bool *secure, char **host, uint16_t *port, char **path);
+
+struct net *mty_net_connect(const char *url, const char *proxy, uint32_t timeout);
 void mty_net_destroy(struct net **net);
 
 MTY_Async mty_net_poll(struct net *ctx, uint32_t timeout);

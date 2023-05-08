@@ -15,7 +15,15 @@ struct net {
 	curl_socket_t s;
 };
 
-struct net *mty_net_connect(const char *host, uint16_t port, bool secure, uint32_t timeout)
+bool mty_net_parse_url(const char *url, bool *secure, char **host, uint16_t *port, char **path)
+{
+	if (!libcurl_global_init())
+		return NULL;
+
+	return false;
+}
+
+struct net *mty_net_connect(const char *url, const char *proxy, uint32_t timeout)
 {
 	if (!libcurl_global_init())
 		return NULL;
@@ -40,20 +48,10 @@ struct net *mty_net_connect(const char *host, uint16_t port, bool secure, uint32
 	// Connect timeout
 	curl_easy_setopt(ctx->curl, CURLOPT_CONNECTTIMEOUT_MS, timeout);
 
-	// URL (scheme, host, port, path)
-	const char *scheme = secure ? "https" : "http";
-	port = port > 0 ? port : secure ? 443 : 80;
-
-	bool std_port = (secure && port == 443) || (!secure && port == 80);
-
-	const char *url =  std_port ? MTY_SprintfDL("%s://%s", scheme, host) :
-		MTY_SprintfDL("%s://%s:%u", scheme, host, port);
-
+	// URL
 	curl_easy_setopt(ctx->curl, CURLOPT_URL, url);
 
 	// Proxy
-	const char *proxy = mty_http_get_proxy();
-
 	if (proxy)
 		curl_easy_setopt(ctx->curl, CURLOPT_PROXY, proxy);
 

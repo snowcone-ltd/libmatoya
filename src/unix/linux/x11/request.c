@@ -45,9 +45,9 @@ static size_t request_write_func(char *ptr, size_t size, size_t nmemb, void *use
 	return realsize;
 }
 
-bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *method,
-	const char *path, const char *headers, const void *body, size_t bodySize,
-	uint32_t timeout, void **response, size_t *responseSize, uint16_t *status)
+bool MTY_HttpRequest(const char *url, const char *method, const char *headers,
+	const void *body, size_t bodySize, const char *proxy, uint32_t timeout,
+	void **response, size_t *responseSize, uint16_t *status)
 {
 	*responseSize = 0;
 	*response = NULL;
@@ -76,15 +76,7 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 	// Method
 	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, method);
 
-	// URL (scheme, host, port, path)
-	const char *scheme = secure ? "https" : "http";
-	port = port > 0 ? port : secure ? 443 : 80;
-
-	bool std_port = (secure && port == 443) || (!secure && port == 80);
-
-	const char *url =  std_port ? MTY_SprintfDL("%s://%s%s", scheme, host, path) :
-		MTY_SprintfDL("%s://%s:%u%s", scheme, host, port, path);
-
+	// URL
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 
 	// Request headers
@@ -106,8 +98,6 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 	}
 
 	// Proxy
-	const char *proxy = mty_http_get_proxy();
-
 	if (proxy)
 		curl_easy_setopt(curl, CURLOPT_PROXY, proxy);
 

@@ -10,9 +10,7 @@
 #include <windows.h>
 #include <winhttp.h>
 
-#include "http.h"
-
-#define MTY_USER_AGENTW L"libmatoya/v" MTY_VERSION_STRINGW
+#include "net-common.h"
 
 #define WS_ALLOC_CHUNK   2048
 #define WS_PING_INTERVAL 60000
@@ -31,81 +29,9 @@ struct MTY_WebSocket {
 	DWORD len;
 };
 
-struct ws_parse_args {
-	WCHAR *ua;
-	char *headers;
-
-	WCHAR *whead;
-	WCHAR *whost;
-	WCHAR *wpath;
-	WCHAR *wmethod;
-	WCHAR *wheaders;
-
-	uint16_t port;
-};
-
-static void ws_append_header(char **header, const char *name, const char *val)
-{
-	size_t len = *header ? strlen(*header) : 0;
-	size_t new_len = len + strlen(name) + strlen(val) + 32;
-
-	*header = MTY_Realloc(*header, new_len, 1);
-	snprintf(*header + len, new_len, "%s: %s\r\n", name, val);
-}
-
-static void ws_parse_headers(const char *key, const char *val, void *opaque)
-{
-	struct ws_parse_args *pargs = opaque;
-
-	// WinHTTP needs to take the user-agent as a separate argument, so we need
-	// to pluck it out of the headers string
-	if (!MTY_Strcasecmp(key, "User-Agent")) {
-		if (!pargs->ua)
-			pargs->ua = MTY_MultiToWideD(val);
-
-	} else {
-		ws_append_header(&pargs->headers, key, val);
-	}
-}
-
-static struct ws_parse_args ws_create_pargs(const char *host, uint16_t port, bool secure,
-	const char *method, const char *path, const char *headers)
-{
-	struct ws_parse_args pargs = {0};
-	if (headers)
-		mty_http_parse_headers(headers, ws_parse_headers, &pargs);
-
-	pargs.whost = MTY_MultiToWideD(host);
-	pargs.wpath = MTY_MultiToWideD(path);
-	pargs.wmethod = MTY_MultiToWideD(method);
-	pargs.wheaders = pargs.headers ? MTY_MultiToWideD(pargs.headers) : WINHTTP_NO_ADDITIONAL_HEADERS;
-
-	pargs.port = port;
-
-	if (pargs.port == 0)
-		pargs.port = secure ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT;
-
-	return pargs;
-}
-
-static void ws_free_pargs(struct ws_parse_args *pargs)
-{
-	if (pargs->wheaders != WINHTTP_NO_ADDITIONAL_HEADERS)
-		MTY_Free(pargs->wheaders);
-
-	MTY_Free(pargs->ua);
-	MTY_Free(pargs->headers);
-	MTY_Free(pargs->wmethod);
-	MTY_Free(pargs->wpath);
-	MTY_Free(pargs->whost);
-
-	memset(pargs, 0, sizeof(struct ws_parse_args));
-}
-
-static HINTERNET ws_open(const WCHAR *ua, DWORD flags)
+static HINTERNET ws_open(const char *proxy, const WCHAR *ua, DWORD flags)
 {
 	// Proxy
-	const char *proxy = mty_http_get_proxy();
 	DWORD access_type = WINHTTP_ACCESS_TYPE_DEFAULT_PROXY;
 	WCHAR *wproxy = WINHTTP_NO_PROXY_NAME;
 
@@ -230,8 +156,8 @@ static void WINAPI ws_async(HINTERNET hInternet, DWORD_PTR dwContext, DWORD dwIn
 	}
 }
 
-MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure, const char *path,
-	const char *headers, uint32_t timeout, uint16_t *upgradeStatus)
+MTY_WebSocket *MTY_WebSocketConnect(const char *url, const char *headers, const char *proxy,
+	uint32_t timeout, uint16_t *upgradeStatus)
 {
 	MTY_WebSocket *ctx = MTY_Alloc(1, sizeof(MTY_WebSocket));
 
@@ -247,9 +173,13 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure
 	HINTERNET connect = NULL;
 	HINTERNET request = NULL;
 
-	struct ws_parse_args pargs = ws_create_pargs(host, port, secure, "GET", path, headers);
+	struct net_args nargs = {0};
+	if (!net_make_args(url, headers, &nargs)) {
+		r = false;
+		goto except;
+	}
 
-	session = ws_open(pargs.ua, WINHTTP_FLAG_ASYNC);
+	session = ws_open(proxy, nargs.ua, WINHTTP_FLAG_ASYNC);
 	if (!session) {
 		r = false;
 		goto except;
@@ -260,14 +190,14 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure
 		goto except;
 	}
 
-	connect = WinHttpConnect(session, pargs.whost, pargs.port, 0);
+	connect = WinHttpConnect(session, nargs.host, nargs.port, 0);
 	if (!connect) {
 		r = false;
 		goto except;
 	}
 
-	request = WinHttpOpenRequest(connect, pargs.wmethod, pargs.wpath, NULL, WINHTTP_NO_REFERER,
-		WINHTTP_DEFAULT_ACCEPT_TYPES, secure ? WINHTTP_FLAG_SECURE : 0);
+	request = WinHttpOpenRequest(connect, L"GET", nargs.path, NULL, WINHTTP_NO_REFERER,
+		WINHTTP_DEFAULT_ACCEPT_TYPES, nargs.secure ? WINHTTP_FLAG_SECURE : 0);
 	if (!request) {
 		r = false;
 		goto except;
@@ -277,7 +207,8 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure
 	if (!r)
 		goto except;
 
-	r = WinHttpSendRequest(request, pargs.wheaders, pargs.headers ? -1L : 0, NULL, 0, 0, (DWORD_PTR) ctx);
+	DWORD hlen = nargs.headers == WINHTTP_NO_ADDITIONAL_HEADERS ? -1L : 0;
+	r = WinHttpSendRequest(request, nargs.headers, hlen, NULL, 0, 0, (DWORD_PTR) ctx);
 	if (!r)
 		goto except;
 
@@ -322,7 +253,7 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure
 	if (session)
 		WinHttpCloseHandle(session);
 
-	ws_free_pargs(&pargs);
+	net_free_args(&nargs);
 
 	if (!r)
 		MTY_WebSocketDestroy(&ctx);

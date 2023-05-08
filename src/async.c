@@ -13,14 +13,12 @@ struct async_state {
 	bool image;
 
 	struct {
-		char *host;
-		uint16_t port;
-		bool secure;
+		char *url;
 		char *method;
-		char *path;
 		char *headers;
 		void *body;
 		size_t body_size;
+		char *proxy;
 	} req;
 
 	struct {
@@ -38,11 +36,8 @@ static void http_async_free_state(void *opaque)
 	struct async_state *s = opaque;
 
 	if (s) {
-		if (s->req.host)
-			MTY_SecureFree(s->req.host, strlen(s->req.host));
-
-		if (s->req.path)
-			MTY_SecureFree(s->req.path, strlen(s->req.path));
+		if (s->req.url)
+			MTY_SecureFree(s->req.url, strlen(s->req.url));
 
 		if (s->req.headers)
 			MTY_SecureFree(s->req.headers, strlen(s->req.headers));
@@ -79,8 +74,8 @@ static void http_async_thread(void *opaque)
 {
 	struct async_state *s = opaque;
 
-	bool req_ok = MTY_HttpRequest(s->req.host, s->req.port, s->req.secure, s->req.method,
-		s->req.path, s->req.headers, s->req.body, s->req.body_size, s->timeout,
+	bool req_ok = MTY_HttpRequest(s->req.url, s->req.method, s->req.headers,
+		s->req.body, s->req.body_size, s->req.proxy, s->timeout,
 		&s->res.body, &s->res.body_size, &s->res.code);
 
 	bool res_ok = s->res.code >= 200 && s->res.code < 300;
@@ -98,9 +93,8 @@ static void http_async_thread(void *opaque)
 	s->status = !req_ok ? MTY_ASYNC_ERROR : MTY_ASYNC_OK;
 }
 
-void MTY_HttpAsyncRequest(uint32_t *index, const char *host, uint16_t port, bool secure,
-	const char *method, const char *path, const char *headers, const void *body,
-	size_t size, uint32_t timeout, bool image)
+void MTY_HttpAsyncRequest(uint32_t *index, const char *url, const char *method, const char *headers,
+	const void *body, size_t bodySize, const char *proxy, uint32_t timeout, bool image)
 {
 	if (!ASYNC_CTX)
 		return;
@@ -112,19 +106,17 @@ void MTY_HttpAsyncRequest(uint32_t *index, const char *host, uint16_t port, bool
 	s->timeout = timeout;
 	s->image = image;
 
-	s->req.secure = secure;
-	s->req.body_size = size;
-	s->req.port = port;
+	s->req.url = MTY_Strdup(url);
 	s->req.method = MTY_Strdup(method);
-	s->req.host = MTY_Strdup(host);
-	s->req.path = MTY_Strdup(path);
 	s->req.headers = headers ? MTY_Strdup(headers) : MTY_Alloc(1, 1);
-	s->req.body = body ? MTY_Dup(body, size) : NULL;
+	s->req.body_size = bodySize;
+	s->req.body = body ? MTY_Dup(body, bodySize) : NULL;
+	s->req.proxy = proxy ? MTY_Strdup(proxy) : NULL;
 
 	*index = MTY_ThreadPoolDispatch(ASYNC_CTX, http_async_thread, s);
 
 	if (*index == 0) {
-		MTY_Log("Failed to start %s%s", host, path);
+		MTY_Log("Failed to start %s", url);
 		http_async_free_state(s);
 	}
 }

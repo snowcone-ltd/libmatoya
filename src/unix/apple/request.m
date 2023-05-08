@@ -4,89 +4,20 @@
 
 #include "matoya.h"
 
-#include <Foundation/NSURLRequest.h>
-#include <Foundation/Foundation.h>
+#include "net-common.h"
 
-#include "http.h"
-
-struct request_parse_args {
-	NSMutableURLRequest *req;
-	bool ua_found;
-};
-
-static void request_parse_headers(const char *key, const char *val, void *opaque)
-{
-	struct request_parse_args *pargs = opaque;
-
-	if (!MTY_Strcasecmp(key, "User-Agent"))
-		pargs->ua_found = true;
-
-	[pargs->req setValue:[NSString stringWithUTF8String:val]
-		forHTTPHeaderField:[NSString stringWithUTF8String:key]];
-}
-
-bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *method,
-	const char *path, const char *headers, const void *body, size_t bodySize,
-	uint32_t timeout, void **response, size_t *responseSize, uint16_t *status)
+bool MTY_HttpRequest(const char *url, const char *method, const char *headers,
+	const void *body, size_t bodySize, const char *proxy, uint32_t timeout,
+	void **response, size_t *responseSize, uint16_t *status)
 {
 	*responseSize = 0;
 	*response = NULL;
 
-	NSURLSessionConfiguration *cfg = [NSURLSessionConfiguration defaultSessionConfiguration];
-	NSMutableURLRequest *req = [NSMutableURLRequest new];
+	// Request
+	NSMutableURLRequest *req = net_request(url, method, headers, body, bodySize, timeout);
 
-	// Don't cache
-	[req setCachePolicy:NSURLRequestReloadIgnoringLocalCacheData];
-
-	// Timeout
-	[req setTimeoutInterval:timeout / 1000.0];
-
-	// Method
-	[req setHTTPMethod:[NSString stringWithUTF8String:method]];
-
-	// URL (scheme, host, port, path)
-	const char *scheme = secure ? "https" : "http";
-	port = port > 0 ? port : secure ? 443 : 80;
-
-	bool std_port = (secure && port == 443) || (!secure && port == 80);
-
-	const char *url =  std_port ? MTY_SprintfDL("%s://%s%s", scheme, host, path) :
-		MTY_SprintfDL("%s://%s:%u%s", scheme, host, port, path);
-
-	[req setURL:[NSURL URLWithString:[NSString stringWithUTF8String:url]]];
-
-	// Request headers
-	struct request_parse_args pargs = {.req = req};
-
-	if (headers)
-		mty_http_parse_headers(headers, request_parse_headers, &pargs);
-
-	if (!pargs.ua_found)
-		[req setValue:@MTY_USER_AGENT forHTTPHeaderField:@"User-Agent"];
-
-	pargs.req = nil;
-
-	// Body
-	if (body && bodySize > 0)
-		[req setHTTPBody:[NSData dataWithBytes:body length:bodySize]];
-
-	// Proxy
-	const char *proxy = mty_http_get_proxy();
-
-	if (proxy) {
-		NSURLComponents *comps = [NSURLComponents componentsWithString:[NSString stringWithUTF8String:proxy]];
-
-		if (comps) {
-			cfg.connectionProxyDictionary = @{
-				@"HTTPEnable": @YES,
-				@"HTTPProxy": comps.host,
-				@"HTTPPort": comps.port,
-				@"HTTPSEnable": @YES,
-				@"HTTPSProxy": comps.host,
-				@"HTTPSPort": comps.port,
-			};
-		}
-	}
+	// Session configuration
+	NSURLSessionConfiguration *cfg = net_configuration(proxy);
 
 	// Send request
 	NSURLSession *session = [NSURLSession sessionWithConfiguration:cfg];

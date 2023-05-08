@@ -15,10 +15,24 @@ struct net {
 	int32_t b;
 };
 
-struct net *mty_net_connect(const char *host, uint16_t port, bool secure, uint32_t timeout)
+bool mty_net_parse_url(const char *url, bool *secure, char **host, uint16_t *port, char **path)
 {
+	return false;
+}
+
+struct net *mty_net_connect(const char *url, const char *proxy, uint32_t timeout)
+{
+	// TODO Proxy setting
+
+	uint16_t port = 0;
+	char *host = NULL;
+	bool secure = true;
+	if (!mty_net_parse_url(url, &secure, &host, &port, NULL))
+		return NULL;
+
 	if (!secure) {
 		MTY_Log("Insecure WebSocket connections on Android are unsupported");
+		MTY_Free(host);
 		return NULL;
 	}
 
@@ -73,7 +87,9 @@ struct net *mty_net_connect(const char *host, uint16_t port, bool secure, uint32
 
 	except:
 
+	mty_jni_free(env, factory);
 	mty_jni_free(env, jhost);
+	MTY_Free(host);
 
 	if (!r)
 		mty_net_destroy(&ctx);
