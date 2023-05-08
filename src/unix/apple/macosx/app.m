@@ -50,7 +50,6 @@ struct MTY_App {
 	bool grab_kb;
 	bool cont;
 	bool pen_enabled;
-	bool default_cursor;
 	bool cursor_outside;
 	bool cursor_showing;
 	bool eraser;
@@ -59,7 +58,6 @@ struct MTY_App {
 	NSUInteger buttons;
 	uint32_t cb_seq;
 	struct window *windows[MTY_WINDOW_MAX];
-	bool keys[MTY_KEY_MAX];
 	float timeout;
 	struct hid *hid;
 };
