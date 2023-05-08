@@ -5,5 +5,3 @@
 #pragma once
 
 #include "matoya.h"
-
-bool mty_app_dedupe_key(MTY_App *ctx, MTY_Key key, bool pressed, bool repeat);

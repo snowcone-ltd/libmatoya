@@ -882,11 +882,13 @@ MTY_AppIsKeyboardGrabbed(MTY_App *ctx);
 
 /// @brief Grab the keyboard, capturing certain keys usually handled by the OS.
 /// @details The app defaults being ungrabbed. This function will attempt to route all
-///   special OS hotkeys to the app instead, i.e. ATL+TAB on Windows.
+///   special OS hotkeys to the app instead, i.e. ATL+TAB on Windows. On macOS,
+///   MTY_APP_FLAG_HID_KEYBOARD must be set during MTY_AppCreate for this function to succeed.
 /// @param ctx The MTY_App.
 /// @param grab Set true to grab, false to ungrab.
-//- #support Windows
-MTY_EXPORT void
+/// @returns The resulting keyboard grab state of the app.
+//- #support Windows macOS
+MTY_EXPORT bool
 MTY_AppGrabKeyboard(MTY_App *ctx, bool grab);
 
 /// @brief Get a previously set hotkey's `id`.

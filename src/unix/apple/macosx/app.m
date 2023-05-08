@@ -787,7 +787,7 @@ static void window_keyboard_event(struct window *ctx, uint16_t key_code, NSEvent
 	bool pressed, bool repeat)
 {
 	// Only process repeats if grabbed and MTY_APP_FLAG_HID_KEYBOARD was successful
-	if (!repeat && ctx->app->hid_keyboard_active && ctx->app->grab_kb)
+	if (!repeat && ctx->app->grab_kb)
 		return;
 
 	MTY_Event evt = {
@@ -798,9 +798,6 @@ static void window_keyboard_event(struct window *ctx, uint16_t key_code, NSEvent
 		.key.mod = keymap_modifier_flags_to_keymod(flags),
 		.key.pressed = pressed,
 	};
-
-	if (!mty_app_dedupe_key(ctx->app, evt.key.key, pressed, repeat))
-		return;
 
 	mty_app_kb_to_hotkey(ctx->app, &evt, MTY_EVENT_HOTKEY);
 
@@ -1552,10 +1549,15 @@ bool MTY_AppIsKeyboardGrabbed(MTY_App *ctx)
 	return ctx->grab_kb;
 }
 
-void MTY_AppGrabKeyboard(MTY_App *ctx, bool grab)
+bool MTY_AppGrabKeyboard(MTY_App *ctx, bool grab)
 {
+	if (!ctx->hid_keyboard_active)
+		return false;
+
 	ctx->grab_kb = grab;
 	app_apply_keyboard_state(ctx);
+
+	return ctx->grab_kb;
 }
 
 uint32_t MTY_AppGetHotkey(MTY_App *ctx, MTY_Scope scope, MTY_Mod mod, MTY_Key key)
@@ -1999,16 +2001,6 @@ MTY_EventFunc mty_app_get_event_func(MTY_App *ctx, void **opaque)
 MTY_Hash *mty_app_get_hotkey_hash(MTY_App *ctx)
 {
 	return ctx->hotkey;
-}
-
-bool mty_app_dedupe_key(MTY_App *ctx, MTY_Key key, bool pressed, bool repeat)
-{
-	bool was_down = ctx->keys[key];
-	bool should_fire = (pressed && (repeat || !was_down)) || (!pressed && was_down);
-
-	ctx->keys[key] = pressed;
-
-	return should_fire;
 }
 
 struct window_common *mty_window_get_common(MTY_App *app, MTY_Window window)
