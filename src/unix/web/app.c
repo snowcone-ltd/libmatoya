@@ -444,11 +444,13 @@ bool MTY_AppIsKeyboardGrabbed(MTY_App *ctx)
 	return ctx->kb_grab;
 }
 
-void MTY_AppGrabKeyboard(MTY_App *ctx, bool grab)
+bool MTY_AppGrabKeyboard(MTY_App *ctx, bool grab)
 {
 	ctx->kb_grab = grab;
 
 	web_set_kb_grab(grab);
+
+	return ctx->kb_grab;
 }
 
 uint32_t MTY_AppGetHotkey(MTY_App *ctx, MTY_Scope scope, MTY_Mod mod, MTY_Key key)

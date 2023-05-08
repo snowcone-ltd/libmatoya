@@ -1477,12 +1477,14 @@ bool MTY_AppIsKeyboardGrabbed(MTY_App *ctx)
 	return ctx->kbgrab;
 }
 
-void MTY_AppGrabKeyboard(MTY_App *ctx, bool grab)
+bool MTY_AppGrabKeyboard(MTY_App *ctx, bool grab)
 {
 	if (ctx->kbgrab != grab) {
 		ctx->kbgrab = grab;
 		ctx->state++;
 	}
+
+	return ctx->kbgrab;
 }
 
 static void app_unregister_global_hotkeys(MTY_App *app)
