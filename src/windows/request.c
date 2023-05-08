@@ -7,9 +7,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include <windows.h>
-#include <winhttp.h>
-
 #include "net-common.h"
 
 bool MTY_HttpRequest(const char *url, const char *method, const char *headers,
@@ -19,69 +16,17 @@ bool MTY_HttpRequest(const char *url, const char *method, const char *headers,
 	*responseSize = 0;
 	*response = NULL;
 
-	bool r = true;
-
 	HINTERNET session = NULL;
 	HINTERNET connect = NULL;
 	HINTERNET request = NULL;
 
-	WCHAR *wmethod = MTY_MultiToWideD(method);
-
-	// Proxy
-	DWORD access_type = WINHTTP_ACCESS_TYPE_DEFAULT_PROXY;
-	WCHAR *wproxy = WINHTTP_NO_PROXY_NAME;
-
-	if (proxy) {
-		access_type = WINHTTP_ACCESS_TYPE_NAMED_PROXY;
-		wproxy = MTY_MultiToWideD(proxy);
-	}
-
 	// Parse URL
-	struct net_args nargs = {0};
-	if (!net_make_args(url, headers, &nargs)) {
+	bool r = net_connect(url, method, headers, body, bodySize, NULL, proxy, timeout, NULL, false,
+		&session, &connect, &request);
+	if (!r) {
 		r = false;
 		goto except;
 	}
-
-	// Context initialization
-	session = WinHttpOpen(nargs.ua ? nargs.ua : MTY_USER_AGENTW, access_type, wproxy, WINHTTP_NO_PROXY_BYPASS, 0);
-	if (!session) {
-		r = false;
-		goto except;
-	}
-
-	// Set timeouts
-	r = WinHttpSetTimeouts(session, timeout, timeout, timeout, timeout);
-	if (!r)
-		goto except;
-
-	// Attempt to force TLS 1.2, ignore failure
-	DWORD opt = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
-	WinHttpSetOption(session, WINHTTP_OPTION_SECURE_PROTOCOLS, &opt, sizeof(DWORD));
-
-	// Handle gzip
-	opt = WINHTTP_DECOMPRESSION_FLAG_GZIP;
-	WinHttpSetOption(session, WINHTTP_OPTION_DECOMPRESSION, &opt, sizeof(DWORD));
-
-	connect = WinHttpConnect(session, nargs.host, nargs.port, 0);
-	if (!connect) {
-		r = false;
-		goto except;
-	}
-
-	// HTTP TCP/TLS connection
-	request = WinHttpOpenRequest(connect, wmethod, nargs.path, NULL, WINHTTP_NO_REFERER,
-		WINHTTP_DEFAULT_ACCEPT_TYPES, nargs.secure ? WINHTTP_FLAG_SECURE : 0);
-	if (!request) {
-		r = false;
-		goto except;
-	}
-
-	// Write headers and body
-	DWORD hlen = nargs.headers == WINHTTP_NO_ADDITIONAL_HEADERS ? -1L : 0;
-	r = WinHttpSendRequest(request, nargs.headers, hlen, (void *) body, (DWORD) bodySize, (DWORD) bodySize, 0);
-	if (!r)
-		goto except;
 
 	// Read response headers
 	r = WinHttpReceiveResponse(request, NULL);
@@ -89,13 +34,9 @@ bool MTY_HttpRequest(const char *url, const char *method, const char *headers,
 		goto except;
 
 	// Status code query
-	WCHAR wheader[128];
-	DWORD buf_len = 128 * sizeof(WCHAR);
-	r = WinHttpQueryHeaders(request, WINHTTP_QUERY_STATUS_CODE, NULL, wheader, &buf_len, NULL);
+	r = net_get_status_code(request, status);
 	if (!r)
 		goto except;
-
-	*status = (uint16_t) _wtoi(wheader);
 
 	// Receive response body
 	while (true) {
@@ -136,13 +77,6 @@ bool MTY_HttpRequest(const char *url, const char *method, const char *headers,
 
 	if (session)
 		WinHttpCloseHandle(session);
-
-	net_free_args(&nargs);
-
-	if (wproxy != WINHTTP_NO_PROXY_NAME)
-		MTY_Free(wproxy);
-
-	MTY_Free(wmethod);
 
 	if (!r) {
 		MTY_Free(*response);

@@ -7,13 +7,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include <windows.h>
-#include <winhttp.h>
-
 #include "net-common.h"
 
 #define WS_ALLOC_CHUNK   2048
-#define WS_PING_INTERVAL 60000
 
 struct MTY_WebSocket {
 	HINTERNET ws;
@@ -28,46 +24,6 @@ struct MTY_WebSocket {
 	DWORD pos;
 	DWORD len;
 };
-
-static HINTERNET ws_open(const char *proxy, const WCHAR *ua, DWORD flags)
-{
-	// Proxy
-	DWORD access_type = WINHTTP_ACCESS_TYPE_DEFAULT_PROXY;
-	WCHAR *wproxy = WINHTTP_NO_PROXY_NAME;
-
-	if (proxy) {
-		access_type = WINHTTP_ACCESS_TYPE_NAMED_PROXY;
-		wproxy = MTY_MultiToWideD(proxy);
-	}
-
-	// Context initialization
-	HINTERNET session = WinHttpOpen(ua ? ua : MTY_USER_AGENTW, access_type, wproxy, WINHTTP_NO_PROXY_BYPASS, flags);
-
-	if (session) {
-		// Attempt to force TLS 1.2, ignore failure
-		DWORD opt = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
-		WinHttpSetOption(session, WINHTTP_OPTION_SECURE_PROTOCOLS, &opt, sizeof(DWORD));
-	}
-
-	if (wproxy != WINHTTP_NO_PROXY_NAME)
-		MTY_Free(wproxy);
-
-	return session;
-}
-
-static bool ws_get_status_code(HINTERNET request, uint16_t *status_code)
-{
-	*status_code = 0;
-
-	WCHAR wheader[128];
-	DWORD buf_len = 128 * sizeof(WCHAR);
-	if (!WinHttpQueryHeaders(request, WINHTTP_QUERY_STATUS_CODE, NULL, wheader, &buf_len, NULL))
-		return false;
-
-	*status_code = (uint16_t) _wtoi(wheader);
-
-	return true;
-}
 
 static void WINAPI ws_async(HINTERNET hInternet, DWORD_PTR dwContext, DWORD dwInternetStatus,
 	LPVOID lpvStatusInformation, DWORD dwStatusInformationLength)
@@ -168,55 +124,22 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *url, const char *headers, const 
 	ctx->len = WS_ALLOC_CHUNK;
 	ctx->buf = MTY_Alloc(ctx->len, 1);
 
-	bool r = true;
 	HINTERNET session = NULL;
 	HINTERNET connect = NULL;
 	HINTERNET request = NULL;
 
-	struct net_args nargs = {0};
-	if (!net_make_args(url, headers, &nargs)) {
+	bool r = net_connect(url, "GET", headers, NULL, 0, ctx, proxy, -1, ws_async, true,
+		&session, &connect, &request);
+	if (!r) {
 		r = false;
 		goto except;
 	}
-
-	session = ws_open(proxy, nargs.ua, WINHTTP_FLAG_ASYNC);
-	if (!session) {
-		r = false;
-		goto except;
-	}
-
-	if (WinHttpSetStatusCallback(session, ws_async, WINHTTP_CALLBACK_FLAG_ALL_NOTIFICATIONS, 0)) {
-		r = false;
-		goto except;
-	}
-
-	connect = WinHttpConnect(session, nargs.host, nargs.port, 0);
-	if (!connect) {
-		r = false;
-		goto except;
-	}
-
-	request = WinHttpOpenRequest(connect, L"GET", nargs.path, NULL, WINHTTP_NO_REFERER,
-		WINHTTP_DEFAULT_ACCEPT_TYPES, nargs.secure ? WINHTTP_FLAG_SECURE : 0);
-	if (!request) {
-		r = false;
-		goto except;
-	}
-
-	r = WinHttpSetOption(request, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET, NULL, 0);
-	if (!r)
-		goto except;
-
-	DWORD hlen = nargs.headers == WINHTTP_NO_ADDITIONAL_HEADERS ? -1L : 0;
-	r = WinHttpSendRequest(request, nargs.headers, hlen, NULL, 0, 0, (DWORD_PTR) ctx);
-	if (!r)
-		goto except;
 
 	r = MTY_WaitableWait(ctx->write_event, timeout);
 	if (!r)
 		goto except;
 
-	r = WinHttpReceiveResponse(request, 0);
+	r = WinHttpReceiveResponse(request, NULL);
 	if (!r)
 		goto except;
 
@@ -224,7 +147,7 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *url, const char *headers, const 
 	if (!r)
 		goto except;
 
-	r = ws_get_status_code(request, upgradeStatus);
+	r = net_get_status_code(request, upgradeStatus);
 	if (!r)
 		goto except;
 
@@ -239,9 +162,6 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *url, const char *headers, const 
 		goto except;
 	}
 
-	DWORD opt = WS_PING_INTERVAL;
-	WinHttpSetOption(session, WINHTTP_OPTION_WEB_SOCKET_KEEPALIVE_INTERVAL, &opt, sizeof(DWORD));
-
 	except:
 
 	if (request)
@@ -252,8 +172,6 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *url, const char *headers, const 
 
 	if (session)
 		WinHttpCloseHandle(session);
-
-	net_free_args(&nargs);
 
 	if (!r)
 		MTY_WebSocketDestroy(&ctx);
