@@ -7,7 +7,7 @@
 #include "sym.h"
 
 
-// Interface
+// Legacy interface
 
 #define CURLOPT(na, t, nu) na = t + nu
 
@@ -79,6 +79,27 @@ static CURLcode (*curl_easy_recv)(CURL *curl, void *buffer, size_t buflen, size_
 static CURLcode (*curl_easy_getinfo)(CURL *curl, CURLINFO info, ...);
 static struct curl_slist *(*curl_slist_append)(struct curl_slist *list, const char *data);
 static void (*curl_slist_free_all)(struct curl_slist *list);
+static void (*curl_free)(void *ptr);
+
+
+// 7.62
+
+#define CURLU_URLENCODE (1 << 7)
+
+typedef enum {
+	CURLUE_OK,
+} CURLUcode;
+
+typedef enum {
+	CURLUPART_URL,
+} CURLUPart;
+
+typedef struct Curl_URL CURLU;
+
+static CURLU *(*curl_url)(void);
+static void (*curl_url_cleanup)(CURLU *handle);
+static CURLUcode (*curl_url_get)(const CURLU *handle, CURLUPart what, char **part, unsigned int flags);
+static CURLUcode (*curl_url_set)(CURLU *handle, CURLUPart what, const char *part, unsigned int flags);
 
 
 // Runtime open
@@ -120,6 +141,12 @@ static bool libcurl_global_init(void)
 		LOAD_SYM(LIBCURL_SO, curl_easy_getinfo);
 		LOAD_SYM(LIBCURL_SO, curl_slist_append);
 		LOAD_SYM(LIBCURL_SO, curl_slist_free_all);
+		LOAD_SYM(LIBCURL_SO, curl_free);
+
+		LOAD_SYM_OPT(LIBCURL_SO, curl_url);
+		LOAD_SYM_OPT(LIBCURL_SO, curl_url_cleanup);
+		LOAD_SYM_OPT(LIBCURL_SO, curl_url_get);
+		LOAD_SYM_OPT(LIBCURL_SO, curl_url_set);
 
 		CURLcode e = curl_global_init(CURL_GLOBAL_ALL);
 		if (e != CURLE_OK) {

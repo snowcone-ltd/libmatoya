@@ -15,9 +15,30 @@ struct net {
 	int32_t b;
 };
 
-struct net *mty_net_connect(const char *host, uint16_t port, bool secure, uint32_t timeout)
+static jstring net_parse_url(const char *url, jint *port)
 {
-	if (!secure) {
+	JNIEnv *env = MTY_GetJNIEnv();
+
+	jstring jurl = mty_jni_strdup(env, url);
+	jobject uri = mty_jni_static_obj(env, "android/net/Uri", "parse",
+		"(Ljava/lang/String;)Landroid/net/Uri;", jurl);
+
+	jstring jhost = mty_jni_obj(env, uri, "getHost", "()Ljava/lang/String;");
+
+	*port = mty_jni_int(env, uri, "getPort", "()I");
+	*port = *port == -1 ? 443 : *port;
+
+	mty_jni_free(env, uri);
+	mty_jni_free(env, jurl);
+
+	return jhost;
+}
+
+struct net *mty_net_connect(const char *url, const char *proxy, uint32_t timeout)
+{
+	// TODO Proxy setting
+
+	if (MTY_Strcasestr(url, "https") != url) {
 		MTY_Log("Insecure WebSocket connections on Android are unsupported");
 		return NULL;
 	}
@@ -29,8 +50,8 @@ struct net *mty_net_connect(const char *host, uint16_t port, bool secure, uint32
 
 	JNIEnv *env = MTY_GetJNIEnv();
 
-	jstring jhost = mty_jni_strdup(env, host);
-	port = port > 0 ? port : 443;
+	jint port = 0;
+	jstring jhost = net_parse_url(url, &port);
 
 	// Create TCP socket and TLS context
 	jobject factory = mty_jni_static_obj(env, "javax/net/ssl/SSLSocketFactory", "getDefault",
@@ -73,6 +94,7 @@ struct net *mty_net_connect(const char *host, uint16_t port, bool secure, uint32
 
 	except:
 
+	mty_jni_free(env, factory);
 	mty_jni_free(env, jhost);
 
 	if (!r)

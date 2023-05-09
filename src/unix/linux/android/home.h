@@ -15,7 +15,7 @@ static bool home_get_dir(char *dir, size_t size)
 	if (!obj)
 		return false;
 
-	char *internal = mty_jni_cstrdup(env, mty_jni_obj(env, obj, "getInternalFilesDir", "()Ljava/lang/String;"));
+	char *internal = mty_jni_cstrmov(env, mty_jni_obj(env, obj, "getInternalFilesDir", "()Ljava/lang/String;"));
 
 	snprintf(dir, size, "%s", internal);
 

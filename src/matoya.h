@@ -2809,42 +2809,17 @@ MTY_GlobalUnlock(MTY_Atomic32 *lock);
 
 typedef struct MTY_WebSocket MTY_WebSocket;
 
-/// @brief Parse a URL into its components.
-/// @param url URL to parse.
-/// @param host Output hostname.
-/// @param hostSize Size in bytes of `host`.
-/// @param path Output path.
-/// @param pathSize Size in bytes of `path`.
-/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
-MTY_EXPORT bool
-MTY_HttpParseUrl(const char *url, char *host, size_t hostSize, char *path,
-	size_t pathSize);
-
-/// @brief Encode a string with URL percent-encoding.
-/// @param src The source string to encode.
-/// @param dst The encoded output.
-/// @param size Size in bytes of `dst`.
-MTY_EXPORT void
-MTY_HttpEncodeUrl(const char *src, char *dst, size_t size);
-
-/// @brief Set a global proxy used by all HTTP and WebSocket requests.
-/// @param proxy The proxy URL including the port, i.e. `http://example.com:1337`.
-MTY_EXPORT void
-MTY_HttpSetProxy(const char *proxy);
-
 /// @brief Make a synchronous HTTP request.
 /// @details Only `Content-Encoding: gzip` is supported for compression.
-/// @param host Hostname.
-/// @param port Port. May be set to 0 to use either port 80 or 443 depending on
-///   the value of the `secure` argument.
-/// @param secure If true, make an HTTPS request, otherwise HTTP.
+/// @param url The URL for the request, the scheme must be either `http` or `https`.
 /// @param method The HTTP method, i.e. `GET` or `POST`.
-/// @param path Path to the resource.
 /// @param headers HTTP header key/value pairs in the format `Key:Value` separated by
 ///   newline characters.\n\n
 ///   May be NULL for no additional headers.
 /// @param body Request payload.
 /// @param bodySize Size in bytes of `body`.
+/// @param proxy The proxy URL including the port, i.e. `http://example.com:1337`, or NULL
+///   to use the OS's default proxy.
 /// @param timeout Time to wait in milliseconds for completion.
 /// @param response Set to the response body, or NULL if there is no response body.
 /// @param responseSize Set to the size of `response`, or 0 if there is no response body.
@@ -2853,9 +2828,9 @@ MTY_HttpSetProxy(const char *proxy);
 ///   If successful, `response` is dynamically allocated and must be destroyed with
 ///   MTY_Free.
 MTY_EXPORT bool
-MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *method,
-	const char *path, const char *headers, const void *body, size_t bodySize,
-	uint32_t timeout, void **response, size_t *responseSize, uint16_t *status);
+MTY_HttpRequest(const char *url, const char *method, const char *headers,
+	const void *body, size_t bodySize, const char *proxy, uint32_t timeout,
+	void **response, size_t *responseSize, uint16_t *status);
 
 /// @brief Create a global asynchronous HTTP thread pool.
 /// @param maxThreads Maximum number of threads that can be simultaneously making
@@ -2873,25 +2848,21 @@ MTY_HttpAsyncDestroy(void);
 ///   internally. If a request is dispatched using an index already executing, the
 ///   thread is automatically cleared and the new request is dispatched to a different
 ///   thread.
-/// @param host Hostname.
-/// @param port Port. May be set to 0 to use either port 80 or 443 depending on
-///   the value of the `secure` argument.
-/// @param secure If true, make an HTTPS request, otherwise HTTP.
+/// @param url The URL for the request, the scheme must be either `http` or `https`.
 /// @param method The HTTP method, i.e. `GET` or `POST`.
-/// @param path Path to the resource.
 /// @param headers HTTP header key/value pairs in the format `Key:Value` separated by
 ///   newline characters.\n\n
 ///   May be NULL for no additional headers.
 /// @param body Request payload.
 /// @param bodySize Size in bytes of `body`.
+/// @param proxy The proxy URL including the port, i.e. `http://example.com:1337`, or NULL
+///   to use the OS's default proxy.
 /// @param timeout Time the thread will wait in milliseconds for completion.
-/// @param func Function called on the thread after the response is received.
 /// @param image Attempt to decompress an image response. If successful, the `size` argument
 ///   supplied to MTY_HttpAsyncPoll will be set to `width | height << 16`.
 MTY_EXPORT void
-MTY_HttpAsyncRequest(uint32_t *index, const char *host, uint16_t port, bool secure,
-	const char *method, const char *path, const char *headers, const void *body,
-	size_t size, uint32_t timeout, bool image);
+MTY_HttpAsyncRequest(uint32_t *index, const char *url, const char *method, const char *headers,
+	const void *body, size_t bodySize, const char *proxy, uint32_t timeout, bool image);
 
 /// @brief Poll the global HTTP thread pool for a response.
 /// @param index The thread index acquired in MTY_HttpAsyncRequest.
@@ -2914,22 +2885,20 @@ MTY_EXPORT void
 MTY_HttpAsyncClear(uint32_t *index);
 
 /// @brief Connect to a WebSocket endpoint.
-/// @param host Hostname.
-/// @param port Port. May be set to 0 to use either port 80 or 443 depending on
-///   the value of the `secure` argument.
-/// @param secure If true, make a WSS connection, otherwise WS.
-/// @param path Path to the resource.
+/// @param url The URL for the WebSocket, the scheme must be either `ws` or `wss`.
 /// @param headers HTTP header key/value pairs in the format `Key:Value` separated by
 ///   newline characters.\n\n
 ///   May be NULL for no additional headers.
+/// @param proxy The proxy URL including the port, i.e. `http://example.com:1337`, or NULL
+///   to use the OS's default proxy.
 /// @param timeout Time to wait in milliseconds for connection.
 /// @param upgradeStatus Set to the HTTP response status code of the WebSocket upgrade
 ///   request. This value is set even on failure.
 /// @returns On failure, NULL is returned. Call MTY_GetLog for details.\n\n
 ///   The returned MTY_WebSocket must be destroyed with MTY_WebSocketDestroy.
 MTY_EXPORT MTY_WebSocket *
-MTY_WebSocketConnect(const char *host, uint16_t port, bool secure, const char *path,
-	const char *headers, uint32_t timeout, uint16_t *upgradeStatus);
+MTY_WebSocketConnect(const char *url, const char *headers, const char *proxy,
+	uint32_t timeout, uint16_t *upgradeStatus);
 
 /// @brief Destroy a WebSocket.
 /// @param webSocket Passed by reference and set to NULL after being destroyed.\n\n

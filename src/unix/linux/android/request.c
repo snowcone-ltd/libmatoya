@@ -32,24 +32,16 @@ static void request_parse_headers(const char *key, const char *val, void *opaque
 	mty_jni_free(env, jval);
 }
 
-bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *method,
-	const char *path, const char *headers, const void *body, size_t bodySize,
-	uint32_t timeout, void **response, size_t *responseSize, uint16_t *status)
+bool MTY_HttpRequest(const char *url, const char *method, const char *headers,
+	const void *body, size_t bodySize, const char *proxy, uint32_t timeout,
+	void **response, size_t *responseSize, uint16_t *status)
 {
 	*responseSize = 0;
 	*response = NULL;
 
-	// TODO Proxy setting?
+	// TODO Proxy setting
 
 	JNIEnv *env = MTY_GetJNIEnv();
-
-	const char *scheme = secure ? "https" : "http";
-	port = port > 0 ? port : secure ? 443 : 80;
-
-	bool std_port = (secure && port == 443) || (!secure && port == 80);
-
-	const char *url =  std_port ? MTY_SprintfDL("%s://%s%s", scheme, host, path) :
-		MTY_SprintfDL("%s://%s:%u%s", scheme, host, port, path);
 
 	// URL
 	jstring jurl = mty_jni_strdup(env, url);

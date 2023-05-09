@@ -176,7 +176,7 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1start(JNIEnv *env, jobj
 	CTX.log_thread_running = true;
 	CTX.log_thread = MTY_ThreadCreate(app_log_thread, &CTX);
 
-	char *external = mty_jni_cstrdup(env, mty_jni_obj(env, obj, "getExternalFilesDir", "()Ljava/lang/String;"));
+	char *external = mty_jni_cstrmov(env, mty_jni_obj(env, obj, "getExternalFilesDir", "()Ljava/lang/String;"));
 	chdir(external);
 	MTY_Free(external);
 
@@ -798,7 +798,7 @@ char *MTY_AppGetClipboard(MTY_App *ctx)
 {
 	JNIEnv *env = MTY_GetJNIEnv();
 
-	return mty_jni_cstrdup(env, mty_jni_obj(env, ctx->obj,  "getClipboard", "()Ljava/lang/String;"));
+	return mty_jni_cstrmov(env, mty_jni_obj(env, ctx->obj,  "getClipboard", "()Ljava/lang/String;"));
 }
 
 void MTY_AppSetClipboard(MTY_App *ctx, const char *text)
@@ -1186,7 +1186,7 @@ void MTY_HotkeyToString(MTY_Mod mod, MTY_Key key, char *str, size_t len)
 		for (int32_t x = 0; x < (int32_t) APP_KEYS_MAX; x++) {
 			if (key == APP_KEY_MAP[x]) {
 				JNIEnv *env = MTY_GetJNIEnv();
-				char *ctext = mty_jni_cstrdup(env, mty_jni_obj(env, CTX.obj,
+				char *ctext = mty_jni_cstrmov(env, mty_jni_obj(env, CTX.obj,
 					"getKey", "(I)Ljava/lang/String;", x));
 
 				if (ctext) {

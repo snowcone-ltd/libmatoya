@@ -23,7 +23,7 @@ jsize mty_jni_array_get_size(JNIEnv *env, jbyteArray array);
 jint mty_jni_array_get_int(JNIEnv *env, jintArray array, size_t index);
 void mty_jni_memcpy(JNIEnv *env, void *dst, jbyteArray jsrc, size_t size);
 int32_t mty_jni_strcpy(JNIEnv *env, char *buf, size_t size, jstring str);
-char *mty_jni_cstrdup(JNIEnv *env, jstring jstr);
+char *mty_jni_cstrmov(JNIEnv *env, jstring jstr);
 
 void mty_jni_log(JNIEnv *env, jstring str);
 bool mty_jni_catch(JNIEnv *env);

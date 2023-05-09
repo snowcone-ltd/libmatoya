@@ -4,11 +4,8 @@
 
 #include "matoya.h"
 
-#include <Foundation/NSURLRequest.h>
-#include <Foundation/Foundation.h>
-
 #include "objc.h"
-#include "http.h"
+#include "net-common.h"
 
 #define WS_PING_INTERVAL 60000.0
 #define WS_PONG_TO       (WS_PING_INTERVAL * 3)
@@ -25,11 +22,6 @@ struct MTY_WebSocket {
 	bool read_started;
 	bool read_error;
 	bool closed;
-};
-
-struct ws_parse_args {
-	NSMutableURLRequest *req;
-	bool ua_found;
 };
 
 
@@ -97,19 +89,8 @@ static Class websocket_class(void)
 
 // Public
 
-static void ws_parse_headers(const char *key, const char *val, void *opaque)
-{
-	struct ws_parse_args *pargs = opaque;
-
-	if (!MTY_Strcasecmp(key, "User-Agent"))
-		pargs->ua_found = true;
-
-	[pargs->req setValue:[NSString stringWithUTF8String:val]
-		forHTTPHeaderField:[NSString stringWithUTF8String:key]];
-}
-
-MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure, const char *path,
-	const char *headers, uint32_t timeout, uint16_t *upgradeStatus)
+MTY_WebSocket *MTY_WebSocketConnect(const char *url, const char *headers, const char *proxy,
+	uint32_t timeout, uint16_t *upgradeStatus)
 {
 	MTY_WebSocket *ctx = MTY_Alloc(1, sizeof(MTY_WebSocket));
 
@@ -118,57 +99,11 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure
 	ctx->write = MTY_WaitableCreate();
 	ctx->last_ping = ctx->last_pong = MTY_GetTime();
 
-	NSURLSessionConfiguration *cfg = [NSURLSessionConfiguration defaultSessionConfiguration];
-	NSMutableURLRequest *req = [NSMutableURLRequest new];
+	// Request
+	NSMutableURLRequest *req = net_request(url, "GET", headers, NULL, 0, timeout);
 
-	// Don't cache
-	[req setCachePolicy:NSURLRequestReloadIgnoringLocalCacheData];
-
-	// Timeout
-	[req setTimeoutInterval:timeout / 1000.0];
-
-	// Method
-	[req setHTTPMethod:@"GET"];
-
-	// URL (scheme, host, port, path)
-	const char *scheme = secure ? "wss" : "ws";
-	port = port > 0 ? port : secure ? 443 : 80;
-
-	bool std_port = (secure && port == 443) || (!secure && port == 80);
-
-	const char *url =  std_port ? MTY_SprintfDL("%s://%s%s", scheme, host, path) :
-		MTY_SprintfDL("%s://%s:%u%s", scheme, host, port, path);
-
-	[req setURL:[NSURL URLWithString:[NSString stringWithUTF8String:url]]];
-
-	// Request headers
-	struct ws_parse_args pargs = {.req = req};
-
-	if (headers)
-		mty_http_parse_headers(headers, ws_parse_headers, &pargs);
-
-	if (!pargs.ua_found)
-		[req setValue:@MTY_USER_AGENT forHTTPHeaderField:@"User-Agent"];
-
-	pargs.req = nil;
-
-	// Proxy
-	const char *proxy = mty_http_get_proxy();
-
-	if (proxy) {
-		NSURLComponents *comps = [NSURLComponents componentsWithString:[NSString stringWithUTF8String:proxy]];
-
-		if (comps) {
-			cfg.connectionProxyDictionary = @{
-				@"HTTPEnable": @YES,
-				@"HTTPProxy": comps.host,
-				@"HTTPPort": comps.port,
-				@"HTTPSEnable": @YES,
-				@"HTTPSProxy": comps.host,
-				@"HTTPSPort": comps.port,
-			};
-		}
-	}
+	// Session configuration
+	NSURLSessionConfiguration *cfg = net_configuration(proxy);
 
 	// Connect
 	ctx->session = [NSURLSession sessionWithConfiguration:cfg

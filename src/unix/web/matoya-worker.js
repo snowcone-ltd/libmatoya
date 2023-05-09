@@ -401,15 +401,6 @@ const MTY_AUDIO_API = {
 
 // Net
 
-function mty_net_url(base_scheme, chost, port, secure, cpath) {
-	const jport = port != 0 ? ':' + port.toString() : '';
-	const scheme = secure ? base_scheme + 's' : base_scheme;
-	const host = mty_str_to_js(chost);
-	const path = mty_str_to_js(cpath);
-
-	return scheme + '://' + host + jport + path;
-}
-
 function mty_net_headers(cheaders) {
 	const headers_str = mty_str_to_js(cheaders);
 
@@ -427,18 +418,18 @@ function mty_net_headers(cheaders) {
 }
 
 const MTY_NET_API = {
-	MTY_HttpRequest: function (chost, port, secure, cmethod, cpath, cheaders, cbody, bodySize,
-		timeout, response, responseSize, cstatus)
+	MTY_HttpRequest: function (curl, cmethod, cheaders, cbody, bodySize, proxy, timeout,
+		response, responseSize, cstatus)
 	{
 		// FIXME timeout is currently ignored
+		// FIXME proxy is currently ignored
 
 		const body = cbody ? mty_dup(cbody, bodySize) : null;
-		const method = mty_str_to_js(cmethod);
 
 		postMessage({
 			type: 'http',
-			url: mty_net_url('http', chost, port, secure, cpath, cheaders),
-			method: method,
+			url: mty_str_to_js(curl),
+			method: mty_str_to_js(cmethod),
 			headers: mty_net_headers(cheaders),
 			body: body,
 			sync: MTY.sync,
@@ -472,14 +463,15 @@ const MTY_NET_API = {
 
 		return true;
 	},
-	MTY_WebSocketConnect: function (chost, port, secure, cpath, cheaders, timeout, upgrade_status_out) {
-		// FIXME timeout is currently ignored
+	MTY_WebSocketConnect: function (curl, cheaders, proxy, timeout, upgrade_status_out) {
 		// FIXME headers are currently ignored
+		// FIXME proxy is currently ignored
+		// FIXME timeout is currently ignored
 		// FIXME upgrade_status_out currently unsupported
 
 		postMessage({
 			type: 'ws-connect',
-			url: mty_net_url('ws', chost, port, secure, cpath),
+			url: mty_str_to_js(curl),
 			sync: MTY.sync,
 			sab: MTY.sab,
 		});

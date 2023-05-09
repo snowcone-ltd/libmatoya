@@ -194,16 +194,58 @@ static struct http_header *http_read_header(struct net *net, uint32_t timeout)
 	return hdr;
 }
 
-static bool http_write_request_header(struct net *net, const char *method, const char *host,
-	const char *path, const char *headers)
+static bool http_parse_url(const char *url, char **host, char **path)
 {
+	// Skip past scheme
+	if (MTY_Strcasestr(url, "https://") == url) {
+		url += 8;
+
+	} else if (MTY_Strcasestr(url, "http://") == url) {
+		url += 7;
+
+	} else {
+		return false;
+	}
+
+	// Host + port
+	*host = MTY_Strdup(url);
+
+	// Path + query
+	char *end = strchr(*host, '/');
+	end = end ? end + 1 : strchr(*host, '?');
+
+	if (end) {
+		*path = MTY_Strdup(end);
+		*end = '\0';
+
+	} else {
+		*path = MTY_Strdup("");
+	}
+
+	// Remove port
+	char *colon = strchr(*host, ':');
+	if (colon)
+		*colon = '\0';
+
+	return true;
+}
+
+static bool http_write_request_header(struct net *net, const char *url, const char *method, const char *headers)
+{
+	char *host = NULL;
+	char *path = NULL;
+	if (!http_parse_url(url, &host, &path))
+		return false;
+
 	if (!headers)
 		headers = "";
 
-	char *hstr = MTY_SprintfD("%s %s HTTP/1.1\r\nHost: %s\r\n%s\r\n", method, path, host, headers);
+	char *hstr = MTY_SprintfD("%s /%s HTTP/1.1\r\nHost: %s\r\n%s\r\n", method, path, host, headers);
 	bool r = mty_net_write(net, hstr, strlen(hstr));
 
 	MTY_Free(hstr);
+	MTY_Free(path);
+	MTY_Free(host);
 
 	return r;
 }
@@ -236,8 +278,8 @@ static void ws_parse_headers(const char *key, const char *val, void *opaque)
 	http_set_header_str((char **) opaque, key, val);
 }
 
-static bool ws_connect(MTY_WebSocket *ctx, const char *host, const char *path,
-	const char *headers, uint32_t timeout, uint16_t *upgrade_status)
+static bool ws_connect(MTY_WebSocket *ctx, const char *url, const char *headers,
+	uint32_t timeout, uint16_t *upgrade_status)
 {
 	char *req = NULL;
 	struct http_header *hdr = NULL;
@@ -260,7 +302,7 @@ static bool ws_connect(MTY_WebSocket *ctx, const char *host, const char *path,
 		mty_http_parse_headers(headers, ws_parse_headers, &req);
 
 	// Write http the header
-	bool r = http_write_request_header(ctx->net, "GET", host, path, req);
+	bool r = http_write_request_header(ctx->net, url, "GET", req);
 	if (!r)
 		goto except;
 
@@ -394,20 +436,22 @@ static bool ws_read(MTY_WebSocket *ctx, void *buf, size_t size, uint8_t *opcode,
 
 // Public
 
-MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure, const char *path,
-	const char *headers, uint32_t timeout, uint16_t *upgradeStatus)
+MTY_WebSocket *MTY_WebSocketConnect(const char *url, const char *headers, const char *proxy,
+	uint32_t timeout, uint16_t *upgradeStatus)
 {
 	bool r = true;
 
+	char *furl = mty_http_fix_scheme(url);
+
 	MTY_WebSocket *ctx = MTY_Alloc(1, sizeof(MTY_WebSocket));
 
-	ctx->net = mty_net_connect(host, port, secure, timeout);
+	ctx->net = mty_net_connect(furl, proxy, timeout);
 	if (!ctx->net) {
 		r = false;
 		goto except;
 	}
 
-	r = ws_connect(ctx, host, path, headers, timeout, upgradeStatus);
+	r = ws_connect(ctx, furl, headers, timeout, upgradeStatus);
 	if (!r)
 		goto except;
 
@@ -418,6 +462,8 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *host, uint16_t port, bool secure
 
 	if (!r)
 		MTY_WebSocketDestroy(&ctx);
+
+	MTY_Free(furl);
 
 	return ctx;
 }
