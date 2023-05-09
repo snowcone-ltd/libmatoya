@@ -194,23 +194,63 @@ static struct http_header *http_read_header(struct net *net, uint32_t timeout)
 	return hdr;
 }
 
+static bool http_parse_url(const char *url, char **host, char **path)
+{
+	// Skip past scheme
+	if (MTY_Strcasestr(url, "https://") == url) {
+		url += 8;
+
+	} else if (MTY_Strcasestr(url, "http://") == url) {
+		url += 7;
+
+	} else {
+		return false;
+	}
+
+	// Host + port
+	*host = MTY_Strdup(url);
+
+	// Path + query
+	char *path_begin = strchr(*host, '/');
+	if (path_begin) {
+		*path = MTY_Strdup(path_begin);
+		*path_begin = '\0';
+
+	} else {
+		char *query_begin = strchr(*host, '?');
+		if (query_begin) {
+			size_t size = strlen(query_begin) + 2;
+			*path = MTY_Alloc(size, 1);
+			snprintf(*path, size, "/%s", query_begin);
+			*query_begin = '\0';
+
+		} else {
+			*path = MTY_Strdup("/");
+		}
+	}
+
+	// Remove port
+	char *colon = strchr(*host, ':');
+	if (colon)
+		*colon = '\0';
+
+	return true;
+}
+
 static bool http_write_request_header(struct net *net, const char *url, const char *method, const char *headers)
 {
 	char *host = NULL;
 	char *path = NULL;
-	char *query = NULL;
-	if (!mty_net_parse_url(url, NULL, &host, NULL, &path, &query))
+	if (!http_parse_url(url, &host, &path))
 		return false;
 
 	if (!headers)
 		headers = "";
 
-	char *hstr = MTY_SprintfD("%s %s%s%s HTTP/1.1\r\nHost: %s\r\n%s\r\n", method, path,
-		query ? "?" : "", query, host, headers);
+	char *hstr = MTY_SprintfD("%s %s HTTP/1.1\r\nHost: %s\r\n%s\r\n", method, path, host, headers);
 	bool r = mty_net_write(net, hstr, strlen(hstr));
 
 	MTY_Free(hstr);
-	MTY_Free(query);
 	MTY_Free(path);
 	MTY_Free(host);
 

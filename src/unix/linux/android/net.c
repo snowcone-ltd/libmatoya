@@ -18,7 +18,7 @@ struct net {
 	int32_t b;
 };
 
-bool mty_net_parse_url(const char *url, bool *secure, char **host, uint16_t *port, char **path, char **query)
+static bool mty_net_parse_url(const char *url, bool *secure, char **host, uint16_t *port)
 {
 	bool r = true;
 
@@ -30,8 +30,6 @@ bool mty_net_parse_url(const char *url, bool *secure, char **host, uint16_t *por
 
 	jstring jhost = mty_jni_obj(env, uri, "getHost", "()Ljava/lang/String;");
 	jstring jscheme = mty_jni_obj(env, uri, "getScheme", "()Ljava/lang/String;");
-	jstring jpath = mty_jni_obj(env, uri, "getPath", "()Ljava/lang/String;");
-	jstring jquery = mty_jni_obj(env, uri, "getQuery", "()Ljava/lang/String;");
 
 	if (!jhost || !jscheme) {
 		r = false;
@@ -58,28 +56,10 @@ bool mty_net_parse_url(const char *url, bool *secure, char **host, uint16_t *por
 		jhost = NULL;
 	}
 
-	if (path) {
-		if (!jpath)
-			jpath = mty_jni_strdup(env, "/");
-
-		*path = mty_jni_cstrmov(env, jpath);
-		jpath = NULL;
-	}
-
-	if (query) {
-		if (!jquery)
-			jquery = mty_jni_strdup(env, "");
-
-		*query = mty_jni_cstrmov(env, jquery);
-		jquery = NULL;
-	}
-
 	except:
 
 	mty_jni_free(env, jhost);
 	mty_jni_free(env, jscheme);
-	mty_jni_free(env, jpath);
-	mty_jni_free(env, jquery);
 	mty_jni_free(env, uri);
 	mty_jni_free(env, jurl);
 
@@ -93,7 +73,7 @@ struct net *mty_net_connect(const char *url, const char *proxy, uint32_t timeout
 	uint16_t port = 0;
 	char *host = NULL;
 	bool secure = true;
-	if (!mty_net_parse_url(url, &secure, &host, &port, NULL, NULL))
+	if (!mty_net_parse_url(url, &secure, &host, &port))
 		return NULL;
 
 	if (!secure) {

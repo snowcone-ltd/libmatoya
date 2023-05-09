@@ -84,8 +84,7 @@ static void (*curl_free)(void *ptr);
 
 // 7.62
 
-#define CURLU_DEFAULT_PORT (1 << 0)
-#define CURLU_URLENCODE    (1 << 7)
+#define CURLU_URLENCODE (1 << 7)
 
 typedef enum {
 	CURLUE_OK,
@@ -93,15 +92,6 @@ typedef enum {
 
 typedef enum {
 	CURLUPART_URL,
-	CURLUPART_SCHEME,
-	CURLUPART_USER,
-	CURLUPART_PASSWORD,
-	CURLUPART_OPTIONS,
-	CURLUPART_HOST,
-	CURLUPART_PORT,
-	CURLUPART_PATH,
-	CURLUPART_QUERY,
-	CURLUPART_FRAGMENT,
 } CURLUPart;
 
 typedef struct Curl_URL CURLU;

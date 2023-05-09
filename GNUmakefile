@@ -246,10 +246,15 @@ ifndef ANDROID_NDK_ROOT
 ANDROID_NDK_ROOT = $(HOME)/android-ndk
 endif
 
+ifndef ABI
+ABI = all
+endif
+
 android: clean clear $(SHADERS)
 	@$(ANDROID_NDK_ROOT)/ndk-build -j4 \
 		APP_BUILD_SCRIPT=Android.mk \
 		APP_PLATFORM=android-28 \
+		APP_ABI=$(ABI) \
 		NDK_PROJECT_PATH=. \
 		--no-print-directory
 
