@@ -5,8 +5,6 @@
 #include "matoya.h"
 #include "net.h"
 
-#include <stdlib.h>
-
 #include <poll.h>
 
 #include "net-common.h"

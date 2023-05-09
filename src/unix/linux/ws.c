@@ -211,22 +211,15 @@ static bool http_parse_url(const char *url, char **host, char **path)
 	*host = MTY_Strdup(url);
 
 	// Path + query
-	char *path_begin = strchr(*host, '/');
-	if (path_begin) {
-		*path = MTY_Strdup(path_begin);
-		*path_begin = '\0';
+	char *end = strchr(*host, '/');
+	end = end ? end + 1 : strchr(*host, '?');
+
+	if (end) {
+		*path = MTY_Strdup(end);
+		*end = '\0';
 
 	} else {
-		char *query_begin = strchr(*host, '?');
-		if (query_begin) {
-			size_t size = strlen(query_begin) + 2;
-			*path = MTY_Alloc(size, 1);
-			snprintf(*path, size, "/%s", query_begin);
-			*query_begin = '\0';
-
-		} else {
-			*path = MTY_Strdup("/");
-		}
+		*path = MTY_Strdup("");
 	}
 
 	// Remove port
@@ -247,7 +240,7 @@ static bool http_write_request_header(struct net *net, const char *url, const ch
 	if (!headers)
 		headers = "";
 
-	char *hstr = MTY_SprintfD("%s %s HTTP/1.1\r\nHost: %s\r\n%s\r\n", method, path, host, headers);
+	char *hstr = MTY_SprintfD("%s /%s HTTP/1.1\r\nHost: %s\r\n%s\r\n", method, path, host, headers);
 	bool r = mty_net_write(net, hstr, strlen(hstr));
 
 	MTY_Free(hstr);
