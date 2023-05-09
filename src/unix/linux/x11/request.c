@@ -4,10 +4,10 @@
 
 #include "matoya.h"
 
-#include <stdlib.h>
 #include <string.h>
 
 #include "net.h"
+#include "http.h"
 #include "net-common.h"
 
 struct request_parse_args {

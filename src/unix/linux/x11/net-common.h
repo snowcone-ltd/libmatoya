@@ -2,7 +2,6 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
-#include "http.h"
 #include "dl/libcurl.h"
 
 static void net_set_url(CURL *curl, const char *url)
