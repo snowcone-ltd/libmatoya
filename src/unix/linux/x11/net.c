@@ -5,22 +5,55 @@
 #include "matoya.h"
 #include "net.h"
 
-#include "dl/libcurl.h"
-#include "http.h"
+#include <stdlib.h>
 
 #include <poll.h>
+
+#include "net-common.h"
 
 struct net {
 	CURL *curl;
 	curl_socket_t s;
 };
 
-bool mty_net_parse_url(const char *url, bool *secure, char **host, uint16_t *port, char **path)
+bool mty_net_parse_url(const char *url, bool *secure, char **host, uint16_t *port, char **path, char **query)
 {
 	if (!libcurl_global_init())
 		return NULL;
 
-	return false;
+	if (curl_url) {
+		CURLU *u = curl_url();
+		CURLUcode ue = curl_url_set(u, CURLUPART_URL, url, CURLU_URLENCODE);
+
+		if (ue == CURLUE_OK) {
+			if (host)
+				curl_url_get(u, CURLUPART_HOST, host, 0);
+
+			if (path)
+				curl_url_get(u, CURLUPART_PATH, path, 0);
+
+			if (query)
+				curl_url_get(u, CURLUPART_QUERY, query, 0);
+
+			if (port) {
+				char *sport = NULL;
+				curl_url_get(u, CURLUPART_PORT, &sport, 0);
+				*port = atoi(sport);
+				curl_free(sport);
+			}
+
+			if (secure) {
+				char *scheme = NULL;
+				curl_url_get(u, CURLUPART_SCHEME, &scheme, 0);
+				*secure = !MTY_Strcasecmp(scheme, "https");
+				curl_free(scheme);
+			}
+		}
+
+		curl_url_cleanup(u);
+	}
+
+	return true;
 }
 
 struct net *mty_net_connect(const char *url, const char *proxy, uint32_t timeout)
@@ -49,7 +82,7 @@ struct net *mty_net_connect(const char *url, const char *proxy, uint32_t timeout
 	curl_easy_setopt(ctx->curl, CURLOPT_CONNECTTIMEOUT_MS, timeout);
 
 	// URL
-	curl_easy_setopt(ctx->curl, CURLOPT_URL, url);
+	net_set_url(ctx->curl, url);
 
 	// Proxy
 	if (proxy)

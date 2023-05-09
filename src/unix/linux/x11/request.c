@@ -8,8 +8,7 @@
 #include <string.h>
 
 #include "net.h"
-#include "http.h"
-#include "dl/libcurl.h"
+#include "net-common.h"
 
 struct request_parse_args {
 	struct curl_slist **slist;
@@ -77,7 +76,7 @@ bool MTY_HttpRequest(const char *url, const char *method, const char *headers,
 	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, method);
 
 	// URL
-	curl_easy_setopt(curl, CURLOPT_URL, url);
+	net_set_url(curl, url);
 
 	// Request headers
 	struct request_parse_args pargs = {.slist = &slist};

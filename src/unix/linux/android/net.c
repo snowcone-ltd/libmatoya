@@ -18,7 +18,7 @@ struct net {
 	int32_t b;
 };
 
-bool mty_net_parse_url(const char *url, bool *secure, char **host, uint16_t *port, char **path)
+bool mty_net_parse_url(const char *url, bool *secure, char **host, uint16_t *port, char **path, char **query)
 {
 	bool r = true;
 
@@ -58,30 +58,20 @@ bool mty_net_parse_url(const char *url, bool *secure, char **host, uint16_t *por
 		jhost = NULL;
 	}
 
-	if (!jpath)
-		jpath = mty_jni_strdup(env, "/");
-
-	if (!jquery)
-		jquery = mty_jni_strdup(env, "");
-
 	if (path) {
-		char *path0 = mty_jni_cstrmov(env, jpath);
+		if (!jpath)
+			jpath = mty_jni_strdup(env, "/");
+
+		*path = mty_jni_cstrmov(env, jpath);
 		jpath = NULL;
+	}
 
-		char *path1 = mty_jni_cstrmov(env, jquery);
+	if (query) {
+		if (!jquery)
+			jquery = mty_jni_strdup(env, "");
+
+		*query = mty_jni_cstrmov(env, jquery);
 		jquery = NULL;
-
-		if (path1[0]) {
-			size_t size = strlen(path0) + strlen(path1) + 2;
-			*path = MTY_Alloc(size, 1);
-			snprintf(*path, size, "%s?%s", path0, path1);
-			MTY_Free(path0);
-
-		} else {
-			*path = path0;
-		}
-
-		MTY_Free(path1);
 	}
 
 	except:
@@ -103,7 +93,7 @@ struct net *mty_net_connect(const char *url, const char *proxy, uint32_t timeout
 	uint16_t port = 0;
 	char *host = NULL;
 	bool secure = true;
-	if (!mty_net_parse_url(url, &secure, &host, &port, NULL))
+	if (!mty_net_parse_url(url, &secure, &host, &port, NULL, NULL))
 		return NULL;
 
 	if (!secure) {

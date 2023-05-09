@@ -198,16 +198,19 @@ static bool http_write_request_header(struct net *net, const char *url, const ch
 {
 	char *host = NULL;
 	char *path = NULL;
-	if (!mty_net_parse_url(url, NULL, &host, NULL, &path))
+	char *query = NULL;
+	if (!mty_net_parse_url(url, NULL, &host, NULL, &path, &query))
 		return false;
 
 	if (!headers)
 		headers = "";
 
-	char *hstr = MTY_SprintfD("%s %s HTTP/1.1\r\nHost: %s\r\n%s\r\n", method, path, host, headers);
+	char *hstr = MTY_SprintfD("%s %s%s%s HTTP/1.1\r\nHost: %s\r\n%s\r\n", method, path,
+		query ? "?" : "", query, host, headers);
 	bool r = mty_net_write(net, hstr, strlen(hstr));
 
 	MTY_Free(hstr);
+	MTY_Free(query);
 	MTY_Free(path);
 	MTY_Free(host);
 
