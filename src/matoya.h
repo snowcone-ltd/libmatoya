@@ -2811,17 +2811,15 @@ typedef struct MTY_WebSocket MTY_WebSocket;
 
 /// @brief Make a synchronous HTTP request.
 /// @details Only `Content-Encoding: gzip` is supported for compression.
-/// @param host Hostname.
-/// @param port Port. May be set to 0 to use either port 80 or 443 depending on
-///   the value of the `secure` argument.
-/// @param secure If true, make an HTTPS request, otherwise HTTP.
+/// @param url The URL for the request, the scheme must be either `http` or `https`.
 /// @param method The HTTP method, i.e. `GET` or `POST`.
-/// @param path Path to the resource.
 /// @param headers HTTP header key/value pairs in the format `Key:Value` separated by
 ///   newline characters.\n\n
 ///   May be NULL for no additional headers.
 /// @param body Request payload.
 /// @param bodySize Size in bytes of `body`.
+/// @param proxy The proxy URL including the port, i.e. `http://example.com:1337`, or NULL
+///   to use the OS's default proxy.
 /// @param timeout Time to wait in milliseconds for completion.
 /// @param response Set to the response body, or NULL if there is no response body.
 /// @param responseSize Set to the size of `response`, or 0 if there is no response body.
@@ -2850,19 +2848,16 @@ MTY_HttpAsyncDestroy(void);
 ///   internally. If a request is dispatched using an index already executing, the
 ///   thread is automatically cleared and the new request is dispatched to a different
 ///   thread.
-/// @param host Hostname.
-/// @param port Port. May be set to 0 to use either port 80 or 443 depending on
-///   the value of the `secure` argument.
-/// @param secure If true, make an HTTPS request, otherwise HTTP.
+/// @param url The URL for the request, the scheme must be either `http` or `https`.
 /// @param method The HTTP method, i.e. `GET` or `POST`.
-/// @param path Path to the resource.
 /// @param headers HTTP header key/value pairs in the format `Key:Value` separated by
 ///   newline characters.\n\n
 ///   May be NULL for no additional headers.
 /// @param body Request payload.
 /// @param bodySize Size in bytes of `body`.
+/// @param proxy The proxy URL including the port, i.e. `http://example.com:1337`, or NULL
+///   to use the OS's default proxy.
 /// @param timeout Time the thread will wait in milliseconds for completion.
-/// @param func Function called on the thread after the response is received.
 /// @param image Attempt to decompress an image response. If successful, the `size` argument
 ///   supplied to MTY_HttpAsyncPoll will be set to `width | height << 16`.
 MTY_EXPORT void
@@ -2890,14 +2885,12 @@ MTY_EXPORT void
 MTY_HttpAsyncClear(uint32_t *index);
 
 /// @brief Connect to a WebSocket endpoint.
-/// @param host Hostname.
-/// @param port Port. May be set to 0 to use either port 80 or 443 depending on
-///   the value of the `secure` argument.
-/// @param secure If true, make a WSS connection, otherwise WS.
-/// @param path Path to the resource.
+/// @param url The URL for the WebSocket, the scheme must be either `ws` or `wss`.
 /// @param headers HTTP header key/value pairs in the format `Key:Value` separated by
 ///   newline characters.\n\n
 ///   May be NULL for no additional headers.
+/// @param proxy The proxy URL including the port, i.e. `http://example.com:1337`, or NULL
+///   to use the OS's default proxy.
 /// @param timeout Time to wait in milliseconds for connection.
 /// @param upgradeStatus Set to the HTTP response status code of the WebSocket upgrade
 ///   request. This value is set even on failure.
