@@ -5,6 +5,9 @@
 #include "matoya.h"
 #include "net.h"
 
+#include <stdio.h>
+#include <string.h>
+
 #include "jnih.h"
 
 struct net {
@@ -17,7 +20,80 @@ struct net {
 
 bool mty_net_parse_url(const char *url, bool *secure, char **host, uint16_t *port, char **path)
 {
-	return false;
+	bool r = true;
+
+	JNIEnv *env = MTY_GetJNIEnv();
+
+	jstring jurl = mty_jni_strdup(env, url);
+	jobject uri = mty_jni_static_obj(env, "android/net/Uri", "parse",
+		"(Ljava/lang/String;)Landroid/net/Uri;", jurl);
+
+	jstring jhost = mty_jni_obj(env, uri, "getHost", "()Ljava/lang/String;");
+	jstring jscheme = mty_jni_obj(env, uri, "getScheme", "()Ljava/lang/String;");
+	jstring jpath = mty_jni_obj(env, uri, "getPath", "()Ljava/lang/String;");
+	jstring jquery = mty_jni_obj(env, uri, "getQuery", "()Ljava/lang/String;");
+
+	if (!jhost || !jscheme) {
+		r = false;
+		goto except;
+	}
+
+	char *scheme = mty_jni_cstrmov(env, jscheme);
+	jscheme = NULL;
+
+	bool _secure = !MTY_Strcasecmp(scheme, "https");
+	MTY_Free(scheme);
+
+	if (secure)
+		*secure = _secure;
+
+	jint jport = mty_jni_int(env, uri, "getPort", "()I");
+	jport = jport == -1 && _secure ? 443 : jport == -1 && !_secure ? 80 : jport;
+
+	if (port)
+		*port = jport;
+
+	if (host) {
+		*host = mty_jni_cstrmov(env, jhost);
+		jhost = NULL;
+	}
+
+	if (!jpath)
+		jpath = mty_jni_strdup(env, "/");
+
+	if (!jquery)
+		jquery = mty_jni_strdup(env, "");
+
+	if (path) {
+		char *path0 = mty_jni_cstrmov(env, jpath);
+		jpath = NULL;
+
+		char *path1 = mty_jni_cstrmov(env, jquery);
+		jquery = NULL;
+
+		if (path1[0]) {
+			size_t size = strlen(path0) + strlen(path1) + 2;
+			*path = MTY_Alloc(size, 1);
+			snprintf(*path, size, "%s?%s", path0, path1);
+			MTY_Free(path0);
+
+		} else {
+			*path = path0;
+		}
+
+		MTY_Free(path1);
+	}
+
+	except:
+
+	mty_jni_free(env, jhost);
+	mty_jni_free(env, jscheme);
+	mty_jni_free(env, jpath);
+	mty_jni_free(env, jquery);
+	mty_jni_free(env, uri);
+	mty_jni_free(env, jurl);
+
+	return r;
 }
 
 struct net *mty_net_connect(const char *url, const char *proxy, uint32_t timeout)
@@ -44,7 +120,6 @@ struct net *mty_net_connect(const char *url, const char *proxy, uint32_t timeout
 	JNIEnv *env = MTY_GetJNIEnv();
 
 	jstring jhost = mty_jni_strdup(env, host);
-	port = port > 0 ? port : 443;
 
 	// Create TCP socket and TLS context
 	jobject factory = mty_jni_static_obj(env, "javax/net/ssl/SSLSocketFactory", "getDefault",

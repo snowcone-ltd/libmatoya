@@ -103,7 +103,7 @@ int32_t mty_jni_strcpy(JNIEnv *env, char *buf, size_t size, jstring str)
 	return n;
 }
 
-char *mty_jni_cstrdup(JNIEnv *env, jstring jstr)
+char *mty_jni_cstrmov(JNIEnv *env, jstring jstr)
 {
 	const char *cstr = (*env)->GetStringUTFChars(env, jstr, NULL);
 	char *str = MTY_Strdup(cstr);

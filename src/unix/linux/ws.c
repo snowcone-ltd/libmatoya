@@ -266,7 +266,7 @@ static bool ws_connect(MTY_WebSocket *ctx, const char *url, const char *headers,
 		mty_http_parse_headers(headers, ws_parse_headers, &req);
 
 	// Write http the header
-	bool r = http_write_request_header(ctx->net, "GET", url, req);
+	bool r = http_write_request_header(ctx->net, url, "GET", req);
 	if (!r)
 		goto except;
 
