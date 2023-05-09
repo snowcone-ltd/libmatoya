@@ -7,7 +7,7 @@
 #include "sym.h"
 
 
-// Original interface
+// Legacy interface
 
 #define CURLOPT(na, t, nu) na = t + nu
 
