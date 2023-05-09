@@ -5,9 +5,6 @@
 #include "matoya.h"
 #include "net.h"
 
-#include <stdio.h>
-#include <string.h>
-
 #include "jnih.h"
 
 struct net {
@@ -18,10 +15,8 @@ struct net {
 	int32_t b;
 };
 
-static bool mty_net_parse_url(const char *url, bool *secure, char **host, uint16_t *port)
+static jstring net_parse_url(const char *url, jint *port)
 {
-	bool r = true;
-
 	JNIEnv *env = MTY_GetJNIEnv();
 
 	jstring jurl = mty_jni_strdup(env, url);
@@ -29,56 +24,22 @@ static bool mty_net_parse_url(const char *url, bool *secure, char **host, uint16
 		"(Ljava/lang/String;)Landroid/net/Uri;", jurl);
 
 	jstring jhost = mty_jni_obj(env, uri, "getHost", "()Ljava/lang/String;");
-	jstring jscheme = mty_jni_obj(env, uri, "getScheme", "()Ljava/lang/String;");
 
-	if (!jhost || !jscheme) {
-		r = false;
-		goto except;
-	}
+	*port = mty_jni_int(env, uri, "getPort", "()I");
+	*port = *port == -1 ? 443 : *port;
 
-	char *scheme = mty_jni_cstrmov(env, jscheme);
-	jscheme = NULL;
-
-	bool _secure = !MTY_Strcasecmp(scheme, "https");
-	MTY_Free(scheme);
-
-	if (secure)
-		*secure = _secure;
-
-	jint jport = mty_jni_int(env, uri, "getPort", "()I");
-	jport = jport == -1 && _secure ? 443 : jport == -1 && !_secure ? 80 : jport;
-
-	if (port)
-		*port = jport;
-
-	if (host) {
-		*host = mty_jni_cstrmov(env, jhost);
-		jhost = NULL;
-	}
-
-	except:
-
-	mty_jni_free(env, jhost);
-	mty_jni_free(env, jscheme);
 	mty_jni_free(env, uri);
 	mty_jni_free(env, jurl);
 
-	return r;
+	return jhost;
 }
 
 struct net *mty_net_connect(const char *url, const char *proxy, uint32_t timeout)
 {
 	// TODO Proxy setting
 
-	uint16_t port = 0;
-	char *host = NULL;
-	bool secure = true;
-	if (!mty_net_parse_url(url, &secure, &host, &port))
-		return NULL;
-
-	if (!secure) {
+	if (MTY_Strcasestr(url, "https") != url) {
 		MTY_Log("Insecure WebSocket connections on Android are unsupported");
-		MTY_Free(host);
 		return NULL;
 	}
 
@@ -89,7 +50,8 @@ struct net *mty_net_connect(const char *url, const char *proxy, uint32_t timeout
 
 	JNIEnv *env = MTY_GetJNIEnv();
 
-	jstring jhost = mty_jni_strdup(env, host);
+	jint port = 0;
+	jstring jhost = net_parse_url(url, &port);
 
 	// Create TCP socket and TLS context
 	jobject factory = mty_jni_static_obj(env, "javax/net/ssl/SSLSocketFactory", "getDefault",
@@ -134,7 +96,6 @@ struct net *mty_net_connect(const char *url, const char *proxy, uint32_t timeout
 
 	mty_jni_free(env, factory);
 	mty_jni_free(env, jhost);
-	MTY_Free(host);
 
 	if (!r)
 		mty_net_destroy(&ctx);
