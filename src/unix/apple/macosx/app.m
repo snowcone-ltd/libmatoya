@@ -3,7 +3,6 @@
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
 #include "app.h"
-#include "app-os.h"
 
 #include <AppKit/AppKit.h>
 #include <Carbon/Carbon.h>
@@ -51,15 +50,14 @@ struct MTY_App {
 	bool grab_kb;
 	bool cont;
 	bool pen_enabled;
-	bool default_cursor;
 	bool cursor_outside;
 	bool cursor_showing;
 	bool eraser;
 	bool pen_left;
+	bool hid_keyboard_active;
 	NSUInteger buttons;
 	uint32_t cb_seq;
 	struct window *windows[MTY_WINDOW_MAX];
-	bool keys[MTY_KEY_MAX];
 	float timeout;
 	struct hid *hid;
 };
@@ -403,6 +401,15 @@ struct window {
 static struct window *app_get_window(MTY_App *ctx, MTY_Window window)
 {
 	return window < 0 ? NULL : ctx->windows[window];
+}
+
+static struct window *app_get_active_window(MTY_App *ctx)
+{
+	for (MTY_Window x = 0; x < MTY_WINDOW_MAX; x++)
+		if (ctx->windows[x] && ctx->windows[x]->nsw.isKeyWindow)
+			return ctx->windows[x];
+
+	return NULL;
 }
 
 static struct window *app_get_window_by_number(MTY_App *ctx, NSInteger number)
@@ -776,6 +783,10 @@ static void window_text_event(struct window *ctx, const char *text)
 static void window_keyboard_event(struct window *ctx, uint16_t key_code, NSEventModifierFlags flags,
 	bool pressed, bool repeat)
 {
+	// Only process repeats if grabbed and MTY_APP_FLAG_HID_KEYBOARD was successful
+	if (!repeat && ctx->app->grab_kb)
+		return;
+
 	MTY_Event evt = {
 		.type = MTY_EVENT_KEY,
 		.window = ctx->window,
@@ -784,9 +795,6 @@ static void window_keyboard_event(struct window *ctx, uint16_t key_code, NSEvent
 		.key.mod = keymap_modifier_flags_to_keymod(flags),
 		.key.pressed = pressed,
 	};
-
-	if (!mty_app_dedupe_key(ctx->app, evt.key.key, pressed, repeat))
-		return;
 
 	mty_app_kb_to_hotkey(ctx->app, &evt, MTY_EVENT_HOTKEY);
 
@@ -838,26 +846,7 @@ static BOOL window_performKeyEquivalent(NSWindow *self, SEL _cmd, NSEvent *event
 {
 	struct window *ctx = OBJC_CTX();
 
-	bool cmd = event.modifierFlags & NSEventModifierFlagCommand;
-	bool ctrl = event.modifierFlags & NSEventModifierFlagControl;
-
-	bool cmd_tab = event.keyCode == kVK_Tab && cmd;
-	bool ctrl_tab = event.keyCode == kVK_Tab && ctrl;
-	bool cmd_q = event.keyCode == kVK_ANSI_Q && cmd;
-	bool cmd_w = event.keyCode == kVK_ANSI_W && cmd;
-	bool cmd_space = event.keyCode == kVK_Space && cmd;
-
-	// While keyboard is grabbed, make sure we pass through special OS hotkeys
-	if (ctx->app->grab_kb && (cmd_tab || ctrl_tab || cmd_q || cmd_w || cmd_space)) {
-		if (!(ctx->app->flags & MTY_APP_FLAG_HID_KEYBOARD)) {
-			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true, true);
-			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, true);
-		}
-
-		return YES;
-	}
-
-	return NO;
+	return ctx->app->grab_kb;
 }
 
 static BOOL window_windowShouldClose(NSWindow *self, SEL _cmd, NSWindow *sender)
@@ -977,17 +966,8 @@ static void window_flagsChanged(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
 
-	// Simulate full button press for the Caps Lock key
-	if (event.keyCode == kVK_CapsLock) {
-		if (!(ctx->app->flags & MTY_APP_FLAG_HID_KEYBOARD)) {
-			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true, true);
-			window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, true);
-		}
-
-	} else {
-		bool pressed = window_flags_changed(event.keyCode, event.modifierFlags);
-		window_keyboard_event(ctx, event.keyCode, event.modifierFlags, pressed, false);
-	}
+	bool pressed = window_flags_changed(event.keyCode, event.modifierFlags);
+	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, pressed, false);
 }
 
 static void window_mouseUp(NSWindow *self, SEL _cmd, NSEvent *event)
@@ -1298,6 +1278,8 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 {
 	MTY_App *ctx = opaque;
 
+	ctx->hid_keyboard_active = true;
+
 	MTY_Key key = keymap_usage_to_key(usage);
 	if (key == MTY_KEY_NONE)
 		return;
@@ -1311,26 +1293,29 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 		ctx->hid_kb_mod &= ~mod;
 	}
 
-	if (!MTY_AppIsActive(ctx))
+	// MTY_APP_FLAG_HID_KEYBOARD only applies when keyboard is grabbed
+	if (!ctx->grab_kb)
 		return;
 
-	struct window *window0 = ctx->windows[0];
+	struct window *window = app_get_active_window(ctx);
+	if (!window)
+		return;
 
-	if (window0 && window0->cmn.webview && mty_webview_is_visible(window0->cmn.webview))
+	if (window->cmn.webview && mty_webview_is_visible(window->cmn.webview))
 		return;
 
 	MTY_Event evt = {
 		.type = MTY_EVENT_KEY,
+		.window = window->window,
 		.key.key = key,
 		.key.mod = ctx->hid_kb_mod,
 		.key.pressed = down,
 	};
 
-	if (!mty_app_dedupe_key(ctx, evt.key.key, down, false))
-		return;
-
 	mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
-	ctx->event_func(&evt, ctx->opaque);
+
+	if ((evt.type == MTY_EVENT_HOTKEY && down) || (evt.type == MTY_EVENT_KEY && evt.key.key != MTY_KEY_NONE))
+		ctx->event_func(&evt, ctx->opaque);
 }
 
 static void app_pump_events(MTY_App *ctx, NSDate *until)
@@ -1561,10 +1546,15 @@ bool MTY_AppIsKeyboardGrabbed(MTY_App *ctx)
 	return ctx->grab_kb;
 }
 
-void MTY_AppGrabKeyboard(MTY_App *ctx, bool grab)
+bool MTY_AppGrabKeyboard(MTY_App *ctx, bool grab)
 {
+	if (!ctx->hid_keyboard_active)
+		return false;
+
 	ctx->grab_kb = grab;
 	app_apply_keyboard_state(ctx);
+
+	return ctx->grab_kb;
 }
 
 uint32_t MTY_AppGetHotkey(MTY_App *ctx, MTY_Scope scope, MTY_Mod mod, MTY_Key key)
@@ -2008,16 +1998,6 @@ MTY_EventFunc mty_app_get_event_func(MTY_App *ctx, void **opaque)
 MTY_Hash *mty_app_get_hotkey_hash(MTY_App *ctx)
 {
 	return ctx->hotkey;
-}
-
-bool mty_app_dedupe_key(MTY_App *ctx, MTY_Key key, bool pressed, bool repeat)
-{
-	bool was_down = ctx->keys[key];
-	bool should_fire = (pressed && (repeat || !was_down)) || (!pressed && was_down);
-
-	ctx->keys[key] = pressed;
-
-	return should_fire;
 }
 
 struct window_common *mty_window_get_common(MTY_App *app, MTY_Window window)

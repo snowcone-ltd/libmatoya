@@ -972,12 +972,14 @@ bool MTY_AppIsKeyboardGrabbed(MTY_App *ctx)
 	return ctx->kbgrab;
 }
 
-void MTY_AppGrabKeyboard(MTY_App *ctx, bool grab)
+bool MTY_AppGrabKeyboard(MTY_App *ctx, bool grab)
 {
 	if (ctx->kbgrab != grab) {
 		ctx->kbgrab = grab;
 		ctx->state++;
 	}
+
+	return ctx->kbgrab;
 }
 
 uint32_t MTY_AppGetHotkey(MTY_App *ctx, MTY_Scope scope, MTY_Mod mod, MTY_Key key)
