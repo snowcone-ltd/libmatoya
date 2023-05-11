@@ -1278,8 +1278,6 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 {
 	MTY_App *ctx = opaque;
 
-	ctx->hid_keyboard_active = true;
-
 	MTY_Key key = keymap_usage_to_key(usage);
 	if (key == MTY_KEY_NONE)
 		return;
@@ -1346,6 +1344,12 @@ MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eve
 
 	ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report,
 		ctx->flags & MTY_APP_FLAG_HID_KEYBOARD ? app_hid_key : NULL, ctx);
+
+	if (ctx->hid && ctx->flags & MTY_APP_FLAG_HID_KEYBOARD)
+		ctx->hid_keyboard_active = true;
+
+	if (!ctx->hid && ctx->flags & MTY_APP_FLAG_HID_KEYBOARD)
+		ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report, NULL, ctx);
 
 	ctx->hotkey = MTY_HashCreate(0);
 	ctx->deduper = MTY_HashCreate(0);
