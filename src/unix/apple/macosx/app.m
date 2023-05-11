@@ -54,7 +54,6 @@ struct MTY_App {
 	bool cursor_showing;
 	bool eraser;
 	bool pen_left;
-	bool hid_keyboard_active;
 	NSUInteger buttons;
 	uint32_t cb_seq;
 	struct window *windows[MTY_WINDOW_MAX];
@@ -783,7 +782,7 @@ static void window_text_event(struct window *ctx, const char *text)
 static void window_keyboard_event(struct window *ctx, uint16_t key_code, NSEventModifierFlags flags,
 	bool pressed, bool repeat)
 {
-	// Only process repeats if grabbed and MTY_APP_FLAG_HID_KEYBOARD was successful
+	// Only process repeats if grabbed
 	if (!repeat && ctx->app->grab_kb)
 		return;
 
@@ -1291,7 +1290,6 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 		ctx->hid_kb_mod &= ~mod;
 	}
 
-	// MTY_APP_FLAG_HID_KEYBOARD only applies when keyboard is grabbed
 	if (!ctx->grab_kb)
 		return;
 
@@ -1345,11 +1343,11 @@ MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eve
 	ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report,
 		ctx->flags & MTY_APP_FLAG_HID_KEYBOARD ? app_hid_key : NULL, ctx);
 
-	if (ctx->hid && ctx->flags & MTY_APP_FLAG_HID_KEYBOARD)
-		ctx->hid_keyboard_active = true;
-
-	if (!ctx->hid && ctx->flags & MTY_APP_FLAG_HID_KEYBOARD)
+	// HID keyboard may fail due to accessibility permissions
+	if (!ctx->hid && ctx->flags & MTY_APP_FLAG_HID_KEYBOARD) {
 		ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report, NULL, ctx);
+		ctx->flags &= ~MTY_APP_FLAG_HID_KEYBOARD;
+	}
 
 	ctx->hotkey = MTY_HashCreate(0);
 	ctx->deduper = MTY_HashCreate(0);
@@ -1552,7 +1550,7 @@ bool MTY_AppIsKeyboardGrabbed(MTY_App *ctx)
 
 bool MTY_AppGrabKeyboard(MTY_App *ctx, bool grab)
 {
-	if (!ctx->hid_keyboard_active)
+	if (!(ctx->flags & MTY_APP_FLAG_HID_KEYBOARD))
 		return false;
 
 	ctx->grab_kb = grab;
