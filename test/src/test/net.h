@@ -12,8 +12,8 @@
 static bool net_websocket_echo(void)
 {
 	uint16_t us = 0;
-	MTY_WebSocket *ws = MTY_WebSocketConnect("echo.websocket.events", 443, true, "/",
-		"Origin: https://echo.websocket.events", 10000, &us);
+	MTY_WebSocket *ws = MTY_WebSocketConnect("https://echo.websocket.events/",
+		"Origin: https://echo.websocket.events", NULL, 10000, &us);
 	test_cmp("MTY_WebSocketConnect", ws != NULL);
 	test_cmp("Upgrade Status", us == 101);
 
@@ -39,7 +39,7 @@ static bool net_websocket_echo(void)
 }
 
 #define badssl_test(host, should_fail) \
-	ok = MTY_HttpRequest(host, 0, true, "GET", "/", header_agent, NULL, 0, 10000, &resp, &resp_size, &resp_code); \
+	ok = MTY_HttpRequest("https://" host "/", "GET", header_agent, NULL, 0, NULL, 10000, &resp, &resp_size, &resp_code); \
 	MTY_Free(resp); \
 	test_print_cmps("MTY_HttpRequest", should_fail ? !ok : ok, ": " host); \
 	result = result && (should_fail ? !ok : ok);

@@ -57,9 +57,9 @@ int main(int argc, char **argv)
 	void *png = NULL;
 	size_t png_size = 0;
 	uint16_t code = 0;
-	if (MTY_HttpRequest("user-images.githubusercontent.com", 0, true, "GET",
-		"/328897/112402607-36d00780-8ce3-11eb-9707-d11bc6c73c59.png",
-		NULL, NULL, 0, 5000, &png, &png_size, &code))
+	if (MTY_HttpRequest(
+		"https://user-images.githubusercontent.com/328897/112402607-36d00780-8ce3-11eb-9707-d11bc6c73c59.png",
+		"GET", NULL, NULL, 0, NULL, 5000, &png, &png_size, &code))
 	{
 		// On success, decompress it into RGBA
 		if (code == 200)
