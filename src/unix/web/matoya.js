@@ -497,25 +497,22 @@ function mty_use_default_cursor(use_default) {
 	MTY.defaultCursor = use_default;
 }
 
-function mty_set_png_cursor(buffer, size, hot_x, hot_y) {
-	if (buffer) {
-		const buf = new Uint8Array(MTY_MEMORY.buffer, buffer, size);
-		const b64_png = mty_buf_to_b64(buf);
-
-		if (!MTY.cursorCache[b64_png]) {
-			MTY.cursorCache[b64_png] = `cursor-x-${MTY.cursorId}`;
+function mty_set_cursor(url, hot_x, hot_y) {
+	if (url) {
+		if (!MTY.cursorCache[url]) {
+			MTY.cursorCache[url] = `cursor-x-${MTY.cursorId}`;
 
 			const style = document.createElement('style');
 			style.type = 'text/css';
 			style.innerHTML = `.cursor-x-${MTY.cursorId++} ` +
-				`{cursor: url(data:image/png;base64,${b64_png}) ${hot_x} ${hot_y}, auto;}`;
+				`{cursor: url(${url}) ${hot_x} ${hot_y}, auto;}`;
 			document.querySelector('head').appendChild(style);
 		}
 
 		if (MTY.cursorClass.length > 0)
 			MTY.canvas.classList.remove(MTY.cursorClass);
 
-		MTY.cursorClass = MTY.cursorCache[b64_png];
+		MTY.cursorClass = MTY.cursorCache[url];
 
 		if (!MTY.defaultCursor)
 			MTY.canvas.classList.add(MTY.cursorClass);
@@ -526,6 +523,34 @@ function mty_set_png_cursor(buffer, size, hot_x, hot_y) {
 
 		MTY.cursorClass = '';
 	}
+}
+
+function mty_set_png_cursor(buf, hot_x, hot_y) {
+	const url = buf ? 'data:image/png;base64,' + mty_buf_to_b64(buf) : null;
+	mty_set_cursor(url, hot_x, hot_y);
+}
+
+function mty_set_rgba_cursor(buf, width, height, hot_x, hot_y) {
+	let url = null;
+
+	if (buf) {
+		if (!MTY.ccanvas) {
+			MTY.ccanvas = document.createElement('canvas');
+			MTY.cctx = MTY.ccanvas.getContext('2d');
+		}
+
+		MTY.ccanvas.width = width;
+		MTY.ccanvas.height = height;
+
+		const image = MTY.cctx.getImageData(0, 0, width, height);
+		image.data.set(buf);
+
+		MTY.cctx.putImageData(image, 0, 0);
+
+		url = MTY.ccanvas.toDataURL();
+	}
+
+	mty_set_cursor(url, hot_x, hot_y);
 }
 
 
@@ -936,8 +961,11 @@ async function mty_thread_message(ev) {
 		case 'cursor-default':
 			mty_use_default_cursor(msg.use_default);
 			break;
-		case 'cursor-image':
-			mty_set_png_cursor(msg.buffer, msg.size, msg.hot_x, msg.hot_y);
+		case 'cursor-rgba':
+			mty_set_rgba_cursor(msg.buf, msg.width, msg.height, msg.hot_x, msg.hot_y);
+			break;
+		case 'cursor-png':
+			mty_set_png_cursor(msg.buf, msg.hot_x, msg.hot_y);
 			break;
 		case 'uri':
 			mty_set_action(() => {

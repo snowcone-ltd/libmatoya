@@ -434,7 +434,7 @@ const MTY_NET_API = {
 			body: body,
 			sync: MTY.sync,
 			sab: MTY.sab,
-		});
+		}, body ? [body.buffer] : []);
 
 		mty_wait(MTY.sync);
 
@@ -656,8 +656,13 @@ const MTY_WEB_API = {
 	web_use_default_cursor: function (use_default) {
 		postMessage({type: 'cursor-default', use_default});
 	},
+	web_set_rgba_cursor: function (buffer, width, height, hot_x, hot_y) {
+		const buf = buffer ? mty_dup(buffer, width * height * 4) : null
+		postMessage({type: 'cursor-rgba', buf, width, height, hot_x, hot_y}, buf ? [buf.buffer] : []);
+	},
 	web_set_png_cursor: function (buffer, size, hot_x, hot_y) {
-		postMessage({type: 'cursor-image', buffer, size, hot_x, hot_y});
+		const buf = buffer ? mty_dup(buffer, size) : null
+		postMessage({type: 'cursor-png', buf, hot_x, hot_y}, buf ? [buf.buffer] : []);
 	},
 	web_set_kb_grab: function (grab) {
 		postMessage({type: 'kb-grab', grab});

@@ -414,6 +414,12 @@ void MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative)
 	web_set_pointer_lock(relative);
 }
 
+void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
+	uint32_t hotX, uint32_t hotY)
+{
+	web_set_rgba_cursor(image, width, height, hotX, hotY);
+}
+
 void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX, uint32_t hotY)
 {
 	web_set_png_cursor(image, size, hotX, hotY);

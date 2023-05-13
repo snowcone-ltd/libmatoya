@@ -61,6 +61,17 @@ jbyteArray mty_jni_dup(JNIEnv *env, const void *buf, size_t size)
 	return dup;
 }
 
+jintArray mty_jni_dup_int(JNIEnv *env, const void *buf, size_t size)
+{
+	if (!buf || size == 0)
+		return NULL;
+
+	jintArray dup = (*env)->NewIntArray(env, size);
+	(*env)->SetIntArrayRegion(env, dup, 0, size, buf);
+
+	return dup;
+}
+
 jobject mty_jni_wrap(JNIEnv *env, void *buf, size_t size)
 {
 	return (*env)->NewDirectByteBuffer(env, buf, size);

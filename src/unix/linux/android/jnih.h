@@ -17,6 +17,7 @@ void mty_jni_release(JNIEnv *env, jobject *ref);
 jbyteArray mty_jni_alloc(JNIEnv *env, size_t size);
 jintArray mty_jni_alloc_int(JNIEnv *env, size_t size);
 jbyteArray mty_jni_dup(JNIEnv *env, const void *buf, size_t size);
+jintArray mty_jni_dup_int(JNIEnv *env, const void *buf, size_t size);
 jobject mty_jni_wrap(JNIEnv *env, void *buf, size_t size);
 jstring mty_jni_strdup(JNIEnv *env, const char *str);
 jsize mty_jni_array_get_size(JNIEnv *env, jbyteArray array);

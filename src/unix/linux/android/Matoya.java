@@ -459,17 +459,16 @@ public class Matoya extends SurfaceView implements
 		this.setPointerIcon(this.getCursor());
 	}
 
-	public void setCursor(byte[] _data, float _hotX, float _hotY) {
+	void setCursorBitmap(Bitmap _bm, float _hotX, float _hotY) {
 		final Matoya self = this;
-		final byte[] data = _data;
+		final Bitmap bm = _bm;
 		final float hotX = _hotX;
 		final float hotY = _hotY;
 
 		this.activity.runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
-				if (data != null) {
-					Bitmap bm = BitmapFactory.decodeByteArray(data, 0, data.length, null);
+				if (bm != null) {
 					self.cursor = PointerIcon.create(bm, hotX, hotY);
 
 				} else {
@@ -479,6 +478,16 @@ public class Matoya extends SurfaceView implements
 				self.setPointerIcon(self.cursor);
 			}
 		});
+	}
+
+	public void setCursorRGBA(int[] data, int width, int height, float hotX, float hotY) {
+		Bitmap bm = data == null ? null : Bitmap.createBitmap(data, width, height, Bitmap.Config.ARGB_8888);
+		this.setCursorBitmap(bm, hotX, hotY);
+	}
+
+	public void setCursor(byte[] data, float hotX, float hotY) {
+		Bitmap bm = data == null ? null : BitmapFactory.decodeByteArray(data, 0, data.length, null);
+		this.setCursorBitmap(bm, hotX, hotY);
 	}
 
 	public void showCursor(boolean _show) {

@@ -1510,20 +1510,38 @@ void MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative)
 	app_apply_relative(ctx);
 }
 
-void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX, uint32_t hotY)
+static void app_set_cursor(MTY_App *ctx, NSImage *image, uint32_t hotX, uint32_t hotY)
 {
-	NSCursor *cursor = nil;
-
-	if (image) {
-		NSData *data = [NSData dataWithBytes:image length:size];
-		NSImage *nsi = [[NSImage alloc] initWithData:data];
-
-		cursor = [[NSCursor alloc] initWithImage:nsi hotSpot:NSMakePoint(hotX, hotY)];
-	}
-
-	ctx->custom_cursor = cursor;
+	ctx->custom_cursor = image ? [[NSCursor alloc] initWithImage:image hotSpot:NSMakePoint(hotX, hotY)] : nil;
 
 	app_apply_cursor(ctx);
+}
+
+void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
+	uint32_t hotX, uint32_t hotY)
+{
+	NSImage *nsi = nil;
+
+	if (image) {
+		uint8_t *plane = (uint8_t *) image;
+
+		NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:&plane
+			pixelsWide:width pixelsHigh:height bitsPerSample:8 samplesPerPixel:4
+			hasAlpha:YES isPlanar:NO colorSpaceName:NSDeviceRGBColorSpace
+			bytesPerRow:width * 4 bitsPerPixel:32];
+
+		if (rep)
+			nsi = [[NSImage alloc] initWithCGImage:rep.CGImage size:NSZeroSize];
+	}
+
+	app_set_cursor(ctx, nsi, hotX, hotY);
+}
+
+void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX, uint32_t hotY)
+{
+	NSImage *nsi = image ? [[NSImage alloc] initWithData:[NSData dataWithBytes:image length:size]] : nil;
+
+	app_set_cursor(ctx, nsi, hotX, hotY);
 }
 
 void MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor)

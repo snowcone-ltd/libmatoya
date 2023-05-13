@@ -1356,17 +1356,12 @@ void MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative)
 	app_apply_clip(ctx, focus);
 }
 
-static void app_set_png_cursor(MTY_App *app, const void *image, size_t size, uint32_t hotX, uint32_t hotY)
+static void app_set_rgba_cursor(MTY_App *app, const uint8_t *rgba, uint32_t width, uint32_t height,
+	uint32_t hotX, uint32_t hotY)
 {
 	HDC dc = NULL;
 	ICONINFO ii = {0};
 	void *mask = NULL;
-
-	uint32_t width = 0;
-	uint32_t height = 0;
-	uint8_t *rgba = MTY_DecompressImage(image, size, &width, &height);
-	if (!rgba)
-		goto except;
 
 	size_t pad = sizeof(size_t) * 8;
 	size_t mask_len = width + ((pad - width % pad) / 8) * height;
@@ -1434,10 +1429,10 @@ static void app_set_png_cursor(MTY_App *app, const void *image, size_t size, uin
 		DeleteObject(ii.hbmMask);
 
 	MTY_Free(mask);
-	MTY_Free(rgba);
 }
 
-void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX, uint32_t hotY)
+void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
+	uint32_t hotX, uint32_t hotY)
 {
 	if (ctx->custom_cursor) {
 		DestroyIcon(ctx->custom_cursor);
@@ -1445,10 +1440,21 @@ void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t 
 		ctx->state++;
 	}
 
-	if (image && size > 0) {
-		app_set_png_cursor(ctx, image, size, hotX, hotY);
+	if (image && width > 0 && height > 0) {
+		app_set_rgba_cursor(ctx, image, width, height, hotX, hotY);
 		ctx->state++;
 	}
+}
+
+void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX, uint32_t hotY)
+{
+	uint32_t width = 0;
+	uint32_t height = 0;
+	uint8_t *rgba = image ? MTY_DecompressImage(image, size, &width, &height) : NULL;
+
+	MTY_AppSetRGBACursor(ctx, rgba, width, height, hotX, hotY);
+
+	MTY_Free(rgba);
 }
 
 void MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor)

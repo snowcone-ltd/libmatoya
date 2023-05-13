@@ -845,6 +845,17 @@ MTY_AppGetRelativeMouse(MTY_App *ctx);
 MTY_EXPORT void
 MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative);
 
+/// @brief Set the app's cursor to an RGBA image.
+/// @param ctx The MTY_App.
+/// @param image A buffer holding 8-bits per channel RGBA.
+/// @param width Width of `image`.
+/// @param height Height of `image`.
+/// @param hotX The cursor's horizontal hotspot position.
+/// @param hotY The cursor's vertical hotspot position.
+MTY_EXPORT void
+MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
+	uint32_t hotX, uint32_t hotY);
+
 /// @brief Set the app's cursor to a PNG image.
 /// @param ctx The MTY_App.
 /// @param image A buffer holding a compressed PNG image.
@@ -852,8 +863,7 @@ MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative);
 /// @param hotX The cursor's horizontal hotspot position.
 /// @param hotY The cursor's vertical hotspot position.
 MTY_EXPORT void
-MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX,
-	uint32_t hotY);
+MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX, uint32_t hotY);
 
 /// @brief Use a cursor predefined by the OS.
 /// @details The cursor set via this function will take precedence over any set with

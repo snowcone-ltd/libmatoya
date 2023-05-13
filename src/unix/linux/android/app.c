@@ -847,6 +847,17 @@ void MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative)
 	mty_jni_void(MTY_GetJNIEnv(), ctx->obj, "setRelativeMouse", "(Z)V", relative);
 }
 
+void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
+	uint32_t hotX, uint32_t hotY)
+{
+	JNIEnv *env = MTY_GetJNIEnv();
+	jbyteArray jimage = mty_jni_dup_int(env, image, width * height);
+
+	mty_jni_void(env, ctx->obj, "setCursorRGBA", "([IIIFF)V", jimage, width, height, (jfloat) hotX, (jfloat) hotY);
+
+	mty_jni_free(env, jimage);
+}
+
 void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX, uint32_t hotY)
 {
 	JNIEnv *env = MTY_GetJNIEnv();

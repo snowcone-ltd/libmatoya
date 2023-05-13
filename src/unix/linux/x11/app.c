@@ -893,16 +893,11 @@ void MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative)
 	}
 }
 
-static Cursor app_png_cursor(Display *display, const void *image, size_t size, uint32_t hotX, uint32_t hotY)
+static Cursor app_rgba_cursor(Display *display, const uint8_t *rgba, uint32_t width, uint32_t height,
+	uint32_t hotX, uint32_t hotY)
 {
 	Cursor cursor = None;
 	XcursorImage *ximage = NULL;
-
-	uint32_t width = 0;
-	uint32_t height = 0;
-	uint32_t *rgba = MTY_DecompressImage(image, size, &width, &height);
-	if (!rgba)
-		goto except;
 
 	ximage = XcursorImageCreate(width, height);
 	if (!ximage)
@@ -927,23 +922,33 @@ static Cursor app_png_cursor(Display *display, const void *image, size_t size, u
 	if (ximage)
 		XcursorImageDestroy(ximage);
 
-	MTY_Free(rgba);
-
 	return cursor;
 }
 
-void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX, uint32_t hotY)
+void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
+	uint32_t hotX, uint32_t hotY)
 {
 	Cursor prev = ctx->custom_cursor;
 	ctx->custom_cursor = None;
 
-	if (image && size > 0)
-		ctx->custom_cursor = app_png_cursor(ctx->display, image, size, hotX, hotY);
+	if (image && width > 0 && height > 0)
+		ctx->custom_cursor = app_rgba_cursor(ctx->display, image, width, height, hotX, hotY);
 
 	if (prev)
 		XFreeCursor(ctx->display, prev);
 
 	ctx->state++;
+}
+
+void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX, uint32_t hotY)
+{
+	uint32_t width = 0;
+	uint32_t height = 0;
+	uint8_t *rgba = image ? MTY_DecompressImage(image, size, &width, &height) : NULL;
+
+	MTY_AppSetRGBACursor(ctx, rgba, width, height, hotX, hotY);
+
+	MTY_Free(rgba);
 }
 
 void MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor)
