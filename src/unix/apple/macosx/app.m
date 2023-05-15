@@ -797,6 +797,10 @@ static void window_keyboard_event(struct window *ctx, uint16_t key_code, NSEvent
 
 	mty_app_kb_to_hotkey(ctx->app, &evt, MTY_EVENT_HOTKEY);
 
+	// Only use hid keys hotkeys if available.
+	if (evt.type == MTY_EVENT_HOTKEY && pressed && (ctx->flags & MTY_APP_FLAG_HID_KEYBOARD))
+		return;
+
 	if ((evt.type == MTY_EVENT_HOTKEY && pressed) || (evt.type == MTY_EVENT_KEY && evt.key.key != MTY_KEY_NONE))
 		ctx->app->event_func(&evt, ctx->app->opaque);
 }
@@ -1290,9 +1294,6 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 		ctx->hid_kb_mod &= ~mod;
 	}
 
-	if (!ctx->grab_kb)
-		return;
-
 	struct window *window = app_get_active_window(ctx);
 	if (!window)
 		return;
@@ -1309,6 +1310,13 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 	};
 
 	mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
+
+	if (!ctx->grab_kb) {
+		if (evt.type == MTY_EVENT_HOTKEY && down)
+			ctx->event_func(&evt, ctx->opaque);
+
+		return;
+	}
 
 	if ((evt.type == MTY_EVENT_HOTKEY && down) || (evt.type == MTY_EVENT_KEY && evt.key.key != MTY_KEY_NONE))
 		ctx->event_func(&evt, ctx->opaque);
