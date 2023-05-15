@@ -798,7 +798,7 @@ static void window_keyboard_event(struct window *ctx, uint16_t key_code, NSEvent
 	mty_app_kb_to_hotkey(ctx->app, &evt, MTY_EVENT_HOTKEY);
 
 	// Only use hid keys hotkeys if available.
-	if (evt.type == MTY_EVENT_HOTKEY && pressed && (ctx->app.flags & MTY_APP_FLAG_HID_KEYBOARD))
+	if (evt.type == MTY_EVENT_HOTKEY && pressed && (ctx->app->flags & MTY_APP_FLAG_HID_KEYBOARD))
 		return;
 
 	if ((evt.type == MTY_EVENT_HOTKEY && pressed) || (evt.type == MTY_EVENT_KEY && evt.key.key != MTY_KEY_NONE))
