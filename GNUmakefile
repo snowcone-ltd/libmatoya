@@ -60,7 +60,7 @@ FLAGS = \
 	-fPIC
 
 ifdef DEBUG
-FLAGS := $(FLAGS) -O0 -g
+FLAGS := $(FLAGS) -O0 -g3
 DEFS := $(DEFS) -DMTY_VK_DEBUG
 else
 FLAGS := $(FLAGS) -O3 -g0 -fvisibility=hidden
@@ -73,11 +73,13 @@ endif
 # github.com/WebAssembly/wasi-sdk/releases -> ~/wasi-sdk
 
 ifdef WASM
+
 WASI_SDK = $(HOME)/wasi-sdk
 
 CC = $(WASI_SDK)/bin/clang
 AR = $(WASI_SDK)/bin/ar
 
+TARGET = web
 ARCH := wasm32
 
 OBJS := $(OBJS) \
@@ -106,14 +108,16 @@ DEFS := $(DEFS) \
 	-DMTY_GL_EXTERNAL \
 	-DMTY_GL_ES
 
-TARGET = web
-INCLUDES := $(INCLUDES) -Isrc/unix/web
+INCLUDES := $(INCLUDES) \
+	-Isrc/unix/web
 
 else
 #############
 ### LINUX ###
 #############
 ifeq ($(UNAME_S), Linux)
+
+TARGET = linux
 
 ifdef STEAM
 WEBVIEW_OBJ = src/swebview.o
@@ -156,8 +160,10 @@ SHADERS = \
 DEFS := $(DEFS) \
 	-DMTY_VK_XLIB
 
-TARGET = linux
-INCLUDES := $(INCLUDES) -Isrc/unix/linux -Isrc/unix/linux/x11
+INCLUDES := $(INCLUDES) \
+	-Isrc/unix/linux \
+	-Isrc/unix/linux/x11
+
 endif
 
 #############
@@ -222,7 +228,10 @@ FLAGS := $(FLAGS) \
 	-isysroot $(shell xcrun --sdk $(TARGET) --show-sdk-path) \
 	-arch $(ARCH)
 
-INCLUDES := $(INCLUDES) -Isrc/unix/apple -Isrc/unix/apple/$(TARGET)
+INCLUDES := $(INCLUDES) \
+	-Isrc/unix/apple \
+	-Isrc/unix/apple/$(TARGET)
+
 endif
 endif
 
@@ -265,7 +274,6 @@ clean: clean-build
 clean-build:
 	@rm -rf bin
 	@rm -f $(OBJS)
-	@rm -f $(NAME).so
 
 clear:
 	@clear
