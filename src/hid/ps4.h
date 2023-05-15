@@ -71,12 +71,10 @@ static bool ps4_state(struct hid_dev *device, const void *data, size_t dsize, MT
 	// Wired
 	if (d8[0] == 0x01) {
 		d8++;
-		dsize--;
 
 	// Bluetooth
 	} else if (d8[0] == 0x11) {
 		d8 += 3;
-		dsize -= 3;
 
 	} else {
 		return false;
