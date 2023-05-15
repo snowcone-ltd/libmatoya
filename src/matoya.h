@@ -1407,7 +1407,7 @@ MTY_RunAndYield(MTY_IterFunc iter, void *opaque);
 ///   JavaScript thread which is not allowed to block in any way. These functions should call
 ///   MTY_SignalPtr when done with their asynchronous operations on a `sync` variable, which
 ///   will then unblock the WebAssembly side waiting with MTY_WaitPtr.
-/// @param sync Pointer to arbitrary shared memory.
+/// @param sync Pointer to shared memory. This memory must not be allocated on the stack.
 //- #support Web
 MTY_EXPORT void
 MTY_WaitPtr(int32_t *sync);
