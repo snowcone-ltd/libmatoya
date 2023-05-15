@@ -108,7 +108,7 @@ LIB_FLAGS = \
 	/nologo
 
 !IFDEF DEBUG
-FLAGS = $(FLAGS) /Ob0 /Zi
+FLAGS = $(FLAGS) /Ob0 /Zi /Oy-
 DEFS = $(DEFS) -DMTY_VK_DEBUG
 !ELSE
 FLAGS = $(FLAGS) /O2 /GS- /Gw
