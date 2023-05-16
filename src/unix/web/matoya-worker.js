@@ -494,13 +494,34 @@ const MTY_NET_API = {
 			type: 'ws-read',
 			ctx: ctx,
 			timeout: timeout,
-			buf: msg_out,
-			size: size,
 			sab: MTY.sab,
 			sync: MTY.sync,
 		});
 
 		mty_wait(MTY.sync);
+
+		if (MTY.sab[0] == 0) { // MTY_ASYNC_OK
+			const rsize = MTY.sab[1];
+
+			if (rsize < size) {
+				const buf = mty_alloc(rsize);
+				const sab8 = new Uint8Array(MTY_MEMORY.buffer, buf, rsize);
+
+				postMessage({
+					type: 'async-copy',
+					sync: MTY.sync,
+					sab8: sab8,
+				});
+
+				mty_wait(MTY.sync);
+
+				mty_strcpy(msg_out, sab8);
+				mty_free(buf);
+
+			} else {
+				MTY.sab[0] = 3 // MTY_ASYNC_ERROR
+			}
+		}
 
 		return MTY.sab[0]; // MTY_Async
 	},

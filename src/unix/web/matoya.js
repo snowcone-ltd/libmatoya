@@ -1002,10 +1002,9 @@ async function mty_thread_message(ev) {
 					const buf = await mty_ws_read(ws, msg.timeout);
 
 					if (buf) {
-						if (buf.length < msg.size) {
-							mty_strcpy(msg.buf, buf);
-							msg.sab[0] = 0; // MTY_ASYNC_OK;
-						}
+						this.tmp = buf;
+						msg.sab[0] = 0; // MTY_ASYNC_OK
+						msg.sab[1] = buf.length;
 
 					} else {
 						msg.sab[0] = 2; // MTY_ASYNC_CONTINUE
