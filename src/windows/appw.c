@@ -1450,7 +1450,7 @@ void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t 
 {
 	uint32_t width = 0;
 	uint32_t height = 0;
-	uint8_t *rgba = image ? MTY_DecompressImage(image, size, &width, &height) : NULL;
+	void *rgba = image ? MTY_DecompressImage(image, size, &width, &height) : NULL;
 
 	MTY_AppSetRGBACursor(ctx, rgba, width, height, hotX, hotY);
 

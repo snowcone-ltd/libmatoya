@@ -893,7 +893,7 @@ void MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative)
 	}
 }
 
-static Cursor app_rgba_cursor(Display *display, const uint8_t *rgba, uint32_t width, uint32_t height,
+static Cursor app_rgba_cursor(Display *display, const uint32_t *rgba, uint32_t width, uint32_t height,
 	uint32_t hotX, uint32_t hotY)
 {
 	Cursor cursor = None;
@@ -944,7 +944,7 @@ void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t 
 {
 	uint32_t width = 0;
 	uint32_t height = 0;
-	uint8_t *rgba = image ? MTY_DecompressImage(image, size, &width, &height) : NULL;
+	void *rgba = image ? MTY_DecompressImage(image, size, &width, &height) : NULL;
 
 	MTY_AppSetRGBACursor(ctx, rgba, width, height, hotX, hotY);
 
