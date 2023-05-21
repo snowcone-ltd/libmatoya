@@ -291,112 +291,156 @@ const MTY_GL_API = {
 
 // Audio
 
-function mty_audio_queued_ms() {
-	let queued_ms = Math.round((MTY.audio.next_time - MTY.audio.ctx.currentTime) * 1000.0);
-	let buffered_ms = Math.round((MTY.audio.offset / 4) / MTY.audio.frames_per_ms);
+function mty_mutex_lock_nb(mutex, index)
+{
+	return Atomics.compareExchange(mutex, index, 0, 1) == 0;
+}
 
-	return (queued_ms < 0 ? 0 : queued_ms) + buffered_ms;
+function mty_mutex_lock(mutex, index) {
+	while (true) {
+		if (mty_mutex_lock_nb(mutex, index))
+			return;
+
+		Atomics.wait(mutex, index, 1);
+	}
+}
+
+function mty_mutex_unlock(mutex, index, notify) {
+	Atomics.compareExchange(mutex, index, 1, 0);
+
+	if (notify)
+		Atomics.notify(mutex, index, 1);
 }
 
 const MTY_AUDIO_API = {
 	MTY_AudioCreate: function (sampleRate, minBuffer, maxBuffer, channels, deviceID, fallback) {
-		MTY.audio = {};
-		MTY.audio.flushing = false;
-		MTY.audio.playing = false;
-		MTY.audio.sample_rate = sampleRate;
-		MTY.audio.channels = channels;
-
-		MTY.audio.frames_per_ms = Math.round(sampleRate / 1000.0);
-		MTY.audio.min_buffer = minBuffer * MTY.audio.frames_per_ms;
-		MTY.audio.max_buffer = maxBuffer * MTY.audio.frames_per_ms;
-
-		MTY.audio.offset = 0;
-		MTY.audio.buf = mty_alloc(sampleRate * 2 * MTY.audio.channels);
+		MTY.audio = {
+			sampleRate,
+			minBuffer,
+			maxBuffer,
+			channels,
+		};
 
 		return 0xCDD;
 	},
 	MTY_AudioDestroy: function (audio) {
-		if (!MTY.audio)
+		if (!audio || !mty_get_uint32(audio))
 			return;
 
-		mty_free(MTY.audio.buf);
+		postMessage({type: 'audio-destroy'});
 		mty_set_uint32(audio, 0);
-		MTY.audio = null;
 	},
 	MTY_AudioQueue: function (ctx, frames, count) {
-		// Initialize on first queue otherwise the browser may complain about user interaction
-		if (!MTY.audio.ctx)
-			MTY.audio.ctx = new AudioContext();
+		const buf = new Int16Array(MTY_MEMORY.buffer, frames, count * MTY.audio.channels);
 
-		let queued_frames = MTY.audio.frames_per_ms * mty_audio_queued_ms();
+		mty_mutex_lock(MTY.audioObjs.control, 0);
 
-		// Stop playing and flush if we've exceeded the maximum buffer
-		if (queued_frames > MTY.audio.max_buffer) {
-			MTY.audio.playing = false;
-			MTY.audio.flushing = true;
+		if (buf.length <= MTY.audioObjs.buf.length - MTY.audioObjs.control[1]) {
+			MTY.audioObjs.buf.set(buf, MTY.audioObjs.control[1]);
+			MTY.audioObjs.control[1] += buf.length;
 		}
 
-		// Stop flushing when the queue reaches zero
-		if (queued_frames == 0) {
-			MTY.audio.flushing = false;
-			MTY.audio.playing = false;
-		}
+		mty_mutex_unlock(MTY.audioObjs.control, 0, false);
 
-		// Convert PCM int16_t to float
-		if (!MTY.audio.flushing) {
-			let size = count * 2 * MTY.audio.channels;
-			mty_memcpy(MTY.audio.buf + MTY.audio.offset, new Uint8Array(MTY_MEMORY.buffer, frames, size));
-			MTY.audio.offset += size;
-		}
-
-		// Begin playing again if the buffer has accumulated past the min
-		if (!MTY.audio.playing && !MTY.audio.flushing &&
-			MTY.audio.offset / (2 * MTY.audio.channels) > MTY.audio.min_buffer)
-		{
-			MTY.audio.next_time = MTY.audio.ctx.currentTime;
-			MTY.audio.playing = true;
-		}
-
-		// Queue the audio if playing
-		if (MTY.audio.playing) {
-			const src = new Int16Array(MTY_MEMORY.buffer, MTY.audio.buf);
-			const bcount = MTY.audio.offset / (2 * MTY.audio.channels);
-
-			const buf = MTY.audio.ctx.createBuffer(MTY.audio.channels, bcount, MTY.audio.sample_rate);
-
-			const chans = [];
-			for (let x = 0; x < MTY.audio.channels; x++)
-				chans[x] = buf.getChannelData(x);
-
-			let offset = 0;
-			for (let x = 0; x < bcount * MTY.audio.channels; x += MTY.audio.channels) {
-				for (y = 0; y < MTY.audio.channels; y++) {
-					chans[y][offset] = src[x + y] / 32768;
-					offset++;
-				}
-			}
-
-			const source = MTY.audio.ctx.createBufferSource();
-			source.buffer = buf;
-			source.connect(MTY.audio.ctx.destination);
-			source.start(MTY.audio.next_time);
-
-			MTY.audio.next_time += buf.duration;
-			MTY.audio.offset = 0;
-		}
+		postMessage({type: 'audio-queue', ...MTY.audio});
 	},
 	MTY_AudioReset: function (ctx) {
-		MTY.audio.playing = false;
-		MTY.audio.flushing = false;
-		MTY.audio.offset = 0;
+		mty_mutex_lock(MTY.audioObjs.control, 0);
+
+		MTY.audioObjs.control[1] = 0;
+
+		mty_mutex_unlock(MTY.audioObjs.control, 0, false);
 	},
 	MTY_AudioGetQueued: function (ctx) {
-		if (MTY.audio.ctx)
-			return mty_audio_queued_ms();
-
-		return 0;
+		return Atomics.load(MTY.audioObjs.control, 2);
 	},
 };
+
+
+// Audio Worklet
+
+if (typeof AudioWorkletGlobalScope != 'undefined') {
+
+function mty_int16_to_float(i) {
+	return i < 0 ? i / 32768 : i / 32767;
+}
+
+class MTY_Audio extends AudioWorkletProcessor {
+	constructor(options) {
+		super();
+
+		const frames_per_ms = Math.round(sampleRate / 1000.0);
+
+		this.minBuffer = Math.round(options.processorOptions.minBuffer * frames_per_ms);
+		this.maxBuffer = Math.round(options.processorOptions.maxBuffer * frames_per_ms);
+		this.channels = options.outputChannelCount[0];
+		this.playing = false;
+
+		this.ibuf = new Int16Array(new ArrayBuffer(1024 * 1024));
+		this.ibufLen = 0;
+
+		this.port.onmessage = (evt) => {
+			this.sbuf = evt.data.buf;
+			this.control = evt.data.control;
+		};
+	}
+
+	process(inputs, outputs, parameters) {
+		// Copy from staging buffer to internal buffer
+		if (mty_mutex_lock_nb(this.control, 0)) {
+			if (this.control[1] <= this.ibuf.length - this.ibufLen) {
+				this.ibuf.set(new Int16Array(this.sbuf.buffer, 0, this.control[1]), this.ibufLen);
+				this.ibufLen += this.control[1];
+				this.control[1] = 0;
+			}
+
+			mty_mutex_unlock(this.control, 0, true);
+		}
+
+		let queued = this.ibufLen / this.channels;
+
+		// Queued audio has reached the min buffer, begin playing
+		if (!this.playing && queued >= this.minBuffer)
+			this.playing = true;
+
+		// No audio left, pause and let buffer refill
+		if (this.playing && this.ibufLen == 0)
+			this.playing = false;
+
+		// Fill output with buffered audio
+		if (this.playing) {
+			const l = outputs[0][0];
+			const r = outputs[0][1];
+
+			let x = 0;
+			for (let o = 0; x < this.ibufLen && o < l.length && o < r.length; x += this.channels, o++) {
+				l[o] = mty_int16_to_float(this.ibuf[x]);
+				r[o] = mty_int16_to_float(this.ibuf[x + 1]);
+			}
+
+			// Essentially a 'memmove' to bring remaining audio to front of the buffer
+			this.ibufLen -= x;
+			this.ibuf.set(new Int16Array(this.ibuf.buffer, x * 2, this.ibufLen));
+		}
+
+		queued = this.ibufLen / this.channels;
+
+		// If buffer has exceeded the max, reset
+		if (this.playing && queued > this.maxBuffer) {
+			this.playing = false;
+			this.ibufLen = 0;
+		}
+
+		// Store queued frames
+		Atomics.store(this.control, 2, queued);
+
+		return true;
+	}
+}
+
+registerProcessor('MTY_Audio', MTY_Audio);
+
+}
 
 
 // Net
@@ -1021,6 +1065,8 @@ const MTY_WASI_API = {
 
 // Entry
 
+if (typeof WorkerGlobalScope != 'undefined') {
+
 async function mty_instantiate_wasm(wasmBuf, userEnv) {
 	// Imports
 	const imports = {
@@ -1084,6 +1130,7 @@ onmessage = async (ev) => {
 			MTY.fdIndex = 64;
 			MTY.kbMap = msg.kbMap;
 			MTY.psync = msg.psync;
+			MTY.audioObjs = msg.audioObjs;
 			MTY.initWindowInfo = msg.windowInfo;
 			MTY.sync = new Int32Array(new SharedArrayBuffer(4));
 			MTY.sleeper = new Int32Array(new SharedArrayBuffer(4));
@@ -1189,3 +1236,5 @@ onmessage = async (ev) => {
 		}
 	}
 };
+
+}

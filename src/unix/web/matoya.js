@@ -635,6 +635,30 @@ function mty_poll_gamepads() {
 }
 
 
+// Audio
+
+async function mty_audio_queue(ctx, sampleRate, minBuffer, maxBuffer, channels) {
+	// Initialize on first queue otherwise the browser may complain about user interaction
+	if (!MTY.audioCtx) {
+		MTY.audioCtx = new AudioContext({sampleRate: sampleRate});
+
+		const baseFile = MTY_CURRENT_SCRIPT.pathname;
+		await MTY.audioCtx.audioWorklet.addModule(baseFile.replace('.js', '-worker.js'));
+
+		const node = new AudioWorkletNode(MTY.audioCtx, 'MTY_Audio', {
+			outputChannelCount: [channels],
+			processorOptions: {
+				minBuffer,
+				maxBuffer,
+			},
+		});
+
+		node.connect(MTY.audioCtx.destination);
+		node.port.postMessage(MTY.audioObjs);
+	}
+}
+
+
 // Image
 
 async function mty_decode_image(input) {
@@ -782,7 +806,7 @@ function mty_update_interval(thread) {
 	});
 }
 
-function mty_thread_start(threadId, bin, wasmBuf, memory, startArg, userEnv, kbMap, psync, name) {
+function mty_thread_start(threadId, bin, wasmBuf, memory, startArg, userEnv, kbMap, psync, audioObjs, name) {
 	const baseFile = MTY_CURRENT_SCRIPT.pathname;
 	const worker = new Worker(baseFile.replace('.js', '-worker.js'), {name: name});
 
@@ -802,6 +826,7 @@ function mty_thread_start(threadId, bin, wasmBuf, memory, startArg, userEnv, kbM
 		startArg: startArg,
 		threadId: threadId,
 		memory: memory,
+		audioObjs,
 	});
 
 	return worker;
@@ -814,6 +839,10 @@ async function MTY_Start(bin, container, userEnv) {
 	MTY.bin = bin;
 	MTY.userEnv = userEnv;
 	MTY.psync = new Int32Array(new SharedArrayBuffer(4));
+	MTY.audioObjs = {
+		buf: new Int16Array(new SharedArrayBuffer(1024 * 1024)),
+		control: new Int32Array(new SharedArrayBuffer(32)),
+	};
 
 	// Drawing surface
 	MTY.canvas = document.createElement('canvas');
@@ -846,7 +875,7 @@ async function MTY_Start(bin, container, userEnv) {
 
 	// Main thread
 	MTY.mainThread = mty_thread_start(MTY.threadId, bin, MTY.wasmBuf, MTY_MEMORY,
-		0, userEnv, MTY.kbMap, MTY.psync, 'main');
+		0, userEnv, MTY.kbMap, MTY.psync, MTY.audioObjs, 'main');
 
 	// Init position, update loop
 	MTY.posX = window.screenX;
@@ -880,7 +909,7 @@ async function mty_thread_message(ev) {
 			MTY.threadId++;
 
 			const worker = mty_thread_start(MTY.threadId, MTY.bin, MTY.wasmBuf, MTY_MEMORY,
-				msg.startArg, MTY.userEnv, MTY.kbMap, MTY.psync, 'thread-' + MTY.threadId);
+				msg.startArg, MTY.userEnv, MTY.kbMap, MTY.psync, MTY.audioObjs, 'thread-' + MTY.threadId);
 
 			msg.sab[0] = MTY.threadId;
 			mty_signal(msg.sync);
@@ -1039,6 +1068,15 @@ async function mty_thread_message(ev) {
 			mty_signal(msg.sync);
 			break;
 		}
+		case 'audio-queue':
+			mty_audio_queue(MTY.audio, msg.sampleRate, msg.minBuffer,
+				msg.maxBuffer, msg.channels);
+			break;
+		case 'audio-destroy':
+			if (MTY.audioCtx)
+				MTY.audioCtx.close();
+			delete MTY.audioCtx;
+			break;
 		case 'async-copy':
 			msg.sab8.set(this.tmp);
 			delete this.tmp;
