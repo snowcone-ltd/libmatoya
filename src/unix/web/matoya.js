@@ -133,21 +133,15 @@ function mty_b64_to_buf(b64) {
 // Synchronization
 
 function mty_wait(sync) {
-	if (Atomics.compareExchange(sync, 0, 0, 1) == 0) {
+	if (Atomics.compareExchange(sync, 0, 0, 1) == 0)
 		Atomics.wait(sync, 0, 1);
 
-	} else {
-		Atomics.store(sync, 0);
-	}
+	Atomics.store(sync, 0, 0);
 }
 
-function mty_signal(sync) {
-	if (Atomics.compareExchange(sync, 0, 0, 1) == 0) {
-
-	} else {
-		Atomics.store(sync, 0);
-		Atomics.notify(sync, 0);
-	}
+function mty_signal(sync, allow_miss = false) {
+	if (Atomics.compareExchange(sync, 0, 0, 1) != 0)
+		while (Atomics.notify(sync, 0, 1) == 0 && !allow_miss);
 }
 
 function MTY_SignalPtr(csync) {
@@ -886,7 +880,7 @@ async function MTY_Start(bin, container, userEnv) {
 
 	// Vsync
 	const vsync = () => {
-		mty_signal(MTY.psync);
+		mty_signal(MTY.psync, true);
 		requestAnimationFrame(vsync);
 	};
 	requestAnimationFrame(vsync);
