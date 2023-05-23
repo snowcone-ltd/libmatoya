@@ -178,7 +178,7 @@ void mty_hid_map_axes(MTY_ControllerEvent *c)
 	}
 
 	// Convert Hat to D-pad
-	if (dpad < c->numAxes);
+	if (dpad < c->numAxes)
 		hid_convert_dpad(c, dpad);
 
 	// Move axes that are not in the right positions to the end
