@@ -9,5 +9,6 @@
 void mty_hid_u_to_s16(MTY_Axis *v, bool invert);
 void mty_hid_s_to_s16(MTY_Axis *v);
 void mty_hid_u_to_u8(MTY_Axis *v);
+void mty_hid_axis_to_dpad(int16_t v, MTY_ControllerEvent *c);
 void mty_hid_map_axes(MTY_ControllerEvent *c);
 bool mty_hid_dedupe(MTY_Hash *h, MTY_ControllerEvent *c);

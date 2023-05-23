@@ -73,6 +73,10 @@ static void xip_to_mty(const XINPUT_STATE *xstate, MTY_Event *evt)
 	c->buttons[MTY_CBUTTON_LEFT_THUMB] = b & XINPUT_GAMEPAD_LEFT_THUMB;
 	c->buttons[MTY_CBUTTON_RIGHT_THUMB] = b & XINPUT_GAMEPAD_RIGHT_THUMB;
 	c->buttons[MTY_CBUTTON_GUIDE] = b & 0x0400;
+	c->buttons[MTY_CBUTTON_DPAD_UP] = b & XINPUT_GAMEPAD_DPAD_UP;
+	c->buttons[MTY_CBUTTON_DPAD_DOWN] = b & XINPUT_GAMEPAD_DPAD_DOWN;
+	c->buttons[MTY_CBUTTON_DPAD_LEFT] = b & XINPUT_GAMEPAD_DPAD_LEFT;
+	c->buttons[MTY_CBUTTON_DPAD_RIGHT] = b & XINPUT_GAMEPAD_DPAD_RIGHT;
 
 	c->axes[MTY_CAXIS_THUMB_LX].value = xstate->Gamepad.sThumbLX;
 	c->axes[MTY_CAXIS_THUMB_LX].usage = 0x30;
@@ -103,17 +107,6 @@ static void xip_to_mty(const XINPUT_STATE *xstate, MTY_Event *evt)
 	c->axes[MTY_CAXIS_TRIGGER_R].usage = 0x34;
 	c->axes[MTY_CAXIS_TRIGGER_R].min = 0;
 	c->axes[MTY_CAXIS_TRIGGER_R].max = UINT8_MAX;
-
-	bool up = b & XINPUT_GAMEPAD_DPAD_UP;
-	bool down = b & XINPUT_GAMEPAD_DPAD_DOWN;
-	bool left = b & XINPUT_GAMEPAD_DPAD_LEFT;
-	bool right = b & XINPUT_GAMEPAD_DPAD_RIGHT;
-
-	c->axes[MTY_CAXIS_DPAD].value = (up && right) ? 1 : (right && down) ? 3 :
-		(down && left) ? 5 : (left && up) ? 7 : up ? 0 : right ? 2 : down ? 4 : left ? 6 : 8;
-	c->axes[MTY_CAXIS_DPAD].usage = 0x39;
-	c->axes[MTY_CAXIS_DPAD].min = 0;
-	c->axes[MTY_CAXIS_DPAD].max = 7;
 }
 
 static void xip_rumble(struct xip *ctx, uint32_t id, uint16_t low, uint16_t high)
@@ -140,8 +133,8 @@ static void xip_state(struct xip *ctx, MTY_Hash *deduper, MTY_EventFunc func, vo
 		if (!state->disabled) {
 			MTY_Event evt = {0};
 			evt.controller.type = MTY_CTYPE_XINPUT;
-			evt.controller.numButtons = 13;
-			evt.controller.numAxes = 7;
+			evt.controller.numAxes = 6;
+			evt.controller.numButtons = 17;
 			evt.controller.id = x;
 
 			XINPUT_STATE xstate;

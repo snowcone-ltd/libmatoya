@@ -34,19 +34,11 @@ struct evdev {
 	void *opaque;
 };
 
-struct evdev_hat {
-	bool up;
-	bool right;
-	bool down;
-	bool left;
-};
-
 struct evdev_dev {
 	MTY_ControllerEvent state;
 	struct ff_effect ff;
 	bool gamepad; // PS4, XInput
 	bool rumble; // Can rumble
-	struct evdev_hat hat;
 	uint8_t slot;
 	uint32_t id;
 
@@ -100,8 +92,8 @@ static void evdev_device_add(struct evdev *ctx, const char *devnode, const char 
 			edev->slot = slot;
 
 			edev->state.type = MTY_CTYPE_DEFAULT;
-			edev->state.numAxes = 1; // There's always a dummy 'hat' DPAD
-			edev->state.numButtons = 15; // There's no good way to know how many buttons the device has
+			edev->state.numAxes = 0; // Discovered
+			edev->state.numButtons = 19; // There's no good way to know how many buttons the device has
 			edev->state.id = edev->id;
 
 			// VID/PID
@@ -196,28 +188,6 @@ static void evdev_new_device(struct evdev *ctx)
 	udev_device_unref(dev);
 }
 
-static void evdev_set_hat(struct evdev_dev *ctx, uint8_t type, const struct input_event *event)
-{
-	struct evdev_hat *h = &ctx->hat;
-
-	if (type == ABS_HAT0X || type == ABS_HAT0Y) {
-		if (type == ABS_HAT0X) {
-			h->right = event->value > 0;
-			h->left = event->value < 0;
-
-		} else if (type == ABS_HAT0Y) {
-			h->up = event->value < 0;
-			h->down = event->value > 0;
-		}
-	}
-
-	ctx->state.axes[0].value = h->up && h->right ? 1 : h->right && h->down ? 3 : h->down && h->left ? 5 :
-		h->left && h->up ? 7 : h->up ? 0 : h->right ? 2 : h->down ? 4 : h->left ? 6 : 8;
-	ctx->state.axes[0].usage = 0x39;
-	ctx->state.axes[0].min = 0;
-	ctx->state.axes[0].max = 7;
-}
-
 static MTY_CButton evdev_button(uint16_t type)
 {
 	switch (type) {
@@ -238,7 +208,7 @@ static MTY_CButton evdev_button(uint16_t type)
 
 		// Gamepad Unknown
 		case BTN_C: return MTY_CBUTTON_TOUCHPAD;
-		case BTN_Z: return MTY_CBUTTON_TOUCHPAD + 1;
+		case BTN_Z: return MTY_CBUTTON_CAPTURE;
 
 		// Joystick
 		case BTN_TRIGGER: return MTY_CBUTTON_X;
@@ -314,23 +284,31 @@ static void evdev_joystick_event(struct evdev *ctx, int32_t fd, EVDEV_REPORT rep
 		}
 
 	} else if (event.type == EV_ABS) {
-		evdev_set_hat(edev, event.code, &event);
+		// D-pad
+		if (event.code == ABS_HAT0X) {
+			c->buttons[MTY_CBUTTON_DPAD_RIGHT] = event.value > 0;
+			c->buttons[MTY_CBUTTON_DPAD_LEFT] = event.value < 0;
 
-		uint16_t usage = edev->gamepad ? evdev_gamepad_usage(edev, event.code, &event) :
-			evdev_joystick_usage(edev, event.code, &event);
+		} else if (event.code == ABS_HAT0Y) {
+			c->buttons[MTY_CBUTTON_DPAD_UP] = event.value < 0;
+			c->buttons[MTY_CBUTTON_DPAD_DOWN] = event.value > 0;
 
-		if (usage > 0) {
-			uint8_t slot = edev->ainfo[event.code].slot;
+		// Axes
+		} else {
+			uint16_t usage = edev->gamepad ? evdev_gamepad_usage(edev, event.code, &event) :
+				evdev_joystick_usage(edev, event.code, &event);
 
-			// Slots will always begin at 1 since the DPAD is in a fixed position of 0
-			if (slot == 0 || slot >= MTY_CAXIS_MAX)
-				return;
+			if (usage > 0) {
+				uint8_t slot = edev->ainfo[event.code].slot;
 
-			c->axes[slot].value  = event.value;
-			c->axes[slot].usage  = usage;
-			c->axes[slot].min = edev->ainfo[event.code].min;
-			c->axes[slot].max = edev->ainfo[event.code].max;
+				if (slot >= MTY_CAXIS_MAX)
+					return;
 
+				c->axes[slot].value  = event.value;
+				c->axes[slot].usage  = usage;
+				c->axes[slot].min = edev->ainfo[event.code].min;
+				c->axes[slot].max = edev->ainfo[event.code].max;
+			}
 		}
 	}
 

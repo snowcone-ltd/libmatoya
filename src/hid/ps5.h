@@ -90,8 +90,8 @@ static bool ps5_state(struct hid_dev *device, const void *data, size_t dsize, MT
 		c->type = MTY_CTYPE_PS5;
 		c->vid = mty_hid_device_get_vid(device);
 		c->pid = mty_hid_device_get_pid(device);
-		c->numAxes = 7;
-		c->numButtons = 15;
+		c->numAxes = 6;
+		c->numButtons = 18;
 		c->id = mty_hid_device_get_id(device);
 
 		c->buttons[MTY_CBUTTON_X] = b[5] & 0x10;
@@ -109,10 +109,7 @@ static bool ps5_state(struct hid_dev *device, const void *data, size_t dsize, MT
 		c->buttons[MTY_CBUTTON_GUIDE] = b[7] & 0x01;
 		c->buttons[MTY_CBUTTON_TOUCHPAD] = b[7] & 0x02;
 
-		c->axes[MTY_CAXIS_DPAD].value = b[5] & 0x0F;
-		c->axes[MTY_CAXIS_DPAD].usage = 0x39;
-		c->axes[MTY_CAXIS_DPAD].min = 0;
-		c->axes[MTY_CAXIS_DPAD].max = 7;
+		mty_hid_axis_to_dpad(b[5] & 0x0F, c);
 
 		c->axes[MTY_CAXIS_THUMB_LX].value = a[1];
 		c->axes[MTY_CAXIS_THUMB_LX].usage = 0x30;

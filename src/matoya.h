@@ -37,21 +37,6 @@ extern "C" {
 #define MTY_WINDOW_MAX 8  ///< Maximum number of windows that can be created.
 #define MTY_SCREEN_MAX 32 ///< Maximum size of a screen identifier.
 
-#define MTY_DPAD(c) \
-	((c)->axes[MTY_CAXIS_DPAD].value)
-
-#define MTY_DPAD_UP(c) \
-	(MTY_DPAD(c) == 7 || MTY_DPAD(c) == 0 || MTY_DPAD(c) == 1)
-
-#define MTY_DPAD_RIGHT(c) \
-	(MTY_DPAD(c) == 1 || MTY_DPAD(c) == 2 || MTY_DPAD(c) == 3)
-
-#define MTY_DPAD_DOWN(c) \
-	(MTY_DPAD(c) == 3 || MTY_DPAD(c) == 4 || MTY_DPAD(c) == 5)
-
-#define MTY_DPAD_LEFT(c) \
-	(MTY_DPAD(c) == 5 || MTY_DPAD(c) == 6 || MTY_DPAD(c) == 7)
-
 typedef struct MTY_App MTY_App;
 typedef int8_t MTY_Window;
 
@@ -405,14 +390,18 @@ typedef enum {
 	MTY_CBUTTON_LEFT_THUMB     = 10, ///< Left Thumb Stick
 	MTY_CBUTTON_RIGHT_THUMB    = 11, ///< Right Thumb Stick
 	MTY_CBUTTON_GUIDE          = 12, ///< Guide Button
-	MTY_CBUTTON_TOUCHPAD       = 13, ///< Touchpad Button
-	MTY_CBUTTON_CAPTURE        = 14, ///< Capture Button (Stadia)
+	MTY_CBUTTON_DPAD_UP        = 13, ///< D-pad Up
+	MTY_CBUTTON_DPAD_RIGHT     = 14, ///< D-pad Right
+	MTY_CBUTTON_DPAD_DOWN      = 15, ///< D-pad Down
+	MTY_CBUTTON_DPAD_LEFT      = 16, ///< D-pad Left
+	MTY_CBUTTON_TOUCHPAD       = 17, ///< Touchpad Button
+	MTY_CBUTTON_CAPTURE        = 18, ///< Capture Button (Stadia)
 	MTY_CBUTTON_MAX            = 64, ///< Maximum number of possible buttons.
 	MTY_CBUTTON_MAKE_32        = INT32_MAX,
 } MTY_CButton;
 
 /// @brief Standardized controller axes.
-/// @details libmatoya makes a best effort to remap axes (sticks, triggers, and DPAD)
+/// @details libmatoya makes a best effort to remap axes (sticks, triggers)
 ///   of known controllers to these values.
 typedef enum {
 	MTY_CAXIS_THUMB_LX  = 0,  ///< Left Thumb Stick X-axis.
@@ -421,7 +410,6 @@ typedef enum {
 	MTY_CAXIS_THUMB_RY  = 3,  ///< Right Thumb Stick Y-axis.
 	MTY_CAXIS_TRIGGER_L = 4,  ///< Left Trigger
 	MTY_CAXIS_TRIGGER_R = 5,  ///< Right Trigger
-	MTY_CAXIS_DPAD      = 6,  ///< DPAD
 	MTY_CAXIS_MAX       = 16, ///< Maximum number of possible axes.
 	MTY_CAXIS_MAKE_32   = INT32_MAX,
 } MTY_CAxis;

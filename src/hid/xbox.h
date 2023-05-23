@@ -83,8 +83,8 @@ static bool xbox_state(struct hid_dev *device, const void *data, size_t dsize, M
 		c->type = MTY_CTYPE_XBOX;
 		c->vid = mty_hid_device_get_vid(device);
 		c->pid = mty_hid_device_get_pid(device);
-		c->numAxes = 7;
-		c->numButtons = 14;
+		c->numAxes = 6;
+		c->numButtons = ctx->series_x ? 18 : 17;
 		c->id = mty_hid_device_get_id(device);
 
 		if (ctx->proto == XBOX_PROTO_UNKNOWN && d8[15] & 0x10)
@@ -105,6 +105,8 @@ static bool xbox_state(struct hid_dev *device, const void *data, size_t dsize, M
 		c->buttons[MTY_CBUTTON_RIGHT_THUMB] = d8[15] & 0x40;
 		c->buttons[MTY_CBUTTON_GUIDE] = ctx->guide;
 		c->buttons[MTY_CBUTTON_TOUCHPAD] = ctx->series_x ? d8[16] & 0x01 : 0;
+
+		mty_hid_axis_to_dpad(d8[13] > 0 ? d8[13] - 1 : 8, c);
 
 		c->axes[MTY_CAXIS_THUMB_LX].value = *((int16_t *) (d8 + 1)) - 0x8000;
 		c->axes[MTY_CAXIS_THUMB_LX].usage = 0x30;
@@ -140,11 +142,6 @@ static bool xbox_state(struct hid_dev *device, const void *data, size_t dsize, M
 
 		c->buttons[MTY_CBUTTON_LEFT_TRIGGER] = c->axes[MTY_CAXIS_TRIGGER_L].value > 0;
 		c->buttons[MTY_CBUTTON_RIGHT_TRIGGER] = c->axes[MTY_CAXIS_TRIGGER_R].value > 0;
-
-		c->axes[MTY_CAXIS_DPAD].value = d8[13] > 0 ? d8[13] - 1 : 8;
-		c->axes[MTY_CAXIS_DPAD].usage = 0x39;
-		c->axes[MTY_CAXIS_DPAD].min = 0;
-		c->axes[MTY_CAXIS_DPAD].max = 7;
 
 		r = true;
 

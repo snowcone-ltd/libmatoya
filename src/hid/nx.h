@@ -162,8 +162,8 @@ static void nx_full_state(struct hid_dev *device, const uint8_t *d, MTY_Controll
 	c->type = MTY_CTYPE_SWITCH;
 	c->vid = mty_hid_device_get_vid(device);
 	c->pid = mty_hid_device_get_pid(device);
-	c->numAxes = 7;
-	c->numButtons = 14;
+	c->numAxes = 6;
+	c->numButtons = 18;
 	c->id = mty_hid_device_get_id(device);
 
 	c->buttons[MTY_CBUTTON_X] = d[3] & 0x01;
@@ -179,6 +179,10 @@ static void nx_full_state(struct hid_dev *device, const uint8_t *d, MTY_Controll
 	c->buttons[MTY_CBUTTON_LEFT_THUMB] = d[4] & 0x08;
 	c->buttons[MTY_CBUTTON_RIGHT_THUMB] = d[4] & 0x04;
 	c->buttons[MTY_CBUTTON_GUIDE] = d[4] & 0x10;
+	c->buttons[MTY_CBUTTON_DPAD_UP] = d[5] & 0x2;
+	c->buttons[MTY_CBUTTON_DPAD_RIGHT] = d[5] & 0x4;
+	c->buttons[MTY_CBUTTON_DPAD_DOWN] = d[5] & 0x1;
+	c->buttons[MTY_CBUTTON_DPAD_LEFT] = d[5] & 0x8;
 	c->buttons[MTY_CBUTTON_TOUCHPAD] = d[4] & 0x20; // The "Capture" button
 
 	int16_t lx = (d[6] | ((d[7] & 0x0F) << 8)) - ctx->lx.c;
@@ -224,17 +228,6 @@ static void nx_full_state(struct hid_dev *device, const uint8_t *d, MTY_Controll
 	c->axes[MTY_CAXIS_TRIGGER_R].value = c->buttons[MTY_CBUTTON_RIGHT_TRIGGER] ? UINT8_MAX : 0;
 	c->axes[MTY_CAXIS_TRIGGER_R].min = 0;
 	c->axes[MTY_CAXIS_TRIGGER_R].max = UINT8_MAX;
-
-	bool up = d[5] & 0x02;
-	bool down = d[5] & 0x01;
-	bool left = d[5] & 0x08;
-	bool right = d[5] & 0x04;
-
-	c->axes[MTY_CAXIS_DPAD].value = (up && right) ? 1 : (right && down) ? 3 :
-		(down && left) ? 5 : (left && up) ? 7 : up ? 0 : right ? 2 : down ? 4 : left ? 6 : 8;
-	c->axes[MTY_CAXIS_DPAD].usage = 0x39;
-	c->axes[MTY_CAXIS_DPAD].min = 0;
-	c->axes[MTY_CAXIS_DPAD].max = 7;
 }
 
 static void nx_simple_state(struct hid_dev *device, const uint8_t *d, MTY_ControllerEvent *c)
@@ -244,8 +237,8 @@ static void nx_simple_state(struct hid_dev *device, const uint8_t *d, MTY_Contro
 	c->type = MTY_CTYPE_SWITCH;
 	c->vid = mty_hid_device_get_vid(device);
 	c->pid = mty_hid_device_get_pid(device);
-	c->numAxes = 7;
-	c->numButtons = 14;
+	c->numAxes = 6;
+	c->numButtons = 18;
 	c->id = mty_hid_device_get_id(device);
 
 	c->buttons[MTY_CBUTTON_X] = d[1] & 0x04;
@@ -262,6 +255,8 @@ static void nx_simple_state(struct hid_dev *device, const uint8_t *d, MTY_Contro
 	c->buttons[MTY_CBUTTON_RIGHT_THUMB] = d[2] & 0x08;
 	c->buttons[MTY_CBUTTON_GUIDE] = d[2] & 0x10;
 	c->buttons[MTY_CBUTTON_TOUCHPAD] = d[2] & 0x20;
+
+	mty_hid_axis_to_dpad(d[3], c);
 
 	int16_t lx = (d[4] | (d[5] << 8)) - ctx->slx.c;
 	int16_t ly = -((d[6] | (d[7] << 8)) - ctx->sly.c);
@@ -306,11 +301,6 @@ static void nx_simple_state(struct hid_dev *device, const uint8_t *d, MTY_Contro
 	c->axes[MTY_CAXIS_TRIGGER_R].value = c->buttons[MTY_CBUTTON_RIGHT_TRIGGER] ? UINT8_MAX : 0;
 	c->axes[MTY_CAXIS_TRIGGER_R].min = 0;
 	c->axes[MTY_CAXIS_TRIGGER_R].max = UINT8_MAX;
-
-	c->axes[MTY_CAXIS_DPAD].value = d[3];
-	c->axes[MTY_CAXIS_DPAD].usage = 0x39;
-	c->axes[MTY_CAXIS_DPAD].min = 0;
-	c->axes[MTY_CAXIS_DPAD].max = 7;
 }
 
 

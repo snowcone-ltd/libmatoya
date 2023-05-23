@@ -59,8 +59,8 @@ static const MTY_ControllerEvent APP_ZEROED_CTRL = {
 	.id = 0,
 	.pid = 0xCDD,
 	.vid = 0xCDD,
-	.numButtons = 13,
-	.numAxes = 7,
+	.numAxes = 6,
+	.numButtons = 17,
 	.type = MTY_CTYPE_DEFAULT,
 	.axes = {
 		[MTY_CAXIS_THUMB_LX] = {
@@ -92,12 +92,6 @@ static const MTY_ControllerEvent APP_ZEROED_CTRL = {
 			.usage = 0x34,
 			.min = 0,
 			.max = UINT8_MAX,
-		},
-		[MTY_CAXIS_DPAD] = {
-			.usage = 0x39,
-			.value = 8,
-			.min = 0,
-			.max = 7,
 		},
 	},
 };
@@ -633,13 +627,10 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1button(JNIEnv *env, job
 		case AKEYCODE_DPAD_DOWN_LEFT:
 		case AKEYCODE_DPAD_UP_RIGHT:
 		case AKEYCODE_DPAD_DOWN_RIGHT: {
-			bool up = pressed && (button == AKEYCODE_DPAD_UP || button == AKEYCODE_DPAD_UP_LEFT || button == AKEYCODE_DPAD_UP_RIGHT);
-			bool down = pressed && (button == AKEYCODE_DPAD_DOWN || button == AKEYCODE_DPAD_DOWN_LEFT || button == AKEYCODE_DPAD_DOWN_RIGHT);
-			bool left = pressed && (button == AKEYCODE_DPAD_LEFT || button == AKEYCODE_DPAD_UP_LEFT || button == AKEYCODE_DPAD_DOWN_LEFT);
-			bool right = pressed && (button == AKEYCODE_DPAD_RIGHT || button == AKEYCODE_DPAD_UP_RIGHT || button == AKEYCODE_DPAD_DOWN_RIGHT);
-
-			c->axes[MTY_CAXIS_DPAD].value = (up && right) ? 1 : (right && down) ? 3 :
-				(down && left) ? 5 : (left && up) ? 7 : up ? 0 : right ? 2 : down ? 4 : left ? 6 : 8;
+			c->buttons[MTY_CBUTTON_DPAD_UP] = pressed && (button == AKEYCODE_DPAD_UP || button == AKEYCODE_DPAD_UP_LEFT || button == AKEYCODE_DPAD_UP_RIGHT);
+			c->buttons[MTY_CBUTTON_DPAD_DOWN] = pressed && (button == AKEYCODE_DPAD_DOWN || button == AKEYCODE_DPAD_DOWN_LEFT || button == AKEYCODE_DPAD_DOWN_RIGHT);
+			c->buttons[MTY_CBUTTON_DPAD_LEFT] = pressed && (button == AKEYCODE_DPAD_LEFT || button == AKEYCODE_DPAD_UP_LEFT || button == AKEYCODE_DPAD_DOWN_LEFT);
+			c->buttons[MTY_CBUTTON_DPAD_RIGHT] = pressed && (button == AKEYCODE_DPAD_RIGHT || button == AKEYCODE_DPAD_UP_RIGHT || button == AKEYCODE_DPAD_DOWN_RIGHT);
 			break;
 		}
 	}
@@ -674,13 +665,10 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1axis(JNIEnv *env, jobje
 			c->axes[MTY_CAXIS_TRIGGER_R].value = lrint(rTalt * (float) UINT8_MAX);
 	}
 
-	bool up = hatY == -1.0f;
-	bool down = hatY == 1.0f;
-	bool left = hatX == -1.0f;
-	bool right = hatX == 1.0f;
-
-	c->axes[MTY_CAXIS_DPAD].value = (up && right) ? 1 : (right && down) ? 3 :
-		(down && left) ? 5 : (left && up) ? 7 : up ? 0 : right ? 2 : down ? 4 : left ? 6 : 8;
+	c->buttons[MTY_CBUTTON_DPAD_UP] = hatY == -1.0f;
+	c->buttons[MTY_CBUTTON_DPAD_DOWN] = hatY == 1.0f;
+	c->buttons[MTY_CBUTTON_DPAD_LEFT] = hatX == -1.0f;
+	c->buttons[MTY_CBUTTON_DPAD_RIGHT] = hatX == 1.0f;
 
 	app_push_controller_event(&CTX, c);
 

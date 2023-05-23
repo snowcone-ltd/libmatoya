@@ -213,8 +213,8 @@ void mty_window_controller(MTY_App *ctx, uint32_t id, uint32_t state, uint32_t b
 
 	MTY_ControllerEvent *c = &evt.controller;
 	c->type = MTY_CTYPE_DEFAULT;
-	c->numButtons = 16;
-	c->numAxes = 7;
+	c->numAxes = 6;
+	c->numButtons = 17;
 	c->vid = 0xCDD;
 	c->pid = 0xCDD;
 	c->id = id;
@@ -229,6 +229,10 @@ void mty_window_controller(MTY_App *ctx, uint32_t id, uint32_t state, uint32_t b
 	c->buttons[MTY_CBUTTON_START] = TESTB(0x0200);
 	c->buttons[MTY_CBUTTON_LEFT_THUMB] = TESTB(0x0400);
 	c->buttons[MTY_CBUTTON_RIGHT_THUMB] = TESTB(0x0800);
+	c->buttons[MTY_CBUTTON_DPAD_UP] = TESTB(0x1000);
+	c->buttons[MTY_CBUTTON_DPAD_DOWN] = TESTB(0x2000);
+	c->buttons[MTY_CBUTTON_DPAD_LEFT] = TESTB(0x4000);
+	c->buttons[MTY_CBUTTON_DPAD_RIGHT] = TESTB(0x8000);
 
 	c->axes[MTY_CAXIS_THUMB_LX].value = lx < 0.0f ? lrint(lx * abs(INT16_MIN)) : lrint(lx * INT16_MAX);
 	c->axes[MTY_CAXIS_THUMB_LX].usage = 0x30;
@@ -262,17 +266,6 @@ void mty_window_controller(MTY_App *ctx, uint32_t id, uint32_t state, uint32_t b
 
 	c->buttons[MTY_CBUTTON_LEFT_TRIGGER] = c->axes[MTY_CAXIS_TRIGGER_L].value > 0;
 	c->buttons[MTY_CBUTTON_RIGHT_TRIGGER] = c->axes[MTY_CAXIS_TRIGGER_R].value > 0;
-
-	bool up = TESTB(0x1000);
-	bool down = TESTB(0x2000);
-	bool left = TESTB(0x4000);
-	bool right = TESTB(0x8000);
-
-	c->axes[MTY_CAXIS_DPAD].value = (up && right) ? 1 : (right && down) ? 3 :
-		(down && left) ? 5 : (left && up) ? 7 : up ? 0 : right ? 2 : down ? 4 : left ? 6 : 8;
-	c->axes[MTY_CAXIS_DPAD].usage = 0x39;
-	c->axes[MTY_CAXIS_DPAD].min = 0;
-	c->axes[MTY_CAXIS_DPAD].max = 7;
 
 	// Connect
 	if (state == 1) {

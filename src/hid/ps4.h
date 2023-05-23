@@ -83,8 +83,8 @@ static bool ps4_state(struct hid_dev *device, const void *data, size_t dsize, MT
 	c->type = MTY_CTYPE_PS4;
 	c->vid = mty_hid_device_get_vid(device);
 	c->pid = mty_hid_device_get_pid(device);
-	c->numAxes = 7;
-	c->numButtons = 14;
+	c->numAxes = 6;
+	c->numButtons = 18;
 	c->id = mty_hid_device_get_id(device);
 
 	c->buttons[MTY_CBUTTON_X] = d8[4] & 0x10;
@@ -101,6 +101,8 @@ static bool ps4_state(struct hid_dev *device, const void *data, size_t dsize, MT
 	c->buttons[MTY_CBUTTON_RIGHT_THUMB] = d8[5] & 0x80;
 	c->buttons[MTY_CBUTTON_GUIDE] = d8[6] & 0x01;
 	c->buttons[MTY_CBUTTON_TOUCHPAD] = d8[6] & 0x02;
+
+	mty_hid_axis_to_dpad(d8[4] & 0x0F, c);
 
 	c->axes[MTY_CAXIS_THUMB_LX].value = d8[0];
 	c->axes[MTY_CAXIS_THUMB_LX].usage = 0x30;
@@ -135,11 +137,6 @@ static bool ps4_state(struct hid_dev *device, const void *data, size_t dsize, MT
 	c->axes[MTY_CAXIS_TRIGGER_R].usage = 0x34;
 	c->axes[MTY_CAXIS_TRIGGER_R].min = 0;
 	c->axes[MTY_CAXIS_TRIGGER_R].max = UINT8_MAX;
-
-	c->axes[MTY_CAXIS_DPAD].value = d8[4] & 0x0F;
-	c->axes[MTY_CAXIS_DPAD].usage = 0x39;
-	c->axes[MTY_CAXIS_DPAD].min = 0;
-	c->axes[MTY_CAXIS_DPAD].max = 7;
 
 	return true;
 }

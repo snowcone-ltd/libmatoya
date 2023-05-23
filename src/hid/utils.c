@@ -69,8 +69,35 @@ void mty_hid_u_to_u8(MTY_Axis *a)
 	a->max = UINT8_MAX;
 }
 
+void mty_hid_axis_to_dpad(int16_t v, MTY_ControllerEvent *c)
+{
+	c->buttons[MTY_CBUTTON_DPAD_UP]    = v == 7 || v == 0 || v == 1;
+	c->buttons[MTY_CBUTTON_DPAD_RIGHT] = v == 1 || v == 2 || v == 3;
+	c->buttons[MTY_CBUTTON_DPAD_DOWN]  = v == 3 || v == 4 || v == 5;
+	c->buttons[MTY_CBUTTON_DPAD_LEFT]  = v == 5 || v == 6 || v == 7;
+}
+
 
 // Default mapping
+
+static void hid_convert_dpad(MTY_ControllerEvent *c, uint8_t index)
+{
+	// Make room for additional D-pad buttons and move existing to end
+	if (c->numButtons > MTY_CBUTTON_DPAD_UP) {
+		if (c->numButtons > MTY_CBUTTON_MAX - 4)
+			c->numButtons = MTY_CBUTTON_MAX - 4;
+
+		memcpy(&c->buttons[MTY_CBUTTON_TOUCHPAD], &c->buttons[MTY_CBUTTON_DPAD_UP],
+			(c->numButtons - MTY_CBUTTON_DPAD_UP) * sizeof(c->buttons[0]));
+
+		c->numButtons += 4;
+
+	} else if (c->numButtons < MTY_CBUTTON_TOUCHPAD) {
+		c->numButtons = MTY_CBUTTON_TOUCHPAD;
+	}
+
+	mty_hid_axis_to_dpad(c->axes[index].value, c);
+}
 
 static bool hid_swap_value(MTY_Axis *axes, MTY_CAxis a, MTY_CAxis b)
 {
@@ -110,10 +137,12 @@ static void hid_move_value(MTY_ControllerEvent *c, MTY_Axis *a, uint16_t usage,
 void mty_hid_map_axes(MTY_ControllerEvent *c)
 {
 	// Make sure there is enough room for the standard CVALUEs
-	if (c->numAxes < MTY_CAXIS_DPAD + 1)
-		c->numAxes = MTY_CAXIS_DPAD + 1;
+	if (c->numAxes < 6)
+		c->numAxes = 6;
 
 	// Swap positions
+	uint8_t dpad = c->numAxes;
+
 	for (uint8_t x = 0; x < c->numAxes; x++) {
 		retry:
 
@@ -142,12 +171,15 @@ void mty_hid_map_axes(MTY_ControllerEvent *c)
 				if (hid_swap_value(c->axes, x, MTY_CAXIS_TRIGGER_R))
 					goto retry;
 				break;
-			case 0x39: // Hat -> DPAD
-				if (hid_swap_value(c->axes, x, MTY_CAXIS_DPAD))
-					goto retry;
+			case 0x39: // Hat
+				dpad = x;
 				break;
 		}
 	}
+
+	// Convert Hat to D-pad
+	if (dpad < c->numAxes);
+		hid_convert_dpad(c, dpad);
 
 	// Move axes that are not in the right positions to the end
 	for (uint8_t x = 0; x < c->numAxes; x++) {
@@ -160,7 +192,6 @@ void mty_hid_map_axes(MTY_ControllerEvent *c)
 			case MTY_CAXIS_THUMB_RY:  hid_move_value(c, a, 0x35, 0, INT16_MIN, INT16_MAX); break;
 			case MTY_CAXIS_TRIGGER_L: hid_move_value(c, a, 0x33, 0, 0, UINT8_MAX); break;
 			case MTY_CAXIS_TRIGGER_R: hid_move_value(c, a, 0x34, 0, 0, UINT8_MAX); break;
-			case MTY_CAXIS_DPAD:      hid_move_value(c, a, 0x39, 8, 0, 7); break;
 		}
 	}
 
