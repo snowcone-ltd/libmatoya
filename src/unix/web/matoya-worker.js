@@ -775,6 +775,7 @@ const MTY_WEB_API = {
 		MTY.gl = canvas.getContext('webgl2', {
 			depth: false,
 			antialias: false,
+			powerPreference: 'high-performance',
 		});
 	},
 	web_set_canvas_size: function (width, height) {
