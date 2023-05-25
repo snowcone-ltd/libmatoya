@@ -1363,8 +1363,8 @@ static void app_set_rgba_cursor(MTY_App *app, const uint8_t *rgba, uint32_t widt
 	ICONINFO ii = {0};
 	void *mask = NULL;
 
-	size_t pad = sizeof(size_t) * 8;
-	size_t mask_len = width + ((pad - width % pad) / 8) * height;
+	const size_t nPlanes = 1, nBitCount = 1;
+	const size_t mask_len = (((width * nPlanes * nBitCount + 15) >> 4) << 1) * height;
 	mask = MTY_Alloc(mask_len, 1);
 	memset(mask, 0xFF, mask_len);
 
