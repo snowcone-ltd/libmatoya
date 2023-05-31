@@ -3,7 +3,7 @@
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
 #include "app.h"
-#include "app-os.h"
+#include "aapp.h"
 
 #include <string.h>
 #include <math.h>
@@ -59,8 +59,8 @@ static const MTY_ControllerEvent APP_ZEROED_CTRL = {
 	.id = 0,
 	.pid = 0xCDD,
 	.vid = 0xCDD,
-	.numAxes = 6,
-	.numButtons = 17,
+	.numButtons = 13,
+	.numAxes = 7,
 	.type = MTY_CTYPE_DEFAULT,
 	.axes = {
 		[MTY_CAXIS_THUMB_LX] = {
@@ -92,6 +92,12 @@ static const MTY_ControllerEvent APP_ZEROED_CTRL = {
 			.usage = 0x34,
 			.min = 0,
 			.max = UINT8_MAX,
+		},
+		[MTY_CAXIS_DPAD] = {
+			.usage = 0x39,
+			.value = 8,
+			.min = 0,
+			.max = 7,
 		},
 	},
 };
@@ -170,7 +176,7 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1start(JNIEnv *env, jobj
 	CTX.log_thread_running = true;
 	CTX.log_thread = MTY_ThreadCreate(app_log_thread, &CTX);
 
-	char *external = mty_jni_cstrmov(env, mty_jni_obj(env, obj, "getExternalFilesDir", "()Ljava/lang/String;"));
+	char *external = mty_jni_cstrdup(env, mty_jni_obj(env, obj, "getExternalFilesDir", "()Ljava/lang/String;"));
 	chdir(external);
 	MTY_Free(external);
 
@@ -627,10 +633,13 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1button(JNIEnv *env, job
 		case AKEYCODE_DPAD_DOWN_LEFT:
 		case AKEYCODE_DPAD_UP_RIGHT:
 		case AKEYCODE_DPAD_DOWN_RIGHT: {
-			c->buttons[MTY_CBUTTON_DPAD_UP] = pressed && (button == AKEYCODE_DPAD_UP || button == AKEYCODE_DPAD_UP_LEFT || button == AKEYCODE_DPAD_UP_RIGHT);
-			c->buttons[MTY_CBUTTON_DPAD_DOWN] = pressed && (button == AKEYCODE_DPAD_DOWN || button == AKEYCODE_DPAD_DOWN_LEFT || button == AKEYCODE_DPAD_DOWN_RIGHT);
-			c->buttons[MTY_CBUTTON_DPAD_LEFT] = pressed && (button == AKEYCODE_DPAD_LEFT || button == AKEYCODE_DPAD_UP_LEFT || button == AKEYCODE_DPAD_DOWN_LEFT);
-			c->buttons[MTY_CBUTTON_DPAD_RIGHT] = pressed && (button == AKEYCODE_DPAD_RIGHT || button == AKEYCODE_DPAD_UP_RIGHT || button == AKEYCODE_DPAD_DOWN_RIGHT);
+			bool up = pressed && (button == AKEYCODE_DPAD_UP || button == AKEYCODE_DPAD_UP_LEFT || button == AKEYCODE_DPAD_UP_RIGHT);
+			bool down = pressed && (button == AKEYCODE_DPAD_DOWN || button == AKEYCODE_DPAD_DOWN_LEFT || button == AKEYCODE_DPAD_DOWN_RIGHT);
+			bool left = pressed && (button == AKEYCODE_DPAD_LEFT || button == AKEYCODE_DPAD_UP_LEFT || button == AKEYCODE_DPAD_DOWN_LEFT);
+			bool right = pressed && (button == AKEYCODE_DPAD_RIGHT || button == AKEYCODE_DPAD_UP_RIGHT || button == AKEYCODE_DPAD_DOWN_RIGHT);
+
+			c->axes[MTY_CAXIS_DPAD].value = (up && right) ? 1 : (right && down) ? 3 :
+				(down && left) ? 5 : (left && up) ? 7 : up ? 0 : right ? 2 : down ? 4 : left ? 6 : 8;
 			break;
 		}
 	}
@@ -665,10 +674,13 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1axis(JNIEnv *env, jobje
 			c->axes[MTY_CAXIS_TRIGGER_R].value = lrint(rTalt * (float) UINT8_MAX);
 	}
 
-	c->buttons[MTY_CBUTTON_DPAD_UP] = hatY == -1.0f;
-	c->buttons[MTY_CBUTTON_DPAD_DOWN] = hatY == 1.0f;
-	c->buttons[MTY_CBUTTON_DPAD_LEFT] = hatX == -1.0f;
-	c->buttons[MTY_CBUTTON_DPAD_RIGHT] = hatX == 1.0f;
+	bool up = hatY == -1.0f;
+	bool down = hatY == 1.0f;
+	bool left = hatX == -1.0f;
+	bool right = hatX == 1.0f;
+
+	c->axes[MTY_CAXIS_DPAD].value = (up && right) ? 1 : (right && down) ? 3 :
+		(down && left) ? 5 : (left && up) ? 7 : up ? 0 : right ? 2 : down ? 4 : left ? 6 : 8;
 
 	app_push_controller_event(&CTX, c);
 
@@ -693,7 +705,7 @@ static float app_get_scale(MTY_App *ctx)
 	return mty_jni_float(MTY_GetJNIEnv(), ctx->obj, "getDisplayDensity", "()F") * 0.85f;
 }
 
-MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
+MTY_App *MTY_AppCreate(MTY_AppFunc appFunc, MTY_EventFunc eventFunc, void *opaque)
 {
 	MTY_App *ctx = &CTX;
 
@@ -786,7 +798,7 @@ char *MTY_AppGetClipboard(MTY_App *ctx)
 {
 	JNIEnv *env = MTY_GetJNIEnv();
 
-	return mty_jni_cstrmov(env, mty_jni_obj(env, ctx->obj,  "getClipboard", "()Ljava/lang/String;"));
+	return mty_jni_cstrdup(env, mty_jni_obj(env, ctx->obj,  "getClipboard", "()Ljava/lang/String;"));
 }
 
 void MTY_AppSetClipboard(MTY_App *ctx, const char *text)
@@ -835,22 +847,6 @@ void MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative)
 	mty_jni_void(MTY_GetJNIEnv(), ctx->obj, "setRelativeMouse", "(Z)V", relative);
 }
 
-void MTY_AppSetCursorMagnify(MTY_App *ctx, float scale)
-{
-	// This function doesn't currently do anything on Android.
-}
-
-void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
-	uint32_t hotX, uint32_t hotY)
-{
-	JNIEnv *env = MTY_GetJNIEnv();
-	jbyteArray jimage = mty_jni_dup_int(env, image, width * height);
-
-	mty_jni_void(env, ctx->obj, "setCursorRGBA", "([IIIFF)V", jimage, width, height, (jfloat) hotX, (jfloat) hotY);
-
-	mty_jni_free(env, jimage);
-}
-
 void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX, uint32_t hotY)
 {
 	JNIEnv *env = MTY_GetJNIEnv();
@@ -861,9 +857,15 @@ void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t 
 	mty_jni_free(env, jimage);
 }
 
+void MTY_AppUseDefaultCursor(MTY_App *ctx, bool useDefault)
+{
+	mty_jni_void(MTY_GetJNIEnv(), ctx->obj, "useDefaultCursor", "(Z)V", useDefault);
+}
+
 void MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor)
 {
-	mty_jni_void(MTY_GetJNIEnv(), ctx->obj, "useDefaultCursor", "(Z)V", cursor != MTY_CURSOR_NONE);
+	// XXX TODO
+	MTY_AppUseDefaultCursor(ctx, true);
 }
 
 void MTY_AppShowCursor(MTY_App *ctx, bool show)
@@ -881,9 +883,8 @@ bool MTY_AppIsKeyboardGrabbed(MTY_App *ctx)
 	return false;
 }
 
-bool MTY_AppGrabKeyboard(MTY_App *ctx, bool grab)
+void MTY_AppGrabKeyboard(MTY_App *ctx, bool grab)
 {
-	return false;
 }
 
 uint32_t MTY_AppGetHotkey(MTY_App *ctx, MTY_Scope scope, MTY_Mod mod, MTY_Key key)
@@ -941,6 +942,10 @@ const char *MTY_AppGetControllerDeviceName(MTY_App *ctx, uint32_t id)
 MTY_CType MTY_AppGetControllerType(MTY_App *ctx, uint32_t id)
 {
 	return MTY_CTYPE_DEFAULT;
+}
+
+void MTY_AppEnableHIDEvents(MTY_App *ctx, bool enable)
+{
 }
 
 void MTY_AppSubmitHIDReport(MTY_App *ctx, uint32_t id, const void *report, size_t size)
@@ -1191,7 +1196,7 @@ void MTY_HotkeyToString(MTY_Mod mod, MTY_Key key, char *str, size_t len)
 		for (int32_t x = 0; x < (int32_t) APP_KEYS_MAX; x++) {
 			if (key == APP_KEY_MAP[x]) {
 				JNIEnv *env = MTY_GetJNIEnv();
-				char *ctext = mty_jni_cstrmov(env, mty_jni_obj(env, CTX.obj,
+				char *ctext = mty_jni_cstrdup(env, mty_jni_obj(env, CTX.obj,
 					"getKey", "(I)Ljava/lang/String;", x));
 
 				if (ctext) {
@@ -1212,9 +1217,4 @@ void MTY_SetAppID(const char *id)
 void *MTY_GLGetProcAddress(const char *name)
 {
 	return NULL;
-}
-
-void MTY_RunAndYield(MTY_IterFunc iter, void *opaque)
-{
-	while (iter(opaque));
 }
