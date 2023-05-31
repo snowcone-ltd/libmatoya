@@ -407,6 +407,10 @@ void MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative)
 	web_set_pointer_lock(relative);
 }
 
+void MTY_AppSetCursorMagnify(MTY_App *ctx, float scale)
+{
+}
+
 void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
 	uint32_t hotX, uint32_t hotY)
 {
