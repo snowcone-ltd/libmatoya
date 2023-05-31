@@ -854,9 +854,20 @@ MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t h
 MTY_EXPORT void
 MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX, uint32_t hotY);
 
+/// @brief Set the cursor magnification scale that is applied to new cursors.
+/// @details On platforms that support cursor magnification, this sets the magnification
+///   scale that is applied whenever new cursors are set with MTY_AppSetRGBACursor or
+///   MTY_AppSetPNGCursor.  Useful for passing oversize Retina cursors with extra pixel
+///   detail to be scaled by macOS when they are rendered.  Default scale is 1.0.
+/// @param ctx The MTY_App.
+/// @param scale The magnification scale for new cursors (1.0 means no magnification).
+//- #support macOS
+MTY_EXPORT void
+MTY_AppSetCursorMagnify(MTY_App *ctx, float scale);
+
 /// @brief Use a cursor predefined by the OS.
 /// @details The cursor set via this function will take precedence over any set with
-///   MTY_AppSetPNGCursor.
+///   MTY_AppSetPNGCursor or MTY_AppSetRGBACursor.
 /// @param ctx The MTY_App.
 /// @param cursor The predefined cursor. Set MTY_CURSOR_NONE to revert the effects
 ///   of this function.

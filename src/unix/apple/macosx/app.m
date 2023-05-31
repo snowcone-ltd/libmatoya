@@ -34,6 +34,7 @@ struct MTY_App {
 	NSObject <NSApplicationDelegate, NSUserNotificationCenterDelegate> *nsapp;
 	NSCursor *custom_cursor;
 	NSCursor *cursor;
+	float cursor_scale;
 	IOPMAssertionID assertion;
 	MTY_AppFunc app_func;
 	MTY_EventFunc event_func;
@@ -1339,6 +1340,7 @@ MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eve
 	ctx->opaque = opaque;
 	ctx->cursor_showing = true;
 	ctx->cont = true;
+	ctx->cursor_scale = 1.0f;
 
 	ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report,
 		ctx->flags & MTY_APP_FLAG_HID_KEYBOARD ? app_hid_key : NULL, ctx);
@@ -1517,6 +1519,30 @@ static void app_set_cursor(MTY_App *ctx, NSImage *image, uint32_t hotX, uint32_t
 	app_apply_cursor(ctx);
 }
 
+void MTY_AppSetCursorMagnify(MTY_App *ctx, float scale)
+{
+	if (ctx)
+		ctx->cursor_scale = (scale == 0.0f) ? 1.0f : scale;
+}
+
+// @brief Scales the rendered dimensions of the given NSImage (without resizing the pixel array).
+static void app_scale_nsimage(float scale, NSImage *nsi, uint32_t *hotspotX, uint32_t *hotspotY)
+{
+	if (!nsi || [[nsi representations] count] < 1 || scale == 0.0f || scale == 1.0f)
+		return;
+
+	NSSize csize = [nsi size];
+	csize.width /= scale;
+	csize.height /= scale;
+	nsi.size = csize;
+
+	if (hotspotX)
+		*hotspotX = (uint32_t) ((float) *hotspotX / scale + 0.5f);
+
+	if (hotspotY)
+		*hotspotY = (uint32_t) ((float) *hotspotY / scale + 0.5f);
+}
+
 void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
 	uint32_t hotX, uint32_t hotY)
 {
@@ -1530,8 +1556,10 @@ void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint3
 			hasAlpha:YES isPlanar:NO colorSpaceName:NSDeviceRGBColorSpace
 			bytesPerRow:width * 4 bitsPerPixel:32];
 
-		if (rep)
+		if (rep) {
 			nsi = [[NSImage alloc] initWithCGImage:rep.CGImage size:NSZeroSize];
+			app_scale_nsimage(ctx->cursor_scale, nsi, &hotX, &hotY);
+		}
 	}
 
 	app_set_cursor(ctx, nsi, hotX, hotY);
@@ -1541,6 +1569,7 @@ void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t 
 {
 	NSImage *nsi = image ? [[NSImage alloc] initWithData:[NSData dataWithBytes:image length:size]] : nil;
 
+	app_scale_nsimage(ctx->cursor_scale, nsi, &hotX, &hotY);
 	app_set_cursor(ctx, nsi, hotX, hotY);
 }
 
