@@ -66,9 +66,13 @@ void MTY_HashDestroy(MTY_Hash **hash, MTY_FreeFunc freeFunc)
 
 static void *hash_get(MTY_Hash *ctx, const char *key, bool pop)
 {
-	struct hash_bucket *b = &ctx->buckets[MTY_DJB2(key) % ctx->num_buckets];
+	const uint32_t hash = MTY_DJB2(key);
+	struct hash_bucket *b = &ctx->buckets[hash % ctx->num_buckets];
+	uint32_t* h = (uint32_t*)(b->nodes + b->num_nodes);
 
 	for (uint32_t x = 0; x < b->num_nodes; x++) {
+		if(hash != h[x])
+			continue;
 		struct hash_node *n = &b->nodes[x];
 
 		if (n->key && !strcmp(key, n->key)) {
@@ -102,7 +106,9 @@ void *MTY_HashGetInt(MTY_Hash *ctx, int64_t key)
 
 void *MTY_HashSet(MTY_Hash *ctx, const char *key, void *value)
 {
-	struct hash_bucket *b = &ctx->buckets[MTY_DJB2(key) % ctx->num_buckets];
+	const uint32_t hash = MTY_DJB2(key);
+	struct hash_bucket *b = &ctx->buckets[hash % ctx->num_buckets];
+	uint32_t* h = (uint32_t*)(b->nodes + b->num_nodes);
 	struct hash_node *n = NULL;
 
 	for (uint32_t x = 0; x < b->num_nodes; x++) {
@@ -111,7 +117,7 @@ void *MTY_HashSet(MTY_Hash *ctx, const char *key, void *value)
 		if (!this_n->key) {
 			n = this_n;
 
-		} else if (this_n->key && !strcmp(this_n->key, key)) {
+		} else if (hash == h[x] && this_n->key && !strcmp(this_n->key, key)) {
 			void *r = this_n->val;
 			this_n->val = value;
 
@@ -120,12 +126,16 @@ void *MTY_HashSet(MTY_Hash *ctx, const char *key, void *value)
 	}
 
 	if (!n) {
-		b->nodes = MTY_Realloc(b->nodes, ++b->num_nodes, sizeof(struct hash_node));
-		n = &b->nodes[b->num_nodes - 1];
+		b->nodes = MTY_Realloc(b->nodes, b->num_nodes + 1, sizeof(struct hash_node) + sizeof(uint32_t));
+		h = (uint32_t*)(b->nodes + b->num_nodes + 1);
+		memmove(h, ((struct hash_node*)h) - 1, sizeof(uint32_t) * b->num_nodes);
+		n = &b->nodes[b->num_nodes];
+		b->num_nodes++;
 	}
 
 	n->key = MTY_Strdup(key);
 	n->val = value;
+	h[n - b->nodes] = hash;
 
 	return NULL;
 }
