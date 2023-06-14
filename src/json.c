@@ -430,8 +430,7 @@ MTY_JSON *MTY_JSONParse(const char *input)
 		if (c == '\r') {
 			++line;
 			column = 1;
-		}
-		else {
+		} else {
 			++column;
 		}
 	}
