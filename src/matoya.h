@@ -274,6 +274,7 @@ typedef enum {
 	MTY_KEY_NUM_LOCK       = 0x145, ///< Num Lock
 	MTY_KEY_SCROLL_LOCK    = 0x046, ///< Scroll Lock
 	MTY_KEY_PAUSE          = 0x045, ///< Pause/Break
+	MTY_KEY_SIGBREAK       = 0x146, ///< Ctrl + Pause/Break (Windows)
 	MTY_KEY_NP_7           = 0x047, ///< 7 (numpad)
 	MTY_KEY_HOME           = 0x147, ///< Home
 	MTY_KEY_NP_8           = 0x048, ///< 8 (numpad)
