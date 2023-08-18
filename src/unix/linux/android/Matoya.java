@@ -194,6 +194,11 @@ public class Matoya extends SurfaceView implements
 
 	// Events
 
+	static boolean isKeyboardEvent(InputEvent event) {
+		return
+			(event.getSource() & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD;
+	}
+
 	static boolean isMouseEvent(InputEvent event) {
 		return
 			(event.getSource() & InputDevice.SOURCE_MOUSE) == InputDevice.SOURCE_MOUSE ||
@@ -208,6 +213,13 @@ public class Matoya extends SurfaceView implements
 	}
 
 	boolean keyEvent(int keyCode, KeyEvent event, boolean down) {
+		// For mixed source InputDevice, we prefer Keyboard event handling to Gamepad event handling
+		if (isKeyboardEvent(event)) {
+			int uc = event.getUnicodeChar();
+
+			return app_key(down, keyCode, uc != 0 ? String.format("%c", uc) : null,
+				event.getMetaState(), event.getDeviceId() <= 0);
+		}
 		// Button events fire here (sometimes dpad)
 		if (isGamepadEvent(event)) {
 			app_button(event.getDeviceId(), down, keyCode);
