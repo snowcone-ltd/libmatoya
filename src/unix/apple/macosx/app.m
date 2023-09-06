@@ -28,18 +28,7 @@ CGError CGSSetGlobalHotKeyOperatingMode(int32_t conn, enum CGSGlobalHotKeyOperat
 
 // App
 
-struct window {
-	NSWindow <NSWindowDelegate> *nsw;
-	NSTrackingArea *area;
-	MTY_App *app;
-	struct window_common cmn;
-	MTY_Window window;
-	NSRect normal_frame;
-	NSRect restore_frame;
-	bool was_maximized;
-	bool top;
-	bool open;
-};
+struct window;
 
 struct MTY_App {
 	NSObject <NSApplicationDelegate, NSUserNotificationCenterDelegate> *nsapp;
@@ -68,7 +57,7 @@ struct MTY_App {
 	bool pen_left;
 	NSUInteger buttons;
 	uint32_t cb_seq;
-	struct window windows[MTY_WINDOW_MAX];
+	struct window *windows[MTY_WINDOW_MAX];
 	float timeout;
 	struct hid *hid;
 };
@@ -397,16 +386,28 @@ static Class app_class(void)
 
 // Window
 
+struct window {
+	NSWindow <NSWindowDelegate> *nsw;
+	NSTrackingArea *area;
+	MTY_App *app;
+	struct window_common cmn;
+	MTY_Window window;
+	NSRect normal_frame;
+	NSRect restore_frame;
+	bool was_maximized;
+	bool top;
+};
+
 static struct window *app_get_window(MTY_App *ctx, MTY_Window window)
 {
-	return window < 0 || !ctx->windows[window].open ? NULL : &ctx->windows[window];
+	return window < 0 ? NULL : ctx->windows[window];
 }
 
 static struct window *app_get_active_window(MTY_App *ctx)
 {
 	for (MTY_Window x = 0; x < MTY_WINDOW_MAX; x++)
-		if (ctx->windows[x].open && ctx->windows[x].nsw.isKeyWindow)
-			return &ctx->windows[x];
+		if (ctx->windows[x] && ctx->windows[x]->nsw.isKeyWindow)
+			return ctx->windows[x];
 
 	return NULL;
 }
@@ -414,19 +415,19 @@ static struct window *app_get_active_window(MTY_App *ctx)
 static struct window *app_get_window_by_number(MTY_App *ctx, NSInteger number)
 {
 	for (MTY_Window x = 0; x < MTY_WINDOW_MAX; x++)
-		if (ctx->windows[x].open && ctx->windows[x].nsw.windowNumber == number)
-			return &ctx->windows[x];
+		if (ctx->windows[x] && ctx->windows[x]->nsw.windowNumber == number)
+			return ctx->windows[x];
 
 	return NULL;
 }
 
 static MTY_Window app_find_open_window(MTY_App *ctx, MTY_Window req)
 {
-	if (req >= 0 && req < MTY_WINDOW_MAX && !ctx->windows[req].open)
+	if (req >= 0 && req < MTY_WINDOW_MAX && !ctx->windows[req])
 		return req;
 
 	for (MTY_Window x = 0; x < MTY_WINDOW_MAX; x++)
-		if (!ctx->windows[x].open)
+		if (!ctx->windows[x])
 			return x;
 
 	return -1;
@@ -1810,8 +1811,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 		NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable;
 
 	// Window
-	struct window *ctx = &app->windows[window];
-	ctx->open = true;
+	struct window *ctx = MTY_Alloc(1, sizeof(struct window));
 	ctx->window = window;
 	ctx->app = app;
 
@@ -1831,6 +1831,8 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	// View
 	content = [OBJC_NEW(view_class(), ctx) initWithFrame:[ctx->nsw contentRectForFrameRect:ctx->nsw.frame]];
 	[ctx->nsw setContentView:content];
+
+	ctx->app->windows[window] = ctx;
 
 	if (frame->type & MTY_WINDOW_MAXIMIZED)
 		[ctx->nsw zoom:ctx->nsw];
@@ -1868,9 +1870,10 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 	// can continue to fire until that point
 	mty_webview_destroy(&ctx->cmn.webview);
 
-	// The window is closed asynchronously, meaning events can still be fired after this function
-	// We keep the app inside the window in case that happens to prevent the app from crashing
-	*ctx = (struct window) { .app = ctx->app };
+	ctx->nsw = nil;
+	ctx->area = nil;
+
+	MTY_Free(ctx);
 }
 
 MTY_Size MTY_WindowGetSize(MTY_App *app, MTY_Window window)
