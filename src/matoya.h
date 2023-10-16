@@ -2194,6 +2194,11 @@ MTY_SetLogFunc(MTY_LogFunc func, void *opaque);
 MTY_EXPORT void
 MTY_DisableLog(bool disabled);
 
+/// @brief Temporarily disable logging in the current thread.
+/// @param disabled Specify true to disable logging, false to enable it.
+MTY_EXPORT void
+MTY_DisableLogThread(bool disabled);
+
 /// @brief Log a formatted string.
 /// @details This function is intended to be called internally via the
 ///   MTY_Log macro, but can be used to add to the libmatoya log.
