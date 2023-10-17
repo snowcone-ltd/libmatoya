@@ -1535,11 +1535,8 @@ static void app_descale_nsimage(NSImage *nsi, float overscale, uint32_t *hotspot
 	csize.height /= overscale;
 	nsi.size = csize;
 
-	if (hotspotX)
-		*hotspotX = (uint32_t) ((float) *hotspotX / overscale + 0.5f);
-
-	if (hotspotY)
-		*hotspotY = (uint32_t) ((float) *hotspotY / overscale + 0.5f);
+	*hotspotX = (uint32_t) ((float) *hotspotX / overscale + 0.5f);
+	*hotspotY = (uint32_t) ((float) *hotspotY / overscale + 0.5f);
 }
 
 void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
