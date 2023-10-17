@@ -1558,7 +1558,7 @@ void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint3
 
 		if (rep) {
 			nsi = [[NSImage alloc] initWithCGImage:rep.CGImage size:NSZeroSize];
-			app_descale_nsimage(ctx->cursor_overscale, nsi, &hotX, &hotY);
+			app_descale_nsimage(nsi, ctx->cursor_overscale, &hotX, &hotY);
 		}
 	}
 
