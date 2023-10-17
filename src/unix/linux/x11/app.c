@@ -927,9 +927,6 @@ static Cursor app_rgba_cursor(Display *display, const uint32_t *rgba, uint32_t w
 
 void MTY_AppSetCursorMagnify(MTY_App *ctx, float scale)
 {
-	// This function doesn't currently do anything on Linux.
-	(void)ctx;
-	(void)scale;
 }
 
 void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
