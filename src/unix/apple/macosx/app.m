@@ -1569,7 +1569,7 @@ void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t 
 {
 	NSImage *nsi = image ? [[NSImage alloc] initWithData:[NSData dataWithBytes:image length:size]] : nil;
 
-	app_descale_nsimage(ctx->cursor_overscale, nsi, &hotX, &hotY);
+	app_descale_nsimage(nsi, ctx->cursor_overscale, &hotX, &hotY);
 	app_set_cursor(ctx, nsi, hotX, hotY);
 }
 
