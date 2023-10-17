@@ -837,7 +837,6 @@ void MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative)
 
 void MTY_AppSetCursorMagnify(MTY_App *ctx, float scale)
 {
-	// This function doesn't currently do anything on Android.
 }
 
 void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
