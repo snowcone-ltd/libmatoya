@@ -1526,7 +1526,7 @@ void MTY_AppSetCursorMagnify(MTY_App *ctx, float scale)
 }
 
 // @brief Descales the rendered dimensions of the given NSImage (without resizing the pixel array).
-static void app_descale_nsimage(float overscale, NSImage *nsi, uint32_t *hotspotX, uint32_t *hotspotY)
+static void app_descale_nsimage(NSImage *nsi, float overscale, uint32_t *hotspotX, uint32_t *hotspotY)
 {
 	if (!nsi || [[nsi representations] count] < 1 || overscale <= 0.0f || overscale == 1.0f)
 		return;
