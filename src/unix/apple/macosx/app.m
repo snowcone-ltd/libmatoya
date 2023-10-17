@@ -1521,8 +1521,7 @@ static void app_set_cursor(MTY_App *ctx, NSImage *image, uint32_t hotX, uint32_t
 
 void MTY_AppSetCursorMagnify(MTY_App *ctx, float scale)
 {
-	if (ctx)
-		ctx->cursor_overscale = (scale <= 0.0f) ? 1.0f : scale;
+	ctx->cursor_overscale = (scale <= 0.0f) ? 1.0f : scale;
 }
 
 // @brief Descales the rendered dimensions of the given NSImage (without resizing the pixel array).
