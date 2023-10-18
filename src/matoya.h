@@ -2195,6 +2195,8 @@ MTY_EXPORT void
 MTY_DisableLog(bool disabled);
 
 /// @brief Temporarily disable logging in the current thread.
+/// @details This prevents the calling of the log callback function,
+///   but you may still get the most recent log line via MTY_GetLog.
 /// @param disabled Specify true to disable logging, false to enable it.
 MTY_EXPORT void
 MTY_DisableLogThread(bool disabled);
