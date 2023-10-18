@@ -36,7 +36,7 @@ static void log_internal(const char *func, const char *fmt, va_list args)
 	MTY_Free(msg);
 	MTY_Free(fmt_name);
 
-	if (!MTY_Atomic32Get(&LOG_DISABLED) || LOG_DISABLED_THREAD) {
+	if (!LOG_DISABLED_THREAD && !MTY_Atomic32Get(&LOG_DISABLED)) {
 		LOG_PREVENT_RECURSIVE = true;
 		LOG_FUNC(LOG_MSG, LOG_OPAQUE);
 		LOG_PREVENT_RECURSIVE = false;
