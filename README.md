@@ -17,6 +17,8 @@
 - Common cryptography tasks
 - ... and [more](https://github.com/matoya/libmatoya/wiki)!
 
+If you're interested in being part of the journey, join us on [Discord](https://discord.gg/EUJnstgwK6).
+
 ### Platform Support
 
 | Platform   | Minimum Version            |
