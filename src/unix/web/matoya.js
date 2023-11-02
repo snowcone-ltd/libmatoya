@@ -563,7 +563,7 @@ function mty_rumble_gamepad(id, low, high) {
 		});
 }
 
-function mty_poll_gamepads() {
+function mty_poll_gamepads(thread) {
 	const gps = navigator.getGamepads();
 
 	for (let x = 0; x < 4; x++) {
@@ -781,7 +781,7 @@ function mty_supports_web_gl() {
 function mty_update_interval(thread) {
 	// Poll gamepads
 	if (document.hasFocus())
-		mty_poll_gamepads();
+		mty_poll_gamepads(thread);
 
 	// Poll position changes
 	if (MTY.posX != window.screenX || MTY.posY != window.screenY) {
