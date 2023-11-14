@@ -34,7 +34,8 @@ struct MTY_App {
 	NSObject <NSApplicationDelegate, NSUserNotificationCenterDelegate> *nsapp;
 	NSCursor *custom_cursor;
 	NSCursor *cursor;
-	float cursor_overscale;
+	uint32_t cursor_width;
+	uint32_t cursor_height;
 	IOPMAssertionID assertion;
 	MTY_AppFunc app_func;
 	MTY_EventFunc event_func;
@@ -1340,7 +1341,8 @@ MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eve
 	ctx->opaque = opaque;
 	ctx->cursor_showing = true;
 	ctx->cont = true;
-	ctx->cursor_overscale = 1.0f;
+	ctx->cursor_width = 0;
+	ctx->cursor_height = 0;
 
 	ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report,
 		ctx->flags & MTY_APP_FLAG_HID_KEYBOARD ? app_hid_key : NULL, ctx);
@@ -1519,24 +1521,26 @@ static void app_set_cursor(MTY_App *ctx, NSImage *image, uint32_t hotX, uint32_t
 	app_apply_cursor(ctx);
 }
 
-void MTY_AppSetCursorMagnify(MTY_App *ctx, float scale)
+void MTY_AppSetCursorSize(MTY_App *ctx, uint32_t width, uint32_t height)
 {
-	ctx->cursor_overscale = (scale <= 0.0f) ? 1.0f : scale;
+	ctx->cursor_width = width;
+	ctx->cursor_height = height;
 }
 
 // @brief Descales the rendered dimensions of the given NSImage (without resizing the pixel array).
-static void app_descale_nsimage(NSImage *nsi, float overscale, uint32_t *hotspotX, uint32_t *hotspotY)
+static void app_descale_nsimage(NSImage *nsi, uint32_t width, uint32_t height, uint32_t *hotspotX, uint32_t *hotspotY)
 {
-	if (!nsi || [[nsi representations] count] < 1 || overscale <= 0.0f || overscale == 1.0f)
+	if (!nsi || [[nsi representations] count] < 1 || width == 0 || height == 0)
 		return;
 
 	NSSize csize = [nsi size];
-	csize.width /= overscale;
-	csize.height /= overscale;
-	nsi.size = csize;
 
-	*hotspotX = (uint32_t) ((float) *hotspotX / overscale + 0.5f);
-	*hotspotY = (uint32_t) ((float) *hotspotY / overscale + 0.5f);
+	*hotspotX = *hotspotX * width / csize.width;
+	*hotspotY = *hotspotY * height / csize.height;
+
+	csize.width = width;
+	csize.height = height;
+	nsi.size = csize;
 }
 
 void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
@@ -1554,7 +1558,7 @@ void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint3
 
 		if (rep) {
 			nsi = [[NSImage alloc] initWithCGImage:rep.CGImage size:NSZeroSize];
-			app_descale_nsimage(nsi, ctx->cursor_overscale, &hotX, &hotY);
+			app_descale_nsimage(nsi, ctx->cursor_width, ctx->cursor_height, &hotX, &hotY);
 		}
 	}
 
@@ -1565,7 +1569,7 @@ void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t 
 {
 	NSImage *nsi = image ? [[NSImage alloc] initWithData:[NSData dataWithBytes:image length:size]] : nil;
 
-	app_descale_nsimage(nsi, ctx->cursor_overscale, &hotX, &hotY);
+	app_descale_nsimage(nsi, ctx->cursor_width, ctx->cursor_height, &hotX, &hotY);
 	app_set_cursor(ctx, nsi, hotX, hotY);
 }
 

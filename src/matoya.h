@@ -858,16 +858,14 @@ MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX,
 /// @details On platforms that support cursor magnification, this tells
 ///   libmatoya that whenever new cursors are set with MTY_AppSetRGBACursor or
 ///   MTY_AppSetPNGCursor, the provided cursor bitmaps are assumed to be
-///   "scale" times larger than the size they should appear on screen.
-///   Useful for passing oversize Retina cursors with extra pixel detail, to be
-///   scaled accordingly by macOS when they are rendered.  Default scale is 1.0.
+///   the specified width and height, rather than the pixel size of the buffer
+///   passed to the function.
 /// @param ctx The MTY_App.
-/// @param scale The magnification scale of new cursors.  Examples: 2.0 means
-///   a 64x64 cursor image should be 32x32 on screen.  0.5 means a 64x64 cursor
-///   image should be 128x128 on screen.
+/// @param width The width that the cursor should be displayed at, in pixels
+/// @param height The height that the cursor should be displayed at, in pixels
 //- #support macOS
 MTY_EXPORT void
-MTY_AppSetCursorMagnify(MTY_App *ctx, float scale);
+MTY_AppSetCursorSize(MTY_App *ctx, uint32_t width, uint32_t height);
 
 /// @brief Use a cursor predefined by the OS.
 /// @details The cursor set via this function will take precedence over any set with
