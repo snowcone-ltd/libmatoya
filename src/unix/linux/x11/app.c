@@ -925,7 +925,7 @@ static Cursor app_rgba_cursor(Display *display, const uint32_t *rgba, uint32_t w
 	return cursor;
 }
 
-void MTY_AppSetCursorMagnify(MTY_App *ctx, float scale)
+void MTY_AppSetCursorSize(MTY_App *ctx, uint32_t width, uint32_t height)
 {
 }
 

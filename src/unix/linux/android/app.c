@@ -835,7 +835,7 @@ void MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative)
 	mty_jni_void(MTY_GetJNIEnv(), ctx->obj, "setRelativeMouse", "(Z)V", relative);
 }
 
-void MTY_AppSetCursorMagnify(MTY_App *ctx, float scale)
+void MTY_AppSetCursorSize(MTY_App* ctx, uint32_t width, uint32_t height)
 {
 }
 

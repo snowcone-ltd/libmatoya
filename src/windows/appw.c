@@ -1431,7 +1431,7 @@ static void app_set_rgba_cursor(MTY_App *app, const uint8_t *rgba, uint32_t widt
 	MTY_Free(mask);
 }
 
-void MTY_AppSetCursorMagnify(MTY_App *ctx, float scale)
+void MTY_AppSetCursorSize(MTY_App* ctx, uint32_t width, uint32_t height)
 {
 }
 
