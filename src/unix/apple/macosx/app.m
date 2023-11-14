@@ -121,7 +121,7 @@ static void app_apply_cursor(MTY_App *ctx)
 	}
 
 	NSCursor *new = ctx->cursor_outside || ctx->detach != MTY_DETACH_STATE_NONE ? arrow :
-		scursor ? scursor : ctx->custom_cursor ? ctx->custom_cursor : arrow;
+		ctx->custom_cursor ? ctx->custom_cursor : scursor ? scursor : arrow;
 
 	ctx->cursor = new;
 	[ctx->cursor set];
