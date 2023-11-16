@@ -751,6 +751,11 @@ async function mty_ws_connect(url) {
 			if (ws.data == '__pong__')
 				return; // Hide keepalive pong from client application
 
+			if (ws.data == '__ping__') {
+				ws.send('__pong__');
+				return; // Reply to keepalive ping
+			}
+
 			ws.msgs.push(ev.data);
 			Atomics.notify(ws.sync, 0, 1);
 		};
