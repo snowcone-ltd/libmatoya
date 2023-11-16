@@ -744,9 +744,15 @@ async function mty_ws_connect(url) {
 
 		ws.onopen = () => {
 			resolve(ws);
+			setInterval(() => {ws.send('__ping__');}, 5000); // 5 second ping to debug before PR
 		};
 
 		ws.onmessage = (ev) => {
+			if (ws.data == '__pong__') {
+				console.log("pong")
+				return;
+			}
+
 			ws.msgs.push(ev.data);
 			Atomics.notify(ws.sync, 0, 1);
 		};
