@@ -744,18 +744,10 @@ async function mty_ws_connect(url) {
 
 		ws.onopen = () => {
 			resolve(ws);
-			setInterval(() => {ws.send('__ping__');}, 60000); // Blind keepalive
+			setInterval(() => {ws.send('__ping__');}, 60000); // Fake keepalive
 		};
 
 		ws.onmessage = (ev) => {
-			if (ws.data == '__pong__')
-				return; // Hide keepalive pong from client application
-
-			if (ws.data == '__ping__') {
-				ws.send('__pong__');
-				return; // Reply to keepalive ping
-			}
-
 			ws.msgs.push(ev.data);
 			Atomics.notify(ws.sync, 0, 1);
 		};
