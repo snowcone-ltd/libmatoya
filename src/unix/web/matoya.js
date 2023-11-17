@@ -732,19 +732,22 @@ async function mty_ws_connect(url) {
 		ws.closeCode = 0;
 		ws.msgs = [];
 
+		let tm = 0;
 		ws.onclose = (ev) => {
 			ws.closeCode = ev.code == 1005 ? 1000 : ev.code;
+			clearInterval(tm);
 			resolve(null);
 		};
 
 		ws.onerror = (err) => {
 			console.error(err);
+			clearInterval(tm);
 			resolve(null);
 		};
 
 		ws.onopen = () => {
 			resolve(ws);
-			setInterval(() => {ws.send('__ping__');}, 60000); // Fake keepalive
+			tm = setInterval(() => {ws.send('__ping__');}, 60000); // Fake keepalive
 		};
 
 		ws.onmessage = (ev) => {
