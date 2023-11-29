@@ -121,7 +121,7 @@ static void app_apply_cursor(MTY_App *ctx)
 	}
 
 	NSCursor *new = ctx->cursor_outside || ctx->detach != MTY_DETACH_STATE_NONE ? arrow :
-		scursor ? scursor : ctx->custom_cursor ? ctx->custom_cursor : arrow;
+		ctx->custom_cursor ? ctx->custom_cursor : scursor ? scursor : arrow;
 
 	ctx->cursor = new;
 	[ctx->cursor set];
@@ -1292,6 +1292,9 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 		ctx->hid_kb_mod &= ~mod;
 	}
 
+	if (!ctx->grab_kb)
+		return;
+
 	struct window *window = app_get_active_window(ctx);
 	if (!window)
 		return;
@@ -1308,13 +1311,6 @@ static void app_hid_key(uint32_t usage, bool down, void *opaque)
 	};
 
 	mty_app_kb_to_hotkey(ctx, &evt, MTY_EVENT_HOTKEY);
-
-	if (!ctx->grab_kb) {
-		if (evt.type == MTY_EVENT_HOTKEY && down)
-			ctx->event_func(&evt, ctx->opaque);
-
-		return;
-	}
 
 	if ((evt.type == MTY_EVENT_HOTKEY && down) || (evt.type == MTY_EVENT_KEY && evt.key.key != MTY_KEY_NONE))
 		ctx->event_func(&evt, ctx->opaque);
@@ -1345,6 +1341,8 @@ MTY_App *MTY_AppCreate(MTY_AppFlag flags, MTY_AppFunc appFunc, MTY_EventFunc eve
 	ctx->opaque = opaque;
 	ctx->cursor_showing = true;
 	ctx->cont = true;
+	ctx->cursor_width = 0;
+	ctx->cursor_height = 0;
 
 	ctx->hid = mty_hid_create(app_hid_connect, app_hid_disconnect, app_hid_report,
 		ctx->flags & MTY_APP_FLAG_HID_KEYBOARD ? app_hid_key : NULL, ctx);
@@ -1754,7 +1752,6 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	[ctx->nsw setDelegate:ctx->nsw];
 	[ctx->nsw setAcceptsMouseMovedEvents:YES];
 	[ctx->nsw setReleasedWhenClosed:NO];
-	[ctx->nsw setTabbingMode:NSWindowTabbingModeDisallowed];
 
 	NSUInteger cb = alt_fs ? NSWindowCollectionBehaviorFullScreenNone |
 		NSWindowCollectionBehaviorFullScreenDisallowsTiling : NSWindowCollectionBehaviorFullScreenPrimary;
@@ -1792,9 +1789,6 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 		return;
 
 	ctx->app->windows[window] = NULL;
-
-	OBJC_CTX_CLEAR(ctx->nsw.contentView);
-	OBJC_CTX_CLEAR(ctx->nsw);
 
 	[ctx->nsw close];
 
