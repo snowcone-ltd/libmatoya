@@ -1616,6 +1616,7 @@ void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint3
 			hasAlpha:YES isPlanar:NO colorSpaceName:NSDeviceRGBColorSpace
 			bytesPerRow:width * 4 bitsPerPixel:32];
 
+		if (rep)
 		if (rep) {
 			nsi = [[NSImage alloc] initWithCGImage:rep.CGImage size:NSZeroSize];
 			app_descale_nsimage(nsi, ctx->cursor_width, ctx->cursor_height);
