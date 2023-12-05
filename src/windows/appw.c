@@ -489,7 +489,8 @@ static void app_apply_cursor(MTY_App *app, bool focus)
 			case MTY_CURSOR_IBEAM: scursor = IDC_IBEAM; break;
 		}
 
-		app->cursor = app->custom_cursor ? app->custom_cursor : scursor ? LoadCursor(NULL, scursor) : LoadCursor(NULL, IDC_ARROW);
+		app->cursor = scursor ? LoadCursor(NULL, scursor) : app->custom_cursor ? app->custom_cursor :
+			LoadCursor(NULL, IDC_ARROW);
 	}
 
 	if (GetCursor() != app->cursor)
