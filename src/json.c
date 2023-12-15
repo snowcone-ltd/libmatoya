@@ -223,7 +223,7 @@ static bool json_utf16(const char *input, size_t len, uint32_t *p, char *str, si
 
 		*p += 6;
 
-		code = 0x10000 | (code & 0x3FF) << 10 | (code2 & 0x3FF);
+		code = 0x10000 + (code & 0x3FF) << 10 + (code2 & 0x3FF);
 	}
 
 	*out += json_utf16_to_utf8(code, str + *out);
