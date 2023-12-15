@@ -698,13 +698,22 @@ void mty_vk_ctx_present(struct gfx_ctx *gfx_ctx)
 		.pImageIndices = &sc->bbi,
 	};
 
-	VkResult e = vkQueuePresentKHR(ctx->q, &pi);
+	uint32_t interval = 1;
 
-	vkQueueWaitIdle(ctx->q);
+	// XXX This will throw errors in Vulkan debug mode, but seems to work
+	for (uint32_t x = 0; x < interval; x++) {
+		VkResult e = vkQueuePresentKHR(ctx->q, &pi);
+		vkQueueWaitIdle(ctx->q);
 
-	// Recreate swapchain if necessary
-	if (VKPROC_OUT_OF_DATE(e))
-		vk_ctx_refresh_swapchain(ctx);
+		pi.waitSemaphoreCount = 0;
+		pi.pWaitSemaphores = NULL;
+
+		// Recreate swapchain if necessary
+		if (VKPROC_OUT_OF_DATE(e)) {
+			vk_ctx_refresh_swapchain(ctx);
+			break;
+		}
+	}
 
 	sc->bb = VK_NULL_HANDLE;
 }
