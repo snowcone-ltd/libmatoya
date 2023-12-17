@@ -9,6 +9,8 @@ GFX_CTX_PROTOTYPES(_d3d12_)
 #include <d3d12.h>
 #include <dxgi1_4.h>
 
+#include "gfx/sync.h"
+
 #define DXGI_FATAL(e) ( \
 	(e) == DXGI_ERROR_DEVICE_REMOVED || \
 	(e) == DXGI_ERROR_DEVICE_HUNG    || \
@@ -32,6 +34,7 @@ struct d3d12_ctx_buffer {
 struct d3d12_ctx {
 	HWND hwnd;
 	bool vsync;
+	struct sync sync;
 	uint32_t width;
 	uint32_t height;
 
@@ -397,6 +400,13 @@ MTY_Surface *mty_d3d12_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	return (MTY_Surface *) &core->back_buffer->dh;
 }
 
+void mty_d3d12_ctx_set_sync_interval(struct gfx_ctx *gfx_ctx, uint32_t interval)
+{
+	struct d3d12_ctx *ctx = (struct d3d12_ctx *) gfx_ctx;
+
+	sync_set_interval(&ctx->sync, interval);
+}
+
 void mty_d3d12_ctx_present(struct gfx_ctx *gfx_ctx)
 {
 	struct d3d12_ctx *ctx = (struct d3d12_ctx *) gfx_ctx;
@@ -430,7 +440,7 @@ void mty_d3d12_ctx_present(struct gfx_ctx *gfx_ctx)
 		ID3D12CommandQueue_ExecuteCommandLists(core->cq, 1, &cl);
 		ID3D12CommandList_Release(cl);
 
-		UINT interval = ctx->vsync ? 1 : 0;
+		UINT interval = ctx->vsync ? sync_next_interval(&ctx->sync) : 0;
 		UINT flags = ctx->vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING;
 
 		e = IDXGISwapChain3_Present(core->swap_chain3, interval, flags);

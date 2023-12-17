@@ -9,6 +9,8 @@ GFX_CTX_PROTOTYPES(_d3d11_)
 #include <d3d11.h>
 #include <dxgi1_5.h>
 
+#include "gfx/sync.h"
+
 #define DXGI_FATAL(e) ( \
 	(e) == DXGI_ERROR_DEVICE_REMOVED || \
 	(e) == DXGI_ERROR_DEVICE_HUNG    || \
@@ -20,6 +22,7 @@ GFX_CTX_PROTOTYPES(_d3d11_)
 struct d3d11_ctx {
 	HWND hwnd;
 	bool vsync;
+	struct sync sync;
 	uint32_t width;
 	uint32_t height;
 	ID3D11Device *device;
@@ -292,6 +295,13 @@ MTY_Surface *mty_d3d11_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	return (MTY_Surface *) ctx->back_buffer;
 }
 
+void mty_d3d11_ctx_set_sync_interval(struct gfx_ctx *gfx_ctx, uint32_t interval)
+{
+	struct d3d11_ctx *ctx = (struct d3d11_ctx *) gfx_ctx;
+
+	sync_set_interval(&ctx->sync, interval);
+}
+
 void mty_d3d11_ctx_present(struct gfx_ctx *gfx_ctx)
 {
 	struct d3d11_ctx *ctx = (struct d3d11_ctx *) gfx_ctx;
@@ -299,7 +309,7 @@ void mty_d3d11_ctx_present(struct gfx_ctx *gfx_ctx)
 	if (ctx->back_buffer) {
 		bool tearing = !ctx->vsync && (ctx->flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING);
 
-		UINT interval = tearing ? 0 : 1;
+		UINT interval = tearing ? 0 : sync_next_interval(&ctx->sync);
 		UINT flags = tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
 
 		HRESULT e = IDXGISwapChain2_Present(ctx->swap_chain2, interval, flags);

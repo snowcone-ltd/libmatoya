@@ -655,6 +655,10 @@ MTY_Surface *mty_vk_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	return (MTY_Surface *) (uintptr_t) sc->bb;
 }
 
+void mty_vk_ctx_set_sync_interval(struct gfx_ctx *gfx_ctx, uint32_t interval)
+{
+}
+
 void mty_vk_ctx_present(struct gfx_ctx *gfx_ctx)
 {
 	struct vk_ctx *ctx = (struct vk_ctx *) gfx_ctx;
@@ -698,22 +702,12 @@ void mty_vk_ctx_present(struct gfx_ctx *gfx_ctx)
 		.pImageIndices = &sc->bbi,
 	};
 
-	uint32_t interval = 1;
+	VkResult e = vkQueuePresentKHR(ctx->q, &pi);
 
-	// XXX This will throw errors in Vulkan debug mode, but seems to work
-	for (uint32_t x = 0; x < interval; x++) {
-		VkResult e = vkQueuePresentKHR(ctx->q, &pi);
-		vkQueueWaitIdle(ctx->q);
+	vkQueueWaitIdle(ctx->q);
 
-		pi.waitSemaphoreCount = 0;
-		pi.pWaitSemaphores = NULL;
-
-		// Recreate swapchain if necessary
-		if (VKPROC_OUT_OF_DATE(e)) {
-			vk_ctx_refresh_swapchain(ctx);
-			break;
-		}
-	}
+	if (VKPROC_OUT_OF_DATE(e))
+		vk_ctx_refresh_swapchain(ctx);
 
 	sc->bb = VK_NULL_HANDLE;
 }

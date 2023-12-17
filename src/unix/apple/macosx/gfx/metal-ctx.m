@@ -120,6 +120,10 @@ MTY_Surface *mty_metal_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	return (__bridge MTY_Surface *) ctx->back_buffer.texture;
 }
 
+void mty_metal_ctx_set_sync_interval(struct gfx_ctx *gfx_ctx, uint32_t interval)
+{
+}
+
 void mty_metal_ctx_present(struct gfx_ctx *gfx_ctx)
 {
 	struct metal_ctx *ctx = (struct metal_ctx *) gfx_ctx;

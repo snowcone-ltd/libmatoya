@@ -1225,6 +1225,16 @@ MTY_WindowGetGFX(MTY_App *app, MTY_Window window);
 MTY_EXPORT bool
 MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync);
 
+/// @brief Set the number of vertical blanks to wait until presentation occurs.
+/// @details This function only works with MTY_GFX_D3D11 and MTY_GFX_D3D12.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @param interval The number of vertical blanks after calling MTY_WindowPresent that
+///   presentation will occur, multiplied by 100.
+//- #support Windows
+MTY_EXPORT void
+MTY_WindowSetSyncInterval(MTY_App *app, MTY_Window window, uint32_t interval);
+
 /// @brief Get a list of available graphics APIs on the current OS.
 /// @param apis Array to receive the list of available graphics APIs. This buffer
 ///   should be MTY_GFX_MAX elements.
