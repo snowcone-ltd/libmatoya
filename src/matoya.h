@@ -2190,8 +2190,6 @@ MTY_EXPORT void
 MTY_SetLogFunc(MTY_LogFunc func, void *opaque);
 
 /// @brief Temporarily disable logging.
-/// @details This prevents the calling of the log callback function,
-///   but you may still get the most recent log line via MTY_GetLog.
 /// @param level Bitwise OR of 0x1 to disable all logging and 0x2 to disable
 ///   logging on the current thread.
 MTY_EXPORT void
