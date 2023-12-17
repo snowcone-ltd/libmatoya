@@ -54,14 +54,10 @@ void MTY_SetLogFunc(MTY_LogFunc func, void *opaque)
 	LOG_OPAQUE = opaque;
 }
 
-void MTY_DisableLog(bool disabled)
+void MTY_DisableLog(uint8_t level)
 {
-	MTY_Atomic32Set(&LOG_DISABLED, disabled ? 1 : 0);
-}
-
-void MTY_DisableLogThread(bool disabled)
-{
-	LOG_DISABLED_THREAD = disabled;
+	MTY_Atomic32Set(&LOG_DISABLED, level & 0x1);
+	LOG_DISABLED_THREAD = level & 0x2;
 }
 
 void MTY_LogParams(const char *func, const char *fmt, ...)

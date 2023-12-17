@@ -2189,19 +2189,13 @@ MTY_GetLog(void);
 MTY_EXPORT void
 MTY_SetLogFunc(MTY_LogFunc func, void *opaque);
 
-/// @brief Temporarily disable all logging.
+/// @brief Temporarily disable logging.
 /// @details This prevents the calling of the log callback function,
 ///   but you may still get the most recent log line via MTY_GetLog.
-/// @param disabled Specify true to disable logging, false to enable it.
+/// @param level Bitwise OR of 0x1 to disable all logging and 0x2 to disable
+///   logging on the current thread.
 MTY_EXPORT void
-MTY_DisableLog(bool disabled);
-
-/// @brief Temporarily disable logging in the current thread.
-/// @details This prevents the calling of the log callback function,
-///   but you may still get the most recent log line via MTY_GetLog.
-/// @param disabled Specify true to disable logging, false to enable it.
-MTY_EXPORT void
-MTY_DisableLogThread(bool disabled);
+MTY_DisableLog(uint8_t level);
 
 /// @brief Log a formatted string.
 /// @details This function is intended to be called internally via the
