@@ -18,7 +18,7 @@ static void sync_set_interval(struct sync *sync, uint32_t interval)
 static uint32_t sync_next_interval(struct sync *sync)
 {
 	if (sync->interval == 0)
-		return 1;
+		return 0;
 
 	uint32_t rem = sync->rem + sync->interval;
 	uint32_t r = (uint32_t) (rem / 100.0);

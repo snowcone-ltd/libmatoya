@@ -33,7 +33,6 @@ struct d3d12_ctx_buffer {
 
 struct d3d12_ctx {
 	HWND hwnd;
-	bool vsync;
 	struct sync sync;
 	uint32_t width;
 	uint32_t height;
@@ -284,7 +283,9 @@ struct gfx_ctx *mty_d3d12_ctx_create(void *native_window, bool vsync)
 	bool r = true;
 
 	ctx->hwnd = (HWND) native_window;
-	ctx->vsync = vsync;
+
+	if (vsync)
+		sync_set_interval(&ctx->sync, 1);
 
 	d3d12_ctx_get_size(ctx, &ctx->width, &ctx->height);
 
@@ -440,8 +441,8 @@ void mty_d3d12_ctx_present(struct gfx_ctx *gfx_ctx)
 		ID3D12CommandQueue_ExecuteCommandLists(core->cq, 1, &cl);
 		ID3D12CommandList_Release(cl);
 
-		UINT interval = ctx->vsync ? sync_next_interval(&ctx->sync) : 0;
-		UINT flags = ctx->vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING;
+		UINT interval = sync_next_interval(&ctx->sync);
+		UINT flags = interval > 0 ? 0 : DXGI_PRESENT_ALLOW_TEARING;
 
 		e = IDXGISwapChain3_Present(core->swap_chain3, interval, flags);
 
