@@ -1496,6 +1496,32 @@ MTY_EXPORT void
 MTY_ResamplerReset(MTY_Resampler *ctx);
 
 
+//- #module Compression
+//- #mbrief Basic compression.
+//- #mdetails These functions are platform specific and any data compressed with
+//-   these functions should only be decompressed on the same platform.
+
+/// @brief Compress data with a balanced algorithm.
+/// @param input Uncompressed input buffer.
+/// @param inputSize Size in bytes of `input`.
+/// @param outputSize Set to the size in bytes of the returned compressed buffer.
+/// @returns On failure, NULL is returned. Call MTY_GetLog for details.\n\n
+///   The returned buffer must be destroyed with MTY_Free.
+MTY_EXPORT void *
+MTY_Compress(const void *input, size_t inputSize, size_t *outputSize);
+
+/// @brief Decompress data compressed with MTY_Compress.
+/// @details This function should only be called on the same platform that originally
+///   called MTY_Compress.
+/// @param input Compressed input buffer.
+/// @param inputSize Size in bytes of `input`.
+/// @param outputSize Set to the size in bytes of the returned decompressed buffer.
+/// @returns On failure, NULL is returned. Call MTY_GetLog for details.\n\n
+///   The returned buffer must be destroyed with MTY_Free.
+MTY_EXPORT void *
+MTY_Decompress(const void *input, size_t inputSize, size_t *outputSize);
+
+
 //- #module Crypto
 //- #mbrief Common cryptography tasks.
 

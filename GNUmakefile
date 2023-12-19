@@ -39,6 +39,7 @@ OBJS = \
 	src/tlocal.o \
 	src/version.o \
 	src/hid/utils.o \
+	src/unix/compress.o \
 	src/unix/file.o \
 	src/unix/memory.o \
 	src/unix/thread.o \

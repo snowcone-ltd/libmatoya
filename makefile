@@ -49,6 +49,7 @@ OBJS = \
 	src\windows\aes-gcm.obj \
 	src\windows\appw.obj \
 	src\windows\audio.obj \
+	src\windows\compress.obj \
 	src\windows\cryptow.obj \
 	src\windows\dialog.obj \
 	src\windows\dtlsw.obj \
