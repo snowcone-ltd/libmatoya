@@ -1804,6 +1804,14 @@ MTY_Mkdir(const char *path);
 MTY_EXPORT const char *
 MTY_JoinPath(const char *path0, const char *path1);
 
+/// @brief Resolves a relative path into a full absolute path.
+/// @details This function expands all symbolic links and resolves references to
+///   `..` and `.`. It also removes extra delimiters.
+/// @param path The relative path.
+/// @returns This buffer is allocated in thread local storage and must not be freed.
+MTY_EXPORT const char *
+MTY_ResolvePath(const char *path);
+
 /// @brief Copy a file.
 /// @param src Path to the source file.
 /// @param dst Path to the destination file.
