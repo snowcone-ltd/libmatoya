@@ -1740,7 +1740,7 @@ typedef struct {
 /// @brief Read the entire contents of a file.
 /// @details This function reads the file in binary mode.
 /// @param path Path to the file.
-/// @param size Set to the size in bytes of the returned buffer.
+/// @param size Set to the size in bytes of the returned buffer. May be NULL.
 /// @returns The buffer always has its final byte set to 0, allowing you to treat
 ///   it like a string. This extra byte is not counted in the returned `size`.\n\n
 ///   On failure, NULL is returned. Call MTY_GetLog for details.\n\n
