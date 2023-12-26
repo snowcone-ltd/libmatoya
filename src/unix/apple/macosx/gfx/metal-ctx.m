@@ -9,6 +9,8 @@ GFX_CTX_PROTOTYPES(_metal_)
 #include <AppKit/AppKit.h>
 #include <QuartzCore/CAMetalLayer.h>
 
+#include "gfx/sync.h"
+#include "display-link.h"
 #include "scale.h"
 
 struct metal_ctx {
@@ -17,6 +19,9 @@ struct metal_ctx {
 	id<CAMetalDrawable> back_buffer;
 	id<MTLCommandQueue> cq;
 	CGSize size;
+
+	struct sync sync;
+	struct display_link dlink;
 };
 
 static void metal_ctx_mt_block(void (^block)(void))
@@ -43,7 +48,14 @@ struct gfx_ctx *mty_metal_ctx_create(void *native_window, bool vsync)
 		ctx->layer = [CAMetalLayer layer];
 		ctx->layer.device = device;
 		ctx->layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-		ctx->layer.displaySyncEnabled = vsync ? YES : NO;
+
+		if (vsync) {
+			sync_set_interval(&ctx->sync, 100);
+			ctx->layer.displaySyncEnabled = YES;
+
+		} else {
+			ctx->layer.displaySyncEnabled = NO;
+		}
 
 		ctx->cq = [ctx->layer.device newCommandQueue];
 
@@ -60,6 +72,8 @@ void mty_metal_ctx_destroy(struct gfx_ctx **gfx_ctx)
 		return;
 
 	struct metal_ctx *ctx = (struct metal_ctx *) *gfx_ctx;
+
+	display_link_destroy(&ctx->dlink);
 
 	ctx->window = nil;
 	ctx->layer = nil;
@@ -122,6 +136,9 @@ MTY_Surface *mty_metal_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 
 void mty_metal_ctx_set_sync_interval(struct gfx_ctx *gfx_ctx, uint32_t interval)
 {
+	struct metal_ctx *ctx = (struct metal_ctx *) gfx_ctx;
+
+	sync_set_interval(&ctx->sync, interval);
 }
 
 void mty_metal_ctx_present(struct gfx_ctx *gfx_ctx)
@@ -129,10 +146,19 @@ void mty_metal_ctx_present(struct gfx_ctx *gfx_ctx)
 	struct metal_ctx *ctx = (struct metal_ctx *) gfx_ctx;
 
 	if (ctx->back_buffer) {
+		int64_t ctr = display_link_get_counter(&ctx->dlink);
+
 		id<MTLCommandBuffer> cb = [ctx->cq commandBuffer];
 		[cb presentDrawable:ctx->back_buffer];
 		[cb commit];
 		[cb waitUntilCompleted];
+
+		ctr = display_link_get_counter(&ctx->dlink) - ctr;
+
+		int64_t interval = sync_next_interval(&ctx->sync);
+
+		if (interval - ctr > 0)
+			display_link_delay(&ctx->dlink, interval - ctr);
 
 		ctx->back_buffer = nil;
 	}

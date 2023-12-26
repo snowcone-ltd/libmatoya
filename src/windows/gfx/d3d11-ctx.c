@@ -196,7 +196,7 @@ struct gfx_ctx *mty_d3d11_ctx_create(void *native_window, bool vsync)
 	ctx->hwnd = (HWND) native_window;
 
 	if (vsync)
-		sync_set_interval(&ctx->sync, 1);
+		sync_set_interval(&ctx->sync, 100);
 
 	d3d11_ctx_get_size(ctx, &ctx->width, &ctx->height);
 
