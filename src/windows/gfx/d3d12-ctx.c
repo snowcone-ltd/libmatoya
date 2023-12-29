@@ -10,6 +10,7 @@ GFX_CTX_PROTOTYPES(_d3d12_)
 #include <dxgi1_4.h>
 
 #include "gfx/sync.h"
+#include "dxgi-sync.h"
 
 #define DXGI_FATAL(e) ( \
 	(e) == DXGI_ERROR_DEVICE_REMOVED || \
@@ -34,6 +35,8 @@ struct d3d12_ctx_buffer {
 struct d3d12_ctx {
 	HWND hwnd;
 	struct sync sync;
+	struct dxgi_sync *dxgi_sync;
+	int64_t pcount;
 	uint32_t width;
 	uint32_t height;
 
@@ -308,6 +311,7 @@ void mty_d3d12_ctx_destroy(struct gfx_ctx **gfx_ctx)
 
 	struct d3d12_ctx *ctx = (struct d3d12_ctx *) *gfx_ctx;
 
+	dxgi_sync_destroy(&ctx->dxgi_sync);
 	d3d12_core_free(&ctx->core);
 
 	MTY_Free(ctx);
@@ -406,6 +410,9 @@ void mty_d3d12_ctx_set_sync_interval(struct gfx_ctx *gfx_ctx, uint32_t interval)
 	struct d3d12_ctx *ctx = (struct d3d12_ctx *) gfx_ctx;
 
 	sync_set_interval(&ctx->sync, interval);
+
+	if (interval > 100 && !ctx->dxgi_sync)
+		ctx->dxgi_sync = dxgi_sync_create(ctx->hwnd);
 }
 
 void mty_d3d12_ctx_present(struct gfx_ctx *gfx_ctx)
@@ -441,10 +448,17 @@ void mty_d3d12_ctx_present(struct gfx_ctx *gfx_ctx)
 		ID3D12CommandQueue_ExecuteCommandLists(core->cq, 1, &cl);
 		ID3D12CommandList_Release(cl);
 
-		UINT interval = sync_next_interval(&ctx->sync);
+		int64_t interval = sync_next_interval(&ctx->sync);
 		UINT flags = interval > 0 ? 0 : DXGI_PRESENT_ALLOW_TEARING;
 
-		e = IDXGISwapChain3_Present(core->swap_chain3, interval, flags);
+		int64_t elapsed = dxgi_sync_get_count(ctx->dxgi_sync) - ctx->pcount;
+
+		for (int64_t x = 0; x < interval - elapsed; x++)
+			dxgi_sync_wait(ctx->dxgi_sync, D3D12_CTX_WAIT);
+
+		e = IDXGISwapChain3_Present(core->swap_chain3, 0, flags);
+
+		ctx->pcount = dxgi_sync_get_count(ctx->dxgi_sync);
 
 		if (DXGI_FATAL(e)) {
 			MTY_Log("'IDXGISwapChain3_Present' failed with HRESULT 0x%X", e);

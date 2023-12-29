@@ -10,6 +10,7 @@ GFX_CTX_PROTOTYPES(_d3d11_)
 #include <dxgi1_5.h>
 
 #include "gfx/sync.h"
+#include "dxgi-sync.h"
 
 #define DXGI_FATAL(e) ( \
 	(e) == DXGI_ERROR_DEVICE_REMOVED || \
@@ -22,6 +23,8 @@ GFX_CTX_PROTOTYPES(_d3d11_)
 struct d3d11_ctx {
 	HWND hwnd;
 	struct sync sync;
+	struct dxgi_sync *dxgi_sync;
+	int64_t pcount;
 	uint32_t width;
 	uint32_t height;
 	ID3D11Device *device;
@@ -213,6 +216,7 @@ void mty_d3d11_ctx_destroy(struct gfx_ctx **gfx_ctx)
 
 	struct d3d11_ctx *ctx = (struct d3d11_ctx *) *gfx_ctx;
 
+	dxgi_sync_destroy(&ctx->dxgi_sync);
 	d3d11_ctx_free(ctx);
 
 	MTY_Free(ctx);
@@ -301,6 +305,9 @@ void mty_d3d11_ctx_set_sync_interval(struct gfx_ctx *gfx_ctx, uint32_t interval)
 	struct d3d11_ctx *ctx = (struct d3d11_ctx *) gfx_ctx;
 
 	sync_set_interval(&ctx->sync, interval);
+
+	if (interval > 100 && !ctx->dxgi_sync)
+		ctx->dxgi_sync = dxgi_sync_create(ctx->hwnd);
 }
 
 void mty_d3d11_ctx_present(struct gfx_ctx *gfx_ctx)
@@ -308,15 +315,20 @@ void mty_d3d11_ctx_present(struct gfx_ctx *gfx_ctx)
 	struct d3d11_ctx *ctx = (struct d3d11_ctx *) gfx_ctx;
 
 	if (ctx->back_buffer) {
-		UINT interval = sync_next_interval(&ctx->sync);
+		int64_t interval = sync_next_interval(&ctx->sync);
 		UINT flags = interval > 0 ? 0 : DXGI_PRESENT_ALLOW_TEARING;
 
-		if (interval == 0 && !(ctx->flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING)) {
-			interval = 1;
+		if (interval == 0 && !(ctx->flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING))
 			flags = 0;
-		}
 
-		HRESULT e = IDXGISwapChain2_Present(ctx->swap_chain2, interval, flags);
+		int64_t elapsed = dxgi_sync_get_count(ctx->dxgi_sync) - ctx->pcount;
+
+		for (int64_t x = 0; x < interval - elapsed; x++)
+			dxgi_sync_wait(ctx->dxgi_sync, D3D11_CTX_WAIT);
+
+		HRESULT e = IDXGISwapChain2_Present(ctx->swap_chain2, 0, flags);
+
+		ctx->pcount = dxgi_sync_get_count(ctx->dxgi_sync);
 
 		ID3D11RenderTargetView_Release(ctx->back_buffer);
 		ctx->back_buffer = NULL;
