@@ -22,6 +22,7 @@ struct metal_ctx {
 
 	struct sync sync;
 	struct display_link dlink;
+	int64_t pcount;
 };
 
 static void metal_ctx_mt_block(void (^block)(void))
@@ -146,20 +147,19 @@ void mty_metal_ctx_present(struct gfx_ctx *gfx_ctx)
 	struct metal_ctx *ctx = (struct metal_ctx *) gfx_ctx;
 
 	if (ctx->back_buffer) {
-		int64_t ctr = display_link_get_counter(&ctx->dlink);
+		int64_t interval = sync_next_interval(&ctx->sync);
 
 		id<MTLCommandBuffer> cb = [ctx->cq commandBuffer];
 		[cb presentDrawable:ctx->back_buffer];
 		[cb commit];
 		[cb waitUntilCompleted];
 
-		ctr = display_link_get_counter(&ctx->dlink) - ctr;
+		int64_t elapsed = display_link_get_counter(&ctx->dlink) - ctx->pcount;
 
-		int64_t interval = sync_next_interval(&ctx->sync);
+		for (int64_t x = 0; x < interval - elapsed; x++)
+			display_link_wait(&ctx->dlink);
 
-		if (interval - ctr > 0)
-			display_link_delay(&ctx->dlink, interval - ctr);
-
+		ctx->pcount = display_link_get_counter(&ctx->dlink);
 		ctx->back_buffer = nil;
 	}
 }

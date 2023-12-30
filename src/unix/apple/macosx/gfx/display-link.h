@@ -37,16 +37,14 @@ static int64_t display_link_get_counter(struct display_link *ctx)
 	return MTY_Atomic64Get(&ctx->counter);
 }
 
-static void display_link_delay(struct display_link *ctx, uint32_t interval)
+static void display_link_wait(struct display_link *ctx)
 {
-	for (uint32_t x = 0; x < interval; x++) {
-		if (!ctx->link) {
-			ctx->semaphore = dispatch_semaphore_create(0);
-			CVDisplayLinkCreateWithCGDisplay(CGMainDisplayID(), &ctx->link);
-			CVDisplayLinkSetOutputCallback(ctx->link, display_link_output, ctx);
-			CVDisplayLinkStart(ctx->link);
-		}
-
-		dispatch_semaphore_wait(ctx->semaphore, DISPATCH_TIME_FOREVER);
+	if (!ctx->link) {
+		ctx->semaphore = dispatch_semaphore_create(0);
+		CVDisplayLinkCreateWithCGDisplay(CGMainDisplayID(), &ctx->link);
+		CVDisplayLinkSetOutputCallback(ctx->link, display_link_output, ctx);
+		CVDisplayLinkStart(ctx->link);
 	}
+
+	dispatch_semaphore_wait(ctx->semaphore, DISPATCH_TIME_FOREVER);
 }
