@@ -6,8 +6,11 @@
 
 #include "matoya.h"
 
-#include <stdio.h>
+#define __wasilibc_unmodified_upstream // realpath
 #include <stdlib.h>
+#undef __wasilibc_unmodified_upstream
+
+#include <stdio.h>
 #include <string.h>
 #include <strings.h>
 #include <errno.h>
@@ -61,6 +64,21 @@ bool MTY_Mkdir(const char *path)
 	MTY_Free(tmp);
 
 	return true;
+}
+
+const char *MTY_ResolvePath(const char *path)
+{
+	char *resolved = realpath(path, NULL);
+
+	if (!resolved) {
+		MTY_Log("'realpath' failed with errno %d", errno);
+		return NULL;
+	}
+
+	const char *local = mty_tlocal_strcpy(resolved);
+	free(resolved);
+
+	return local;
 }
 
 bool MTY_CopyFile(const char *src, const char *dst)
@@ -185,6 +203,9 @@ static int32_t file_compare(const void *p1, const void *p2)
 
 MTY_FileList *MTY_GetFileList(const char *path, const char *filter)
 {
+	uint8_t tmp[4 * 1024];
+	mty_tlocal_set_mem(tmp, sizeof(tmp));
+
 	MTY_FileList *fl = MTY_Alloc(1, sizeof(MTY_FileList));
 	char *pathd = MTY_Strdup(path);
 
@@ -221,6 +242,8 @@ MTY_FileList *MTY_GetFileList(const char *path, const char *filter)
 
 	if (fl->len > 0)
 		MTY_Sort(fl->files, fl->len, sizeof(MTY_FileDesc), file_compare);
+
+	mty_tlocal_set_mem(NULL, 0);
 
 	return fl;
 }

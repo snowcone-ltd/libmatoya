@@ -63,6 +63,7 @@ LOCAL_SRC_FILES := \
 	src/gfx/vk/vk-ctx.c \
 	src/gfx/vk/vk-ui.c \
 	src/hid/utils.c \
+	src/unix/compress.c \
 	src/unix/file.c \
 	src/unix/memory.c \
 	src/unix/system.c \

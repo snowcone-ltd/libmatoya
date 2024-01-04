@@ -25,6 +25,7 @@ struct gfx_ctx;
 	MTY_Device *wrap(api, get_device)(struct gfx_ctx *gfx_ctx); \
 	MTY_Context *wrap(api, get_context)(struct gfx_ctx *gfx_ctx); \
 	MTY_Surface *wrap(api, get_surface)(struct gfx_ctx *gfx_ctx); \
+	void wrap(api, set_sync_interval)(struct gfx_ctx *gfx_ctx, uint32_t interval); \
 	bool wrap(api, lock)(struct gfx_ctx *gfx_ctx); \
 	void wrap(api, unlock)(void);
 
@@ -40,6 +41,7 @@ struct gfx_ctx;
 		mty##api##ctx_get_device, \
 		mty##api##ctx_get_context, \
 		mty##api##ctx_get_surface, \
+		mty##api##ctx_set_sync_interval, \
 		mty##api##ctx_lock, \
 		mty##api##ctx_unlock, \
 	},

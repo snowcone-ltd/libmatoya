@@ -655,6 +655,10 @@ MTY_Surface *mty_vk_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	return (MTY_Surface *) (uintptr_t) sc->bb;
 }
 
+void mty_vk_ctx_set_sync_interval(struct gfx_ctx *gfx_ctx, uint32_t interval)
+{
+}
+
 void mty_vk_ctx_present(struct gfx_ctx *gfx_ctx)
 {
 	struct vk_ctx *ctx = (struct vk_ctx *) gfx_ctx;
@@ -702,7 +706,6 @@ void mty_vk_ctx_present(struct gfx_ctx *gfx_ctx)
 
 	vkQueueWaitIdle(ctx->q);
 
-	// Recreate swapchain if necessary
 	if (VKPROC_OUT_OF_DATE(e))
 		vk_ctx_refresh_swapchain(ctx);
 

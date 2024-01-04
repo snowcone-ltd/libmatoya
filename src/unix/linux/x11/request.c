@@ -67,6 +67,12 @@ bool MTY_HttpRequest(const char *url, const char *method, const char *headers,
 	// No signals
 	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
 
+	// Follow redirects
+	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
+
+	// Handle gzipped data
+	curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "gzip");
+
 	// Timeouts
 	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, timeout);
 	curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, timeout);

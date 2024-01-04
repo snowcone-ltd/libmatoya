@@ -540,6 +540,9 @@ void mty_webview_navigate(struct webview *ctx, const char *source, bool url)
 
 void mty_webview_show(struct webview *ctx, bool show)
 {
+	if (!ctx->controller)
+		return;
+
 	ICoreWebView2Controller2_put_IsVisible(ctx->controller, show);
 
 	if (show)
@@ -548,6 +551,9 @@ void mty_webview_show(struct webview *ctx, bool show)
 
 bool mty_webview_is_visible(struct webview *ctx)
 {
+	if (!ctx->controller)
+		return false;
+
 	BOOL visible = FALSE;
 	ICoreWebView2Controller2_get_IsVisible(ctx->controller, &visible);
 
@@ -568,6 +574,9 @@ void mty_webview_send_text(struct webview *ctx, const char *msg)
 
 void mty_webview_reload(struct webview *ctx)
 {
+	if (!ctx->webview)
+		return;
+
 	ICoreWebView2_Reload(ctx->webview);
 }
 
