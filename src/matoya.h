@@ -856,12 +856,25 @@ MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX,
 
 /// @brief Use a cursor predefined by the OS.
 /// @details The cursor set via this function will take precedence over any set with
-///   MTY_AppSetPNGCursor.
+///   MTY_AppSetPNGCursor or MTY_AppSetRGBACursor.
 /// @param ctx The MTY_App.
 /// @param cursor The predefined cursor. Set MTY_CURSOR_NONE to revert the effects
 ///   of this function.
 MTY_EXPORT void
 MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor);
+
+/// @brief Set the cursor magnification scale for new cursors.
+/// @details On platforms that support cursor magnification, this tells
+///   libmatoya that whenever new cursors are set with MTY_AppSetRGBACursor or
+///   MTY_AppSetPNGCursor, the provided cursor bitmaps are assumed to be
+///   the specified width and height, rather than the pixel size of the buffer
+///   passed to the function.
+/// @param ctx The MTY_App.
+/// @param width The width that the cursor should be displayed at, in pixels
+/// @param height The height that the cursor should be displayed at, in pixels
+//- #support macOS
+MTY_EXPORT void
+MTY_AppSetCursorSize(MTY_App *ctx, uint32_t width, uint32_t height);
 
 /// @brief Show or hide the cursor.
 /// @param ctx The MTY_App.
