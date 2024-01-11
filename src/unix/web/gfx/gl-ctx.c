@@ -64,6 +64,10 @@ MTY_Surface *mty_gl_ctx_get_surface(struct gfx_ctx *gfx_ctx)
 	return (MTY_Surface *) &ctx->fb0;
 }
 
+void mty_gl_ctx_set_sync_interval(struct gfx_ctx *gfx_ctx, uint32_t interval)
+{
+}
+
 void mty_gl_ctx_present(struct gfx_ctx *gfx_ctx)
 {
 	struct gl_ctx *ctx = (struct gl_ctx *) gfx_ctx;

@@ -61,6 +61,23 @@ bool MTY_Mkdir(const char *path)
 	return true;
 }
 
+const char *MTY_ResolvePath(const char *path)
+{
+	wchar_t *wpath = MTY_MultiToWideD(path);
+	wchar_t *resolved = _wfullpath(NULL, wpath, 0);
+	MTY_Free(wpath);
+
+	if (!resolved) {
+		MTY_Log("'_wfullpath' failed");
+		return NULL;
+	}
+
+	const char *local = MTY_WideToMultiDL(resolved);
+	free(resolved);
+
+	return local;
+}
+
 bool MTY_CopyFile(const char *src, const char *dst)
 {
 	bool r = true;
@@ -217,6 +234,9 @@ static int32_t file_compare(const void *p1, const void *p2)
 
 MTY_FileList *MTY_GetFileList(const char *path, const char *filter)
 {
+	uint8_t tmp[4 * 1024];
+	mty_tlocal_set_mem(tmp, sizeof(tmp));
+
 	MTY_FileList *fl = MTY_Alloc(1, sizeof(MTY_FileList));
 	char *pathd = MTY_Strdup(path);
 
@@ -253,6 +273,8 @@ MTY_FileList *MTY_GetFileList(const char *path, const char *filter)
 
 	if (fl->len > 0)
 		MTY_Sort(fl->files, fl->len, sizeof(MTY_FileDesc), file_compare);
+
+	mty_tlocal_set_mem(NULL, 0);
 
 	return fl;
 }

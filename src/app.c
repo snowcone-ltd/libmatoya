@@ -289,6 +289,15 @@ bool MTY_WindowSetGFX(MTY_App *app, MTY_Window window, MTY_GFX api, bool vsync)
 	return cmn->gfx_ctx != NULL;
 }
 
+void MTY_WindowSetSyncInterval(MTY_App *app, MTY_Window window, uint32_t interval)
+{
+	struct window_common *cmn = mty_window_get_common(app, window);
+	if (!cmn || cmn->api == MTY_GFX_NONE)
+		return;
+
+	GFX_CTX_API[cmn->api].set_sync_interval(cmn->gfx_ctx, interval);
+}
+
 uint32_t MTY_GetAvailableGFX(MTY_GFX *apis)
 {
 	uint32_t r = 0;
