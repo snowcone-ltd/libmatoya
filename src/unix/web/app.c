@@ -428,6 +428,10 @@ void MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor)
 	web_use_default_cursor(cursor != MTY_CURSOR_NONE);
 }
 
+void MTY_AppSetCursorSize(MTY_App* ctx, uint32_t width, uint32_t height)
+{
+}
+
 void MTY_AppShowCursor(MTY_App *ctx, bool show)
 {
 	web_show_cursor(show);
