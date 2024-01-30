@@ -1912,6 +1912,25 @@ float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
 	return mty_screen_scale(ctx->nsw.screen);
 }
 
+uint32_t MTY_WindowGetRefreshRate(MTY_App *app, MTY_Window window)
+{
+	uint32_t r = 60;
+
+	struct window *ctx = app_get_window(app, window);
+
+	if (ctx) {
+		CGDirectDisplayID display = screen_get_display_id(ctx->nsw.screen);
+		CGDisplayModeRef mode = CGDisplayCopyDisplayMode(display);
+
+		if (mode) {
+			r = lrint(CGDisplayModeGetRefreshRate(mode));
+			CGDisplayModeRelease(mode);
+		}
+	}
+
+	return r;
+}
+
 void MTY_WindowSetTitle(MTY_App *app, MTY_Window window, const char *title)
 {
 	struct window *ctx = app_get_window(app, window);

@@ -1096,6 +1096,12 @@ MTY_WindowGetScreenSize(MTY_App *app, MTY_Window window);
 MTY_EXPORT float
 MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window);
 
+/// @brief Get the refresh rate of the display where the window currently resides.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+MTY_EXPORT uint32_t
+MTY_WindowGetRefreshRate(MTY_App *app, MTY_Window window);
+
 /// @brief Set the window's title.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
