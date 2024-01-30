@@ -220,7 +220,8 @@ MTY_FileList *MTY_GetFileList(const char *path, const char *filter)
 
 	while (ok) {
 		char *name = ent->d_name;
-		bool is_dir = ent->d_type == DT_DIR;
+		bool is_dir = ent->d_type == DT_DIR ||
+			(ent->d_type == DT_UNKNOWN && (!strcmp(name, "..") || !strcmp(name, ".")));
 
 		if (is_dir || strstr(name, filter ? filter : "")) {
 			fl->files = MTY_Realloc(fl->files, fl->len + 1, sizeof(MTY_FileDesc));
