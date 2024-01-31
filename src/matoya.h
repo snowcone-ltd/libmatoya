@@ -1732,9 +1732,10 @@ typedef enum {
 
 /// @brief File properties.
 typedef struct {
-	char *path; ///< The base path to the file.
-	char *name; ///< The file name.
-	bool dir;   ///< The file is a directory.
+	char *path;    ///< The base path to the file.
+	char *name;    ///< The file name.
+	uint64_t size; ///< The file size in bytes.
+	bool dir;      ///< The file is a directory.
 } MTY_FileDesc;
 
 /// @brief A list of files.
@@ -2399,6 +2400,15 @@ MTY_SprintfD(const char *fmt, ...) MTY_FMT(1, 2);
 ///   This buffer is allocated in thread local storage and must not be freed.
 MTY_EXPORT const char *
 MTY_SprintfDL(const char *fmt, ...) MTY_FMT(1, 2);
+
+/// @brief Search a string for a list of substrings.
+/// @param a String to be searched.
+/// @param b List of substrings delimited by `delim`.
+/// @param delim Delimiters used to for `s1`. Each character in this string is treated
+///   as a delimiter like MTY_Strtok.
+/// @returns Returns true if any of `s1` is found in `s0`, otherwise false.
+MTY_EXPORT bool
+MTY_StrSearch(const char *s0, const char *s1, const char *delim);
 
 /// @brief Case insensitive string comparison.
 /// @details For more information, see `strcasecmp` from the C standard library.

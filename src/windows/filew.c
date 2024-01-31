@@ -234,8 +234,8 @@ static int32_t file_compare(const void *p1, const void *p2)
 
 MTY_FileList *MTY_GetFileList(const char *path, const char *filter)
 {
-	uint8_t tmp[4 * 1024];
-	mty_tlocal_set_mem(tmp, sizeof(tmp));
+	void *tmp = MTY_Alloc(0x1000, 1);
+	mty_tlocal_set_mem(tmp, 0x1000);
 
 	MTY_FileList *fl = MTY_Alloc(1, sizeof(MTY_FileList));
 	char *pathd = MTY_Strdup(path);
@@ -246,20 +246,23 @@ MTY_FileList *MTY_GetFileList(const char *path, const char *filter)
 	HANDLE dir = FindFirstFile(pathw, &ent);
 	bool ok = dir != INVALID_HANDLE_VALUE;
 
-	wchar_t *filterw = filter ? MTY_MultiToWideD(filter) : NULL;
-
 	while (ok) {
 		wchar_t *namew = ent.cFileName;
+		char *name = MTY_WideToMultiD(namew);
+
 		bool is_dir = ent.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
 
-		if (is_dir || wcsstr(namew, filterw ? filterw : L"")) {
+		if (is_dir || MTY_StrSearch(name, filter ? filter : "", "|")) {
 			fl->files = MTY_Realloc(fl->files, fl->len + 1, sizeof(MTY_FileDesc));
 
-			char *name = MTY_WideToMultiD(namew);
 			fl->files[fl->len].name = name;
 			fl->files[fl->len].path = MTY_Strdup(MTY_JoinPath(pathd, name));
 			fl->files[fl->len].dir = is_dir;
+			fl->files[fl->len].size = (uint64_t) ent.nFileSizeHigh << 32 | ent.nFileSizeLow;
 			fl->len++;
+
+		} else {
+			MTY_Free(name);
 		}
 
 		ok = FindNextFile(dir, &ent);
@@ -268,13 +271,13 @@ MTY_FileList *MTY_GetFileList(const char *path, const char *filter)
 			FindClose(dir);
 	}
 
-	MTY_Free(filterw);
 	MTY_Free(pathd);
 
 	if (fl->len > 0)
 		MTY_Sort(fl->files, fl->len, sizeof(MTY_FileDesc), file_compare);
 
 	mty_tlocal_set_mem(NULL, 0);
+	MTY_Free(tmp);
 
 	return fl;
 }
