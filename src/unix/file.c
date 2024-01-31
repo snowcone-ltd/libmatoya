@@ -226,12 +226,14 @@ MTY_FileList *MTY_GetFileList(const char *path, const char *filter)
 		if (is_dir || MTY_StrSearch(name, filter ? filter : "", "|")) {
 			fl->files = MTY_Realloc(fl->files, fl->len + 1, sizeof(MTY_FileDesc));
 
+			char *jpath = MTY_Strdup(MTY_JoinPath(pathd, name));
+
 			fl->files[fl->len].dir = is_dir;
 			fl->files[fl->len].name = MTY_Strdup(name);
-			fl->files[fl->len].path = MTY_Strdup(MTY_JoinPath(pathd, name));
+			fl->files[fl->len].path = jpath;
 
 			struct stat st;
-			if (!is_dir && stat(name, &st) == 0)
+			if (!is_dir && stat(jpath, &st) == 0)
 				fl->files[fl->len].size = st.st_size;
 
 			fl->len++;
