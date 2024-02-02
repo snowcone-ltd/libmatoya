@@ -1085,7 +1085,7 @@ void MTY_AppDestroy(MTY_App **app)
 
 	MTY_HashDestroy(&ctx->hotkey, NULL);
 	MTY_HashDestroy(&ctx->ghotkey, NULL);
-	MTY_HashDestroy(&ctx->deduper, NULL);
+	MTY_HashDestroy(&ctx->deduper, MTY_Free);
 
 	for (MTY_Window x = 0; x < MTY_WINDOW_MAX; x++)
 		MTY_WindowDestroy(ctx, x);
