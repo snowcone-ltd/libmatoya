@@ -1363,8 +1363,7 @@ static void app_set_rgba_cursor(MTY_App *app, const uint8_t *rgba, uint32_t widt
 	ICONINFO ii = {0};
 	void *mask = NULL;
 
-	size_t pad = sizeof(size_t) * 8;
-	size_t mask_len = width + ((pad - width % pad) / 8) * height;
+	size_t mask_len = (((width + 15) >> 4) << 1) * height;
 	mask = MTY_Alloc(mask_len, 1);
 	memset(mask, 0xFF, mask_len);
 
@@ -1463,6 +1462,10 @@ void MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor)
 		ctx->scursor = cursor;
 		ctx->state++;
 	}
+}
+
+void MTY_AppSetCursorSize(MTY_App* ctx, uint32_t width, uint32_t height)
+{
 }
 
 void MTY_AppShowCursor(MTY_App *ctx, bool show)
