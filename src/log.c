@@ -17,6 +17,7 @@ static void *LOG_OPAQUE;
 
 static TLOCAL char *LOG_MSG;
 static TLOCAL bool LOG_PREVENT_RECURSIVE;
+static TLOCAL bool LOG_DISABLED_THREAD;
 
 static void log_none(const char *msg, void *opaque)
 {
@@ -35,7 +36,7 @@ static void log_internal(const char *func, const char *fmt, va_list args)
 	MTY_Free(msg);
 	MTY_Free(fmt_name);
 
-	if (!MTY_Atomic32Get(&LOG_DISABLED)) {
+	if (!LOG_DISABLED_THREAD && !MTY_Atomic32Get(&LOG_DISABLED)) {
 		LOG_PREVENT_RECURSIVE = true;
 		LOG_FUNC(LOG_MSG, LOG_OPAQUE);
 		LOG_PREVENT_RECURSIVE = false;
@@ -53,9 +54,10 @@ void MTY_SetLogFunc(MTY_LogFunc func, void *opaque)
 	LOG_OPAQUE = opaque;
 }
 
-void MTY_DisableLog(bool disabled)
+void MTY_DisableLog(uint8_t level)
 {
-	MTY_Atomic32Set(&LOG_DISABLED, disabled ? 1 : 0);
+	MTY_Atomic32Set(&LOG_DISABLED, level & 0x1);
+	LOG_DISABLED_THREAD = level & 0x2;
 }
 
 void MTY_LogParams(const char *func, const char *fmt, ...)

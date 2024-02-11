@@ -2240,10 +2240,11 @@ MTY_GetLog(void);
 MTY_EXPORT void
 MTY_SetLogFunc(MTY_LogFunc func, void *opaque);
 
-/// @brief Temporarily disable all logging.
-/// @param disabled Specify true to disable logging, false to enable it.
+/// @brief Temporarily disable logging.
+/// @param level Bitwise OR of 0x1 to disable all logging and 0x2 to disable
+///   logging on the current thread.
 MTY_EXPORT void
-MTY_DisableLog(bool disabled);
+MTY_DisableLog(uint8_t level);
 
 /// @brief Log a formatted string.
 /// @details This function is intended to be called internally via the
