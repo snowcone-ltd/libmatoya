@@ -17,6 +17,9 @@
 #define OBJC_CTX() \
 	(*((void **) object_getIndexedIvars(self)))
 
+#define OBJC_CTX_CLEAR(obj) \
+	*((void **) object_getIndexedIvars(obj)) = nil;
+
 #define OBJC_ALLOCATE(super, name) \
 	objc_allocateClassPair(objc_getClass(super), name, sizeof(void *))
 
