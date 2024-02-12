@@ -201,7 +201,8 @@ MTY_Async MTY_WebSocketRead(MTY_WebSocket *ctx, uint32_t timeout, char *msg, siz
 					ctx->msg = MTY_Strdup([ws_msg.string UTF8String]);
 			}
 
-			MTY_WaitableSignal(ctx->read);
+			if (ctx->read)
+				MTY_WaitableSignal(ctx->read);
 		}];
 	}
 
@@ -244,7 +245,8 @@ bool MTY_WebSocketWrite(MTY_WebSocket *ctx, const char *msg)
 			MTY_Log("NSURLSessionWebSocketTask:sendMessage failed with error %ld", [e code]);
 		}
 
-		MTY_WaitableSignal(ctx->write);
+		if (ctx->write)
+			MTY_WaitableSignal(ctx->write);
 	}];
 
 	if (!MTY_WaitableWait(ctx->write, 1000))
