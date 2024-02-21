@@ -155,7 +155,7 @@ void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 		ctx->size = 0;
 	}
 
-	if (ctx->size == 0)
+	if (ctx->size == 0) {
 		ctx->playing = false;
 		ctx->flushing = false;
 	}
