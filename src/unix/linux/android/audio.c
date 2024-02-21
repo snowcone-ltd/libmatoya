@@ -150,9 +150,12 @@ void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 		ctx->flushing = true;
 
 	size_t minimum_request = AAudioStream_getFramesPerBurst(ctx->stream) * ctx->channels * AUDIO_SAMPLE_SIZE;
-	if (ctx->size < minimum_request) {
+	if (ctx->flushing && ctx->size < minimum_request) {
 		memset(ctx->buffer, 0, ctx->size);
 		ctx->size = 0;
+	}
+
+	if (ctx->size == 0)
 		ctx->playing = false;
 		ctx->flushing = false;
 	}
