@@ -46,6 +46,7 @@ static void http_async_free_state(void *opaque)
 			MTY_SecureFree(s->req.body, s->req.body_size);
 
 		MTY_Free(s->req.method);
+		MTY_Free(s->req.proxy);
 		MTY_Free(s->res.body);
 		MTY_Free(s);
 	}
