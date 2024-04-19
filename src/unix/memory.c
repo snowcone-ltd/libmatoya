@@ -45,9 +45,11 @@ char *MTY_Strtok(char *str, const char *delim, char **saveptr)
 	return strtok_r(str, delim, saveptr);
 }
 
+__thread mbstate_t mbstate;
+
 bool MTY_WideToMulti(const wchar_t *src, char *dst, size_t size)
 {
-	size_t n = wcstombs(dst, src, size);
+	size_t n = wcsrtombs(dst, &src, size, &mbstate);
 
 	if (n > 0 && n != (size_t) -1) {
 		if (n == size) {
@@ -65,7 +67,7 @@ bool MTY_WideToMulti(const wchar_t *src, char *dst, size_t size)
 
 bool MTY_MultiToWide(const char *src, wchar_t *dst, uint32_t len)
 {
-	size_t n = mbstowcs(dst, src, len);
+	size_t n = mbsrtowcs(dst, &src, len, &mbstate);
 
 	if (n > 0 && n != (size_t) -1) {
 		if (n == len) {
