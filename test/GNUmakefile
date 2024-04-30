@@ -29,6 +29,8 @@ CFLAGS := $(CFLAGS) -Wno-format-overflow
 LIBS = \
 	../bin/linux/$(ARCH)/libmatoya.a \
 	-lc \
+	-ldl \
+	-lpthread \
 	-lm
 endif
 

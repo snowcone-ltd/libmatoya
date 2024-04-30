@@ -15,8 +15,11 @@ struct MTY_AESGCM {
 	BCRYPT_KEY_HANDLE khandle;
 };
 
-MTY_AESGCM *MTY_AESGCMCreate(const void *key)
+MTY_AESGCM *MTY_AESGCMCreate(const void *key, size_t keySize)
 {
+	if (keySize != 16 && keySize != 32)
+		return NULL;
+
 	MTY_AESGCM *ctx = MTY_Alloc(1, sizeof(MTY_AESGCM));
 	bool r = true;
 
@@ -35,7 +38,7 @@ MTY_AESGCM *MTY_AESGCMCreate(const void *key)
 		goto except;
 	}
 
-	e = BCryptGenerateSymmetricKey(ctx->ahandle, &ctx->khandle, NULL, 0, (UCHAR *) key, 16, 0);
+	e = BCryptGenerateSymmetricKey(ctx->ahandle, &ctx->khandle, NULL, 0, (UCHAR *) key, (ULONG) keySize, 0);
 	if (e != STATUS_SUCCESS) {
 		MTY_Log("'BCryptGenerateSymmetricKey' failed with error 0x%X", e);
 		r = false;

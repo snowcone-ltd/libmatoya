@@ -10,6 +10,7 @@
 #include "sym.h"
 
 static const EVP_CIPHER *(*EVP_aes_128_gcm)(void);
+static const EVP_CIPHER *(*EVP_aes_256_gcm)(void);
 static EVP_CIPHER_CTX *(*EVP_CIPHER_CTX_new)(void);
 static void (*EVP_CIPHER_CTX_free)(EVP_CIPHER_CTX *c);
 static int (*EVP_CipherInit_ex)(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher, ENGINE *impl,
@@ -64,6 +65,7 @@ static bool libcrypto_global_init(void)
 		}
 
 		LOAD_SYM(LIBCRYPTO_SO, EVP_aes_128_gcm);
+		LOAD_SYM(LIBCRYPTO_SO, EVP_aes_256_gcm);
 		LOAD_SYM(LIBCRYPTO_SO, EVP_CIPHER_CTX_new);
 		LOAD_SYM(LIBCRYPTO_SO, EVP_CIPHER_CTX_free);
 		LOAD_SYM(LIBCRYPTO_SO, EVP_CipherInit_ex);

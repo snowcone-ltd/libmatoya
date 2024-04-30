@@ -337,9 +337,12 @@ struct MTY_AESGCM {
 	__m128i H[4];
 };
 
-MTY_AESGCM *MTY_AESGCMCreate(const void *key)
+MTY_AESGCM *MTY_AESGCMCreate(const void *key, size_t keySize)
 {
-	MTY_AESGCM *ctx = MTY_AllocAligned(sizeof(MTY_AESGCM), 16);
+	if (keySize != 16)
+		return NULL;
+
+	MTY_AESGCM *ctx = MTY_AllocAligned(sizeof(MTY_AESGCM), keySize);
 
 	aes_key_expansion(key, ctx->k);
 

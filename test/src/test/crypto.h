@@ -3,66 +3,100 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
-static bool validate_aesgcm()
+static bool validate_unknown_aesgcm(void)
 {
-	char *password1 = "1234567890123456";
-	char *password2 = "secret password!";
+	const char *password1 = "1234567890123456789012345678901212345678901234567890123456789012";
+
+	for (uint32_t i = 0; i < 64; i++) {
+		if (i != 16 && i != 32) {
+			MTY_AESGCM *aes1 = MTY_AESGCMCreate(password1, i);
+			if (aes1 != NULL) {
+				MTY_AESGCMDestroy(&aes1);
+				test_cmp("MTY_AESGCMCreate %u", aes1 == NULL);
+			}
+		}
+	}
+
+	return true;
+}
+
+static bool validate_aesgcm_128(void)
+{
+	const uint8_t pre_encrypted[] = {
+		0xE5, 0x19, 0x0B, 0x88, 0x89, 0xE4, 0x3D, 0x6B, 0xCC, 0xD1, 0x59, 0xC7, 0x39, 0x46, 0x34, 0x64,
+		0xB0, 0x11, 0x00, 0x24, 0x35, 0xB6, 0xC1, 0xF8, 0x0C, 0xCE, 0xB5, 0x82, 0x4E, 0x5B, 0xFD, 0xFD,
+		0x42, 0x5C, 0x16, 0x67, 0x0D, 0x6B, 0x5D, 0x57, 0x91, 0x2A, 0x84, 0x65, 0xF3, 0x4E, 0x4E, 0x75,
+		0x8C, 0x00, 0x3A, 0xF4, 0xEF, 0x5F, 0x42, 0xA2, 0x79, 0x69, 0x48, 0xED, 0xE5, 0x85, 0x49, 0xAE,
+		0x24, 0x48, 0xDA
+	};
+	const char *password1 = "1234567890123456";
+	const char *password2 = "secret password!";
 	char nonce1[] = "123456789012";
-	char *nonce2 = "s3cr3t3stpas";
-	char *plain     = "The Quick Brown Fox Jumped Over The Super Lazy Dog!";
-	char *encrypted1 = calloc(1, strlen(plain));
-	char *encrypted2 = calloc(1, strlen(plain));
-	char *encrypted3 = calloc(1, strlen(plain));
-	char *decrypted = calloc(1, strlen(plain) + 1);
+	const char *nonce2 = "s3cr3t3stpas";
+	const char *plain     = "The Quick Brown Fox Jumped Over The Super Lazy Dog!";
+	const size_t len = strlen(plain);
+	char *encrypted1 = calloc(1, len);
+	char *encrypted2 = calloc(1, len);
+	char *encrypted3 = calloc(1, len);
+	char *decrypted = calloc(1, len + 1);
 	char *tag1 = calloc(1, 16);
 
-	MTY_AESGCM *aes1 = MTY_AESGCMCreate(password1);
-	test_cmp("MTY_AESGCMCreate", aes1 != NULL);
-	MTY_AESGCMEncrypt(aes1, nonce1, plain, strlen(plain), tag1, encrypted1);
+	MTY_AESGCM *aes1 = MTY_AESGCMCreate(password1, 16);
+	test_cmp("MTY_AESGCMCreate 128", aes1 != NULL);
+	MTY_AESGCMEncrypt(aes1, nonce1, plain, len, tag1, encrypted1);
+	bool same = 0 == memcmp(pre_encrypted, encrypted1, len);
+	if (!same) {
+		char buffer[256] = {0};
+		MTY_BytesToHex(pre_encrypted, len, buffer, 256);
+		printf("Pre: %s\n", buffer);
+		MTY_BytesToHex(encrypted1, len, buffer, 256);
+		printf("Our: %s\n", buffer);
+	}
+	test_cmp("MTY_AESGCMEncrypt 128", same);
 
 	// Succeed
-	bool ok = MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, strlen(plain), tag1, decrypted);
-	test_cmp("MTY_AESGCMDecrypt", ok);
+	bool ok = MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, len, tag1, decrypted);
+	test_cmp("MTY_AESGCMDecrypt 128", ok);
 
 	// Encrypted data modified -- fail
 	encrypted1[3] = ~encrypted1[3];
-	ok = MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, strlen(plain), tag1, decrypted);
-	test_cmp("MTY_AESGCMDecrypt", !ok);
+	ok = MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, len, tag1, decrypted);
+	test_cmp("MTY_AESGCMDecrypt 128", !ok);
 
 	// Tag modified -- fail
 	encrypted1[3] = ~encrypted1[3];
 	tag1[3] = ~tag1[3];
-	ok = MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, strlen(plain), tag1, decrypted);
-	test_cmp("MTY_AESGCMDecrypt", !ok);
+	ok = MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, len, tag1, decrypted);
+	test_cmp("MTY_AESGCMDecrypt 128", !ok);
 
 	// Nonce modified -- fail
 	tag1[3] = ~tag1[3];
 	nonce1[3] = ~nonce1[3];
-	ok = MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, strlen(plain), tag1, decrypted);
-	test_cmp("MTY_AESGCMDecrypt", !ok);
+	ok = MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, len, tag1, decrypted);
+	test_cmp("MTY_AESGCMDecrypt 128", !ok);
 
 	// Back to normal -- succeed
 	nonce1[3] = ~nonce1[3];
-	ok = MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, strlen(plain), tag1, decrypted);
-	test_cmp("MTY_AESGCMDecrypt", ok);
+	ok = MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, len, tag1, decrypted);
+	test_cmp("MTY_AESGCMDecrypt 128", ok);
 
 	MTY_AESGCMDestroy(&aes1);
 
-	aes1 = MTY_AESGCMCreate(password2);
-	MTY_AESGCMEncrypt(aes1, nonce1, plain, strlen(plain), tag1, encrypted2);
+	aes1 = MTY_AESGCMCreate(password2, 16);
+	MTY_AESGCMEncrypt(aes1, nonce1, plain, len, tag1, encrypted2);
 	MTY_AESGCMDestroy(&aes1);
-	int32_t cmp_encr_1 = memcmp(encrypted1, encrypted2, strlen(plain));
+	int32_t cmp_encr_1 = memcmp(encrypted1, encrypted2, len);
 
 
-	aes1 = MTY_AESGCMCreate(password1);
-	test_cmp("MTY_AESGCMCreate", aes1 != NULL);
-	MTY_AESGCMEncrypt(aes1, nonce2, plain, strlen(plain), tag1, encrypted3);
+	aes1 = MTY_AESGCMCreate(password1, 16);
+	test_cmp("MTY_AESGCMCreate 128", aes1 != NULL);
+	MTY_AESGCMEncrypt(aes1, nonce2, plain, len, tag1, encrypted3);
 	MTY_AESGCMDestroy(&aes1);
-	int32_t cmp_encr_2 = memcmp(encrypted1, encrypted3, strlen(plain));
-	int32_t cmp_encr_3 = memcmp(encrypted2, encrypted3, strlen(plain));
+	int32_t cmp_encr_2 = memcmp(encrypted1, encrypted3, len);
+	int32_t cmp_encr_3 = memcmp(encrypted2, encrypted3, len);
 
-	aes1 = MTY_AESGCMCreate(password1);
-	MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, strlen(plain), tag1, decrypted);
+	aes1 = MTY_AESGCMCreate(password1, 16);
+	MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, len, tag1, decrypted);
 	MTY_AESGCMDestroy(&aes1);
 	int32_t cmp_decr = strcmp(decrypted, plain);
 	free(encrypted3);
@@ -71,17 +105,112 @@ static bool validate_aesgcm()
 	free(decrypted);
 	free(tag1);
 
-	test_cmp("MTY_AESGCMDestroy", aes1 == NULL);
+	test_cmp("MTY_AESGCMDestroy 128", aes1 == NULL);
 
-	test_cmp("MTY_AESGCMDecrypt", cmp_decr == 0);
-	test_cmp("MTY_AESGCMEncrypt", cmp_encr_1 != 0);
-	test_cmp("MTY_AESGCMEncrypt", cmp_encr_2 != 0);
-	test_cmp("MTY_AESGCMEncrypt", cmp_encr_3 != 0);
+	test_cmp("MTY_AESGCMDecrypt 128", cmp_decr == 0);
+	test_cmp("MTY_AESGCMEncrypt 128", cmp_encr_1 != 0);
+	test_cmp("MTY_AESGCMEncrypt 128", cmp_encr_2 != 0);
+	test_cmp("MTY_AESGCMEncrypt 128", cmp_encr_3 != 0);
 
 	return true;
 }
 
-static bool validate_random()
+static bool validate_aesgcm_256(void)
+{
+	const uint8_t pre_encrypted[] = {
+		0xD4, 0x9A, 0x98, 0xCE, 0x53, 0x34, 0xA8, 0x82, 0x8E, 0x32, 0x7D, 0xF6, 0xBE, 0x62, 0x06, 0x7C,
+		0x58, 0xD1, 0x6E, 0xD4, 0x35, 0x87, 0xD0, 0x04, 0x6C, 0x87, 0x68, 0xD2, 0x97, 0x8B, 0xD6, 0x91,
+		0x28, 0xDB, 0xC5, 0x00, 0x79, 0xC1, 0x43, 0x47, 0x0D, 0x24, 0x60, 0x0C, 0x34, 0xE1, 0x30, 0xFD,
+		0xE2, 0x5F, 0xBB, 0x68, 0x63, 0xFA, 0x5D, 0x72, 0x81, 0xFD, 0x2F, 0x73, 0x3A, 0x34, 0x0B, 0x05,
+		0x20, 0x8A, 0x4D
+	};
+	const char *password1 = "12345678901234567890123456789012";
+	const char *password2 = "secret password!secret password!";
+	char nonce1[] = "123456789012";
+	const char *nonce2 = "s3cr3t3stpas";
+	const char *plain     = "The Quick Brown Fox Jumped Over The Super Lazy Dog!";
+	const size_t len = strlen(plain);
+	char *encrypted1 = calloc(1, len);
+	char *encrypted2 = calloc(1, len);
+	char *encrypted3 = calloc(1, len);
+	char *decrypted = calloc(1, len + 1);
+	char *tag1 = calloc(1, 32);
+
+	MTY_AESGCM *aes1 = MTY_AESGCMCreate(password1, 32);
+	test_cmp("MTY_AESGCMCreate 256", aes1 != NULL);
+	MTY_AESGCMEncrypt(aes1, nonce1, plain, len, tag1, encrypted1);
+	bool same = 0 == memcmp(pre_encrypted, encrypted1, len);
+	if (!same) {
+		char buffer[256] = {0};
+		MTY_BytesToHex(pre_encrypted, len, buffer, 256);
+		printf("Pre: %s\n", buffer);
+		MTY_BytesToHex(encrypted1, len, buffer, 256);
+		printf("Our: %s\n", buffer);
+	}
+	test_cmp("MTY_AESGCMEncrypt 256", same);
+
+	// Succeed
+	bool ok = MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, len, tag1, decrypted);
+	test_cmp("MTY_AESGCMDecrypt 256", ok);
+
+	// Encrypted data modified -- fail
+	encrypted1[3] = ~encrypted1[3];
+	ok = MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, len, tag1, decrypted);
+	test_cmp("MTY_AESGCMDecrypt 256", !ok);
+
+	// Tag modified -- fail
+	encrypted1[3] = ~encrypted1[3];
+	tag1[3] = ~tag1[3];
+	ok = MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, len, tag1, decrypted);
+	test_cmp("MTY_AESGCMDecrypt 256", !ok);
+
+	// Nonce modified -- fail
+	tag1[3] = ~tag1[3];
+	nonce1[3] = ~nonce1[3];
+	ok = MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, len, tag1, decrypted);
+	test_cmp("MTY_AESGCMDecrypt 256", !ok);
+
+	// Back to normal -- succeed
+	nonce1[3] = ~nonce1[3];
+	ok = MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, len, tag1, decrypted);
+	test_cmp("MTY_AESGCMDecrypt 256", ok);
+
+	MTY_AESGCMDestroy(&aes1);
+
+	aes1 = MTY_AESGCMCreate(password2, 32);
+	MTY_AESGCMEncrypt(aes1, nonce1, plain, len, tag1, encrypted2);
+	MTY_AESGCMDestroy(&aes1);
+	int32_t cmp_encr_1 = memcmp(encrypted1, encrypted2, len);
+
+
+	aes1 = MTY_AESGCMCreate(password1, 32);
+	test_cmp("MTY_AESGCMCreate 256", aes1 != NULL);
+	MTY_AESGCMEncrypt(aes1, nonce2, plain, len, tag1, encrypted3);
+	MTY_AESGCMDestroy(&aes1);
+	int32_t cmp_encr_2 = memcmp(encrypted1, encrypted3, len);
+	int32_t cmp_encr_3 = memcmp(encrypted2, encrypted3, len);
+
+	aes1 = MTY_AESGCMCreate(password1, 32);
+	MTY_AESGCMDecrypt(aes1, nonce1, encrypted1, len, tag1, decrypted);
+	MTY_AESGCMDestroy(&aes1);
+	int32_t cmp_decr = strcmp(decrypted, plain);
+	free(encrypted3);
+	free(encrypted2);
+	free(encrypted1);
+	free(decrypted);
+	free(tag1);
+
+	test_cmp("MTY_AESGCMDestroy 256", aes1 == NULL);
+
+	test_cmp("MTY_AESGCMDecrypt 256", cmp_decr == 0);
+	test_cmp("MTY_AESGCMEncrypt 256", cmp_encr_1 != 0);
+	test_cmp("MTY_AESGCMEncrypt 256", cmp_encr_2 != 0);
+	test_cmp("MTY_AESGCMEncrypt 256", cmp_encr_3 != 0);
+
+	return true;
+}
+
+static bool validate_random(void)
 {
 	int32_t random_size = 1 * 1024 * 1024;
 	uint32_t distribution[256] = {0};
@@ -157,7 +286,7 @@ static bool validate_sha256_hmac(const char *hmac, const char *data, const char 
 	return true;
 }
 
-static bool validate_cryptohash()
+static bool validate_cryptohash(void)
 {
 	/*
 	MTY_ALGORITHM_SHA1
@@ -246,7 +375,7 @@ static bool validate_cryptohash()
 	return true;
 }
 
-static bool validate_djb2()
+static bool validate_djb2(void)
 {
 	uint32_t crc = MTY_DJB2("123456789");
 	test_cmp_("CRC32 1", crc == 0x35cdbb82, "123456789", ": \"%s\"");
@@ -259,7 +388,7 @@ static bool validate_djb2()
 
 }
 
-static bool validate_crc32()
+static bool validate_crc32(void)
 {
 	uint32_t crc = MTY_CRC32(0, "123456789", 9);
 	test_cmp_("CRC32 1", crc == 0xcbf43926, "123456789", ": \"%s\"");
@@ -271,7 +400,7 @@ static bool validate_crc32()
 	return true;
 }
 
-static bool crypto_main()
+static bool crypto_main(void)
 {
 	if (!validate_crc32())
 		return false;
@@ -285,7 +414,13 @@ static bool crypto_main()
 	if (!validate_random())
 		return false;
 
-	if (!validate_aesgcm())
+	if (!validate_unknown_aesgcm())
+		return false;
+
+	if (!validate_aesgcm_128())
+		return false;
+
+	if (!validate_aesgcm_256())
 		return false;
 
 	return true;

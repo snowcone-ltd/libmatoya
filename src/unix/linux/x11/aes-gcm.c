@@ -2,6 +2,8 @@
 // If a copy of the MIT License was not distributed with this file,
 // You can obtain one at https://spdx.org/licenses/MIT.html.
 
+#include <string.h>
+
 #include "matoya.h"
 
 #include "dl/libcrypto.c"
@@ -11,15 +13,35 @@ struct MTY_AESGCM {
 	EVP_CIPHER_CTX *dec;
 };
 
-MTY_AESGCM *MTY_AESGCMCreate(const void *key)
+MTY_AESGCM *MTY_AESGCMCreate(const void *key, size_t keySize)
 {
+	if (keySize != 16 && keySize != 32)
+		return NULL;
+
 	if (!libcrypto_global_init())
 		return NULL;
 
 	MTY_AESGCM *ctx = MTY_Alloc(1, sizeof(MTY_AESGCM));
 	bool r = true;
 
-	const EVP_CIPHER *cipher = EVP_aes_128_gcm();
+	const EVP_CIPHER *cipher = NULL;
+	switch (keySize) {
+		case 16:
+			cipher = EVP_aes_128_gcm();
+			break;
+		case 32:
+			cipher = EVP_aes_256_gcm();
+			break;
+		default:
+			MTY_Log("invalid key size %zu", keySize);
+			break;
+	}
+
+	if (!cipher) {
+		MTY_Log("'EVP_aes_%zu_gcm' failed", keySize * 8);
+		r = false;
+		goto except;
+	}
 
 	ctx->enc = EVP_CIPHER_CTX_new();
 	if (!ctx->enc) {
