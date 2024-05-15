@@ -253,7 +253,7 @@ objs: $(OBJS)
 # developer.android.com/ndk/downloads -> ~/android-ndk
 
 ifndef ANDROID_NDK_ROOT
-ANDROID_NDK_ROOT = $(HOME)/android-ndk
+export ANDROID_NDK_ROOT = $(HOME)/android-home/ndk
 endif
 
 ifndef ABI
