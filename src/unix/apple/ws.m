@@ -30,8 +30,15 @@ struct MTY_WebSocket {
 static void websocket_URLSession_task_didCompleteWithError(id self, SEL _cmd, NSURLSession *session,
 	NSURLSessionTask *task, NSError *error)
 {
-	if (error)
-		MTY_Log("'URLSession:task:didCompleteWithError' fired with code %ld\n", error.code);
+	if (!error)
+		return;
+
+	MTY_Log("'URLSession:task:didCompleteWithError' fired with code %ld", error.code);
+
+	MTY_WebSocket *ctx = OBJC_CTX();
+
+	ctx->closed = true;
+	MTY_WaitableSignal(ctx->conn);
 }
 
 static void websocket_URLSession_webSocketTask_didOpenWithProtocol(id self, SEL _cmd, NSURLSession *session,
@@ -113,7 +120,7 @@ MTY_WebSocket *MTY_WebSocketConnect(const char *url, const char *headers, const 
 
 	[ctx->task resume];
 
-	bool opened = MTY_WaitableWait(ctx->conn, timeout);
+	bool opened = MTY_WaitableWait(ctx->conn, timeout) && !ctx->closed;
 
 	// Upgrade status
 	NSHTTPURLResponse *response = (NSHTTPURLResponse *) ctx->task.response;
