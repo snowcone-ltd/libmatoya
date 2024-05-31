@@ -36,9 +36,13 @@ static void websocket_URLSession_task_didCompleteWithError(id self, SEL _cmd, NS
 	MTY_Log("'URLSession:task:didCompleteWithError' fired with code %ld", error.code);
 
 	MTY_WebSocket *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	ctx->closed = true;
-	MTY_WaitableSignal(ctx->conn);
+
+	if (ctx->conn)
+		MTY_WaitableSignal(ctx->conn);
 }
 
 static void websocket_URLSession_webSocketTask_didOpenWithProtocol(id self, SEL _cmd, NSURLSession *session,
