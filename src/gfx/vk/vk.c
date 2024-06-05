@@ -397,6 +397,11 @@ static bool vk_refresh_image(struct gfx *gfx, MTY_Device *device, MTY_Context *c
 	return r;
 }
 
+bool mty_vk_valid_hardware_frame(MTY_Device *device, MTY_Context *context, const void *shared_resource)
+{
+	return false;
+}
+
 bool mty_vk_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest)
 {

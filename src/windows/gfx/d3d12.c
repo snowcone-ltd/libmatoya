@@ -474,6 +474,11 @@ static bool d3d12_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Con
 	return r;
 }
 
+bool mty_d3d12_valid_hardware_frame(MTY_Device *device, MTY_Context *context, const void *shared_resource)
+{
+	return false;
+}
+
 bool mty_d3d12_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest)
 {

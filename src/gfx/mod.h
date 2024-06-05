@@ -34,6 +34,8 @@ struct gfx;
 #define GFX_DECLARE_API(api, wrap) \
 	struct gfx *wrap(api, create)(MTY_Device *device, uint8_t layer); \
 	void wrap(api, destroy)(struct gfx **gfx, MTY_Device *device); \
+	bool wrap(api, valid_hardware_frame)(MTY_Device *device, MTY_Context *context, \
+		const void *shared_resource); \
 	bool wrap(api, render)(struct gfx *gfx, MTY_Device *device, MTY_Context *context, \
 		const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest); \
 	void wrap(api, clear)(struct gfx *gfx, MTY_Device *device, MTY_Context *context, \
@@ -46,6 +48,7 @@ struct gfx;
 	[MTY_GFX_##API] = { \
 		mty##api##create, \
 		mty##api##destroy, \
+		mty##api##valid_hardware_frame, \
 		mty##api##render, \
 		mty##api##clear, \
 	},

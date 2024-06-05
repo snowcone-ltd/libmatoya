@@ -102,6 +102,15 @@ static bool gfx_begin_ui(struct window_common *cmn, MTY_Device *device)
 	return cmn->gfx_ui != NULL;
 }
 
+bool MTY_WindowIsValidHardwareFrame(MTY_App *app, MTY_Window window, const void *shared_resource, const MTY_RenderDesc *desc)
+{
+	struct window_common *cmn = mty_window_get_common(app, window);
+
+	MTY_Device *device = gfx_ctx_get_device(cmn);
+
+	return GFX_API[cmn->api].valid_hardware_frame(device, gfx_ctx_get_context(cmn), shared_resource);
+}
+
 void MTY_WindowDrawQuad(MTY_App *app, MTY_Window window, const void *image, const MTY_RenderDesc *desc)
 {
 	struct window_common *cmn = mty_window_get_common(app, window);

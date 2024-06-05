@@ -26,6 +26,7 @@ struct d3d11_res {
 	ID3D11ShaderResourceView *srv;
 	uint32_t width;
 	uint32_t height;
+	bool was_hardware;
 };
 
 struct d3d11 {
@@ -238,7 +239,7 @@ static bool d3d11_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Con
 	ID3D11Texture2D *texture = NULL;
 
 	// Resize
-	if (!res->resource || w != res->width || h != res->height || format != res->format) {
+	if (!res->resource || w != res->width || h != res->height || format != res->format || res->was_hardware) {
 		ID3D11Device *device = (ID3D11Device *) _device;
 
 		d3d11_destroy_resource(res);
@@ -301,6 +302,125 @@ static bool d3d11_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Con
 	return r;
 }
 
+static bool d3d11_map_shared_resource(struct gfx *gfx, MTY_Device *_device, MTY_Context *context, MTY_ColorFormat fmt,
+	uint8_t plane, const uint8_t *image, uint32_t full_w, uint32_t w, uint32_t h, uint8_t bpp)
+{
+	// We do all textures at once so we dont want to deal with any later planes.
+	if (plane > 0)
+		return true;
+
+	struct d3d11 *ctx = (struct d3d11 *) gfx;
+
+	HANDLE *shared_handle = (HANDLE *) image;
+	ID3D11Resource *res_d3d = NULL;
+	ID3D11Texture2D *texture = NULL;
+
+	for (uint32_t x = 0; x < 3 ; x++) {
+		if (!shared_handle[x])
+			continue;
+
+		struct d3d11_res *res = &ctx->staging[x];
+
+		ID3D11Device *device = (ID3D11Device *) _device;
+
+		if (res->srv)
+			ID3D11ShaderResourceView_Release(res->srv);
+
+		if (res->resource)
+			ID3D11Resource_Release(res->resource);
+
+		res->srv = NULL;
+		res->resource = NULL;
+
+		HRESULT e = ID3D11Device_OpenSharedResource(device, shared_handle[x], &IID_IDXGIResource, &res_d3d);
+		if (e != S_OK) {
+			MTY_Log("Failure for index %d shared pointer %p", x, shared_handle[x]);
+			MTY_Log("'ID3D11Device_OpenSharedResource' failed with HRESULT 0x%X", e);
+			goto except;
+		}
+
+		e = IDXGIResource_QueryInterface(res_d3d, &IID_ID3D11Texture2D, &texture);
+		if (e != S_OK) {
+			MTY_Log("'IDXGIResource_QueryInterface' failed with HRESULT 0x%X", e);
+			goto except;
+		}
+
+		if (res_d3d) {
+			IDXGIResource_Release(res_d3d);
+			res_d3d = NULL;
+		}
+
+		e = ID3D11Texture2D_QueryInterface(texture, &IID_ID3D11Resource, &res->resource);
+		if (e != S_OK) {
+			MTY_Log("'ID3D11Texture2D_QueryInterface' failed with HRESULT 0x%X", e);
+			goto except;
+		}
+
+		D3D11_TEXTURE2D_DESC desc = {0};
+		ID3D11Texture2D_GetDesc(texture, &desc);
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvd = {0};
+		srvd.Format = desc.Format;
+		srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		srvd.Texture2D.MipLevels = 1;
+
+		e = ID3D11Device_CreateShaderResourceView(device, res->resource, &srvd, &res->srv);
+		if (e != S_OK) {
+			MTY_Log("'ID3D11Device_CreateShaderResourceView' failed for index %d with HRESULT 0x%X", x, e);
+			goto except;
+		}
+
+		bool use_half_width = (desc.Format == DXGI_FORMAT_R16G16_UNORM || desc.Format == DXGI_FORMAT_R8G8_UNORM);
+		res->width = use_half_width ? (desc.Width / 2) : desc.Width;
+		res->height = desc.Height;
+		res->format = desc.Format;
+		res->was_hardware = true;
+
+		if (texture) {
+			ID3D11Texture2D_Release(texture);
+			texture = NULL;
+		}
+	}
+
+	return true;
+
+	except:
+
+	if (texture)
+		ID3D11Texture2D_Release(texture);
+
+	if (res_d3d) {
+		IDXGIResource_Release(res_d3d);
+		res_d3d = NULL;
+	}
+
+	for (uint32_t x = 0; x < 3 ; x++) {
+		struct d3d11_res *res = &ctx->staging[x];
+		d3d11_destroy_resource(res);
+	}
+
+	return false;
+}
+
+bool mty_d3d11_valid_hardware_frame(MTY_Device *device, MTY_Context *context, const void *shared_resource)
+{
+	ID3D11Device *d3d_device = (ID3D11Device *) device;
+	HANDLE shared_handle = NULL;
+	memcpy(&shared_handle, shared_resource, sizeof(HANDLE));
+
+	bool r = true;
+	IDXGIResource *resource = NULL;
+
+	HRESULT e = ID3D11Device_OpenSharedResource(d3d_device, shared_handle, &IID_IDXGIResource, &resource);
+	if (e != S_OK)
+		r = false;
+
+	if (resource)
+		IDXGIResource_Release(resource);
+
+	return r;
+}
+
 bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest)
 {
@@ -317,8 +437,15 @@ bool mty_d3d11_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 
 	// Refresh textures and load texture data
 	// If format == MTY_COLOR_FORMAT_UNKNOWN, texture refreshing/loading is skipped and the previous frame is rendered
-	if (!fmt_reload_textures(gfx, device, context, image, desc, d3d11_refresh_resource))
-		return false;
+
+	if (desc->hardware) {
+		if (!fmt_reload_textures(gfx, device, context, image, desc, d3d11_map_shared_resource))
+			return false;
+
+	} else {
+		if (!fmt_reload_textures(gfx, device, context, image, desc, d3d11_refresh_resource))
+			return false;
+	}
 
 	// Viewport
 	D3D11_VIEWPORT vp = {0};

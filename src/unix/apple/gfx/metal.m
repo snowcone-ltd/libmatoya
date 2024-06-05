@@ -182,6 +182,11 @@ static bool metal_refresh_resource(struct gfx *gfx, MTY_Device *_device, MTY_Con
 	return true;
 }
 
+bool mty_metal_valid_hardware_frame(MTY_Device *device, MTY_Context *context, const void *shared_resource)
+{
+	return false;
+}
+
 bool mty_metal_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 	const void *image, const MTY_RenderDesc *desc, MTY_Surface *dest)
 {

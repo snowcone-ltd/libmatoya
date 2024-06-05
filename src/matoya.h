@@ -508,6 +508,8 @@ typedef struct {
 	float scale;            ///< Multiplier applied to the dimensions of the image, producing an
 	                        ///<   minimized or magnified image. This can be set to 0
 	                        ///<   if unnecessary.
+	bool hardware;          ///< The graphics data is a handle to a SharedResource and should be
+	                        ///<   mapped to a texture directly for rendering.
 } MTY_RenderDesc;
 
 /// @brief A point with an `x` and `y` coordinate.
@@ -1168,6 +1170,15 @@ MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen);
 //- #support Windows macOS Linux
 MTY_EXPORT void
 MTY_WindowWarpCursor(MTY_App *app, MTY_Window window, uint32_t x, uint32_t y);
+
+/// @brief Test if the hardware frame provided can be used on the current window.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @param shared_resource The hardware frame pointer.
+/// @param desc Description of the image and how it should be rendered.
+MTY_EXPORT bool
+MTY_WindowIsValidHardwareFrame(MTY_App *app, MTY_Window window, const void *shared_resource,
+	const MTY_RenderDesc *desc);
 
 /// @brief Draw a quad with a raw image and MTY_RenderDesc.
 /// @param app The MTY_App.
