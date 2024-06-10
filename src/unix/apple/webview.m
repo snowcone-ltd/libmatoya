@@ -126,12 +126,23 @@ static Class msg_handler_class(void)
 	return cls;
 }
 
+static bool mty_webview_supported(void)
+{
+	if (@available(macos 11.0, *))
+		return true;
+
+	return false;
+}
+
 
 // Public
 
 struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *dir,
 	bool debug, WEBVIEW_READY ready_func, WEBVIEW_TEXT text_func, WEBVIEW_KEY key_func)
 {
+	if (!mty_webview_supported())
+		return NULL;
+
 	struct webview *ctx = MTY_Alloc(1, sizeof(struct webview));
 
 	ctx->app = app;
@@ -160,10 +171,14 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 	// Settings
 	NSNumber *ndebug = debug ? @YES : @NO;
 
-	[ctx->webview setValue:@NO forKey:@"drawsBackground"];
 	[ctx->webview.configuration.preferences setValue:ndebug forKey:@"developerExtrasEnabled"];
-	[ctx->webview.configuration.preferences setValue:@YES forKey:@"tabFocusesLinks"];
-	[ctx->webview.configuration.preferences setValue:@YES forKey:@"textInteractionEnabled"];
+	ctx->webview.configuration.preferences.tabFocusesLinks = YES;
+
+	if (@available(macOS 13.3, *))
+		ctx->webview.configuration.preferences.shouldPrintBackgrounds = NO;
+
+	if (@available(macOS 11.3, *))
+		ctx->webview.configuration.preferences.textInteractionEnabled = YES;
 
 	// Message handler
 	NSObject <WKScriptMessageHandler> *handler = OBJC_NEW(msg_handler_class(), ctx);
