@@ -50,13 +50,16 @@ static void websocket_URLSession_webSocketTask_didOpenWithProtocol(id self, SEL 
 {
 	MTY_WebSocket *ctx = OBJC_CTX();
 
-	MTY_WaitableSignal(ctx->conn);
+	if (ctx && ctx->conn)
+		MTY_WaitableSignal(ctx->conn);
 }
 
 static void websocket_URLSession_webSocketTask_didCloseWithCode_reason(id self, SEL _cmd, NSURLSession *session,
 	NSURLSessionWebSocketTask *webSocketTask, NSURLSessionWebSocketCloseCode closeCode, NSData *reason)
 {
 	MTY_WebSocket *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	ctx->closed = true;
 
@@ -68,7 +71,8 @@ static void websocket_URLSession_didBecomeInvalidWithError(id self, SEL _cmd, NS
 {
 	MTY_WebSocket *ctx = OBJC_CTX();
 
-	MTY_WaitableSignal(ctx->conn);
+	if (ctx && ctx->conn)
+		MTY_WaitableSignal(ctx->conn);
 }
 
 static Class websocket_class(void)
