@@ -35,8 +35,6 @@ struct vk {
 	VkPipeline pipeline;
 	VkRenderPass rp;
 
-	VkDescriptorImageInfo ii[VK_NUM_STAGING];
-
 	struct gfx_uniforms cb;
 	struct vk_buffer vb;
 	struct vk_buffer ib;
@@ -510,10 +508,7 @@ bool mty_vk_render(struct gfx *gfx, MTY_Device *device, MTY_Context *context,
 		dw[x].pImageInfo = &ii[x];
 	}
 
-	if (memcmp(ii, ctx->ii, sizeof(ii))) {
-		vkUpdateDescriptorSets(_device, VK_NUM_STAGING, dw, 0, NULL);
-		memcpy(ctx->ii, ii, sizeof(ii));
-	}
+	vkUpdateDescriptorSets(_device, VK_NUM_STAGING, dw, 0, NULL);
 
 	// Bind vertex/index bufers, uniforms and draw
 	VkDeviceSize offset = 0;

@@ -203,8 +203,8 @@ static int32_t file_compare(const void *p1, const void *p2)
 
 MTY_FileList *MTY_GetFileList(const char *path, const char *filter)
 {
-	uint8_t tmp[4 * 1024];
-	mty_tlocal_set_mem(tmp, sizeof(tmp));
+	void *tmp = MTY_Alloc(0x1000, 1);
+	mty_tlocal_set_mem(tmp, 0x1000);
 
 	MTY_FileList *fl = MTY_Alloc(1, sizeof(MTY_FileList));
 	char *pathd = MTY_Strdup(path);
@@ -220,14 +220,22 @@ MTY_FileList *MTY_GetFileList(const char *path, const char *filter)
 
 	while (ok) {
 		char *name = ent->d_name;
-		bool is_dir = ent->d_type == DT_DIR;
+		bool is_dir = ent->d_type == DT_DIR ||
+			(ent->d_type == DT_UNKNOWN && (!strcmp(name, "..") || !strcmp(name, ".")));
 
-		if (is_dir || strstr(name, filter ? filter : "")) {
+		if (is_dir || MTY_StrSearch(name, filter ? filter : "", "|")) {
 			fl->files = MTY_Realloc(fl->files, fl->len + 1, sizeof(MTY_FileDesc));
+
+			char *jpath = MTY_Strdup(MTY_JoinPath(pathd, name));
 
 			fl->files[fl->len].dir = is_dir;
 			fl->files[fl->len].name = MTY_Strdup(name);
-			fl->files[fl->len].path = MTY_Strdup(MTY_JoinPath(pathd, name));
+			fl->files[fl->len].path = jpath;
+
+			struct stat st;
+			if (!is_dir && stat(jpath, &st) == 0)
+				fl->files[fl->len].size = st.st_size;
+
 			fl->len++;
 		}
 
@@ -244,6 +252,7 @@ MTY_FileList *MTY_GetFileList(const char *path, const char *filter)
 		MTY_Sort(fl->files, fl->len, sizeof(MTY_FileDesc), file_compare);
 
 	mty_tlocal_set_mem(NULL, 0);
+	MTY_Free(tmp);
 
 	return fl;
 }
