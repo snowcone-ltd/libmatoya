@@ -3557,10 +3557,10 @@ MTY_RevertTimerResolution(uint32_t res);
 //-   A minor version increase means an implementation change or a pure addition to the
 //-   interface. A major version increase means the interface has changed.
 
-#define MTY_VERSION_MAJOR   4      ///< libmatoya major version number.
+#define MTY_VERSION_MAJOR   5      ///< libmatoya major version number.
 #define MTY_VERSION_MINOR   0      ///< libmatoya minor version number.
-#define MTY_VERSION_STRING  "4.0"  ///< UTF-8 libmatoya version string.
-#define MTY_VERSION_STRINGW L"4.0" ///< Wide character libmatoya version string.
+#define MTY_VERSION_STRING  "5.0"  ///< UTF-8 libmatoya version string.
+#define MTY_VERSION_STRINGW L"5.0" ///< Wide character libmatoya version string.
 
 /// @brief Get the version libmatoya was compiled with.
 /// @returns The major and minor version numbers packed into a 32-bit integer. The major
