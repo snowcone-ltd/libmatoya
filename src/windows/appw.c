@@ -1963,6 +1963,21 @@ float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
 	return monitor_get_scale(monitor_from_hwnd(ctx->hwnd));
 }
 
+uint32_t MTY_WindowGetRefreshRate(MTY_App *app, MTY_Window window)
+{
+	struct window *ctx = app_get_window(app, window);
+	if (!ctx)
+		return 60;
+
+	MONITORINFOEX info = monitor_get_info(monitor_from_hwnd(ctx->hwnd));
+	DEVMODE mode = {.dmSize = sizeof(DEVMODE)};
+
+	if (EnumDisplaySettings(info.szDevice, ENUM_CURRENT_SETTINGS, &mode))
+		return mode.dmDisplayFrequency;
+
+	return 60;
+}
+
 void MTY_WindowSetTitle(MTY_App *app, MTY_Window window, const char *title)
 {
 	struct window *ctx = app_get_window(app, window);

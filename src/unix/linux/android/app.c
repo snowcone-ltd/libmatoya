@@ -1080,6 +1080,11 @@ float MTY_WindowGetScreenScale(MTY_App *app, MTY_Window window)
 	return app->scale;
 }
 
+uint32_t MTY_WindowGetRefreshRate(MTY_App *app, MTY_Window window)
+{
+	return 60;
+}
+
 void MTY_WindowSetTitle(MTY_App *app, MTY_Window window, const char *title)
 {
 }

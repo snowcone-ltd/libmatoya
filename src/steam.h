@@ -45,7 +45,7 @@ enum {
 	HTML_SetCursor_t_k_iCallback = k_iSteamHTMLSurfaceCallbacks + 22,
 };
 
-static bool (STEAM_API *SteamAPI_Init)(void);
+static bool (STEAM_API *SteamAPI_InitSafe)(void);
 static void (STEAM_API *SteamAPI_Shutdown)(void);
 static void (STEAM_API *SteamAPI_RunCallbacks)(void);
 static void (STEAM_API *SteamAPI_RegisterCallback)(void *pCallback, int32_t iCallback);
@@ -220,7 +220,7 @@ static bool steam_global_init(const char *path)
 			name = MTY_SOGetSymbol(STEAM_SO, #name); \
 			if (!name) {r = false; goto except;}
 
-		STEAM_LOAD_SYM(SteamAPI_Init);
+		STEAM_LOAD_SYM(SteamAPI_InitSafe);
 		STEAM_LOAD_SYM(SteamAPI_Shutdown);
 		STEAM_LOAD_SYM(SteamAPI_RunCallbacks);
 		STEAM_LOAD_SYM(SteamAPI_RegisterCallback);

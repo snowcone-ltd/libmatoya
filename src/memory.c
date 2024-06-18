@@ -123,6 +123,30 @@ const char *MTY_SprintfDL(const char *fmt, ...)
 	return local;
 }
 
+bool MTY_StrSearch(const char *s0, const char *s1, const char *delim)
+{
+	char *tmp = MTY_Strdup(s1);
+	char *ptr = NULL;
+
+	char *s = MTY_Strtok(tmp, delim, &ptr);
+	if (!s)
+		return true;
+
+	bool r = false;
+
+	while (s) {
+		r = strstr(s0, s);
+		if (r)
+			break;
+
+		s = MTY_Strtok(NULL, delim, &ptr);
+	}
+
+	MTY_Free(tmp);
+
+	return r;
+}
+
 
 // Stable qsort
 

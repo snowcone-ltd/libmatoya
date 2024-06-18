@@ -192,10 +192,10 @@ static MTY_CButton evdev_button(uint16_t type)
 {
 	switch (type) {
 		// Gamepad
-		case BTN_A: return MTY_CBUTTON_A;
-		case BTN_B: return MTY_CBUTTON_B;
-		case BTN_X: return MTY_CBUTTON_X;
-		case BTN_Y: return MTY_CBUTTON_Y;
+		case BTN_A: return MTY_CBUTTON_A; // South
+		case BTN_B: return MTY_CBUTTON_B; // East
+		case BTN_X: return MTY_CBUTTON_Y; // North
+		case BTN_Y: return MTY_CBUTTON_X; // West
 		case BTN_TL: return MTY_CBUTTON_LEFT_SHOULDER;
 		case BTN_TR: return MTY_CBUTTON_RIGHT_SHOULDER;
 		case BTN_TL2: return MTY_CBUTTON_LEFT_TRIGGER;
