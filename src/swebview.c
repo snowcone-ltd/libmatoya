@@ -591,6 +591,11 @@ void mty_webview_render(struct webview *ctx)
 	}
 }
 
+bool mty_webview_is_focussed(struct webview *ctx)
+{
+	return false;
+}
+
 bool mty_webview_is_steam(void)
 {
 	return true;

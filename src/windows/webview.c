@@ -33,6 +33,11 @@ struct webview_handler2 {
 	void *opaque;
 };
 
+struct webview_handler3 {
+	ICoreWebView2FocusChangedEventHandler handler;
+	void *opaque;
+};
+
 struct webview {
 	MTY_App *app;
 	MTY_Window window;
@@ -47,11 +52,14 @@ struct webview {
 	struct webview_handler0 handler0;
 	struct webview_handler1 handler1;
 	struct webview_handler2 handler2;
+	struct webview_handler3 handler3; // GotFocus
+	struct webview_handler3 handler4; // LostFocus
 	ICoreWebView2EnvironmentOptions opts;
 	WCHAR *source;
 	bool url;
 	bool debug;
 	bool passthrough;
+	bool focussed;
 	bool ready;
 };
 
@@ -71,6 +79,46 @@ static ULONG STDMETHODCALLTYPE com_AddRef(void *This)
 static ULONG STDMETHODCALLTYPE com_Release(void *This)
 {
 	return 0;
+}
+
+
+// ICoreWebView2FocusChangedEventHandler
+
+static HRESULT STDMETHODCALLTYPE h3_QueryInterface(void *This,
+	REFIID riid, _COM_Outptr_ void **ppvObject)
+{
+	if (com_check_riid(riid, &IID_ICoreWebView2FocusChangedEventHandler)) {
+		*ppvObject = This;
+		return S_OK;
+	}
+
+	return E_NOINTERFACE;
+}
+
+static HRESULT STDMETHODCALLTYPE h3_Invoke_GotFocus(ICoreWebView2FocusChangedEventHandler *This,
+	ICoreWebView2Controller *sender, IUnknown *args)
+{
+	struct webview_handler3 *handler = (struct webview_handler3 *) This;
+	struct webview *ctx = handler->opaque;
+
+	ctx->focussed = true;
+	if (mty_webview_is_visible(ctx))
+		PostMessage(MTY_WindowGetNative(ctx->app, ctx->window), WM_SETFOCUS, 0, 0);
+
+	return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE h3_Invoke_LostFocus(ICoreWebView2FocusChangedEventHandler *This,
+	ICoreWebView2Controller *sender, IUnknown *args)
+{
+	struct webview_handler3 *handler = (struct webview_handler3 *) This;
+	struct webview *ctx = handler->opaque;
+
+	ctx->focussed = false;
+	if (mty_webview_is_visible(ctx))
+		PostMessage(MTY_WindowGetNative(ctx->app, ctx->window), WM_KILLFOCUS, 0, 0);
+
+	return S_OK;
 }
 
 
@@ -214,6 +262,11 @@ static HRESULT STDMETHODCALLTYPE h1_Invoke(ICoreWebView2CreateCoreWebView2Contro
 	ICoreWebView2Settings_put_AreDefaultContextMenusEnabled(settings, ctx->debug);
 	ICoreWebView2Settings_put_IsZoomControlEnabled(settings, FALSE);
 	ICoreWebView2Settings_Release(settings);
+
+	ICoreWebView2Controller2_add_GotFocus(ctx->controller,
+		(ICoreWebView2FocusChangedEventHandler *) &ctx->handler3, NULL);
+	ICoreWebView2Controller2_add_LostFocus(ctx->controller,
+		(ICoreWebView2FocusChangedEventHandler *) &ctx->handler4, NULL);
 
 	EventRegistrationToken token = {0};
 	ICoreWebView2_add_WebMessageReceived(ctx->webview,
@@ -393,7 +446,21 @@ static ICoreWebView2WebMessageReceivedEventHandlerVtbl VTBL2 = {
 	.Invoke = h2_Invoke,
 };
 
-static ICoreWebView2EnvironmentOptionsVtbl VTBL3 = {
+static ICoreWebView2FocusChangedEventHandlerVtbl VTBL3 = {
+	.QueryInterface = h3_QueryInterface,
+	.AddRef = com_AddRef,
+	.Release = com_Release,
+	.Invoke = h3_Invoke_GotFocus,
+};
+
+static ICoreWebView2FocusChangedEventHandlerVtbl VTBL4 = {
+	.QueryInterface = h3_QueryInterface,
+	.AddRef = com_AddRef,
+	.Release = com_Release,
+	.Invoke = h3_Invoke_LostFocus,
+};
+
+static ICoreWebView2EnvironmentOptionsVtbl VTBL5 = {
 	.QueryInterface = opts_QueryInterface,
 	.AddRef = com_AddRef,
 	.Release = com_Release,
@@ -474,7 +541,11 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 	ctx->handler1.opaque = ctx;
 	ctx->handler2.handler.lpVtbl = &VTBL2;
 	ctx->handler2.opaque = ctx;
-	ctx->opts.lpVtbl = &VTBL3;
+	ctx->handler3.handler.lpVtbl = &VTBL3;
+	ctx->handler3.opaque = ctx;
+	ctx->handler4.handler.lpVtbl = &VTBL4;
+	ctx->handler4.opaque = ctx;
+	ctx->opts.lpVtbl = &VTBL5;
 
 	const WCHAR *dirw = dir ? MTY_MultiToWideDL(dir) : L"webview-data";
 
@@ -551,7 +622,7 @@ void mty_webview_show(struct webview *ctx, bool show)
 
 bool mty_webview_is_visible(struct webview *ctx)
 {
-	if (!ctx->controller)
+	if (!ctx || !ctx->controller)
 		return false;
 
 	BOOL visible = FALSE;
@@ -599,6 +670,11 @@ void mty_webview_run(struct webview *ctx)
 
 void mty_webview_render(struct webview *ctx)
 {
+}
+
+bool mty_webview_is_focussed(struct webview *ctx)
+{
+	return ctx && ctx->focussed;
 }
 
 bool mty_webview_is_steam(void)
