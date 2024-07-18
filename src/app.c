@@ -458,6 +458,11 @@ bool MTY_WebViewIsSteam(void)
 	return mty_webview_is_steam();
 }
 
+bool MTY_WebViewIsAvailable(void)
+{
+	return mty_webview_is_available();
+}
+
 
 // Window sizing
 

@@ -61,3 +61,8 @@ bool mty_webview_is_steam(void)
 {
 	return false;
 }
+
+bool mty_webview_is_available(void)
+{
+	return false;
+}
