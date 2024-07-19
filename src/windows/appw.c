@@ -427,7 +427,8 @@ static LRESULT CALLBACK app_ll_keyboard_proc(int nCode, WPARAM wParam, LPARAM lP
 		bool intercept = ((p->flags & LLKHF_ALTDOWN) && p->vkCode == VK_TAB) || // ALT + TAB
 			(p->vkCode == VK_LWIN || p->vkCode == VK_RWIN) || // Windows Key
 			(p->vkCode == VK_APPS) || // Application Key
-			(p->vkCode == VK_ESCAPE); // ESC
+			(p->vkCode == VK_ESCAPE) || // ESC
+			(p->vkCode == VK_SNAPSHOT); // Print Screen;
 
 		if (intercept) {
 			bool up = p->flags & LLKHF_UP;
