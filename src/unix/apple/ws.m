@@ -211,23 +211,17 @@ MTY_Async MTY_WebSocketRead(MTY_WebSocket *ctx, uint32_t timeout, char *msg, siz
 				MTY_Log("NSURLSessionWebSocketTask:receiveMessage failed: %s", [e.localizedDescription UTF8String]);
 				ctx->read_error = true;
 
-			} else {
+			} else if (ctx->read) {
 				if (ws_msg.type == NSURLSessionWebSocketMessageTypeString)
 					ctx->msg = MTY_Strdup([ws_msg.string UTF8String]);
-			}
-
-			if (ctx->read)
 				MTY_WaitableSignal(ctx->read);
+			}
 		}];
 	}
 
 	// Wait for a new message
 	if (MTY_WaitableWait(ctx->read, timeout)) {
 		ctx->read_started = false;
-
-		// Error
-		if (ctx->read_error)
-			return MTY_ASYNC_ERROR;
 
 		if (ctx->msg) {
 			size_t ws_msg_size = strlen(ctx->msg) + 1;
@@ -244,6 +238,12 @@ MTY_Async MTY_WebSocketRead(MTY_WebSocket *ctx, uint32_t timeout, char *msg, siz
 		}
 	}
 
+	// Error
+	if (ctx->read_error) {
+		ctx->read_started = false;
+		return MTY_ASYNC_ERROR;
+	}
+
 	return MTY_ASYNC_CONTINUE;
 }
 
@@ -258,10 +258,10 @@ bool MTY_WebSocketWrite(MTY_WebSocket *ctx, const char *msg)
 		if (e) {
 			r = false;
 			MTY_Log("NSURLSessionWebSocketTask:sendMessage failed with error %ld", [e code]);
-		}
 
-		if (ctx->write)
+		} else if (ctx->write) {
 			MTY_WaitableSignal(ctx->write);
+		}
 	}];
 
 	if (!MTY_WaitableWait(ctx->write, 1000))
