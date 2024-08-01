@@ -160,27 +160,44 @@ const char *MTY_GetProcessPath(void)
 	return MTY_WideToMultiDL(tmp);
 }
 
-bool MTY_RestartProcess(char * const *argv)
+bool MTY_StartInProcess(const char *path, const char * const *argv, const char *dir)
 {
-	WCHAR *name = MTY_MultiToWideD(MTY_GetProcessPath());
-	WCHAR **argvn = NULL;
-
-	for (uint32_t x = 0; argv && argv[x]; x++) {
-		argvn = MTY_Realloc(argvn, x + 2, sizeof(char *));
-		argvn[x] = MTY_MultiToWideD(argv[x]);
-		argvn[x + 1] = NULL;
+	if (dir) {
+		WCHAR dirw[MAX_PATH] = {0};
+		MTY_MultiToWide(dir, dirw, MAX_PATH);
+		SetCurrentDirectory(dirw);
 	}
 
-	bool r = _wexecv(name, argvn);
+	WCHAR *pathw = MTY_MultiToWideD(path ? path : MTY_GetProcessPath());
+
+	// Rebuild argv with wide strings
+	size_t argc = 0;
+	for (; argv[argc]; argc++);
+
+	WCHAR **argvn = MTY_Alloc(argc + 1, sizeof(WCHAR *));
+	argvn[argc] = NULL;
+	for (uint32_t x = 0; x < argc; x++)
+		argvn[x] = MTY_MultiToWideD(argv[x]);
+
+	// flush and exec
+	_flushall();
+	_wexecv(pathw, argvn);
+
+	// Reaching here means exec failed. Clean up and free
 	MTY_Log("'_wexecv' failed with errno %d", errno);
 
 	for (uint32_t x = 0; argvn && argvn[x]; x++)
 		MTY_Free(argvn[x]);
 
 	MTY_Free(argvn);
-	MTY_Free(name);
+	MTY_Free(pathw);
 
-	return r;
+	return false;
+}
+
+bool MTY_RestartProcess(char * const *argv)
+{
+	return MTY_StartInProcess(NULL, argv, NULL);
 }
 
 static LONG WINAPI system_exception_handler(EXCEPTION_POINTERS *ex)

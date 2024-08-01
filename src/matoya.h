@@ -3360,6 +3360,19 @@ MTY_GetProcessPath(void);
 MTY_EXPORT const char *
 MTY_GetProcessDir(void);
 
+/// @brief Restart the current process into a specific binary.
+/// @details For more information, see `execv` from the C standard library.
+/// @param path Full path to an executable to execv.
+///   May be set to `NULL` to restart the current process.
+/// @param argv Arguments to set up a call to `execv`. This is an array of strings
+///   that must have its last element set to NULL.
+/// @param dir The working directory to set. May be NULL to use the current working directory
+/// @returns On success this function does not return, otherwise it returns false.
+///   Call MTY_GetLog for details.
+//- #support Windows macOS Linux
+MTY_EXPORT bool
+MTY_StartInProcess(const char *path, const char * const *argv, const char *dir);
+
 /// @brief Restart the current process.
 /// @details For more information, see `execv` from the C standard library.
 /// @param argv Arguments to set up a call to `execv`. This is an array of strings

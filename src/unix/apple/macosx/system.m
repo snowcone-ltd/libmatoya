@@ -58,12 +58,27 @@ const char *MTY_GetProcessPath(void)
 	return mty_tlocal_strcpy(tmp);
 }
 
-bool MTY_RestartProcess(char * const *argv)
+bool MTY_StartInProcess(const char *path, const char * const *argv, const char *dir)
 {
-	execv(MTY_GetProcessPath(), argv);
+	if (dir) {
+		if (chdir(dir) == -1) {
+			MTY_Log("chdir failed with errno %d", errno);
+			return false;
+		}
+	}
+
+	if (!path)
+		path = MTY_GetProcessPath();
+
+	execv(path, argv);
 	MTY_Log("'execv' failed with errno %d", errno);
 
 	return false;
+}
+
+bool MTY_RestartProcess(char * const *argv)
+{
+	return MTY_StartInProcess(NULL, argv, NULL);
 }
 
 void *MTY_GetJNIEnv(void)
