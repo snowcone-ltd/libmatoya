@@ -228,12 +228,17 @@ static MTY_Atomic32 LIBJPEG_LOCK;
 static MTY_SO *LIBJPEG_SO;
 static bool LIBJPEG_INIT;
 
+static void libjpeg_global_destroy_lockfree(void)
+{
+	MTY_SOUnload(&LIBJPEG_SO);
+	LIBJPEG_INIT = false;
+}
+
 static void __attribute__((destructor)) libjpeg_global_destroy(void)
 {
 	MTY_GlobalLock(&LIBJPEG_LOCK);
 
-	MTY_SOUnload(&LIBJPEG_SO);
-	LIBJPEG_INIT = false;
+	libjpeg_global_destroy_lockfree();
 
 	MTY_GlobalUnlock(&LIBJPEG_LOCK);
 }
@@ -263,7 +268,7 @@ static bool libjpeg_global_init(void)
 		except:
 
 		if (!r)
-			libjpeg_global_destroy();
+			libjpeg_global_destroy_lockfree();
 
 		LIBJPEG_INIT = r;
 	}
