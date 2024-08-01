@@ -213,23 +213,15 @@ public class Matoya extends SurfaceView implements
 	}
 
 	boolean keyEvent(int keyCode, KeyEvent event, boolean down) {
-		// For mixed source InputDevice, we prefer Keyboard event handling to Gamepad event handling
-		if (isKeyboardEvent(event)) {
-			int uc = event.getUnicodeChar();
-
-			return app_key(down, keyCode, uc != 0 ? String.format("%c", uc) : null,
-				event.getMetaState(), event.getDeviceId() <= 0);
-		}
 		// Button events fire here (sometimes dpad)
-		if (isGamepadEvent(event)) {
+		if (isGamepadEvent(event))
 			app_button(event.getDeviceId(), down, keyCode);
 
 		// Prevents back buttons etc. from being generated from mice
-		} else if (!isMouseEvent(event)) {
+		if (isKeyboardEvent(event) && !isMouseEvent(event)) {
 			int uc = event.getUnicodeChar();
-
-			return app_key(down, keyCode, uc != 0 ? String.format("%c", uc) : null,
-				event.getMetaState(), event.getDeviceId() <= 0);
+			String text = uc != 0 ? String.format("%c", uc) : null;
+			return app_key(down, keyCode, text, event.getMetaState(), event.getDeviceId() <= 0) || isGamepadEvent(event);
 		}
 
 		return true;

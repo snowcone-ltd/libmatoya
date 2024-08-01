@@ -656,14 +656,11 @@ JNIEXPORT void JNICALL Java_group_matoya_lib_Matoya_app_1axis(JNIEnv *env, jobje
 	c->axes[MTY_CAXIS_TRIGGER_L].value = lrint(lT * (float) UINT8_MAX);
 	c->axes[MTY_CAXIS_TRIGGER_R].value = lrint(rT * (float) UINT8_MAX);
 
-	// Xbox Series X hack
-	if (c->vid == 0x045E && c->pid == 0x0B13) {
-		if (c->axes[MTY_CAXIS_TRIGGER_L].value == 0)
-			c->axes[MTY_CAXIS_TRIGGER_L].value = lrint(lTalt * (float) UINT8_MAX);
+	if (c->axes[MTY_CAXIS_TRIGGER_L].value == 0)
+		c->axes[MTY_CAXIS_TRIGGER_L].value = lrint(lTalt * (float) UINT8_MAX);
 
-		if (c->axes[MTY_CAXIS_TRIGGER_R].value == 0)
-			c->axes[MTY_CAXIS_TRIGGER_R].value = lrint(rTalt * (float) UINT8_MAX);
-	}
+	if (c->axes[MTY_CAXIS_TRIGGER_R].value == 0)
+		c->axes[MTY_CAXIS_TRIGGER_R].value = lrint(rTalt * (float) UINT8_MAX);
 
 	c->buttons[MTY_CBUTTON_DPAD_UP] = hatY == -1.0f;
 	c->buttons[MTY_CBUTTON_DPAD_DOWN] = hatY == 1.0f;
