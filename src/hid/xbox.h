@@ -69,7 +69,8 @@ static void xbox_do_rumble(struct hid_dev *device)
 static void xbox_init(struct hid_dev *device)
 {
 	struct xbox_state *ctx = mty_hid_device_get_state(device);
-	ctx->series_x = mty_hid_device_get_pid(device) == 0x0B13;
+	uint16_t device_pid = mty_hid_device_get_pid(device);
+	ctx->series_x = device_pid == 0x0B13 || device_pid == 0x0B22; // See hid.c, hid_driver(...)
 	ctx->rumble = true;
 }
 
