@@ -58,7 +58,7 @@ const char *MTY_GetProcessPath(void)
 	return mty_tlocal_strcpy(tmp);
 }
 
-bool MTY_StartInProcess(const char *path, const char * const *argv, const char *dir)
+bool MTY_StartInProcess(const char *path, char * const *argv, const char *dir)
 {
 	if (dir) {
 		if (chdir(dir) == -1) {

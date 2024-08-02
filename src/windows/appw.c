@@ -675,7 +675,7 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 				evt.motion.x = GET_X_LPARAM(lparam);
 				evt.motion.y = GET_Y_LPARAM(lparam);
 
-				if (evt.motion.x = app->last_x && evt.motion.y == app->last_y)
+				if (evt.motion.x == app->last_x && evt.motion.y == app->last_y)
 					break;
 
 				evt.type = MTY_EVENT_MOTION;

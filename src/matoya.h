@@ -3371,7 +3371,7 @@ MTY_GetProcessDir(void);
 ///   Call MTY_GetLog for details.
 //- #support Windows macOS Linux
 MTY_EXPORT bool
-MTY_StartInProcess(const char *path, const char * const *argv, const char *dir);
+MTY_StartInProcess(const char *path, char * const *argv, const char *dir);
 
 /// @brief Restart the current process.
 /// @details For more information, see `execv` from the C standard library.
