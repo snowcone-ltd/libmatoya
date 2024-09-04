@@ -406,8 +406,10 @@ uint32_t MTY_AudioGetQueued(MTY_Audio *ctx)
 
 void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 {
-	if (!audio_handle_device_change(ctx))
+	if (!audio_handle_device_change(ctx)) {
+		MTY_Log("\"audio_handle_device_change\" returned false. Switching default device is still in progress?");
 		return;
+	}
 
 	uint32_t queued = audio_get_queued_frames(ctx);
 
@@ -422,6 +424,8 @@ void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 		if (e == S_OK) {
 			memcpy(buffer, frames, count * ctx->channels * AUDIO_SAMPLE_SIZE);
 			IAudioRenderClient_ReleaseBuffer(ctx->render, count, 0);
+		} else {
+			MTY_Log("\"IAudioRenderClient_GetBuffer\" failed with HRESULT 0x%X...frames %u queued %u buffer_size %u", e, count, queued, ctx->buffer_size);
 		}
 
 		// Begin playing again when the minimum buffer has been reached
