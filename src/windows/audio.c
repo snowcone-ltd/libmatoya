@@ -331,49 +331,27 @@ void MTY_AudioDestroy(MTY_Audio **audio)
 	*audio = NULL;
 }
 
-static DWORD JUST_A_TEST_FOR_TRIGGER = 0;
-static bool REINIT_DEVICE_ALREADY = false;
-
-static uint32_t audio_get_queued_frames(MTY_Audio *ctx)
+static HRESULT audio_get_queued_frames(MTY_Audio *ctx, uint32_t *out)
 {
+	HRESULT e = S_OK;
+	uint32_t frames = ctx->buffer_size; // indicates that the buffer is full, which also serves
+	                                    // as a useful return value in the case of an error.
+
 	if (!ctx->client) {
-		MTY_Log("ctx->client is NULL, so returning queued frames as ctx->buffer_size %u", ctx->buffer_size);
-		return ctx->buffer_size;
+		e = AUDCLNT_E_NOT_INITIALIZED;
+		goto except;
 	}
 
 	UINT32 padding = 0;
-	HRESULT e = IAudioClient_GetCurrentPadding(ctx->client, &padding);
-	if (e == S_OK) {
-		return padding;
-
-	} else {
-		MTY_Log("\"IAudioClient_GetCurrentPadding\" returned error 0x%X and padding is %u. So returning queued frames as ctx->buffer_size %u", e, padding, ctx->buffer_size);
-		return ctx->buffer_size;
-	}
-}
-
-static HRESULT audio_get_queued_frames_2(MTY_Audio *ctx, uint32_t *frames)
-{
-	if (!ctx->client)
-		return AUDCLNT_E_NOT_INITIALIZED;
-
-	UINT32 padding = 0;
-	HRESULT e = IAudioClient_GetCurrentPadding(ctx->client, &padding);
-
-	if (JUST_A_TEST_FOR_TRIGGER) {
-		if (REINIT_DEVICE_ALREADY) {
-			JUST_A_TEST_FOR_TRIGGER = 0;
-			REINIT_DEVICE_ALREADY = false;
-
-		} else {
-			e = AUDCLNT_E_DEVICE_INVALIDATED;
-		}
-	}
-
+	e = IAudioClient_GetCurrentPadding(ctx->client, &padding);
 	if (e != S_OK)
-		padding = ctx->buffer_size;
+		goto except;
 
-	*frames = padding;
+	frames = padding;
+
+	except:
+
+	*out = frames;
 	return e;
 }
 
@@ -395,23 +373,17 @@ static void audio_play(MTY_Audio *ctx)
 
 void MTY_AudioReset(MTY_Audio *ctx)
 {
-	if (!ctx->client) {
-		MTY_Log("ctx->client is NULL, so returning prematurely.");
+	if (!ctx->client)
 		return;
-	}
 
 	if (ctx->playing) {
 		HRESULT e = IAudioClient_Stop(ctx->client);
-		if (e == S_FALSE)
-			MTY_Log("\"IAudioClient_Stop\" returned S_FALSE");
 		if (e != S_FALSE && e != S_OK) {
 			MTY_Log("'IAudioClient_Stop' failed with HRESULT 0x%X", e);
 			return;
 		}
 
 		e = IAudioClient_Reset(ctx->client);
-		if (e == S_FALSE)
-			MTY_Log("\"IAudioClient_Reset\" returned S_FALSE");
 		if (e != S_FALSE && e != S_OK) {
 			MTY_Log("'IAudioClient_Reset' failed with HRESULT 0x%X", e);
 			return;
@@ -421,16 +393,28 @@ void MTY_AudioReset(MTY_Audio *ctx)
 	}
 }
 
+static HRESULT audio_reinit_device(MTY_Audio *ctx)
+{
+	audio_device_destroy(ctx);
+
+	// When the default device is in the process of changing, this may fail so we try multiple times
+	HRESULT e = AUDCLNT_E_NOT_INITIALIZED;
+	for (uint8_t x = 0; x < 5; x++) {
+		e = audio_device_create(ctx);
+
+		if (e == S_OK && ctx->client)
+			break;
+
+		MTY_Sleep(100);
+	}
+
+	return e;
+}
+
 static bool audio_handle_device_change(MTY_Audio *ctx)
 {
 	if (AUDIO_DEVICE_CHANGED) {
-		audio_device_destroy(ctx);
-
-		// When the default device is in the process of changing, this may fail
-		for (uint8_t x = 0; audio_device_create(ctx) != S_OK && x < 5; x++)
-			MTY_Sleep(100);
-
-		if (!ctx->client)
+		if (audio_reinit_device(ctx) != S_OK)
 			return false;
 
 		AUDIO_DEVICE_CHANGED = false;
@@ -441,42 +425,33 @@ static bool audio_handle_device_change(MTY_Audio *ctx)
 
 uint32_t MTY_AudioGetQueued(MTY_Audio *ctx)
 {
-	return lrint((float) audio_get_queued_frames(ctx) / ((float) ctx->sample_rate / 1000.0f));
+	uint32_t queued = 0;
+	audio_get_queued_frames(ctx, &queued);
+	return lrint((float) queued / ((float) ctx->sample_rate / 1000.0f));
 }
 
 void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 {
-	if (!audio_handle_device_change(ctx)) {
-		MTY_Log("\"audio_handle_device_change\" returned false. Switching default device is still in progress?");
+	if (!audio_handle_device_change(ctx))
 		return;
-	}
 
 	uint32_t queued = 0;
-	HRESULT e = audio_get_queued_frames_2(ctx, &queued);
+	HRESULT e = audio_get_queued_frames(ctx, &queued);
 	if (e != S_OK) {
-		MTY_Log("\"audio_get_queued_frames_2\" returned 0x%X. Re-initializing audio device.", e);
+		MTY_Log("\"audio_get_queued_frames\" returned 0x%X. Re-initializing audio device", e);
 
-		audio_device_destroy(ctx);
-		for (uint8_t x = 0; audio_device_create(ctx) != S_OK && x < 5; x++)
-			MTY_Sleep(100);
-
-		if (!ctx->client) {
-			MTY_Log("Failed to re-initialize audio device %ls", ctx->device_id);
+		e = audio_reinit_device(ctx);
+		if (e != S_OK) {
+			MTY_Log("\"audio_reinit_device\" returned 0x%X, failed to re-initialize audio device", e);
 			return;
-
-		} else {
-			REINIT_DEVICE_ALREADY = true;
-			e = audio_get_queued_frames_2(ctx, &queued);
 		}
-	}
 
-	MTY_Log("count %u | (buffer_size %u - queued %u) = %u | max_buffer %u", count, ctx->buffer_size, queued, ctx->buffer_size - queued, ctx->max_buffer);
+		e = audio_get_queued_frames(ctx, &queued);
+	}
 
 	// Stop playing and flush if we've exceeded the maximum buffer or underrun
-	if (ctx->playing && (queued > ctx->max_buffer || queued == 0)) {
-		MTY_Log("Exceeded maximum buffer or underrun. queued %u > max_buffer %u || queued %u == 0", queued, ctx->max_buffer, queued);
+	if (ctx->playing && (queued > ctx->max_buffer || queued == 0))
 		MTY_AudioReset(ctx);
-	}
 
 	if (ctx->buffer_size - queued >= count) {
 		BYTE *buffer = NULL;
@@ -484,11 +459,7 @@ void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 
 		if (e == S_OK) {
 			memcpy(buffer, frames, count * ctx->channels * AUDIO_SAMPLE_SIZE);
-			e = IAudioRenderClient_ReleaseBuffer(ctx->render, count, 0);
-			MTY_Log("\"IAudioRenderClient_ReleaseBuffer\" result is 0x%X", e);
-
-		} else {
-			MTY_Log("\"IAudioRenderClient_GetBuffer\" failed with HRESULT 0x%X...frames %u queued %u buffer_size %u", e, count, queued, ctx->buffer_size);
+			IAudioRenderClient_ReleaseBuffer(ctx->render, count, 0);
 		}
 
 		// Begin playing again when the minimum buffer has been reached
