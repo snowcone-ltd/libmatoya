@@ -333,14 +333,20 @@ void MTY_AudioDestroy(MTY_Audio **audio)
 
 static uint32_t audio_get_queued_frames(MTY_Audio *ctx)
 {
-	if (!ctx->client)
+	if (!ctx->client) {
+		MTY_Log("ctx->client is NULL, so returning queued frames as ctx->buffer_size %u", ctx->buffer_size);
 		return ctx->buffer_size;
+	}
 
 	UINT32 padding = 0;
-	if (IAudioClient_GetCurrentPadding(ctx->client, &padding) == S_OK)
+	HRESULT e = IAudioClient_GetCurrentPadding(ctx->client, &padding);
+	if (e == S_OK) {
 		return padding;
 
-	return ctx->buffer_size;
+	} else {
+		MTY_Log("\"IAudioClient_GetCurrentPadding\" returned error 0x%X and padding is %u. So returning queued frames as ctx->buffer_size %u", e, padding, ctx->buffer_size);
+		return ctx->buffer_size;
+	}
 }
 
 static void audio_play(MTY_Audio *ctx)
@@ -361,17 +367,23 @@ static void audio_play(MTY_Audio *ctx)
 
 void MTY_AudioReset(MTY_Audio *ctx)
 {
-	if (!ctx->client)
+	if (!ctx->client) {
+		MTY_Log("ctx->client is NULL, so returning prematurely.");
 		return;
+	}
 
 	if (ctx->playing) {
 		HRESULT e = IAudioClient_Stop(ctx->client);
+		if (e == S_FALSE)
+			MTY_Log("\"IAudioClient_Stop\" returned S_FALSE");
 		if (e != S_FALSE && e != S_OK) {
 			MTY_Log("'IAudioClient_Stop' failed with HRESULT 0x%X", e);
 			return;
 		}
 
 		e = IAudioClient_Reset(ctx->client);
+		if (e == S_FALSE)
+			MTY_Log("\"IAudioClient_Reset\" returned S_FALSE");
 		if (e != S_FALSE && e != S_OK) {
 			MTY_Log("'IAudioClient_Reset' failed with HRESULT 0x%X", e);
 			return;
