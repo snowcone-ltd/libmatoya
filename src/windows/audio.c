@@ -331,6 +331,9 @@ void MTY_AudioDestroy(MTY_Audio **audio)
 	*audio = NULL;
 }
 
+static DWORD JUST_A_TEST_FOR_TRIGGER = 0;
+static bool REINIT_DEVICE_ALREADY = false;
+
 static uint32_t audio_get_queued_frames(MTY_Audio *ctx)
 {
 	if (!ctx->client) {
@@ -347,6 +350,31 @@ static uint32_t audio_get_queued_frames(MTY_Audio *ctx)
 		MTY_Log("\"IAudioClient_GetCurrentPadding\" returned error 0x%X and padding is %u. So returning queued frames as ctx->buffer_size %u", e, padding, ctx->buffer_size);
 		return ctx->buffer_size;
 	}
+}
+
+static HRESULT audio_get_queued_frames_2(MTY_Audio *ctx, uint32_t *frames)
+{
+	if (!ctx->client)
+		return AUDCLNT_E_NOT_INITIALIZED;
+
+	UINT32 padding = 0;
+	HRESULT e = IAudioClient_GetCurrentPadding(ctx->client, &padding);
+
+	if (JUST_A_TEST_FOR_TRIGGER) {
+		if (REINIT_DEVICE_ALREADY) {
+			JUST_A_TEST_FOR_TRIGGER = 0;
+			REINIT_DEVICE_ALREADY = false;
+
+		} else {
+			e = AUDCLNT_E_DEVICE_INVALIDATED;
+		}
+	}
+
+	if (e != S_OK)
+		padding = ctx->buffer_size;
+
+	*frames = padding;
+	return e;
 }
 
 static void audio_play(MTY_Audio *ctx)
@@ -423,7 +451,24 @@ void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 		return;
 	}
 
-	uint32_t queued = audio_get_queued_frames(ctx);
+	uint32_t queued = 0;
+	HRESULT e = audio_get_queued_frames_2(ctx, &queued);
+	if (e != S_OK) {
+		MTY_Log("\"audio_get_queued_frames_2\" returned 0x%X. Re-initializing audio device.", e);
+
+		audio_device_destroy(ctx);
+		for (uint8_t x = 0; audio_device_create(ctx) != S_OK && x < 5; x++)
+			MTY_Sleep(100);
+
+		if (!ctx->client) {
+			MTY_Log("Failed to re-initialize audio device %ls", ctx->device_id);
+			return;
+
+		} else {
+			REINIT_DEVICE_ALREADY = true;
+			e = audio_get_queued_frames_2(ctx, &queued);
+		}
+	}
 
 	MTY_Log("count %u | (buffer_size %u - queued %u) = %u | max_buffer %u", count, ctx->buffer_size, queued, ctx->buffer_size - queued, ctx->max_buffer);
 
@@ -435,7 +480,7 @@ void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 
 	if (ctx->buffer_size - queued >= count) {
 		BYTE *buffer = NULL;
-		HRESULT e = IAudioRenderClient_GetBuffer(ctx->render, count, &buffer);
+		e = IAudioRenderClient_GetBuffer(ctx->render, count, &buffer);
 
 		if (e == S_OK) {
 			memcpy(buffer, frames, count * ctx->channels * AUDIO_SAMPLE_SIZE);
