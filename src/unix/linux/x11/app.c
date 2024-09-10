@@ -94,7 +94,7 @@ static MTY_Window app_find_window(MTY_App *ctx, Window xwindow)
 	for (MTY_Window x = 0; x < MTY_WINDOW_MAX; x++) {
 		struct window *win = app_get_window(ctx, x);
 
-		if (win->window == xwindow)
+		if (win && win->window == xwindow)
 			return x;
 	}
 
