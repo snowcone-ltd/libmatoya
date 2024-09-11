@@ -6,6 +6,7 @@
 
 #include <IOKit/hid/IOHIDManager.h>
 #include <IOKit/hid/IOHIDKeys.h>
+#include <IOKit/IOKitLib.h>
 
 #define HID_DEV_GET_USAGE(dev) \
 	hid_device_get_prop_int(dev, CFSTR(kIOHIDPrimaryUsageKey))
@@ -164,15 +165,30 @@ struct hid *mty_hid_create(HID_CONNECT connect, HID_DISCONNECT disconnect, HID_R
 	CFArrayRef matches = CFArrayCreate(kCFAllocatorDefault, (const void **) dict_list, key ? 4 : 3, NULL);
 	IOHIDManagerSetDeviceMatchingMultiple(ctx->mgr, matches);
 
+	IOHIDManagerScheduleWithRunLoop(ctx->mgr, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
+
+	IOReturn e = IOHIDManagerOpen(ctx->mgr, kIOHIDOptionsTypeNone);
+	if (e == kIOReturnExclusiveAccess && key) {
+		CFMutableDictionaryRef d4 = IOServiceNameMatching("org_pqrs_Karabiner_DriverKit_VirtualHIDKeyboard");
+		CFMutableDictionaryRef dict_list2[] = {d0, d1, d2, d4};
+
+		CFArrayRef matches2 = CFArrayCreate(kCFAllocatorDefault, (const void **) dict_list2, sizeof(dict_list2) / sizeof(dict_list2[0]), NULL);
+		IOHIDManagerSetDeviceMatchingMultiple(ctx->mgr, matches2);
+
+		CFRelease(matches2);
+		CFRelease(d4);
+
+		e = IOHIDManagerOpen(ctx->mgr, kIOHIDOptionsTypeNone);
+		if (e == kIOReturnSuccess)
+			MTY_Log("Using Karabiner compatibility for IOHID access.");
+	}
+
 	CFRelease(matches);
 	CFRelease(d3);
 	CFRelease(d2);
 	CFRelease(d1);
 	CFRelease(d0);
 
-	IOHIDManagerScheduleWithRunLoop(ctx->mgr, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
-
-	IOReturn e = IOHIDManagerOpen(ctx->mgr, kIOHIDOptionsTypeNone);
 	if (e != kIOReturnSuccess) {
 		r = false;
 		MTY_Log("'IOHIDManagerOpen' failed with error 0x%X", e);
