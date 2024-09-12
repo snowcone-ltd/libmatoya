@@ -8,11 +8,22 @@
 
 #include <windows.h>
 #include <ole2.h>
+#include <shlwapi.h>
 
 #define COBJMACROS
 #include "webview2.h"
 
 #include "unix/web/keymap.h"
+
+// https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution#detect-if-a-webview2-runtime-is-already-installed
+#define WEBVIEW_REG_PATH L"Software\\Microsoft\\EdgeUpdate\\%s\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+
+#if defined(_WIN64)
+	#define WEBVIEW_DLL_PATH L"EBWebView\\x64\\EmbeddedBrowserWebView.dll"
+
+#else
+	#define WEBVIEW_DLL_PATH L"EBWebView\\x86\\EmbeddedBrowserWebView.dll"
+#endif
 
 typedef HRESULT (WINAPI *WEBVIEW_CREATE_FUNC)(uintptr_t _unknown0, uintptr_t _unknown1,
 	const WCHAR *wdir, ICoreWebView2EnvironmentOptions *opts,
@@ -477,47 +488,106 @@ static ICoreWebView2EnvironmentOptionsVtbl VTBL5 = {
 
 // Public
 
-static HMODULE webview_load_dll(void)
+static bool webview_dll_path_clientstate(wchar_t *pathw, bool as_user)
 {
-	HKEY key = NULL;
-	WCHAR *dll = NULL;
-	HMODULE lib = NULL;
+	bool ok = false;
+	DWORD flags = KEY_READ;
 
-	LSTATUS r = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-		L"Software\\Microsoft\\EdgeUpdate\\ClientState\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}",
-		0, KEY_WOW64_32KEY | KEY_READ, &key);
+	HKEY hkey = as_user ? HKEY_CURRENT_USER : HKEY_LOCAL_MACHINE;
+	if (!as_user)
+		flags |= KEY_WOW64_32KEY;
+
+	wchar_t reg_path[MAX_PATH] = {0};
+	_snwprintf_s(reg_path, MAX_PATH, _TRUNCATE, WEBVIEW_REG_PATH, L"ClientState");
+
+	HKEY key = NULL;
+	LSTATUS r = RegOpenKeyEx(hkey, reg_path, 0, flags, &key);
 	if (r != ERROR_SUCCESS)
 		goto except;
 
-	dll = MTY_Alloc(MAX_PATH, sizeof(WCHAR));
-	DWORD size = MAX_PATH * sizeof(WCHAR);
-
+	DWORD size = MAX_PATH * sizeof(wchar_t);
+	wchar_t dll[MAX_PATH] = {0};
 	r = RegQueryValueEx(key, L"EBWebView", 0, NULL, (BYTE *) dll, &size);
 	if (r != ERROR_SUCCESS)
 		goto except;
 
-	#if defined(_WIN64)
-		const WCHAR *path = L"\\EBWebView\\x64\\EmbeddedBrowserWebView.dll";
+	_snwprintf_s(pathw, MTY_PATH_MAX, _TRUNCATE, L"%s\\%s", dll, WEBVIEW_DLL_PATH);
 
-	#else
-		const WCHAR *path = L"\\EBWebView\\x86\\EmbeddedBrowserWebView.dll";
-	#endif
-
-	if (wcscat_s(dll, MAX_PATH, path) != 0)
-		goto except;
-
-	lib = LoadLibrary(dll);
-	if (!lib)
-		goto except;
+	ok = PathFileExists(pathw);
 
 	except:
-
-	MTY_Free(dll);
 
 	if (key)
 		RegCloseKey(key);
 
-	return lib;
+	return ok;
+}
+
+static bool webview_dll_path_client(wchar_t *pathw, bool as_user)
+{
+	bool ok = false;
+	DWORD flags = KEY_READ;
+
+	HKEY hkey = as_user ? HKEY_CURRENT_USER : HKEY_LOCAL_MACHINE;
+	if (!as_user)
+		flags |= KEY_WOW64_32KEY;
+
+	wchar_t reg_path[MAX_PATH] = {0};
+	_snwprintf_s(reg_path, MAX_PATH, _TRUNCATE, WEBVIEW_REG_PATH, L"Clients");
+
+	HKEY key = NULL;
+	LSTATUS r = RegOpenKeyEx(hkey, reg_path, 0, flags, &key);
+	if (r != ERROR_SUCCESS)
+		goto except;
+
+	DWORD size = MAX_PATH * sizeof(wchar_t);
+	wchar_t dll[MAX_PATH] = {0};
+	r = RegQueryValueEx(key, L"location", 0, NULL, (BYTE *) dll, &size);
+	if (r != ERROR_SUCCESS)
+		goto except;
+
+	size = MAX_PATH * sizeof(wchar_t);
+	wchar_t version[MAX_PATH] = {0};
+	r = RegQueryValueEx(key, L"pv", 0, NULL, (BYTE *) version, &size);
+	if (r != ERROR_SUCCESS)
+		goto except;
+
+	_snwprintf_s(pathw, MTY_PATH_MAX, _TRUNCATE, L"%s\\%s\\%s", dll, version, WEBVIEW_DLL_PATH);
+
+	ok = PathFileExists(pathw);
+
+	except:
+
+	if (key)
+		RegCloseKey(key);
+
+	return ok;
+}
+
+static bool webview_dll_path(wchar_t *pathw, bool as_user)
+{
+	// Try convenient ClientState first
+	if (webview_dll_path_clientstate(pathw, as_user))
+		return true;
+
+	// Construct the base path manually if ClientState is not available
+	return webview_dll_path_client(pathw, as_user);
+}
+
+static HMODULE webview_load_dll(void)
+{
+	wchar_t path[MTY_PATH_MAX] = {0};
+	HMODULE ret = NULL;
+
+	// Try system WebView
+	if (webview_dll_path(path, false))
+		ret = LoadLibrary(path);
+
+	// Try user WebView
+	if (!ret && webview_dll_path(path, true))
+		ret = LoadLibrary(path);
+
+	return ret;
 }
 
 struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *dir,
@@ -547,7 +617,8 @@ struct webview *mty_webview_create(MTY_App *app, MTY_Window window, const char *
 	ctx->handler4.opaque = ctx;
 	ctx->opts.lpVtbl = &VTBL5;
 
-	const WCHAR *dirw = dir ? MTY_MultiToWideDL(dir) : L"webview-data";
+	WCHAR dirw[MTY_PATH_MAX] = {0};
+	MTY_MultiToWide(dir ? dir : "webview-data", dirw, MTY_PATH_MAX);
 
 	HRESULT e = E_FAIL;
 	ctx->lib = webview_load_dll();
@@ -684,11 +755,13 @@ bool mty_webview_is_steam(void)
 
 bool mty_webview_is_available(void)
 {
-	HMODULE webview = webview_load_dll();
-	if (webview) {
-		FreeLibrary(webview);
-		return true;
-	}
+	wchar_t path[MTY_PATH_MAX] = {0};
 
-	return false;
+	bool have_path = webview_dll_path(path, false);
+	if (!have_path)
+		have_path = webview_dll_path(path, true);
+
+	// Loading the lib would be ideal to be sure, but repeated loads eventually cause issues from Windows not un-reserving memory.
+	// https://forums.codeguru.com/showthread.php?60548-Is-there-a-limit-on-how-many-times-one-can-load-(and-free)-the-same-DLL-in-a-process&p=156821#post156821
+	return have_path;
 }
