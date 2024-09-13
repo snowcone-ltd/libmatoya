@@ -18,8 +18,10 @@
 
 #if defined(__GNUC__)
 	#define MTY_FMT(a, b) __attribute__((format(printf, a, b)))
+	#define MTY_MEMORY_BARRIER() __sync_synchronize()
 #else
 	#define MTY_FMT(a, b)
+	#define MTY_MEMORY_BARRIER() MemoryBarrier()
 #endif
 
 #ifdef __cplusplus
