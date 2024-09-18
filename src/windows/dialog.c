@@ -36,7 +36,7 @@ void MTY_ShowMessageBox(const char *title, const char *fmt, ...)
 
 const char *MTY_OpenFile(const char *title, MTY_App *app, MTY_Window window)
 {
-	WCHAR file[MTY_PATH_MAX * sizeof(WCHAR)] = L"";
+	WCHAR file[MTY_PATH_MAX] = L"";
 
 	OPENFILENAME ofn = {0};
 	ofn.lStructSize = sizeof(OPENFILENAME);
