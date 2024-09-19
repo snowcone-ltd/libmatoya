@@ -22,6 +22,9 @@ DEFINE_GUID(IID_IMMNotificationClient, 0x7991EEC9, 0x7E89, 0x4D85, 0x83, 0x90, 0
 #define AUDIO_SAMPLE_SIZE sizeof(int16_t)
 #define AUDIO_BUFFER_SIZE ((1 * 1000 * 1000 * 1000) / 100) // 1 second
 
+#define AUDIO_REINIT_MAX_TRIES   5
+#define AUDIO_REINIT_DELAY_MS  100
+
 struct MTY_Audio {
 	bool playing;
 	bool notification_init;
@@ -331,16 +334,20 @@ void MTY_AudioDestroy(MTY_Audio **audio)
 	*audio = NULL;
 }
 
-static uint32_t audio_get_queued_frames(MTY_Audio *ctx)
+static HRESULT audio_get_queued_frames(MTY_Audio *ctx, uint32_t *out)
 {
+	*out = ctx->buffer_size; // indicates that the buffer is full, which also serves
+	                         // as a useful return value in the case of an error.
+
 	if (!ctx->client)
-		return ctx->buffer_size;
+		return AUDCLNT_E_NOT_INITIALIZED;
 
 	UINT32 padding = 0;
-	if (IAudioClient_GetCurrentPadding(ctx->client, &padding) == S_OK)
-		return padding;
+	HRESULT e = IAudioClient_GetCurrentPadding(ctx->client, &padding);
+	if (e == S_OK)
+		*out = padding;
 
-	return ctx->buffer_size;
+	return e;
 }
 
 static void audio_play(MTY_Audio *ctx)
@@ -381,16 +388,28 @@ void MTY_AudioReset(MTY_Audio *ctx)
 	}
 }
 
+static HRESULT audio_reinit_device(MTY_Audio *ctx)
+{
+	audio_device_destroy(ctx);
+
+	// When the default device is in the process of changing, this may fail so we try multiple times
+	HRESULT e = AUDCLNT_E_NOT_INITIALIZED;
+	for (uint8_t x = 0; x < AUDIO_REINIT_MAX_TRIES; x++) {
+		e = audio_device_create(ctx);
+
+		if (e == S_OK && ctx->client)
+			break;
+
+		MTY_Sleep(AUDIO_REINIT_DELAY_MS);
+	}
+
+	return e;
+}
+
 static bool audio_handle_device_change(MTY_Audio *ctx)
 {
 	if (AUDIO_DEVICE_CHANGED) {
-		audio_device_destroy(ctx);
-
-		// When the default device is in the process of changing, this may fail
-		for (uint8_t x = 0; audio_device_create(ctx) != S_OK && x < 5; x++)
-			MTY_Sleep(100);
-
-		if (!ctx->client)
+		if (audio_reinit_device(ctx) != S_OK)
 			return false;
 
 		AUDIO_DEVICE_CHANGED = false;
@@ -401,7 +420,9 @@ static bool audio_handle_device_change(MTY_Audio *ctx)
 
 uint32_t MTY_AudioGetQueued(MTY_Audio *ctx)
 {
-	return lrint((float) audio_get_queued_frames(ctx) / ((float) ctx->sample_rate / 1000.0f));
+	uint32_t queued = 0;
+	audio_get_queued_frames(ctx, &queued);
+	return lrint((float) queued / ((float) ctx->sample_rate / 1000.0f));
 }
 
 void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
@@ -409,7 +430,19 @@ void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 	if (!audio_handle_device_change(ctx))
 		return;
 
-	uint32_t queued = audio_get_queued_frames(ctx);
+	uint32_t queued = 0;
+	HRESULT e = audio_get_queued_frames(ctx, &queued);
+	if (e != S_OK) {
+		MTY_Log("\"audio_get_queued_frames\" returned 0x%X. Re-initializing audio device", e);
+
+		e = audio_reinit_device(ctx);
+		if (e != S_OK) {
+			MTY_Log("\"audio_reinit_device\" returned 0x%X, failed to re-initialize audio device", e);
+			return;
+		}
+
+		audio_get_queued_frames(ctx, &queued);
+	}
 
 	// Stop playing and flush if we've exceeded the maximum buffer or underrun
 	if (ctx->playing && (queued > ctx->max_buffer || queued == 0))
@@ -417,7 +450,7 @@ void MTY_AudioQueue(MTY_Audio *ctx, const int16_t *frames, uint32_t count)
 
 	if (ctx->buffer_size - queued >= count) {
 		BYTE *buffer = NULL;
-		HRESULT e = IAudioRenderClient_GetBuffer(ctx->render, count, &buffer);
+		e = IAudioRenderClient_GetBuffer(ctx->render, count, &buffer);
 
 		if (e == S_OK) {
 			memcpy(buffer, frames, count * ctx->channels * AUDIO_SAMPLE_SIZE);
