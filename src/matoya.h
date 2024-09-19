@@ -2225,6 +2225,9 @@ MTY_JSONObjSetItem(MTY_JSON *json, const char *key, MTY_JSON *value);
 #define MTY_JSONObjGetFloat(json, key, val) \
 	MTY_JSONFloat(MTY_JSONObjGetItem(json, key), val)
 
+#define MTY_JSONObjGetNumber(json, key, val) \
+	MTY_JSONNumber(MTY_JSONObjGetItem(json, key), val)
+
 #define MTY_JSONObjGetString(json, key, val, size) \
 	MTY_JSONString(MTY_JSONObjGetItem(json, key), val, size)
 
