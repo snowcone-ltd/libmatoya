@@ -153,10 +153,14 @@ void MTY_WebSocketDestroy(MTY_WebSocket **webSocket)
 		[ctx->task cancelWithCloseCode:NSURLSessionWebSocketCloseCodeNormalClosure reason:nil];
 
 	if (ctx->session) {
+		id delegate = [ctx->session delegate];
 		[ctx->session finishTasksAndInvalidate];
 
 		if (ctx->conn)
 			MTY_WaitableWait(ctx->conn, INT32_MAX);
+
+		if (delegate)
+			OBJC_CTX_CLEAR(delegate);
 	}
 
 	ctx->session = nil;

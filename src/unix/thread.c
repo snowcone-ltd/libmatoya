@@ -123,17 +123,21 @@ void MTY_MutexDestroy(MTY_Mutex **mutex)
 		return;
 
 	MTY_Mutex *ctx = *mutex;
+	*mutex = NULL;
+	MTY_MEMORY_BARRIER();
 
 	int32_t e = pthread_mutex_destroy(&ctx->mutex);
 	if (e != 0)
 		MTY_LogFatal("'pthread_mutex_destroy' failed with error %d", e);
 
 	MTY_Free(ctx);
-	*mutex = NULL;
 }
 
 void MTY_MutexLock(MTY_Mutex *ctx)
 {
+	if (!ctx)
+		return;
+
 	int32_t e = pthread_mutex_lock(&ctx->mutex);
 	if (e != 0)
 		MTY_LogFatal("'pthread_mutex_lock' failed with error %d", e);
@@ -141,6 +145,9 @@ void MTY_MutexLock(MTY_Mutex *ctx)
 
 bool MTY_MutexTryLock(MTY_Mutex *ctx)
 {
+	if (!ctx)
+		return false;
+
 	int32_t e = pthread_mutex_trylock(&ctx->mutex);
 	if (e != 0 && e != EBUSY)
 		MTY_LogFatal("'pthread_mutex_trylock' failed with error %d", e);
@@ -150,6 +157,9 @@ bool MTY_MutexTryLock(MTY_Mutex *ctx)
 
 void MTY_MutexUnlock(MTY_Mutex *ctx)
 {
+	if (!ctx)
+		return;
+
 	int32_t e = pthread_mutex_unlock(&ctx->mutex);
 	if (e != 0)
 		MTY_LogFatal("'pthread_mutex_unlock' failed with error %d", e);
@@ -179,17 +189,21 @@ void MTY_CondDestroy(MTY_Cond **cond)
 		return;
 
 	MTY_Cond *ctx = *cond;
+	*cond = NULL;
+	MTY_MEMORY_BARRIER();
 
 	int32_t e = pthread_cond_destroy(&ctx->cond);
 	if (e != 0)
 		MTY_LogFatal("'pthread_cond_destroy' failed with error %d", e);
 
 	MTY_Free(ctx);
-	*cond = NULL;
 }
 
 bool MTY_CondWait(MTY_Cond *ctx, MTY_Mutex *mutex, int32_t timeout)
 {
+	if (!ctx || !mutex)
+		return false;
+
 	// Use pthread_cond_timedwait
 	if (timeout >= 0) {
 		struct timespec ts = {0};
@@ -222,6 +236,9 @@ bool MTY_CondWait(MTY_Cond *ctx, MTY_Mutex *mutex, int32_t timeout)
 
 void MTY_CondSignal(MTY_Cond *ctx)
 {
+	if (!ctx)
+		return;
+
 	int32_t e = pthread_cond_signal(&ctx->cond);
 	if (e != 0)
 		MTY_LogFatal("'pthread_cond_signal' failed with error %d", e);
@@ -229,6 +246,9 @@ void MTY_CondSignal(MTY_Cond *ctx)
 
 void MTY_CondSignalAll(MTY_Cond *ctx)
 {
+	if (!ctx)
+		return;
+
 	int32_t e = pthread_cond_broadcast(&ctx->cond);
 	if (e != 0)
 		MTY_LogFatal("'pthread_cond_broadcast' failed with error %d", e);

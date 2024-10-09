@@ -116,25 +116,35 @@ void MTY_MutexDestroy(MTY_Mutex **mutex)
 		return;
 
 	MTY_Mutex *ctx = *mutex;
+	*mutex = NULL;
+	MTY_MEMORY_BARRIER();
 
 	DeleteCriticalSection(&ctx->mutex);
 
 	MTY_Free(ctx);
-	*mutex = NULL;
 }
 
 void MTY_MutexLock(MTY_Mutex *ctx)
 {
+	if (!ctx)
+		return;
+
 	EnterCriticalSection(&ctx->mutex);
 }
 
 bool MTY_MutexTryLock(MTY_Mutex *ctx)
 {
+	if (!ctx)
+		return false;
+
 	return TryEnterCriticalSection(&ctx->mutex);
 }
 
 void MTY_MutexUnlock(MTY_Mutex *ctx)
 {
+	if (!ctx)
+		return;
+
 	LeaveCriticalSection(&ctx->mutex);
 }
 
@@ -160,13 +170,17 @@ void MTY_CondDestroy(MTY_Cond **cond)
 		return;
 
 	MTY_Cond *ctx = *cond;
+	*cond = NULL;
+	MTY_MEMORY_BARRIER();
 
 	MTY_Free(ctx);
-	*cond = NULL;
 }
 
 bool MTY_CondWait(MTY_Cond *ctx, MTY_Mutex *mutex, int32_t timeout)
 {
+	if (!ctx || !mutex)
+		return false;
+
 	bool r = true;
 	timeout = timeout < 0 ? INFINITE : timeout;
 
@@ -188,11 +202,17 @@ bool MTY_CondWait(MTY_Cond *ctx, MTY_Mutex *mutex, int32_t timeout)
 
 void MTY_CondSignal(MTY_Cond *ctx)
 {
+	if (!ctx)
+		return;
+
 	WakeConditionVariable(&ctx->cond);
 }
 
 void MTY_CondSignalAll(MTY_Cond *ctx)
 {
+	if (!ctx)
+		return;
+
 	WakeAllConditionVariable(&ctx->cond);
 }
 
