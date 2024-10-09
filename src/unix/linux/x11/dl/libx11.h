@@ -274,6 +274,16 @@ typedef struct {
 	unsigned long serial;
 	Bool send_event;
 	Display *display;
+	Window event;
+	Window window;
+	Bool override_redirect;
+} XMapEvent;
+
+typedef struct {
+	int type;
+	unsigned long serial;
+	Bool send_event;
+	Display *display;
 	Window window;
 	Window root;
 	Window subwindow;
@@ -398,6 +408,7 @@ typedef union _XEvent {
 	XSelectionEvent xselection;
 	XClientMessageEvent xclient;
 	XGenericEventCookie xcookie;
+	XMapEvent xmap;
 	long pad[24];
 } XEvent;
 

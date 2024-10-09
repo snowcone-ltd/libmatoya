@@ -28,6 +28,7 @@ struct window {
 	int32_t last_width;
 	int32_t last_height;
 	struct xinfo info;
+	bool should_fullscreen;
 };
 
 struct MTY_App {
@@ -535,6 +536,15 @@ static void app_event(MTY_App *ctx, XEvent *event)
 			}
 			ctx->state++;
 			break;
+		case MapNotify: {
+			MTY_Window window = app_find_window(ctx, event->xmap.window);
+			struct window *win = app_get_window(ctx, window);
+			if (win->should_fullscreen) {
+				window_wm_event(ctx->display, win->window, _NET_WM_STATE_ADD, "_NET_WM_STATE_FULLSCREEN", NULL);
+				win->should_fullscreen = false;
+			}
+			break;
+		}
 		default:
 			// Xfixes gets selection ownership changes without polling
 			if (ctx->xfixes && event->type == ctx->xfixes_base + XFixesSelectionNotify)
@@ -1187,7 +1197,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 			"_NET_WM_STATE_MAXIMIZED_HORZ", "_NET_WM_STATE_MAXIMIZED_VERT");
 
 	if (frame->type & MTY_WINDOW_FULLSCREEN)
-		window_wm_event(app->display, ctx->window, _NET_WM_STATE_ADD, "_NET_WM_STATE_FULLSCREEN", NULL);
+		ctx->should_fullscreen = true;
 
 	MTY_WindowSetTitle(app, window, title ? title : "MTY_Window");
 
