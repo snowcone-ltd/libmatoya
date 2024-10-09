@@ -732,18 +732,23 @@ async function mty_ws_connect(url) {
 		ws.closeCode = 0;
 		ws.msgs = [];
 
+		let tm = 0; // JS clients can't do WebSocket ping/pong, so we do our own pseudo keepalive to prevent dropped connections
 		ws.onclose = (ev) => {
 			ws.closeCode = ev.code == 1005 ? 1000 : ev.code;
+			clearInterval(tm);
 			resolve(null);
 		};
 
 		ws.onerror = (err) => {
 			console.error(err);
+			clearInterval(tm);
 			resolve(null);
 		};
 
 		ws.onopen = () => {
 			resolve(ws);
+			tm = setInterval(() => {ws.send('__ping__');}, 60000); // we've seen timeouts at the 10-minute mark,
+			                                                       // so a 60-second period should be more than enough
 		};
 
 		ws.onmessage = (ev) => {
