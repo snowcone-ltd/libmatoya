@@ -1,0 +1,63 @@
+name: Build
+on:
+  push:
+    branches:
+      - stable
+    tags-ignore:
+      - '**'
+  pull_request:
+    types: [ labeled, synchronize ]
+jobs:
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    if: ${{github.event_name == 'push' || (github.event.action == 'labeled' && github.event.label.name == 'Build') || (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'Build'))}}
+    permissions:
+      contents: read
+    env:
+      TERM: xterm-256color
+    steps:
+      - name: Checkout Branch
+        uses: actions/checkout@v4
+        with:
+          path: libmatoya
+      - name: Test
+        run: |
+          cd libmatoya
+          make ARCH=arm64
+  linux:
+    name: Linux
+    runs-on: ubuntu-latest
+    if: ${{github.event_name == 'push' || (github.event.action == 'labeled' && github.event.label.name == 'Build') || (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'Build'))}}
+    permissions:
+      contents: read
+    env:
+      TERM: xterm-256color
+    steps:
+      - name: Checkout Branch
+        uses: actions/checkout@v4
+        with:
+          path: libmatoya
+      - name: Test
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev python3-setuptools glslang-tools
+          cd libmatoya
+          make
+  windows:
+    name: "Windows x64"
+    runs-on: windows-2022
+    if: ${{github.event_name == 'push' || (github.event.action == 'labeled' && github.event.label.name == 'Build') || (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'Build'))}}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Branch
+        uses: actions/checkout@v4
+        with:
+          path: libmatoya
+      - name: Test
+        shell: cmd
+        run: |
+          call "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
+          cd libmatoya
+          nmake
