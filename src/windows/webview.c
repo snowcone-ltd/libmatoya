@@ -251,8 +251,16 @@ static void webview_navigate(struct webview *ctx, WCHAR *source, bool url)
 static HRESULT STDMETHODCALLTYPE h1_Invoke(ICoreWebView2CreateCoreWebView2ControllerCompletedHandler *This,
 	HRESULT errorCode, ICoreWebView2Controller *controller)
 {
+	if (errorCode != S_OK)
+		return errorCode;
+
 	struct webview_handler1 *handler = (struct webview_handler1 *) This;
+	if (handler == NULL)
+		return E_FAIL;
+
 	struct webview *ctx = handler->opaque;
+	if (ctx == NULL)
+		return E_FAIL;
 
 	HRESULT e = ICoreWebView2Controller2_QueryInterface(controller, &IID_ICoreWebView2Controller2, &ctx->controller);
 	if (e != S_OK)
