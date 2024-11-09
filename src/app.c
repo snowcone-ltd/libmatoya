@@ -9,6 +9,7 @@
 
 #include "gfx/mod.h"
 #include "gfx/mod-ui.h"
+#include "gfx/viewport.h"
 
 
 // GFX
@@ -100,6 +101,19 @@ static bool gfx_begin_ui(struct window_common *cmn, MTY_Device *device)
 		cmn->ui_textures = MTY_HashCreate(0);
 
 	return cmn->gfx_ui != NULL;
+}
+
+void MTY_WindowGetViewport(MTY_App *app, MTY_Window window, const MTY_RenderDesc *desc,
+	float *x, float *y, float *w, float *h)
+{
+	struct window_common *cmn = mty_window_get_common(app, window);
+	if (!cmn)
+		return;
+
+	MTY_RenderDesc mutated = *desc;
+	gfx_ctx_get_size(cmn, &mutated.viewWidth, &mutated.viewHeight);
+
+	mty_viewport(&mutated, x, y, w, h);
 }
 
 void MTY_WindowDrawQuad(MTY_App *app, MTY_Window window, const void *image, const MTY_RenderDesc *desc)

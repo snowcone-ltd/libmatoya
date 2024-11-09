@@ -1162,6 +1162,17 @@ MTY_WindowSetFullscreen(MTY_App *app, MTY_Window window, bool fullscreen);
 MTY_EXPORT void
 MTY_WindowWarpCursor(MTY_App *app, MTY_Window window, uint32_t x, uint32_t y);
 
+/// @brief Calculate the viewport for a window given an MTY_RenderDesc.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @param desc An MTY_RenderDesc that could be passed to MTY_WindowDrawQuad.
+/// @param x Set to the location of the left edge of the viewport.
+/// @param y Set to the location of the top edge of the viewport.
+/// @param w Set to the width of the viewport.
+/// @param h Set to the height of the viewport.
+void MTY_WindowGetViewport(MTY_App *app, MTY_Window window, const MTY_RenderDesc *desc,
+	float *x, float *y, float *w, float *h);
+
 /// @brief Draw a quad with a raw image and MTY_RenderDesc.
 /// @param app The MTY_App.
 /// @param window An MTY_Window.
