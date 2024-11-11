@@ -1356,8 +1356,8 @@ void MTY_AppSetRelativeMouse(MTY_App *ctx, bool relative)
 	app_apply_clip(ctx, focus);
 }
 
-static void app_set_rgba_cursor(MTY_App *app, const uint8_t *rgba, uint32_t width, uint32_t height,
-	uint32_t hotX, uint32_t hotY)
+static void app_set_cursor_image(MTY_App *app, const uint8_t *image, bool bgra,
+	uint32_t width, uint32_t height, uint32_t hotX, uint32_t hotY)
 {
 	HDC dc = NULL;
 	ICONINFO ii = {0};
@@ -1401,14 +1401,19 @@ static void app_set_rgba_cursor(MTY_App *app, const uint8_t *rgba, uint32_t widt
 		goto except;
 	}
 
-	uint32_t pitch = width * 4;
-	for (uint32_t y = 0; y < height; y++) {
-		for (uint32_t x = 0; x < pitch; x += 4) {
-			mem[y * pitch + x + 0] = rgba[y * pitch + x + 2];
-			mem[y * pitch + x + 1] = rgba[y * pitch + x + 1];
-			mem[y * pitch + x + 2] = rgba[y * pitch + x + 0];
-			mem[y * pitch + x + 3] = rgba[y * pitch + x + 3];
+	if (bgra) {
+		uint32_t pitch = width * 4;
+		for (uint32_t y = 0; y < height; y++) {
+			for (uint32_t x = 0; x < pitch; x += 4) {
+				mem[y * pitch + x + 0] = image[y * pitch + x + 2];
+				mem[y * pitch + x + 1] = image[y * pitch + x + 1];
+				mem[y * pitch + x + 2] = image[y * pitch + x + 0];
+				mem[y * pitch + x + 3] = image[y * pitch + x + 3];
+			}
 		}
+
+	} else {
+		memcpy(mem, image, width * height * 4);
 	}
 
 	app->custom_cursor = CreateIconIndirect(&ii);
@@ -1431,8 +1436,8 @@ static void app_set_rgba_cursor(MTY_App *app, const uint8_t *rgba, uint32_t widt
 	MTY_Free(mask);
 }
 
-void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
-	uint32_t hotX, uint32_t hotY)
+static void app_set_rgba_or_bgra_cursor(MTY_App *ctx, const void *image, bool bgra,
+	uint32_t width, uint32_t height, uint32_t hotX, uint32_t hotY)
 {
 	if (ctx->custom_cursor) {
 		DestroyIcon(ctx->custom_cursor);
@@ -1441,20 +1446,26 @@ void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint3
 	}
 
 	if (image && width > 0 && height > 0) {
-		app_set_rgba_cursor(ctx, image, width, height, hotX, hotY);
+		app_set_cursor_image(ctx, image, bgra, width, height, hotX, hotY);
 		ctx->state++;
 	}
+}
+
+void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
+	uint32_t hotX, uint32_t hotY)
+{
+	app_set_rgba_or_bgra_cursor(ctx, image, false, width, height, hotX, hotY);
 }
 
 void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX, uint32_t hotY)
 {
 	uint32_t width = 0;
 	uint32_t height = 0;
-	void *rgba = image ? MTY_DecompressImage(image, size, &width, &height) : NULL;
+	void *bgra = image ? MTY_DecompressImage(image, size, &width, &height) : NULL;
 
-	MTY_AppSetRGBACursor(ctx, rgba, width, height, hotX, hotY);
+	app_set_rgba_or_bgra_cursor(ctx, bgra, true, width, height, hotX, hotY);
 
-	MTY_Free(rgba);
+	MTY_Free(bgra);
 }
 
 void MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor)
