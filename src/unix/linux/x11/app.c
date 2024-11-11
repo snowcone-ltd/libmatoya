@@ -959,6 +959,10 @@ void MTY_AppSetCursor(MTY_App *ctx, MTY_Cursor cursor)
 	}
 }
 
+void MTY_AppSetCursorSize(MTY_App* ctx, uint32_t width, uint32_t height)
+{
+}
+
 void MTY_AppShowCursor(MTY_App *ctx, bool show)
 {
 	if (ctx->hide_cursor == show) {
