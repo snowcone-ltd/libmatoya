@@ -1457,6 +1457,24 @@ void MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint3
 	app_set_rgba_or_bgra_cursor(ctx, image, false, width, height, hotX, hotY);
 }
 
+void MTY_AppSetMonochromeCursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
+	uint32_t hotX, uint32_t hotY)
+{
+	if (ctx->custom_cursor) {
+		DestroyIcon(ctx->custom_cursor);
+		ctx->custom_cursor = NULL;
+		ctx->state++;
+	}
+
+	if (image && width > 0 && height > 0) {
+		const uint8_t *and_plane = image;
+		const uint8_t *xor_plane = and_plane + (width * height) / 8;
+
+		ctx->custom_cursor = CreateCursor(NULL, hotX, hotY, width, height, and_plane, xor_plane);
+		ctx->state++;
+	}
+}
+
 void MTY_AppSetPNGCursor(MTY_App *ctx, const void *image, size_t size, uint32_t hotX, uint32_t hotY)
 {
 	uint32_t width = 0;

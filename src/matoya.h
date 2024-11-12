@@ -845,6 +845,17 @@ MTY_EXPORT void
 MTY_AppSetRGBACursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
 	uint32_t hotX, uint32_t hotY);
 
+/// @brief Set the app's cursor to a monochrome image.
+/// @param ctx The MTY_App.
+/// @param image A buffer containing a two plane monochrome image, the first plane contains
+///   a 1 bits per pixel AND mask, the second contains a 1 bits per pixel XOR mask.
+/// @param width Width in pixels of `image`.
+/// @param height Height in pixels of `image`.
+/// @param hotX The cursor's horizontal hotspot position.
+/// @param hotY The cursor's vertical hotspot position.
+void MTY_AppSetMonochromeCursor(MTY_App *ctx, const void *image, uint32_t width, uint32_t height,
+	uint32_t hotX, uint32_t hotY);
+
 /// @brief Set the app's cursor to a PNG image.
 /// @param ctx The MTY_App.
 /// @param image A buffer holding a compressed PNG image.
