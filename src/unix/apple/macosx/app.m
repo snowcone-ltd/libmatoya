@@ -607,6 +607,9 @@ static void window_pen_event(struct window *ctx, NSEvent *event, bool pressed)
 
 static void window_mouse_button_event(struct window *ctx, NSUInteger index, bool pressed)
 {
+	if (!ctx)
+		return;
+
 	NSPoint p = {0};
 	struct window *cur = window_find_mouse(ctx, &p);
 	if (!cur)
@@ -638,6 +641,9 @@ static void window_mouse_button_event(struct window *ctx, NSUInteger index, bool
 
 static void window_button_event(struct window *ctx, NSEvent *event, NSUInteger index, bool pressed)
 {
+	if (!ctx)
+		return;
+
 	// An index of zero indicates a pen event
 	bool is_pen_press = event.buttonMask & NSEventButtonMaskPenTip || index == 0;
 
@@ -736,6 +742,9 @@ static void window_mouse_motion_event(struct window *ctx, NSEvent *event, bool p
 
 static void window_motion_event(struct window *ctx, NSEvent *event)
 {
+	if (!ctx)
+		return;
+
 	bool pen_in_range = event.subtype == NSEventSubtypeTabletPoint;
 
 	if (ctx->app->pen_enabled && pen_in_range) {
@@ -834,6 +843,8 @@ static BOOL window_canBecomeMainWindow(NSWindow *self, SEL _cmd)
 static NSRect window_windowWillUseStandardFrame_defaultFrame(NSWindow *self, SEL _cmd, NSWindow *window, NSRect newFrame)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return newFrame;
 
 	if (!NSEqualRects(window.frame, newFrame))
 		ctx->normal_frame = window.frame;
@@ -844,6 +855,8 @@ static NSRect window_windowWillUseStandardFrame_defaultFrame(NSWindow *self, SEL
 static BOOL window_performKeyEquivalent(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return NO;
 
 	return ctx->app->grab_kb;
 }
@@ -851,6 +864,8 @@ static BOOL window_performKeyEquivalent(NSWindow *self, SEL _cmd, NSEvent *event
 static BOOL window_windowShouldClose(NSWindow *self, SEL _cmd, NSWindow *sender)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return NO;
 
 	MTY_Event evt = {
 		.type = MTY_EVENT_CLOSE,
@@ -870,6 +885,8 @@ static void window_windowWillClose(NSWindow *self, SEL _cmd, NSNotification *not
 static void window_windowDidResignKey(NSWindow *self, SEL _cmd, NSNotification *notification)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	MTY_Event evt = {
 		.type = MTY_EVENT_FOCUS,
@@ -895,6 +912,8 @@ static void window_windowDidResignKey(NSWindow *self, SEL _cmd, NSNotification *
 static void window_windowDidBecomeKey(NSWindow *self, SEL _cmd, NSNotification *notification)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	MTY_Event evt = {
 		.type = MTY_EVENT_FOCUS,
@@ -911,6 +930,8 @@ static void window_windowDidBecomeKey(NSWindow *self, SEL _cmd, NSNotification *
 static void window_windowDidChangeScreen(NSWindow *self, SEL _cmd, NSNotification *notification)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	// This event fires at the right time to re-apply the window level above the dock
 	if (ctx->top && self.isKeyWindow && (self.styleMask & NSWindowStyleMaskFullScreen)) {
@@ -922,6 +943,8 @@ static void window_windowDidChangeScreen(NSWindow *self, SEL _cmd, NSNotificatio
 static void window_windowDidResize(NSWindow *self, SEL _cmd, NSNotification *notification)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	MTY_Event evt = {
 		.type = MTY_EVENT_SIZE,
@@ -937,6 +960,8 @@ static void window_windowDidResize(NSWindow *self, SEL _cmd, NSNotification *not
 static void window_windowDidMove(NSWindow *self, SEL _cmd, NSNotification *notification)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	MTY_Event evt = {
 		.type = MTY_EVENT_MOVE,
@@ -949,6 +974,8 @@ static void window_windowDidMove(NSWindow *self, SEL _cmd, NSNotification *notif
 static void window_keyUp(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, false, false);
 }
@@ -956,6 +983,8 @@ static void window_keyUp(NSWindow *self, SEL _cmd, NSEvent *event)
 static void window_keyDown(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	window_text_event(ctx, [event.characters UTF8String]);
 	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, true, event.isARepeat);
@@ -964,6 +993,8 @@ static void window_keyDown(NSWindow *self, SEL _cmd, NSEvent *event)
 static void window_flagsChanged(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	bool pressed = window_flags_changed(event.keyCode, event.modifierFlags);
 	window_keyboard_event(ctx, event.keyCode, event.modifierFlags, pressed, false);
@@ -1024,6 +1055,8 @@ static void window_otherMouseDragged(NSWindow *self, SEL _cmd, NSEvent *event)
 static void window_mouseEntered(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	ctx->app->cursor_outside = false;
 	app_apply_cursor(ctx->app);
@@ -1032,6 +1065,8 @@ static void window_mouseEntered(NSWindow *self, SEL _cmd, NSEvent *event)
 static void window_mouseExited(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	ctx->app->cursor_outside = true;
 	app_apply_cursor(ctx->app);
@@ -1045,6 +1080,8 @@ static void window_scrollWheel(NSWindow *self, SEL _cmd, NSEvent *event)
 static void window_tabletProximity(NSWindow *self, SEL _cmd, NSEvent *event)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	ctx->app->eraser = event.pointingDeviceType == NSPointingDeviceTypeEraser;
 	ctx->app->pen_left = !event.enteringProximity;
@@ -1055,6 +1092,8 @@ static NSApplicationPresentationOptions window_window_willUseFullScreenPresentat
 	NSWindow *window, NSApplicationPresentationOptions proposedOptions)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return proposedOptions;
 
 	if (![self isZoomed]) {
 		ctx->normal_frame = window.frame;
@@ -1071,6 +1110,8 @@ static NSApplicationPresentationOptions window_window_willUseFullScreenPresentat
 static void window_windowDidEnterFullScreen(NSWindow *self, SEL _cmd, NSNotification *notification)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	if (ctx->top)
 		[self setLevel:NSMainMenuWindowLevel - 1];
@@ -1079,6 +1120,8 @@ static void window_windowDidEnterFullScreen(NSWindow *self, SEL _cmd, NSNotifica
 static void window_windowWillExitFullScreen(NSWindow *self, SEL _cmd, NSNotification *notification)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	ctx->top = false;
 	[self setLevel:NSNormalWindowLevel];
@@ -1087,6 +1130,8 @@ static void window_windowWillExitFullScreen(NSWindow *self, SEL _cmd, NSNotifica
 static void window_toggleFullScreen(NSWindow *self, SEL _cmd, id sender)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	if (window_is_fullscreen(self, true)) {
 		if (self.isKeyWindow)
@@ -1187,6 +1232,8 @@ static BOOL view_acceptsFirstMouse(NSView *self, SEL _cmd, NSEvent *event)
 static void view_updateTrackingAreas(NSView *self, SEL _cmd)
 {
 	struct window *ctx = OBJC_CTX();
+	if (!ctx)
+		return;
 
 	if (ctx->area)
 		[self removeTrackingArea:ctx->area];
@@ -1727,6 +1774,7 @@ MTY_Window MTY_WindowCreate(MTY_App *app, const char *title, const MTY_Frame *fr
 	[ctx->nsw setDelegate:ctx->nsw];
 	[ctx->nsw setAcceptsMouseMovedEvents:YES];
 	[ctx->nsw setReleasedWhenClosed:NO];
+	[ctx->nsw setTabbingMode:NSWindowTabbingModeDisallowed];
 
 	NSUInteger cb = alt_fs ? NSWindowCollectionBehaviorFullScreenNone |
 		NSWindowCollectionBehaviorFullScreenDisallowsTiling : NSWindowCollectionBehaviorFullScreenPrimary;
@@ -1764,6 +1812,9 @@ void MTY_WindowDestroy(MTY_App *app, MTY_Window window)
 		return;
 
 	ctx->app->windows[window] = NULL;
+
+	OBJC_CTX_CLEAR(ctx->nsw.contentView);
+	OBJC_CTX_CLEAR(ctx->nsw);
 
 	[ctx->nsw close];
 
