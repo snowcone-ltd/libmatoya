@@ -51,6 +51,7 @@ MTY_CType hid_driver(struct hid_dev *device)
 		case 0x045E02FD: // Microsoft X-Box One S pad (Bluetooth)
 		case 0x045E0B05: // Microsoft X-Box One Elite Series 2 pad (Bluetooth)
 		case 0x045E0B13: // Microsoft X-Box Series X (Bluetooth)
+		case 0x045E0B22: // Microsoft X-Box Elite Series 2 pad (Bluetooth)
 			return MTY_CTYPE_XBOX;
 
 		// Xbox Wired
