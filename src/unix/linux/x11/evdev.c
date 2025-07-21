@@ -21,6 +21,7 @@
 // https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h
 
 #define EVDEV_FD_MAX 33
+#define EVDEV_EVENTS_MAX 256 /* Max number of input events per read */
 
 struct evdev {
 	bool init_scan;
@@ -264,56 +265,60 @@ static void evdev_joystick_event(struct evdev *ctx, int32_t fd, EVDEV_REPORT rep
 		return;
 
 	MTY_ControllerEvent *c = &edev->state;
-	struct input_event event = {0};
+	struct input_event event_list[EVDEV_EVENTS_MAX] = {0};
 
-	if (read(fd, &event, sizeof(struct input_event)) != sizeof(struct input_event))
+	ssize_t size_read;
+	if ((size_read = read(fd, event_list, sizeof(event_list))) < (ssize_t)sizeof(struct input_event))
 		return;
 
-	if (event.type == EV_KEY) {
-		if (event.code >= 0x130 && event.code < 0x140)
-			edev->gamepad = true;
+	for (unsigned int event_index = 0; event_index < size_read/sizeof(struct input_event); event_index++) {
 
-		MTY_CButton cb = evdev_button(event.code);
+		if (event_list[event_index].type == EV_KEY) {
+			if (event_list[event_index].code >= 0x130 && event_list[event_index].code < 0x140)
+				edev->gamepad = true;
 
-		if (cb >= 0) {
-			if (cb >= MTY_CBUTTON_MAX)
-				return;
+			MTY_CButton cb = evdev_button(event_list[event_index].code);
 
-			c->buttons[cb] = event.value != 0;
-			report(edev, ctx->opaque);
-		}
+			if (cb >= 0) {
+				if (cb >= MTY_CBUTTON_MAX)
+					continue;
 
-	} else if (event.type == EV_ABS) {
-		// D-pad
-		if (event.code == ABS_HAT0X) {
-			c->buttons[MTY_CBUTTON_DPAD_RIGHT] = event.value > 0;
-			c->buttons[MTY_CBUTTON_DPAD_LEFT] = event.value < 0;
+				c->buttons[cb] = event_list[event_index].value != 0;
+				report(edev, ctx->opaque);
+			}
 
-		} else if (event.code == ABS_HAT0Y) {
-			c->buttons[MTY_CBUTTON_DPAD_UP] = event.value < 0;
-			c->buttons[MTY_CBUTTON_DPAD_DOWN] = event.value > 0;
+		} else if (event_list[event_index].type == EV_ABS) {
+			// D-pad
+			if (event_list[event_index].code == ABS_HAT0X) {
+				c->buttons[MTY_CBUTTON_DPAD_RIGHT] = event_list[event_index].value > 0;
+				c->buttons[MTY_CBUTTON_DPAD_LEFT] = event_list[event_index].value < 0;
 
-		// Axes
-		} else {
-			uint16_t usage = edev->gamepad ? evdev_gamepad_usage(edev, event.code, &event) :
-				evdev_joystick_usage(edev, event.code, &event);
+			} else if (event_list[event_index].code == ABS_HAT0Y) {
+				c->buttons[MTY_CBUTTON_DPAD_UP] = event_list[event_index].value < 0;
+				c->buttons[MTY_CBUTTON_DPAD_DOWN] = event_list[event_index].value > 0;
 
-			if (usage > 0) {
-				uint8_t slot = edev->ainfo[event.code].slot;
+			// Axes
+			} else {
+				uint16_t usage = edev->gamepad ? evdev_gamepad_usage(edev, event_list[event_index].code, event_list + event_index) :
+					evdev_joystick_usage(edev, event_list[event_index].code, event_list + event_index);
 
-				if (slot >= MTY_CAXIS_MAX)
-					return;
+				if (usage > 0) {
+					uint8_t slot = edev->ainfo[event_list[event_index].code].slot;
 
-				c->axes[slot].value  = event.value;
-				c->axes[slot].usage  = usage;
-				c->axes[slot].min = edev->ainfo[event.code].min;
-				c->axes[slot].max = edev->ainfo[event.code].max;
+					if (slot >= MTY_CAXIS_MAX)
+						continue;
+
+					c->axes[slot].value  = event_list[event_index].value;
+					c->axes[slot].usage  = usage;
+					c->axes[slot].min = edev->ainfo[event_list[event_index].code].min;
+					c->axes[slot].max = edev->ainfo[event_list[event_index].code].max;
+				}
 			}
 		}
-	}
 
-	if (event.type != EV_SYN)
-		report(edev, ctx->opaque);
+		if (event_list[event_index].type != EV_SYN)
+			report(edev, ctx->opaque);
+	}
 }
 
 static void evdev_initial_scan(struct evdev *ctx)
