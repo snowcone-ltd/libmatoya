@@ -1354,6 +1354,13 @@ MTY_WebViewSendText(MTY_App *app, MTY_Window window, const char *text);
 MTY_EXPORT void
 MTY_WebViewReload(MTY_App *app, MTY_Window window);
 
+/// @brief Open the dev tools for the WebView.
+/// @param app The MTY_App.
+/// @param window An MTY_Window.
+/// @returns Returns true on success, false if the WebView is not visible or was not initialized with debugging enabled.
+MTY_EXPORT bool
+MTY_WebViewOpenDevTools(MTY_App *app, MTY_Window window);
+
 /// @brief Enable or disable input passthrough from the WebView.
 /// @details When input passthrough is enabled, keyboard events from the JavaScript
 ///   environment will be automatically converted into MTY_Event events. See MTY_EventType for

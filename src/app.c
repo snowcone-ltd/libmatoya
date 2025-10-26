@@ -449,6 +449,15 @@ void MTY_WebViewReload(MTY_App *app, MTY_Window window)
 	mty_webview_reload(cmn->webview);
 }
 
+bool MTY_WebViewOpenDevTools(MTY_App *app, MTY_Window window)
+{
+	struct window_common *cmn = mty_window_get_common(app, window);
+	if (!cmn || !cmn->webview)
+		return false;
+
+	return mty_webview_open_dev_tools(cmn->webview);
+}
+
 void MTY_WebViewSetInputPassthrough(MTY_App *app, MTY_Window window, bool passthrough)
 {
 	struct window_common *cmn = mty_window_get_common(app, window);

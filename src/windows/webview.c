@@ -580,6 +580,15 @@ void mty_webview_reload(struct webview *ctx)
 	ICoreWebView2_Reload(ctx->webview);
 }
 
+bool mty_webview_open_dev_tools(struct webview *ctx)
+{
+	if (!ctx->webview)
+		return false;
+
+	ICoreWebView2_OpenDevToolsWindow(ctx->webview);
+	return true;
+}
+
 void mty_webview_set_input_passthrough(struct webview *ctx, bool passthrough)
 {
 	ctx->passthrough = passthrough;

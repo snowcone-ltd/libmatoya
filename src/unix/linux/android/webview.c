@@ -35,6 +35,11 @@ void mty_webview_reload(struct webview *ctx)
 {
 }
 
+bool mty_webview_open_dev_tools(struct webview *ctx)
+{
+	return false;
+}
+
 void mty_webview_set_input_passthrough(struct webview *ctx, bool passthrough)
 {
 }

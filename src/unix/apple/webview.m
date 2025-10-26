@@ -311,6 +311,18 @@ void mty_webview_reload(struct webview *ctx)
 	[ctx->webview reload];
 }
 
+bool mty_webview_open_dev_tools(struct webview *ctx)
+{
+	@try {
+		id inspector = [ctx->webview valueForKey:@"_inspector"];
+		if ([inspector respondsToSelector:@selector(show)]) {
+			[inspector performSelector:@selector(show)];
+		}
+	} @catch (NSException *exception) {
+		NSLog(@"Could not open WKWebView inspector: %@", exception);
+	}
+}
+
 void mty_webview_set_input_passthrough(struct webview *ctx, bool passthrough)
 {
 	ctx->passthrough = passthrough;

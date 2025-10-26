@@ -474,6 +474,11 @@ void mty_webview_reload(struct webview *ctx)
 	SteamAPI_ISteamHTMLSurface_Reload(ctx->surface, ctx->browser);
 }
 
+void mty_webview_open_dev_tools(struct webview *ctx)
+{
+	return false;
+}
+
 void mty_webview_set_input_passthrough(struct webview *ctx, bool passthrough)
 {
 	ctx->passthrough = passthrough;
