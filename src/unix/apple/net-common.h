@@ -68,15 +68,27 @@ static NSURLSessionConfiguration *net_configuration(const char *proxy)
 	if (proxy) {
 		NSURLComponents *comps = [NSURLComponents componentsWithString:[NSString stringWithUTF8String:proxy]];
 
-		if (comps) {
-			cfg.connectionProxyDictionary = @{
-				@"HTTPEnable": @YES,
-				@"HTTPProxy": comps.host,
-				@"HTTPPort": comps.port,
-				@"HTTPSEnable": @YES,
-				@"HTTPSProxy": comps.host,
-				@"HTTPSPort": comps.port,
-			};
+		if (comps && comps.host && comps.port) {
+			NSString *scheme = comps.scheme ? comps.scheme : @"http";
+
+			if ([scheme caseInsensitiveCompare:@"socks5"] == NSOrderedSame ||
+				[scheme caseInsensitiveCompare:@"socks5h"] == NSOrderedSame) {
+				cfg.connectionProxyDictionary = @{
+					@"SOCKSEnable": @YES,
+					@"SOCKSProxy": comps.host,
+					@"SOCKSPort": comps.port,
+				};
+
+			} else {
+				cfg.connectionProxyDictionary = @{
+					@"HTTPEnable": @YES,
+					@"HTTPProxy": comps.host,
+					@"HTTPPort": comps.port,
+					@"HTTPSEnable": @YES,
+					@"HTTPSProxy": comps.host,
+					@"HTTPSPort": comps.port,
+				};
+			}
 		}
 	}
 

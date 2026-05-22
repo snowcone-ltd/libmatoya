@@ -68,10 +68,32 @@ static uint8_t evdev_find_slot(struct evdev *ctx)
 	return 0;
 }
 
-static void evdev_device_add(struct evdev *ctx, const char *devnode, const char *syspath)
+static bool evdev_is_prop_set(struct udev_device *dev, const char *key)
+{
+	const char *val = udev_device_get_property_value(dev, key);
+
+	return val && !strcmp(val, "1");
+}
+
+static bool evdev_is_ignored(struct udev_device *dev)
+{
+	if (evdev_is_prop_set(dev, "ID_INPUT_JOYSTICK") || evdev_is_prop_set(dev, "ID_INPUT_GAMEPAD"))
+		return false;
+
+	return evdev_is_prop_set(dev, "ID_INPUT_TOUCHPAD") ||
+		evdev_is_prop_set(dev, "ID_INPUT_MOUSE") ||
+		evdev_is_prop_set(dev, "ID_INPUT_TABLET") ||
+		evdev_is_prop_set(dev, "ID_INPUT_TABLET_PAD") ||
+		evdev_is_prop_set(dev, "ID_INPUT_TOUCHSCREEN");
+}
+
+static void evdev_device_add(struct evdev *ctx, struct udev_device *dev, const char *devnode)
 {
 	struct evdev_dev *edev = MTY_HashGet(ctx->devices, devnode);
 	if (edev)
+		return;
+
+	if (evdev_is_ignored(dev))
 		return;
 
 	uint8_t slot = evdev_find_slot(ctx);
@@ -169,7 +191,6 @@ static void evdev_new_device(struct evdev *ctx)
 
 	const char *action = udev_device_get_action(dev);
 	const char *devnode = udev_device_get_devnode(dev);
-	const char *syspath = udev_device_get_syspath(dev);
 	if (!action || !devnode)
 		goto except;
 
@@ -177,7 +198,7 @@ static void evdev_new_device(struct evdev *ctx)
 		goto except;
 
 	if (!strcmp(action, "add")) {
-		evdev_device_add(ctx, devnode, syspath);
+		evdev_device_add(ctx, dev, devnode);
 
 	} else if (!strcmp(action, "remove")) {
 		evdev_device_remove(ctx, devnode);
@@ -333,7 +354,7 @@ static void evdev_initial_scan(struct evdev *ctx)
 		if (dev) {
 			const char *devnode = udev_device_get_devnode(dev);
 			if (devnode && strstr(devnode, "/event"))
-				evdev_device_add(ctx, devnode, syspath);
+				evdev_device_add(ctx, dev, devnode);
 		}
 	}
 

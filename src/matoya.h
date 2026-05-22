@@ -2901,8 +2901,9 @@ typedef struct MTY_WebSocket MTY_WebSocket;
 ///   May be NULL for no additional headers.
 /// @param body Request payload.
 /// @param bodySize Size in bytes of `body`.
-/// @param proxy The proxy URL including the port, i.e. `http://example.com:1337`, or NULL
-///   to use the OS's default proxy.
+/// @param proxy The proxy URL including the port, i.e. `http://example.com:1337`,
+///   or NULL to use the OS's default proxy. `socks5://example.com:1337` and
+///   `socks5h://example.com:1337` are also supported on Linux and Apple platforms.
 /// @param timeout Time to wait in milliseconds for completion.
 /// @param response Set to the response body, or NULL if there is no response body.
 /// @param responseSize Set to the size of `response`, or 0 if there is no response body.
@@ -2938,8 +2939,9 @@ MTY_HttpAsyncDestroy(void);
 ///   May be NULL for no additional headers.
 /// @param body Request payload.
 /// @param bodySize Size in bytes of `body`.
-/// @param proxy The proxy URL including the port, i.e. `http://example.com:1337`, or NULL
-///   to use the OS's default proxy.
+/// @param proxy The proxy URL including the port, i.e. `http://example.com:1337`,
+///   or NULL to use the OS's default proxy. `socks5://example.com:1337` and
+///   `socks5h://example.com:1337` are also supported on Linux and Apple platforms.
 /// @param timeout Time the thread will wait in milliseconds for completion.
 /// @param image Attempt to decompress an image response. If successful, the `size` argument
 ///   supplied to MTY_HttpAsyncPoll will be set to `width | height << 16`.
@@ -2972,8 +2974,9 @@ MTY_HttpAsyncClear(uint32_t *index);
 /// @param headers HTTP header key/value pairs in the format `Key:Value` separated by
 ///   newline characters.\n\n
 ///   May be NULL for no additional headers.
-/// @param proxy The proxy URL including the port, i.e. `http://example.com:1337`, or NULL
-///   to use the OS's default proxy.
+/// @param proxy The proxy URL including the port, i.e. `http://example.com:1337`,
+///   or NULL to use the OS's default proxy. `socks5://example.com:1337` and
+///   `socks5h://example.com:1337` are also supported on Linux and Apple platforms.
 /// @param timeout Time to wait in milliseconds for connection.
 /// @param upgradeStatus Set to the HTTP response status code of the WebSocket upgrade
 ///   request. This value is set even on failure.

@@ -28,6 +28,7 @@ static struct udev_device *(*udev_device_new_from_syspath)(struct udev *udev, co
 static const char *(*udev_device_get_syspath)(struct udev_device *udev_device);
 static const char *(*udev_device_get_action)(struct udev_device *udev_device);
 static const char *(*udev_device_get_devnode)(struct udev_device *udev_device);
+static const char *(*udev_device_get_property_value)(struct udev_device *udev_device, const char *key);
 static struct udev_device *(*udev_device_unref)(struct udev_device *udev_device);
 static struct udev_enumerate *(*udev_enumerate_new)(struct udev *udev);
 static int (*udev_enumerate_add_match_subsystem)(struct udev_enumerate *udev_enumerate, const char *subsystem);
@@ -79,6 +80,7 @@ static bool libudev_global_init(void)
 		LOAD_SYM(LIBUDEV_SO, udev_device_get_action);
 		LOAD_SYM(LIBUDEV_SO, udev_device_get_syspath);
 		LOAD_SYM(LIBUDEV_SO, udev_device_get_devnode);
+		LOAD_SYM(LIBUDEV_SO, udev_device_get_property_value);
 		LOAD_SYM(LIBUDEV_SO, udev_device_unref);
 		LOAD_SYM(LIBUDEV_SO, udev_enumerate_new);
 		LOAD_SYM(LIBUDEV_SO, udev_enumerate_add_match_subsystem);

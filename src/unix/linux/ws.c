@@ -207,25 +207,19 @@ static bool http_parse_url(const char *url, char **host, char **path)
 		return false;
 	}
 
-	// Host + port
-	*host = MTY_Strdup(url);
-
-	// Path + query
-	char *end = strchr(*host, '/');
-	end = end ? end + 1 : strchr(*host, '?');
+	const char *end = strpbrk(url, "/?");
+	if (end == url)
+		return false;
 
 	if (end) {
-		*path = MTY_Strdup(end);
-		*end = '\0';
-
+		size_t host_size = end - url;
+		*host = MTY_Alloc(host_size + 1, 1);
+		memcpy(*host, url, host_size);
 	} else {
-		*path = MTY_Strdup("");
+		*host = MTY_Strdup(url);
 	}
 
-	// Remove port
-	char *colon = strchr(*host, ':');
-	if (colon)
-		*colon = '\0';
+	*path = !end ? MTY_Strdup("") : MTY_Strdup(*end == '/' ? end + 1 : end);
 
 	return true;
 }
