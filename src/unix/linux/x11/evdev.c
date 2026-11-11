@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 #include <sys/time.h>
 #include <linux/input.h>
 
@@ -257,62 +258,150 @@ static uint16_t evdev_joystick_usage(struct evdev_dev *ctx, uint16_t type, const
 	return 0;
 }
 
+// Apply one event to the device state. Returns true if a button or d-pad
+// changed (must be reported individually so that a press+release that arrive
+// in the same batch are not collapsed into nothing).
+static bool evdev_apply_event(struct evdev_dev *edev, const struct input_event *event, bool *analog)
+{
+	MTY_ControllerEvent *c = &edev->state;
+
+	if (event->type == EV_KEY) {
+		if (event->code >= 0x130 && event->code < 0x140)
+			edev->gamepad = true;
+
+		MTY_CButton cb = evdev_button(event->code);
+
+		if (cb >= 0 && cb < MTY_CBUTTON_MAX) {
+			c->buttons[cb] = event->value != 0;
+			return true;
+		}
+
+	} else if (event->type == EV_ABS) {
+		// D-pad
+		if (event->code == ABS_HAT0X) {
+			c->buttons[MTY_CBUTTON_DPAD_RIGHT] = event->value > 0;
+			c->buttons[MTY_CBUTTON_DPAD_LEFT] = event->value < 0;
+			return true;
+
+		} else if (event->code == ABS_HAT0Y) {
+			c->buttons[MTY_CBUTTON_DPAD_UP] = event->value < 0;
+			c->buttons[MTY_CBUTTON_DPAD_DOWN] = event->value > 0;
+			return true;
+
+		// Axes
+		} else {
+			uint16_t usage = edev->gamepad ? evdev_gamepad_usage(edev, event->code, event) :
+				evdev_joystick_usage(edev, event->code, event);
+
+			if (usage > 0) {
+				uint8_t slot = edev->ainfo[event->code].slot;
+
+				if (slot < MTY_CAXIS_MAX) {
+					c->axes[slot].value  = event->value;
+					c->axes[slot].usage  = usage;
+					c->axes[slot].min = edev->ainfo[event->code].min;
+					c->axes[slot].max = edev->ainfo[event->code].max;
+					*analog = true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+// The kernel dropped events (client buffer overflow): rebuild the state from
+// the device itself, otherwise lost release events leave buttons stuck.
+static void evdev_resync(struct evdev_dev *edev, int32_t fd)
+{
+	uint8_t keys[KEY_MAX / 8 + 1] = {0};
+	struct input_event event = {0};
+	bool analog = false;
+
+	if (ioctl(fd, EVIOCGKEY(sizeof(keys)), keys) != -1) {
+		event.type = EV_KEY;
+
+		for (uint16_t code = BTN_MISC; code < BTN_DIGI; code++) {
+			event.code = code;
+			event.value = (keys[code / 8] >> (code % 8)) & 1;
+			evdev_apply_event(edev, &event, &analog);
+		}
+	}
+
+	event.type = EV_ABS;
+
+	for (uint16_t code = 0; code < ABS_CNT; code++) {
+		struct input_absinfo info = {0};
+
+		if (ioctl(fd, EVIOCGABS(code), &info) == -1)
+			continue;
+
+		if (code == ABS_HAT0X || code == ABS_HAT0Y || info.minimum != 0 || info.maximum != 0) {
+			event.code = code;
+			event.value = info.value;
+			evdev_apply_event(edev, &event, &analog);
+		}
+	}
+}
+
 static void evdev_joystick_event(struct evdev *ctx, int32_t fd, EVDEV_REPORT report)
 {
 	struct evdev_dev *edev = MTY_HashGetInt(ctx->devices_rev, fd);
 	if (!edev)
 		return;
 
-	MTY_ControllerEvent *c = &edev->state;
-	struct input_event event = {0};
+	// Drain everything the kernel has queued. Reading a single event per poll
+	// lets fast devices (e.g. Steam Controller trackpads/gyro through Steam
+	// Input) outpace the app loop, which adds latency and eventually
+	// overflows the evdev buffer (SYN_DROPPED) and loses button releases.
+	struct input_event events[64];
+	bool analog = false;
+	bool dropped = false;
 
-	if (read(fd, &event, sizeof(struct input_event)) != sizeof(struct input_event))
-		return;
+	for (uint32_t batch = 0; batch < 64; batch++) {
+		ssize_t r = read(fd, events, sizeof(events));
+		if (r <= 0)
+			break;
 
-	if (event.type == EV_KEY) {
-		if (event.code >= 0x130 && event.code < 0x140)
-			edev->gamepad = true;
+		size_t n = (size_t) r / sizeof(struct input_event);
 
-		MTY_CButton cb = evdev_button(event.code);
+		for (size_t x = 0; x < n; x++) {
+			const struct input_event *event = &events[x];
 
-		if (cb >= 0) {
-			if (cb >= MTY_CBUTTON_MAX)
-				return;
+			if (event->type == EV_SYN && event->code == SYN_DROPPED) {
+				dropped = true;
+				continue;
+			}
 
-			c->buttons[cb] = event.value != 0;
-			report(edev, ctx->opaque);
-		}
+			// After SYN_DROPPED, ignore events until the next SYN_REPORT
+			if (dropped) {
+				if (event->type == EV_SYN && event->code == SYN_REPORT) {
+					evdev_resync(edev, fd);
+					report(edev, ctx->opaque);
+					dropped = false;
+					analog = false;
+				}
 
-	} else if (event.type == EV_ABS) {
-		// D-pad
-		if (event.code == ABS_HAT0X) {
-			c->buttons[MTY_CBUTTON_DPAD_RIGHT] = event.value > 0;
-			c->buttons[MTY_CBUTTON_DPAD_LEFT] = event.value < 0;
+				continue;
+			}
 
-		} else if (event.code == ABS_HAT0Y) {
-			c->buttons[MTY_CBUTTON_DPAD_UP] = event.value < 0;
-			c->buttons[MTY_CBUTTON_DPAD_DOWN] = event.value > 0;
-
-		// Axes
-		} else {
-			uint16_t usage = edev->gamepad ? evdev_gamepad_usage(edev, event.code, &event) :
-				evdev_joystick_usage(edev, event.code, &event);
-
-			if (usage > 0) {
-				uint8_t slot = edev->ainfo[event.code].slot;
-
-				if (slot >= MTY_CAXIS_MAX)
-					return;
-
-				c->axes[slot].value  = event.value;
-				c->axes[slot].usage  = usage;
-				c->axes[slot].min = edev->ainfo[event.code].min;
-				c->axes[slot].max = edev->ainfo[event.code].max;
+			if (evdev_apply_event(edev, event, &analog)) {
+				report(edev, ctx->opaque);
+				analog = false;
 			}
 		}
+
+		if (n < sizeof(events) / sizeof(events[0]))
+			break;
 	}
 
-	if (event.type != EV_SYN)
+	if (dropped) {
+		evdev_resync(edev, fd);
+		analog = true;
+	}
+
+	// Analog changes are coalesced: one report with the latest values
+	if (analog)
 		report(edev, ctx->opaque);
 }
 
